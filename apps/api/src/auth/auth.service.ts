@@ -9,6 +9,9 @@ import { ApiError } from '../common/errors/api-error';
 import { JwtUser } from './decorators/current-user.decorator';
 
 const formatDate = (value: any) => {
+  // MongoDB returns Date fields as native Date instances (Firestore returned
+  // a {_seconds, _nanoseconds} Timestamp instead) — handle both shapes.
+  if (value instanceof Date) return value.toLocaleDateString();
   if (!value?._seconds) return value;
   return new Date(value._seconds * 1000).toLocaleDateString();
 };

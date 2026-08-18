@@ -6,7 +6,7 @@ import { DoctorRepository } from '../repositories/doctor.repository';
 import { PatientRepository } from '../repositories/patient.repository';
 import { DashboardRepository } from '../repositories/dashboard.repository';
 import { ApiError } from '../common/errors/api-error';
-import { FIREBASE_COLLECTIONS, ROLE } from '@agam-plus/shared';
+import { DB_COLLECTIONS, ROLE } from '@agam-plus/shared';
 import { getDateCategory } from '../utils/dateUtils';
 import { JwtUser } from '../auth/decorators/current-user.decorator';
 import { AdminDashboardData, DoctorDashboardData } from '../types/dashboard';
@@ -44,6 +44,32 @@ export class HospitalsService {
 
   async getAllHospitals() {
     return this.hospitalRepository.getAllHospitals();
+  }
+
+  async createHospital(user: JwtUser, body: Record<string, any>) {
+    const hospital = await this.hospitalRepository.createHospital({
+      name: body.name,
+      address: body.address,
+      phone: body.phone,
+      email: body.email,
+      website: body.website,
+      description: body.description,
+    });
+
+    // The creator becomes the hospital's first (approved) admin so it isn't left ownerless.
+    await this.membershipRepository.createHospitalMembership({
+      hospitalId: hospital.id,
+      firebaseUid: user.uid,
+      userId: user.userId,
+      role: ROLE.ADMIN,
+      status: 'approved',
+      invitedBy: 'self',
+      isProfileUpdated: false,
+      isExperienceUpdated: false,
+      isAvailabilityUpdated: false,
+    });
+
+    return hospital;
   }
 
   async getHospitalById(hospitalId: string) {
@@ -136,19 +162,19 @@ export class HospitalsService {
 
       const [totalPatients, totalDoctors, pendingDoctors, totalAppointments, todayAppointments, upcomingAppointmentsRaw, staffOnDuty] =
         await Promise.all([
-          this.dashboardRepository.countDocuments(FIREBASE_COLLECTIONS.PATIENTS, { hospitalId }),
-          this.dashboardRepository.countDocuments(FIREBASE_COLLECTIONS.HOSPITAL_MEMBERS, {
+          this.dashboardRepository.countDocuments(DB_COLLECTIONS.PATIENTS, { hospitalId }),
+          this.dashboardRepository.countDocuments(DB_COLLECTIONS.HOSPITAL_MEMBERS, {
             hospitalId,
             role: 'doctor',
             status: 'approved',
           }),
-          this.dashboardRepository.countDocuments(FIREBASE_COLLECTIONS.HOSPITAL_MEMBERS, {
+          this.dashboardRepository.countDocuments(DB_COLLECTIONS.HOSPITAL_MEMBERS, {
             hospitalId,
             role: 'doctor',
             status: 'pending',
           }),
-          this.dashboardRepository.countDocuments(FIREBASE_COLLECTIONS.APPOINTMENTS, { hospitalId }),
-          this.dashboardRepository.countDocumentsBetween(FIREBASE_COLLECTIONS.APPOINTMENTS, {
+          this.dashboardRepository.countDocuments(DB_COLLECTIONS.APPOINTMENTS, { hospitalId }),
+          this.dashboardRepository.countDocumentsBetween(DB_COLLECTIONS.APPOINTMENTS, {
             hospitalId,
             field: 'date',
             start: todayStartISO,

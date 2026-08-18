@@ -1,4 +1,4 @@
-export enum FIREBASE_COLLECTIONS {
+export enum DB_COLLECTIONS {
   USERS = 'users_new',
   DOCTOR_PROFILES = 'doctorProfiles_new_1',
   PATIENTS = 'patients_new_1',

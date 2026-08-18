@@ -1,22 +1,26 @@
-import { Inject, Injectable } from '@nestjs/common';
-import { Firestore } from 'firebase-admin/firestore';
-import { FIRESTORE } from '../firebase/firebase.constants';
-import { FIREBASE_COLLECTIONS } from '@agam-plus/shared';
+import { Injectable } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { DoctorProfile, DoctorProfileDocument } from '../schemas/doctor-profile.schema';
+import { User, UserDocument } from '../schemas/user.schema';
+import { toPlain, toPlainList } from './mongo.util';
 
 @Injectable()
 export class DoctorRepository {
-  constructor(@Inject(FIRESTORE) private readonly db: Firestore) {}
+  constructor(
+    @InjectModel(DoctorProfile.name) private readonly doctorModel: Model<DoctorProfileDocument>,
+    @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
+  ) {}
 
   async getDoctorProfileById(doctorProfileId: string) {
-    const doc = await this.db.collection(FIREBASE_COLLECTIONS.DOCTOR_PROFILES).doc(doctorProfileId).get();
-    if (!doc.exists) return null;
-    return { id: doc.id, ...doc.data() };
+    const doc = await this.doctorModel.findById(doctorProfileId).lean();
+    return toPlain(doc);
   }
 
   async getDoctorProfileByUserId(userId: string) {
-    const snapshot = await this.db.collection(FIREBASE_COLLECTIONS.DOCTOR_PROFILES).doc(userId).get();
-    if (!snapshot.exists) return null;
-    return { id: snapshot.id, ...snapshot.data() };
+    // _id is the owning user's id for this collection (see doctor-profile.schema.ts).
+    const doc = await this.doctorModel.findById(userId).lean();
+    return toPlain(doc);
   }
 
   async verifyDoctorInHospital(doctorProfileId: string, hospitalId: string): Promise<boolean> {
@@ -25,104 +29,69 @@ export class DoctorRepository {
   }
 
   async getDoctorProfileByHospitalAndUserId(hospitalId: string, userId: string) {
-    const snapshot = await this.db
-      .collection(FIREBASE_COLLECTIONS.DOCTOR_PROFILES)
-      .where('hospitalId', '==', hospitalId)
-      .where('userId', '==', userId)
-      .limit(1)
-      .get();
-
-    if (snapshot.empty) return null;
-    return { id: snapshot.docs[0].id, ...snapshot.docs[0].data() };
+    const doc = await this.doctorModel.findOne({ hospitalId, userId }).lean();
+    return toPlain(doc);
   }
 
   async getDoctorProfilesByUserIds(userIds: string[]) {
     if (userIds.length === 0) return [];
 
-    const profiles: any[] = [];
-    for (let i = 0; i < userIds.length; i += 10) {
-      const batch = userIds.slice(i, i + 10);
-      const snapshot = await this.db
-        .collection(FIREBASE_COLLECTIONS.DOCTOR_PROFILES)
-        .where('userId', 'in', batch)
-        .get();
-
-      snapshot.docs.forEach((doc) => {
-        profiles.push({ id: doc.id, ...doc.data() });
-      });
-    }
-
-    return profiles;
+    const docs = await this.doctorModel.find({ userId: { $in: userIds } }).lean();
+    return toPlainList(docs);
   }
 
   async upsertDoctorProfile(userId: string, profileData: any) {
-    const doctorProfileRef = this.db.collection(FIREBASE_COLLECTIONS.DOCTOR_PROFILES).doc(userId);
-    await doctorProfileRef.set(
+    await this.doctorModel.findByIdAndUpdate(
+      userId,
       {
-        userId,
-        ...profileData,
-        updatedAt: new Date(),
+        $set: {
+          userId,
+          ...profileData,
+          updatedAt: new Date(),
+        },
       },
-      { merge: true },
+      { upsert: true, setDefaultsOnInsert: true },
     );
     return userId;
   }
 
   async doctorProfileExists(userId: string): Promise<boolean> {
-    const doc = await this.db.collection(FIREBASE_COLLECTIONS.DOCTOR_PROFILES).doc(userId).get();
-    return doc.exists;
+    const count = await this.doctorModel.countDocuments({ _id: userId });
+    return count > 0;
   }
 
   async updateDoctorProfile(userId: string, updates: any) {
-    await this.db
-      .collection(FIREBASE_COLLECTIONS.DOCTOR_PROFILES)
-      .doc(userId)
-      .update({ ...updates, updatedAt: new Date() });
+    await this.doctorModel.updateOne({ _id: userId }, { $set: { ...updates, updatedAt: new Date() } });
   }
 
   async getDoctorProfileWithUser(doctorId: string) {
-    const doctorDoc = await this.db.collection(FIREBASE_COLLECTIONS.DOCTOR_PROFILES).doc(doctorId).get();
-    if (!doctorDoc.exists) return null;
+    const doctorDoc = await this.doctorModel.findById(doctorId).lean();
+    if (!doctorDoc) return null;
 
-    const doctorData = doctorDoc.data();
-    const userDoc = await this.db.collection(FIREBASE_COLLECTIONS.USERS).doc((doctorData as any)?.userId).get();
+    const userDoc = await this.userModel.findById(doctorDoc.userId).lean();
 
-    return { id: doctorDoc.id, ...doctorData, user: userDoc.data() || {} };
+    return { ...toPlain(doctorDoc), user: userDoc ? toPlain(userDoc) : {} };
   }
 
   async updateDoctorProfileByUserId(userId: string, updates: any) {
-    const snapshot = await this.db
-      .collection(FIREBASE_COLLECTIONS.DOCTOR_PROFILES)
-      .where('userId', '==', userId)
-      .limit(1)
-      .get();
+    const doc = await this.doctorModel
+      .findOneAndUpdate({ userId }, { $set: { ...updates, updatedAt: new Date() } }, { returnDocument: 'after' })
+      .lean();
 
-    if (snapshot.empty) {
+    if (!doc) {
       throw new Error('Doctor profile not found');
     }
 
-    await snapshot.docs[0].ref.update({ ...updates, updatedAt: new Date() });
-    return snapshot.docs[0].data();
+    return toPlain(doc);
   }
 
   async getDoctorProfilesByIds(doctorIds: string[], hospitalId?: string) {
     if (doctorIds.length === 0) return [];
 
-    const doctors: any[] = [];
-    for (const id of doctorIds) {
-      try {
-        const doc = await this.db.collection(FIREBASE_COLLECTIONS.DOCTOR_PROFILES).doc(id).get();
-        if (!doc.exists) continue;
+    const filter: Record<string, any> = { _id: { $in: doctorIds } };
+    if (hospitalId) filter.hospitalId = hospitalId;
 
-        const data = doc.data();
-        if (!hospitalId || !data?.hospitalId || data.hospitalId === hospitalId) {
-          doctors.push({ id: doc.id, ...data });
-        }
-      } catch (error) {
-        console.error(`Error fetching doctor ${id}:`, error);
-      }
-    }
-
-    return doctors;
+    const docs = await this.doctorModel.find(filter).lean();
+    return toPlainList(docs);
   }
 }

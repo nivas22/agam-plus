@@ -1,18 +1,19 @@
-import { Inject, Injectable } from '@nestjs/common';
-import { Firestore } from 'firebase-admin/firestore';
-import { FIRESTORE } from '../firebase/firebase.constants';
-import { FIREBASE_COLLECTIONS } from '@agam-plus/shared';
+import { Injectable } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { Appointment, AppointmentDocument } from '../schemas/appointment.schema';
+import { toPlain, toPlainList } from './mongo.util';
 
 @Injectable()
 export class AppointmentRepository {
-  constructor(@Inject(FIRESTORE) private readonly db: Firestore) {}
+  constructor(@InjectModel(Appointment.name) private readonly appointmentModel: Model<AppointmentDocument>) {}
 
   async getAppointmentsByHospitalId(hospitalId: string, limit?: number) {
-    let query = this.db.collection(FIREBASE_COLLECTIONS.APPOINTMENTS).where('hospitalId', '==', hospitalId);
+    let query = this.appointmentModel.find({ hospitalId });
     if (limit) query = query.limit(limit);
 
-    const snapshot = await query.get();
-    return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    const docs = await query.lean();
+    return toPlainList(docs);
   }
 
   async getAppointmentsByDoctorId(
@@ -20,86 +21,70 @@ export class AppointmentRepository {
     doctorId: string,
     options?: { startDate?: string; endDate?: string; status?: string; limit?: number },
   ) {
-    let query = this.db
-      .collection(FIREBASE_COLLECTIONS.APPOINTMENTS)
-      .where('hospitalId', '==', hospitalId)
-      .where('doctorId', '==', doctorId);
+    const filter: Record<string, any> = { hospitalId, doctorId };
+    if (options?.startDate || options?.endDate) {
+      filter.date = {};
+      if (options.startDate) filter.date.$gte = options.startDate;
+      if (options.endDate) filter.date.$lte = options.endDate;
+    }
+    if (options?.status) filter.status = options.status;
 
-    if (options?.startDate) query = query.where('date', '>=', options.startDate);
-    if (options?.endDate) query = query.where('date', '<=', options.endDate);
-    if (options?.status) query = query.where('status', '==', options.status);
+    let query = this.appointmentModel.find(filter);
     if (options?.limit) query = query.limit(options.limit);
 
-    const snapshot = await query.get();
-    return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    const docs = await query.lean();
+    return toPlainList(docs);
   }
 
   async getUpcomingAppointments(hospitalId: string, options?: { doctorId?: string; limit?: number }) {
     const now = new Date().toISOString();
 
-    let query = this.db
-      .collection(FIREBASE_COLLECTIONS.APPOINTMENTS)
-      .where('hospitalId', '==', hospitalId)
-      .where('date', '>=', now)
-      .orderBy('date', 'asc');
+    const filter: Record<string, any> = { hospitalId, date: { $gte: now } };
+    if (options?.doctorId) filter.doctorId = options.doctorId;
 
-    if (options?.doctorId) query = query.where('doctorId', '==', options.doctorId);
+    let query = this.appointmentModel.find(filter).sort({ date: 1 });
     if (options?.limit) query = query.limit(options.limit);
 
-    const snapshot = await query.get();
-    return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    const docs = await query.lean();
+    return toPlainList(docs);
   }
 
   async createAppointment(appointmentData: any) {
-    const appointmentRef = this.db.collection(FIREBASE_COLLECTIONS.APPOINTMENTS).doc();
-    await appointmentRef.set({
+    const doc = await this.appointmentModel.create({
       ...appointmentData,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    return appointmentRef.id;
+    return doc._id.toString();
   }
 
   async createAppointmentsBatch(appointments: any[]) {
-    const batch = this.db.batch();
-    const appointmentIds: string[] = [];
-
-    appointments.forEach((appointmentData) => {
-      const appointmentRef = this.db.collection(FIREBASE_COLLECTIONS.APPOINTMENTS).doc();
-      batch.set(appointmentRef, {
+    const now = new Date();
+    const docs = await this.appointmentModel.insertMany(
+      appointments.map((appointmentData) => ({
         ...appointmentData,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      });
-      appointmentIds.push(appointmentRef.id);
-    });
-
-    await batch.commit();
-    return appointmentIds;
+        createdAt: now,
+        updatedAt: now,
+      })),
+      { ordered: false },
+    );
+    return docs.map((doc) => doc._id.toString());
   }
 
   async updateAppointment(appointmentId: string, updates: any) {
-    await this.db
-      .collection(FIREBASE_COLLECTIONS.APPOINTMENTS)
-      .doc(appointmentId)
-      .update({ ...updates, updatedAt: new Date() });
+    await this.appointmentModel.updateOne({ _id: appointmentId }, { $set: { ...updates, updatedAt: new Date() } });
   }
 
   async getAppointmentById(appointmentId: string) {
-    const doc = await this.db.collection(FIREBASE_COLLECTIONS.APPOINTMENTS).doc(appointmentId).get();
-    if (!doc.exists) return null;
-    return { id: doc.id, ...doc.data() };
+    const doc = await this.appointmentModel.findById(appointmentId).lean();
+    return toPlain(doc);
   }
 
   async getAppointmentsByDoctorAndDate(doctorProfileId: string, date: string, statuses: string[] = ['scheduled', 'confirmed']) {
-    const snapshot = await this.db
-      .collection(FIREBASE_COLLECTIONS.APPOINTMENTS)
-      .where('doctorProfileId', '==', doctorProfileId)
-      .where('date', '==', date)
-      .where('status', 'in', statuses)
-      .get();
-
-    return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    const docs = await this.appointmentModel
+      .find({ doctorProfileId, date, status: { $in: statuses } })
+      .lean();
+    return toPlainList(docs);
   }
 
   async getAppointmentsWithFilters(options: {
@@ -111,19 +96,18 @@ export class AppointmentRepository {
     endDate?: string;
     limit?: number;
   }) {
-    let query: any = this.db.collection(FIREBASE_COLLECTIONS.APPOINTMENTS).where('hospitalId', '==', options.hospitalId);
-
-    if (options.doctorProfileId) query = query.where('doctorProfileId', '==', options.doctorProfileId);
-    if (options.patientId) query = query.where('patientId', '==', options.patientId);
-    if (options.status) query = query.where('status', '==', options.status);
+    const filter: Record<string, any> = { hospitalId: options.hospitalId };
+    if (options.doctorProfileId) filter.doctorProfileId = options.doctorProfileId;
+    if (options.patientId) filter.patientId = options.patientId;
+    if (options.status) filter.status = options.status;
     if (options.startDate && options.endDate) {
-      query = query.where('date', '>=', options.startDate).where('date', '<=', options.endDate);
+      filter.date = { $gte: options.startDate, $lte: options.endDate };
     }
 
-    query = query.orderBy('date', 'asc').orderBy('time', 'asc');
+    let query = this.appointmentModel.find(filter).sort({ date: 1, time: 1 });
     if (options.limit) query = query.limit(options.limit);
 
-    const snapshot = await query.get();
-    return snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
+    const docs = await query.lean();
+    return toPlainList(docs);
   }
 }

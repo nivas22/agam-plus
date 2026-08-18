@@ -1,8 +1,11 @@
 import { Global, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as admin from 'firebase-admin';
-import { FIREBASE_AUTH, FIRESTORE } from './firebase.constants';
+import { FIREBASE_AUTH } from './firebase.constants';
 
+// Firebase is used only to verify Google ID tokens at login (see
+// auth.service.ts). Application data lives in MongoDB (see database.module.ts) —
+// this module no longer exposes a Firestore provider.
 @Global()
 @Module({
   providers: [
@@ -29,16 +32,11 @@ import { FIREBASE_AUTH, FIRESTORE } from './firebase.constants';
       },
     },
     {
-      provide: FIRESTORE,
-      inject: ['FIREBASE_ADMIN_APP'],
-      useFactory: (app: admin.app.App) => app.firestore(),
-    },
-    {
       provide: FIREBASE_AUTH,
       inject: ['FIREBASE_ADMIN_APP'],
       useFactory: (app: admin.app.App) => app.auth(),
     },
   ],
-  exports: [FIRESTORE, FIREBASE_AUTH],
+  exports: [FIREBASE_AUTH],
 })
 export class FirebaseModule {}

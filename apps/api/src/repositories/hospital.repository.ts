@@ -1,34 +1,41 @@
-import { Inject, Injectable } from '@nestjs/common';
-import { Firestore } from 'firebase-admin/firestore';
-import { FIRESTORE } from '../firebase/firebase.constants';
-import { FIREBASE_COLLECTIONS } from '@agam-plus/shared';
+import { Injectable } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { Hospital, HospitalDocument } from '../schemas/hospital.schema';
+import { toPlain, toPlainList } from './mongo.util';
 
 @Injectable()
 export class HospitalRepository {
-  constructor(@Inject(FIRESTORE) private readonly db: Firestore) {}
+  constructor(@InjectModel(Hospital.name) private readonly hospitalModel: Model<HospitalDocument>) {}
 
   async getAllHospitals() {
-    const snapshot = await this.db.collection(FIREBASE_COLLECTIONS.HOSPITALS).get();
-    return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    const docs = await this.hospitalModel.find().lean();
+    return toPlainList(docs);
+  }
+
+  async createHospital(data: any) {
+    const doc = await this.hospitalModel.create({
+      ...data,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    return toPlain(doc.toObject());
   }
 
   async getHospitalById(hospitalId: string) {
-    const doc = await this.db.collection(FIREBASE_COLLECTIONS.HOSPITALS).doc(hospitalId).get();
-    if (!doc.exists) return null;
-    return { id: doc.id, ...doc.data() };
+    const doc = await this.hospitalModel.findById(hospitalId).lean();
+    return toPlain(doc);
   }
 
   async updateHospital(hospitalId: string, data: any) {
-    const hospitalRef = this.db.collection(FIREBASE_COLLECTIONS.HOSPITALS).doc(hospitalId);
-    const doc = await hospitalRef.get();
+    const doc = await this.hospitalModel
+      .findByIdAndUpdate(hospitalId, { $set: { ...data, updatedAt: new Date() } }, { returnDocument: 'after' })
+      .lean();
 
-    if (!doc.exists) {
+    if (!doc) {
       throw new Error('Hospital not found');
     }
 
-    await hospitalRef.update({ ...data, updatedAt: new Date() });
-
-    const updatedDoc = await hospitalRef.get();
-    return { id: updatedDoc.id, ...updatedDoc.data() };
+    return toPlain(doc);
   }
 }

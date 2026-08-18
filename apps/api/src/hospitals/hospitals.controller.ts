@@ -6,7 +6,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { JwtUser } from '../auth/decorators/current-user.decorator';
 import { HospitalContextGuard } from '../auth/guards/hospital-context.guard';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
-import { requestAccessSchema } from '../common/validation/schemas';
+import { createHospitalSchema, requestAccessSchema } from '../common/validation/schemas';
 
 @Controller('hospitals')
 export class HospitalsController {
@@ -16,6 +16,12 @@ export class HospitalsController {
   @Get()
   list() {
     return this.hospitalsService.getAllHospitals();
+  }
+
+  @Post()
+  @UsePipes(new ZodValidationPipe(createHospitalSchema))
+  create(@CurrentUser() user: JwtUser, @Body() body: Record<string, any>) {
+    return this.hospitalsService.createHospital(user, body);
   }
 
   @Post('request-access')
