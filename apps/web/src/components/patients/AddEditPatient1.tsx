@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { GENDER } from "@/constants";
+import { GENDER } from "@agam-plus/shared";
 
 interface AddEditPatientProps {
   isNew?: boolean;

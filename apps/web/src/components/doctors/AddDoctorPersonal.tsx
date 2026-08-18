@@ -4,7 +4,7 @@ import { useState, ChangeEvent } from "react";
 import toast from "react-hot-toast";
 import PersonalInfoSection, { PersonalInfoData } from "@/components/common/PersonalInfoSection";
 import { ArrowLeft, Save, Stethoscope, Loader2 } from "lucide-react";
-import { GENDER } from "@/constants";
+import { GENDER } from "@agam-plus/shared";
 
 interface AddDoctorPersonalProps {
   initial?: PersonalInfoData;

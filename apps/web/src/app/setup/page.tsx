@@ -4,7 +4,7 @@ import { User, Mail, Phone, Save, CheckCircle2, GraduationCap, Briefcase, MapPin
 import { useAuth } from "@/hooks/useAuth";
 import { useNewDoctorApi } from "@/hooks/useNewDoctorApi";
 import { useRouter } from "next/navigation";
-import { GENDER } from "@/constants";
+import { GENDER } from "@agam-plus/shared";
 
 interface CreateDoctorData {
   // Personal Info

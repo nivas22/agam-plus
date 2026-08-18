@@ -11,7 +11,7 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { AuthData, AuthError, Hospital, LoginSuccess } from '@/types/auth';
 import { HospitalMember } from '@/types/doctorNew';
-import { MEMBERSHIP_STATUS, ROLE } from '@/constants';
+import { MEMBERSHIP_STATUS, ROLE } from '@agam-plus/shared';
 
 
 // Query keys

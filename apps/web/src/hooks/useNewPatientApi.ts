@@ -1,7 +1,7 @@
 // hooks/useNewPatientApi.ts
 'use client';
 
-import { GENDER } from '@/constants';
+import { GENDER } from '@agam-plus/shared';
 import { Patient, CreatePatientData, UpdatePatientData, PatientsResponse } from '@/types/patientNew';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams } from 'next/navigation';

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { GENDER } from '../../constants';
+import { GENDER } from '@agam-plus/shared';
 
 /* -------------------------------------------------------------------------- */
 /*                              AUTH SCHEMAS                                  */

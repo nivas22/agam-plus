@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Building2, Mail, Phone, MapPin, Save, Loader2, Image as ImageIcon, Check } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import { MEDICAL_SPECIALIZATIONS } from '@/constants';
+import { MEDICAL_SPECIALIZATIONS } from '@agam-plus/shared';
 import MobileLoadingSpinner from './MobileLoadingSpinner';
 import { apiUrl, fetchWithAuth } from '@/lib/api';
 

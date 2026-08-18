@@ -19,7 +19,7 @@ import { StepProfessional } from "@/components/doctors/StepProfessional";
 import { StepPersonal } from "@/components/doctors/StepPersonal";
 import { useNewDoctorApi, useHospitalDoctor } from "@/hooks/useNewDoctorApi";
 import { TimeSlot } from "@/types/appointment";
-import { GENDER } from "@/constants";
+import { GENDER } from "@agam-plus/shared";
 
 interface AddEditDoctorProps {
     isNew?: boolean;

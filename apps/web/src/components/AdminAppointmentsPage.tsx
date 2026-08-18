@@ -25,7 +25,7 @@ import NewFiltersPanel from "./NewFilterPanel";
 import { useHospitalAppointmentsApi, useUpdateHospitalAppointmentStatus } from "@/hooks/useNewAppointmentsApi";
 import { useHospitalPatients } from "@/hooks/useNewPatientApi";
 import { useHospitalDoctors } from "@/hooks/useNewDoctorApi";
-import { ROLE } from "@/constants";
+import { ROLE } from "@agam-plus/shared";
 
 const dateFilterOptions: FilterOption[] = [
   { id: "today", label: "Today", shortLabel: "Today", color: "bg-blue-500", textColor: "text-blue-500" },

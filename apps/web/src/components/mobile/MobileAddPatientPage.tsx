@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Save, Loader2, User, Mail, Phone, Calendar, MapPin, Droplet, Check } from 'lucide-react';
-import { MEDICAL_SPECIALIZATIONS } from '@/constants';
+import { MEDICAL_SPECIALIZATIONS } from '@agam-plus/shared';
 import MobileLoadingSpinner from './MobileLoadingSpinner';
 import { apiUrl, fetchWithAuth } from '@/lib/api';
 

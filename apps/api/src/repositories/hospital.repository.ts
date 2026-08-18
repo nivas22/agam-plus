@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { Firestore } from 'firebase-admin/firestore';
 import { FIRESTORE } from '../firebase/firebase.constants';
-import { FIREBASE_COLLECTIONS } from '../constants';
+import { FIREBASE_COLLECTIONS } from '@agam-plus/shared';
 
 @Injectable()
 export class HospitalRepository {
