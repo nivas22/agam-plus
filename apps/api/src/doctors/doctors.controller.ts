@@ -14,7 +14,21 @@ export class DoctorsController {
 
   @Get()
   @Roles('admin', 'doctor')
-  list(@Param('id') hospitalId: string, @Query() query: Record<string, string>) {
+  list(
+    @Param('id') hospitalId: string,
+    @Query()
+    query: {
+      search?: string;
+      status?: string;
+      specialization?: string;
+      joinedFrom?: string;
+      joinedTo?: string;
+      sortBy?: 'name' | 'joinedAt';
+      sortOrder?: 'asc' | 'desc';
+      page?: string;
+      limit?: string;
+    },
+  ) {
     return this.doctorsService.getDoctors(hospitalId, query);
   }
 

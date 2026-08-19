@@ -42,6 +42,7 @@ export interface DoctorProfile {
   appointmentDuration?: number;
   membershipId?: string | null;
   membershipStatus?: string;
+  joinedAt?: Date | string | null;
 }
 
 export interface TimeSlot {

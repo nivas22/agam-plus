@@ -10,6 +10,7 @@ interface PaginationProps {
   hasPreviousPage: boolean;
   total: number;
   limit: number;
+  transparent?: boolean;
 }
 
 export default function Pagination({
@@ -20,6 +21,7 @@ export default function Pagination({
   hasPreviousPage,
   total,
   limit,
+  transparent = false,
 }: PaginationProps) {
   const startItem = (currentPage - 1) * limit + 1;
   const endItem = Math.min(currentPage * limit, total);
@@ -62,7 +64,12 @@ export default function Pagination({
   if (totalPages <= 1) return null;
 
   return (
-    <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-white to-gray-50 border-t border-gray-200 sm:px-8 rounded-b-xl shadow-sm">
+    <div
+      className={`flex items-center justify-between px-6 py-4 sm:px-8 ${
+        transparent ? '' : 'bg-gradient-to-r from-white to-gray-50 border-t border-gray-200 rounded-b-xl shadow-sm'
+      }`}
+    >
+
       {/* Mobile View */}
       <div className="flex justify-between items-center flex-1 gap-3 sm:hidden">
         <button

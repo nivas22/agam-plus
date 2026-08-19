@@ -21,10 +21,25 @@ export class DoctorsService {
 
   async getDoctors(
     hospitalId: string,
-    query: { status?: string; specialization?: string; page?: string; limit?: string },
+    query: {
+      search?: string;
+      status?: string;
+      specialization?: string;
+      joinedFrom?: string;
+      joinedTo?: string;
+      sortBy?: 'name' | 'joinedAt';
+      sortOrder?: 'asc' | 'desc';
+      page?: string;
+      limit?: string;
+    },
   ) {
+    const searchFilter = query.search?.trim().toLowerCase();
     const statusFilter = query.status;
     const specializationFilter = query.specialization;
+    const joinedFrom = query.joinedFrom ? new Date(query.joinedFrom) : undefined;
+    const joinedTo = query.joinedTo ? new Date(query.joinedTo) : undefined;
+    const sortBy = query.sortBy || 'name';
+    const sortOrder = query.sortOrder === 'desc' ? -1 : 1;
 
     const page = parseInt(query.page || '1', 10);
     const limit = parseInt(query.limit || '10', 10);
@@ -91,18 +106,47 @@ export class DoctorsService {
         specialization: membership.specialization || prof.specialization || null,
         qualification: prof.qualification || null,
         consultationFee: membership.consultationFee || prof.consultationFee || null,
-        availability: membership.availability || null,
+        // The "Edit Doctor" form saves availability onto the doctor profile (via
+        // PUT /doctors/:id), while the dedicated availability endpoint saves it onto
+        // the membership record — read both so neither write path is silently ignored.
+        availability: membership.availability || prof.availability || null,
         experience: prof.experience || null,
         bio: prof.bio || '',
         address: prof.address || '',
+        joinedAt: membership.joinedAt || null,
       });
     }
 
-    // Sort doctors by name alphabetically
-    const sortedDoctors = doctors.sort((a, b) => {
+    // Filter by search term (name, email, phone)
+    let searchedDoctors = doctors;
+    if (searchFilter) {
+      searchedDoctors = searchedDoctors.filter((d: any) =>
+        [d.name, d.email, d.phone].some((field) => field?.toLowerCase().includes(searchFilter)),
+      );
+    }
+
+    // Filter by joinedAt date range
+    if (joinedFrom || joinedTo) {
+      searchedDoctors = searchedDoctors.filter((d: any) => {
+        if (!d.joinedAt) return false;
+        const joinedAt = new Date(d.joinedAt);
+        if (joinedFrom && joinedAt < joinedFrom) return false;
+        if (joinedTo && joinedAt > joinedTo) return false;
+        return true;
+      });
+    }
+
+    // Sort doctors by the requested field
+    const sortedDoctors = searchedDoctors.sort((a: any, b: any) => {
+      if (sortBy === 'joinedAt') {
+        const timeA = a.joinedAt ? new Date(a.joinedAt).getTime() : 0;
+        const timeB = b.joinedAt ? new Date(b.joinedAt).getTime() : 0;
+        return (timeA - timeB) * sortOrder;
+      }
+
       const nameA = a.name?.toLowerCase() || '';
       const nameB = b.name?.toLowerCase() || '';
-      return nameA.localeCompare(nameB);
+      return nameA.localeCompare(nameB) * sortOrder;
     });
 
     // Calculate pagination
@@ -235,6 +279,7 @@ export class DoctorsService {
       ...doctor,
       specialization: membershipData?.specialization || doctorData.specialization,
       consultationFee: membershipData?.consultationFee || doctorData.consultationFee,
+      availability: membershipData?.availability || doctorData.availability,
       membershipId: membershipData?.id,
       membershipStatus: membershipData?.status,
     };
@@ -302,6 +347,12 @@ export class DoctorsService {
     }
     if (updates.consultationFee !== undefined) {
       membershipUpdates.consultationFee = updates.consultationFee;
+    }
+    // Mirror availability onto the membership record too — appointment scheduling
+    // (getAvailability/getAvailableSlots) reads availability from membership, not
+    // from the doctor profile, so saving it here only would leave slots stale.
+    if (updates.availability !== undefined) {
+      membershipUpdates.availability = updates.availability;
     }
 
     // Update the membership if there are any updates

@@ -156,11 +156,6 @@ export default function AdminHospitalLayout({
   return (
     <ProtectedRoute requiredRole="admin">
       <div className="flex min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
-        {/* Debug indicator - remove after testing */}
-        <div className="fixed top-2 right-2 z-[100] bg-blue-500 text-white px-3 py-1 rounded-full text-xs font-bold shadow-lg">
-          💻 DESKTOP
-        </div>
-        
         {/* Desktop Sidebar */}
         <aside
           className="hidden md:flex md:flex-col bg-gradient-to-br from-indigo-600 via-purple-600 to-indigo-700 text-white fixed h-full transition-all duration-300 ease-in-out shadow-2xl backdrop-blur-lg border-r border-white/10 z-50"
@@ -674,7 +669,7 @@ export default function AdminHospitalLayout({
           className="flex-1 min-h-screen md:mt-0 mt-16 transition-all duration-300"
           style={{ marginLeft: typeof window !== 'undefined' && window.innerWidth >= 768 ? (sidebarExpanded ? '280px' : '75px') : '0' }}
         >
-          <div className="p-6 md:p-10 max-w-[1600px] mx-auto">
+          <div className="p-4 md:p-4 max-w-[1600px] mx-auto">
             <Suspense 
               key={pathname}
               fallback={

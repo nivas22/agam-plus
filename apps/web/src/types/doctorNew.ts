@@ -35,7 +35,25 @@ export interface Doctor {
   address?: string;
   membershipId?: string | undefined;
   userId?: string;
+  joinedAt?: string | null;
 }
+
+export interface DoctorListFilters {
+  search?: string;
+  status?: string;
+  specialization?: string;
+  joinedFrom?: string;
+  joinedTo?: string;
+  sortBy?: 'name' | 'joinedAt';
+  sortOrder?: 'asc' | 'desc';
+  page?: number;
+  limit?: number;
+}
+
+export const DOCTOR_SORT_OPTIONS = [
+  { value: 'name', label: 'Name' },
+  { value: 'joinedAt', label: 'Joined date' },
+];
 
 export interface HospitalMember {
   id: string;

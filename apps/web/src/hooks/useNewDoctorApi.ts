@@ -3,12 +3,13 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams } from 'next/navigation';
-import { 
-  Doctor, 
-  DoctorsResponse, 
-  CreateDoctorData, 
-  UpdateDoctorData, 
-  UpdateDoctorStatus
+import {
+  Doctor,
+  DoctorsResponse,
+  CreateDoctorData,
+  UpdateDoctorData,
+  UpdateDoctorStatus,
+  DoctorListFilters
 } from '@/types/doctorNew';
 import { useMemo } from 'react';
 import { NextAvailableSlotResponse, SlotsResponse } from '@/types/appointment';
@@ -18,12 +19,17 @@ import { apiUrl, fetchWithAuth } from '@/lib/api';
 const doctorApiFunctions = {
   // Fetch doctors for a specific hospital
   fetchHospitalDoctors: async (
-    hospitalId: string, 
-    filters?: { status?: string; specialization?: string; page?: number; limit?: number }
+    hospitalId: string,
+    filters?: DoctorListFilters
   ): Promise<DoctorsResponse & { pagination?: any }> => {
     const params = new URLSearchParams();
+    if (filters?.search) params.append('search', filters.search);
     if (filters?.status) params.append('status', filters.status);
     if (filters?.specialization) params.append('specialization', filters.specialization);
+    if (filters?.joinedFrom) params.append('joinedFrom', filters.joinedFrom);
+    if (filters?.joinedTo) params.append('joinedTo', filters.joinedTo);
+    if (filters?.sortBy) params.append('sortBy', filters.sortBy);
+    if (filters?.sortOrder) params.append('sortOrder', filters.sortOrder);
     if (filters?.page) params.append('page', filters.page.toString());
     if (filters?.limit) params.append('limit', filters.limit.toString());
 
@@ -182,8 +188,8 @@ export const doctorKeys = {
 
 // Hook for hospital doctors list
 export const useHospitalDoctors = (
-  hospitalId?: string, 
-  filters?: { status?: string; specialization?: string; page?: number; limit?: number },
+  hospitalId?: string,
+  filters?: DoctorListFilters,
   enabled: boolean = true
 ) => {
   const params = useParams();
@@ -394,7 +400,7 @@ export interface UseDoctorApiReturn {
 
 export function useNewDoctorApi(
   hospitalId?: string,
-  filters?: { status?: string; specialization?: string; page?: number; limit?: number },
+  filters?: DoctorListFilters,
   enabled: boolean = true
 ): UseDoctorApiReturn {
   const queryClient = useQueryClient();
