@@ -107,9 +107,22 @@ export const createHospitalSchema = z.object({
   email: z.string().email('Invalid email format').optional(),
   website: z.string().url('Invalid URL').optional(),
   description: z.string().optional(),
+  adminEmails: z.array(z.string().email('Invalid email format')).min(1, 'At least one admin email is required'),
 });
 
 export const updateHospitalSchema = createHospitalSchema.partial();
+
+/* -------------------------------------------------------------------------- */
+/*                        PLATFORM ADMIN SCHEMAS                              */
+/* -------------------------------------------------------------------------- */
+
+export const setPlatformAdminSchema = z.object({
+  isPlatformAdmin: z.boolean(),
+});
+
+export const addHospitalAdminSchema = z.object({
+  email: z.string().email('Invalid email format'),
+});
 
 /* -------------------------------------------------------------------------- */
 /*                          AVAILABILITY SCHEMAS                              */

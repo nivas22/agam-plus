@@ -1,10 +1,10 @@
-import { Body, Controller, Get, Param, Post, Put, UseGuards, UsePipes } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Put, UseGuards, UsePipes } from '@nestjs/common';
 import { HospitalsService } from './hospitals.service';
-import { Public } from '../auth/decorators/public.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { JwtUser } from '../auth/decorators/current-user.decorator';
 import { HospitalContextGuard } from '../auth/guards/hospital-context.guard';
+import { PlatformAdminGuard } from '../auth/guards/platform-admin.guard';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import { createHospitalSchema, requestAccessSchema } from '../common/validation/schemas';
 
@@ -12,13 +12,15 @@ import { createHospitalSchema, requestAccessSchema } from '../common/validation/
 export class HospitalsController {
   constructor(private readonly hospitalsService: HospitalsService) {}
 
-  @Public()
+  // Any authenticated user can list hospitals — the request-access flow
+  // relies on this to let doctors/staff browse hospitals to join.
   @Get()
   list() {
     return this.hospitalsService.getAllHospitals();
   }
 
   @Post()
+  @UseGuards(PlatformAdminGuard)
   @UsePipes(new ZodValidationPipe(createHospitalSchema))
   create(@CurrentUser() user: JwtUser, @Body() body: Record<string, any>) {
     return this.hospitalsService.createHospital(user, body);
@@ -41,6 +43,12 @@ export class HospitalsController {
   @Put(':id')
   update(@Param('id') id: string, @Body() body: Record<string, any>) {
     return this.hospitalsService.updateHospital(id, body);
+  }
+
+  @Delete(':id')
+  @UseGuards(PlatformAdminGuard)
+  delete(@Param('id') id: string) {
+    return this.hospitalsService.deleteHospital(id);
   }
 
   @Get(':id/dashboard')

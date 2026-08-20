@@ -11,6 +11,7 @@ import { HospitalsModule } from './hospitals/hospitals.module';
 import { DoctorsModule } from './doctors/doctors.module';
 import { PatientsModule } from './patients/patients.module';
 import { AppointmentsModule } from './appointments/appointments.module';
+import { PlatformAdminModule } from './platform-admin/platform-admin.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { AppointmentsModule } from './appointments/appointments.module';
     DoctorsModule,
     PatientsModule,
     AppointmentsModule,
+    PlatformAdminModule,
   ],
   controllers: [AppController],
   providers: [AppService],

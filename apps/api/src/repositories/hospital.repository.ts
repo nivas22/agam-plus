@@ -38,4 +38,8 @@ export class HospitalRepository {
 
     return toPlain(doc);
   }
+
+  async deleteHospital(hospitalId: string) {
+    await this.hospitalModel.deleteOne({ _id: hospitalId });
+  }
 }

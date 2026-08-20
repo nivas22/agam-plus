@@ -14,6 +14,7 @@ export interface AppUser {
   name: string;
   role: string;
   status: string;
+  isPlatformAdmin?: boolean;
   authUid?: string;
   isShadow?: boolean;
   originalDocId?: string;
@@ -27,6 +28,10 @@ export interface Hospital {
   id: string;
   name: string;
   address: string;
+  phone?: string;
+  email?: string;
+  website?: string;
+  description?: string;
   createdAt: any;
 }
 

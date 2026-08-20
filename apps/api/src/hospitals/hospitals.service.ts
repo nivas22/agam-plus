@@ -5,6 +5,7 @@ import { MembershipRepository } from '../repositories/membership.repository';
 import { DoctorRepository } from '../repositories/doctor.repository';
 import { PatientRepository } from '../repositories/patient.repository';
 import { DashboardRepository } from '../repositories/dashboard.repository';
+import { UserRepository } from '../repositories/user.repository';
 import { ApiError } from '../common/errors/api-error';
 import { DB_COLLECTIONS, ROLE } from '@agam-plus/shared';
 import { getDateCategory } from '../utils/dateUtils';
@@ -28,6 +29,8 @@ const ALLOWED_HOSPITAL_UPDATE_FIELDS = [
   'city',
   'location',
   'logo',
+  'website',
+  'description',
 ];
 
 @Injectable()
@@ -40,6 +43,7 @@ export class HospitalsService {
     private readonly doctorRepository: DoctorRepository,
     private readonly patientRepository: PatientRepository,
     private readonly dashboardRepository: DashboardRepository,
+    private readonly userRepository: UserRepository,
   ) {}
 
   async getAllHospitals() {
@@ -56,18 +60,27 @@ export class HospitalsService {
       description: body.description,
     });
 
-    // The creator becomes the hospital's first (approved) admin so it isn't left ownerless.
-    await this.membershipRepository.createHospitalMembership({
-      hospitalId: hospital.id,
-      firebaseUid: user.uid,
-      userId: user.userId,
-      role: ROLE.ADMIN,
-      status: 'approved',
-      invitedBy: 'self',
-      isProfileUpdated: false,
-      isExperienceUpdated: false,
-      isAvailabilityUpdated: false,
-    });
+    const adminEmails: string[] = Array.isArray(body.adminEmails) ? body.adminEmails : [];
+    const uniqueAdminEmails = [...new Set(adminEmails.map((email) => email.trim().toLowerCase()).filter(Boolean))];
+
+    // Admins are provisioned by email rather than defaulting to the creator —
+    // the platform admin creating the hospital isn't necessarily who runs it.
+    // A User doc is created up front for anyone who hasn't signed in yet; it
+    // gets linked to their firebaseUid on first Google login (see AuthService.login).
+    for (const email of uniqueAdminEmails) {
+      const adminUser = await this.userRepository.getOrCreateUserByEmail(email);
+      await this.membershipRepository.createHospitalMembership({
+        hospitalId: hospital.id,
+        userId: adminUser.id,
+        firebaseUid: adminUser.firebaseUid,
+        role: ROLE.ADMIN,
+        status: 'approved',
+        invitedBy: user.userId,
+        isProfileUpdated: false,
+        isExperienceUpdated: false,
+        isAvailabilityUpdated: false,
+      });
+    }
 
     return hospital;
   }
@@ -91,6 +104,21 @@ export class HospitalsService {
     }
 
     return this.hospitalRepository.updateHospital(hospitalId, updateData);
+  }
+
+  async deleteHospital(hospitalId: string) {
+    const hospital = await this.hospitalRepository.getHospitalById(hospitalId);
+    if (!hospital) {
+      throw ApiError.notFound('Hospital not found');
+    }
+
+    // Memberships are hospital-scoped and meaningless once the hospital is
+    // gone — leaving them behind would show up as ghost entries in affected
+    // users' hospital lists on their next login.
+    await this.membershipRepository.deleteHospitalMemberships(hospitalId);
+    await this.hospitalRepository.deleteHospital(hospitalId);
+
+    return { success: true, message: 'Hospital deleted successfully' };
   }
 
   async requestAccess(user: JwtUser, hospitalId: string, role: string | undefined, message: string | undefined) {

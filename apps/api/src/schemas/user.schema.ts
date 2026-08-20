@@ -21,6 +21,9 @@ export class User {
   @Prop()
   lastHospitalId?: string;
 
+  @Prop({ default: false })
+  isPlatformAdmin?: boolean;
+
   @Prop()
   lastLogin?: Date;
 

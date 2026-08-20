@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Hospital } from '@/types/auth';
 import { HospitalMember } from '@/types/doctorNew';
 import { useDeviceDetect } from '@/hooks/useDeviceDetect';
-import { ArrowRight, Building2, Check, Clock, LogOut, MapPin, Plus, Shield, Sparkles } from 'lucide-react';
+import { ArrowRight, Building2, Check, Clock, LogOut, MapPin, Plus, Settings, Shield, Sparkles } from 'lucide-react';
 
 export default function SelectHospitalPage() {
   const { isMobile } = useDeviceDetect();
@@ -72,6 +72,19 @@ export default function SelectHospitalPage() {
             </p>
           </div>
         </div>
+
+        {/* Platform Admin Entry Point */}
+        {user.isPlatformAdmin && (
+          <div className="mb-6 animate-fade-in">
+            <button
+              onClick={() => router.push('/platform-admin/hospitals')}
+              className="inline-flex items-center px-4 py-2.5 border border-border text-sm font-medium rounded-lg text-ink-700 bg-surface-paper hover:bg-surface-canvas transition-all shadow-sm"
+            >
+              <Settings className="mr-2 w-4 h-4" />
+              Manage Hospitals (Platform Admin)
+            </button>
+          </div>
+        )}
 
         {/* Approved Hospitals Section */}
         {approvedHospitals.length > 0 && (

@@ -123,6 +123,14 @@ export class MembershipRepository {
     await this.memberModel.deleteOne({ hospitalId, userId });
   }
 
+  async deleteHospitalMemberships(hospitalId: string) {
+    await this.memberModel.deleteMany({ hospitalId });
+  }
+
+  async deleteHospitalMembershipById(membershipId: string) {
+    await this.memberModel.deleteOne({ _id: membershipId });
+  }
+
   async countHospitalMembers(criteria: { hospitalId: string; role?: string; status?: string }) {
     const filter: Record<string, any> = { hospitalId: criteria.hospitalId };
     if (criteria.role) filter.role = criteria.role;
