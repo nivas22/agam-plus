@@ -24,12 +24,6 @@ export class DoctorProfile {
   qualification?: string;
 
   @Prop()
-  consultationFee?: number;
-
-  @Prop()
-  availability?: unknown[];
-
-  @Prop()
   bio?: string;
 
   @Prop()
@@ -58,9 +52,6 @@ export class DoctorProfile {
 
   @Prop()
   maritalStatus?: string;
-
-  @Prop()
-  appointmentDuration?: number;
 
   @Prop()
   membershipId?: string;

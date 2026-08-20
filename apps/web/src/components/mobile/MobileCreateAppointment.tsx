@@ -33,6 +33,14 @@ interface MobileCreateAppointmentProps {
   hospitalId: string;
 }
 
+function BookingStatusBadge() {
+  return (
+    <span className="inline-flex items-center text-[10px] font-semibold px-2 py-0.5 rounded-full bg-status-danger-soft text-status-danger shrink-0">
+      Not accepting bookings
+    </span>
+  );
+}
+
 export default function MobileCreateAppointment({ userRole, hospitalId }: MobileCreateAppointmentProps) {
   const router = useRouter();
   const { data: patientsData = { patients: [] } } = useHospitalPatients(hospitalId, undefined, true);
@@ -171,7 +179,10 @@ export default function MobileCreateAppointment({ userRole, hospitalId }: Mobile
                   <Stethoscope className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <p className="font-semibold text-ink-900">{selectedDoctor.name}</p>
+                  <p className="font-semibold text-ink-900 flex items-center gap-2">
+                    {selectedDoctor.name}
+                    {selectedDoctor.isAcceptingBookings === false && <BookingStatusBadge />}
+                  </p>
                   <p className="text-sm text-ink-700">{selectedDoctor.specialization}</p>
                 </div>
               </div>
@@ -193,7 +204,10 @@ export default function MobileCreateAppointment({ userRole, hospitalId }: Mobile
                     <Stethoscope className="w-5 h-5 text-white" />
                   </div>
                   <div className="text-left">
-                    <p className="font-semibold text-ink-900">{selectedDoctor.name}</p>
+                    <p className="font-semibold text-ink-900 flex items-center gap-2">
+                      {selectedDoctor.name}
+                      {selectedDoctor.isAcceptingBookings === false && <BookingStatusBadge />}
+                    </p>
                     <p className="text-sm text-ink-700">{selectedDoctor.specialization}</p>
                   </div>
                 </div>
@@ -490,7 +504,10 @@ export default function MobileCreateAppointment({ userRole, hospitalId }: Mobile
                       <Stethoscope className="w-6 h-6 text-white" />
                     </div>
                     <div className="flex-1">
-                      <p className="font-semibold text-ink-900">{doctor.name}</p>
+                      <p className="font-semibold text-ink-900 flex items-center gap-2">
+                        {doctor.name}
+                        {doctor.isAcceptingBookings === false && <BookingStatusBadge />}
+                      </p>
                       <p className="text-sm text-ink-700">{doctor.specialization}</p>
                     </div>
                     {selectedDoctor?.id === doctor.id && (

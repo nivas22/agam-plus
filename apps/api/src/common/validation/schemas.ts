@@ -49,6 +49,21 @@ export const updateAppointmentSchema = z.object({
 });
 
 /* -------------------------------------------------------------------------- */
+/*                          AVAILABILITY SCHEMAS                              */
+/* -------------------------------------------------------------------------- */
+
+export const availabilitySlotSchema = z.object({
+  day: z.enum(['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']),
+  startTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format (HH:MM)'),
+  endTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format (HH:MM)'),
+});
+
+export const doctorAvailabilitySchema = z.object({
+  availability: z.array(availabilitySlotSchema).min(1, 'At least one availability slot is required'),
+  appointmentDuration: z.number().int().positive().default(30),
+});
+
+/* -------------------------------------------------------------------------- */
 /*                             DOCTOR SCHEMAS                                 */
 /* -------------------------------------------------------------------------- */
 
@@ -61,6 +76,13 @@ export const createDoctorSchema = z.object({
   experience: z.string().optional(),
   bio: z.string().optional(),
   consultationFee: z.number().optional(),
+  gender: z.string().optional(),
+  maritalStatus: z.string().optional(),
+  address: z.string().optional(),
+  status: z.enum(['active', 'inactive', 'pending']).optional(),
+  // Hospital-scoped scheduling fields — persisted on HospitalMember, not DoctorProfile.
+  availability: z.array(availabilitySlotSchema).optional(),
+  appointmentDuration: z.number().int().positive().optional(),
 });
 
 export const updateDoctorAvailabilitySchema = z.object({
@@ -122,19 +144,4 @@ export const setPlatformAdminSchema = z.object({
 
 export const addHospitalAdminSchema = z.object({
   email: z.string().email('Invalid email format'),
-});
-
-/* -------------------------------------------------------------------------- */
-/*                          AVAILABILITY SCHEMAS                              */
-/* -------------------------------------------------------------------------- */
-
-export const availabilitySlotSchema = z.object({
-  day: z.enum(['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']),
-  startTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format (HH:MM)'),
-  endTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format (HH:MM)'),
-});
-
-export const doctorAvailabilitySchema = z.object({
-  availability: z.array(availabilitySlotSchema).min(1, 'At least one availability slot is required'),
-  appointmentDuration: z.number().int().positive().default(30),
 });

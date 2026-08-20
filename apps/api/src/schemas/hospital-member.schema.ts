@@ -42,6 +42,13 @@ export class HospitalMember {
   @Prop()
   isAvailabilityUpdated?: boolean;
 
+  // Whether this doctor is currently bookable at this specific hospital —
+  // deliberately separate from `status` (membership approval workflow) and
+  // scoped per hospital, since DoctorProfile is one document per user shared
+  // across every hospital they belong to.
+  @Prop({ default: true })
+  isAcceptingBookings?: boolean;
+
   @Prop()
   availability?: unknown[];
 

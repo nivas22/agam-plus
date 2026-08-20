@@ -49,6 +49,10 @@ export class DoctorRepository {
           ...profileData,
           updatedAt: new Date(),
         },
+        // These are hospital-scoped and live only on HospitalMember; strip any
+        // copy left over from before that split so `strict: false` doesn't
+        // let stale legacy data linger on documents we touch.
+        $unset: { availability: '', consultationFee: '', appointmentDuration: '' },
       },
       { upsert: true, setDefaultsOnInsert: true },
     );
@@ -75,7 +79,15 @@ export class DoctorRepository {
 
   async updateDoctorProfileByUserId(userId: string, updates: any) {
     const doc = await this.doctorModel
-      .findOneAndUpdate({ userId }, { $set: { ...updates, updatedAt: new Date() } }, { returnDocument: 'after' })
+      .findOneAndUpdate(
+        { userId },
+        {
+          $set: { ...updates, updatedAt: new Date() },
+          // Hospital-scoped fields (see upsertDoctorProfile) shouldn't linger here either.
+          $unset: { availability: '', consultationFee: '', appointmentDuration: '' },
+        },
+        { returnDocument: 'after' },
+      )
       .lean();
 
     if (!doc) {

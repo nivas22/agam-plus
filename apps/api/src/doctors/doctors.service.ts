@@ -103,18 +103,19 @@ export class DoctorsService {
         name: prof.name || user?.name || 'Unknown Doctor',
         email: user?.email || prof.email || 'No email',
         phone: prof.phone || '',
-        // Prioritize specialization and consultationFee from membership (hospitalMember table)
+        // specialization prefers membership but still falls back to the profile
+        // (profiles created before the membership-first migration may only have
+        // it there); consultationFee/availability are membership-only.
         specialization: membership.specialization || prof.specialization || null,
         qualification: prof.qualification || null,
-        consultationFee: membership.consultationFee || prof.consultationFee || null,
-        // The "Edit Doctor" form saves availability onto the doctor profile (via
-        // PUT /doctors/:id), while the dedicated availability endpoint saves it onto
-        // the membership record — read both so neither write path is silently ignored.
-        availability: membership.availability || prof.availability || null,
+        consultationFee: membership.consultationFee || null,
+        availability: membership.availability || null,
+        appointmentDuration: membership.appointmentDuration || 30,
         experience: prof.experience || null,
         bio: prof.bio || '',
         address: prof.address || '',
         joinedAt: membership.joinedAt || null,
+        isAcceptingBookings: membership.isAcceptingBookings !== false,
       });
     }
 
@@ -184,6 +185,12 @@ export class DoctorsService {
       experience?: string;
       bio?: string;
       consultationFee?: number;
+      gender?: string;
+      maritalStatus?: string;
+      address?: string;
+      status?: 'active' | 'inactive' | 'pending';
+      availability?: TimeSlot[];
+      appointmentDuration?: number;
     },
   ) {
     // Check if user exists by email
@@ -216,14 +223,19 @@ export class DoctorsService {
         isProfileUpdated: false,
         specialization: doctorData.specialization || null,
         consultationFee: doctorData.consultationFee || null,
+        isAcceptingBookings: doctorData.status !== 'inactive',
+        availability: doctorData.availability || [],
+        appointmentDuration: doctorData.appointmentDuration || 30,
       });
     } else {
-      // Update existing membership with specialization and consultationFee if provided
-      if (doctorData.specialization || doctorData.consultationFee) {
-        const updates: Record<string, any> = {};
-        if (doctorData.specialization) updates.specialization = doctorData.specialization;
-        if (doctorData.consultationFee) updates.consultationFee = doctorData.consultationFee;
+      // Update existing membership with specialization, consultationFee, and scheduling fields if provided
+      const updates: Record<string, any> = {};
+      if (doctorData.specialization) updates.specialization = doctorData.specialization;
+      if (doctorData.consultationFee) updates.consultationFee = doctorData.consultationFee;
+      if (doctorData.availability) updates.availability = doctorData.availability;
+      if (doctorData.appointmentDuration) updates.appointmentDuration = doctorData.appointmentDuration;
 
+      if (Object.keys(updates).length > 0) {
         await this.membershipRepository.updateHospitalMembership((existingMembership as any).id, updates);
       }
     }
@@ -233,6 +245,13 @@ export class DoctorsService {
       phone: doctorData.phone || '',
       email: doctorData.email,
       name: doctorData.name,
+      specialization: doctorData.specialization || null,
+      qualification: doctorData.qualification || null,
+      experience: doctorData.experience || null,
+      bio: doctorData.bio || '',
+      gender: doctorData.gender || null,
+      maritalStatus: doctorData.maritalStatus || null,
+      address: doctorData.address || '',
       createdBy: invitedByUid,
     };
 
@@ -275,12 +294,22 @@ export class DoctorsService {
     const membership = await this.membershipRepository.getHospitalMembershipData(doctorData.userId, hospitalId);
     const membershipData = membership as any;
 
-    // Merge membership data (prioritize membership for specialization and consultationFee)
+    // Accepting-bookings is hospital-scoped (lives on the membership), unlike
+    // DoctorProfile which is a single doc shared across every hospital the
+    // doctor belongs to — fall back to the profile's status only for legacy
+    // records written before this field existed.
+    const acceptingBookings = membershipData?.isAcceptingBookings;
+    const status = acceptingBookings === undefined ? doctorData.status || 'pending' : acceptingBookings ? 'active' : 'inactive';
+
+    // consultationFee and availability live only on the membership now (see
+    // updateDoctor's allowedFields comment) — no profile fallback to merge.
     return {
       ...doctor,
+      status,
       specialization: membershipData?.specialization || doctorData.specialization,
-      consultationFee: membershipData?.consultationFee || doctorData.consultationFee,
-      availability: membershipData?.availability || doctorData.availability,
+      consultationFee: membershipData?.consultationFee,
+      availability: membershipData?.availability || [],
+      appointmentDuration: membershipData?.appointmentDuration || 30,
       membershipId: membershipData?.id,
       membershipStatus: membershipData?.status,
     };
@@ -302,18 +331,20 @@ export class DoctorsService {
       throw ApiError.forbidden('Doctor does not belong to this hospital');
     }
 
+    // consultationFee and availability are intentionally excluded — they're
+    // hospital-scoped (a doctor's fee/hours can differ per hospital) and live
+    // only on the membership below, not on the shared DoctorProfile doc.
     const allowedFields = [
       'name',
       'email',
       'phone',
-      'status',
       'specialization',
       'qualification',
-      'consultationFee',
-      'availability',
       'bio',
       'experience',
       'address',
+      'gender',
+      'maritalStatus',
       'isProfileUpdated',
       'isExperienceUpdated',
       'isAvailabilityUpdated',
@@ -325,6 +356,13 @@ export class DoctorsService {
     }
 
     updateData.updatedBy = updatedByUid;
+
+    // getDoctors/getDoctorById read email from the linked User doc first,
+    // falling back to the profile — keep them in sync or the list keeps
+    // showing the old email (same fix as PatientsService.updatePatient).
+    if (updates.email && updates.email !== (doctorProfile as any).email) {
+      await this.userRepository.updateUser((doctorProfile as any).userId, { email: updates.email });
+    }
 
     // Update doctor profile
     await this.doctorRepository.updateDoctorProfileByUserId((doctorProfile as any).userId, updateData);
@@ -342,18 +380,26 @@ export class DoctorsService {
       membershipUpdates.isAvailabilityUpdated = updates.isAvailabilityUpdated;
     }
 
-    // Store specialization and consultationFee in membership table
+    // "Accepting bookings" is per-hospital, so it lives on the membership —
+    // not on DoctorProfile, which is shared across every hospital this
+    // doctor belongs to.
+    if (updates.status !== undefined) {
+      membershipUpdates.isAcceptingBookings = updates.status === 'active';
+    }
+
+    // specialization, consultationFee, availability, and appointmentDuration all
+    // live only on the membership (see allowedFields comment above).
     if (updates.specialization !== undefined) {
       membershipUpdates.specialization = updates.specialization;
     }
     if (updates.consultationFee !== undefined) {
       membershipUpdates.consultationFee = updates.consultationFee;
     }
-    // Mirror availability onto the membership record too — appointment scheduling
-    // (getAvailability/getAvailableSlots) reads availability from membership, not
-    // from the doctor profile, so saving it here only would leave slots stale.
     if (updates.availability !== undefined) {
       membershipUpdates.availability = updates.availability;
+    }
+    if (updates.appointmentDuration !== undefined) {
+      membershipUpdates.appointmentDuration = updates.appointmentDuration;
     }
 
     // Update the membership if there are any updates

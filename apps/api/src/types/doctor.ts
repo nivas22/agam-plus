@@ -43,6 +43,7 @@ export interface DoctorProfile {
   membershipId?: string | null;
   membershipStatus?: string;
   joinedAt?: Date | string | null;
+  isAcceptingBookings?: boolean;
 }
 
 export interface TimeSlot {

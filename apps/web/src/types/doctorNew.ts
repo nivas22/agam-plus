@@ -36,6 +36,7 @@ export interface Doctor {
   membershipId?: string | undefined;
   userId?: string;
   joinedAt?: string | null;
+  isAcceptingBookings?: boolean;
 }
 
 export interface DoctorListFilters {

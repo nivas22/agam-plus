@@ -50,7 +50,7 @@ export class PatientsService {
       };
     }
 
-    const patientProfiles = await this.patientRepository.getPatientsByUserIds(memberUserIds);
+    const patientProfiles = await this.patientRepository.getPatientsByUserIds(memberUserIds, hospitalId);
 
     const patients: any[] = [];
 
@@ -207,6 +207,13 @@ export class PatientsService {
 
       if (emailExists) {
         throw ApiError.conflict('Another patient with this email already exists in this hospital');
+      }
+
+      // listPatients reads email from the linked User doc first, falling back to
+      // the profile — keep them in sync or the list keeps showing the old email.
+      const userId = (patient as any).userId;
+      if (userId) {
+        await this.userRepository.updateUser(userId, { email: updates.email });
       }
     }
 

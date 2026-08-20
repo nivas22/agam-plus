@@ -47,6 +47,7 @@ interface ComboItem {
   label: string;
   avatarName: string;
   subtitle: string;
+  acceptingBookings?: boolean;
 }
 
 function getInitials(name?: string): string {
@@ -133,7 +134,10 @@ function Combobox({
           <>
             <InitialsAvatar name={selected.avatarName} />
             <span className="min-w-0 flex-1">
-              <span className="block text-sm font-semibold text-ink-900 truncate">{selected.label}</span>
+              <span className="flex items-center gap-2">
+                <span className="block text-sm font-semibold text-ink-900 truncate">{selected.label}</span>
+                {selected.acceptingBookings === false && <BookingStatusBadge accepting={false} />}
+              </span>
               <span className="block text-xs text-ink-500 truncate">{selected.subtitle}</span>
             </span>
           </>
@@ -177,7 +181,10 @@ function Combobox({
                 >
                   <InitialsAvatar name={item.avatarName} />
                   <span className="min-w-0 flex-1">
-                    <span className="block text-sm font-medium text-ink-900 truncate">{item.label}</span>
+                    <span className="flex items-center gap-2">
+                      <span className="block text-sm font-medium text-ink-900 truncate">{item.label}</span>
+                      {item.acceptingBookings === false && <BookingStatusBadge accepting={false} />}
+                    </span>
                     <span className="block text-xs text-ink-500 truncate">{item.subtitle}</span>
                   </span>
                 </button>
@@ -189,6 +196,18 @@ function Combobox({
         </div>
       )}
     </div>
+  );
+}
+
+function BookingStatusBadge({ accepting }: { accepting: boolean }) {
+  return accepting ? (
+    <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-status-open-soft text-status-open shrink-0">
+      Accepting bookings
+    </span>
+  ) : (
+    <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-status-danger-soft text-status-danger shrink-0">
+      Not accepting bookings
+    </span>
   );
 }
 
@@ -292,6 +311,7 @@ export default function CreateAppointment({ userRole, hospitalId }: CreateAppoin
         label: `Dr. ${d.name}`,
         avatarName: d.name,
         subtitle: [d.specialization, uniqueAvailableDays(d.availability).map((day) => day.slice(0, 3)).join(" ")].filter(Boolean).join(" · "),
+        acceptingBookings: d.isAcceptingBookings,
       }));
   }, [doctorsData.doctors, doctorSearch]);
 
@@ -308,7 +328,13 @@ export default function CreateAppointment({ userRole, hospitalId }: CreateAppoin
   }, [patientsData.patients, patientSearch]);
 
   const selectedDoctorItem: ComboItem | null = selectedDoctor
-    ? { id: selectedDoctor.id, label: `Dr. ${selectedDoctor.name}`, avatarName: selectedDoctor.name, subtitle: selectedDoctor.specialization || "" }
+    ? {
+        id: selectedDoctor.id,
+        label: `Dr. ${selectedDoctor.name}`,
+        avatarName: selectedDoctor.name,
+        subtitle: selectedDoctor.specialization || "",
+        acceptingBookings: selectedDoctor.isAcceptingBookings,
+      }
     : null;
   const selectedPatientItem: ComboItem | null = selectedPatient
     ? { id: selectedPatient.id, label: selectedPatient.name, avatarName: selectedPatient.name, subtitle: [selectedPatient.phone, selectedPatient.email].filter(Boolean).join(" · ") }
@@ -510,7 +536,10 @@ export default function CreateAppointment({ userRole, hospitalId }: CreateAppoin
                           <>
                             <InitialsAvatar name={selectedDoctor.name} />
                             <span className="min-w-0 flex-1">
-                              <span className="block text-sm font-semibold text-ink-900 truncate">Dr. {selectedDoctor.name}</span>
+                              <span className="flex items-center gap-2">
+                                <span className="block text-sm font-semibold text-ink-900 truncate">Dr. {selectedDoctor.name}</span>
+                                {selectedDoctor.isAcceptingBookings === false && <BookingStatusBadge accepting={false} />}
+                              </span>
                               <span className="block text-xs text-ink-500 truncate">{selectedDoctor.specialization}</span>
                             </span>
                           </>
@@ -570,6 +599,16 @@ export default function CreateAppointment({ userRole, hospitalId }: CreateAppoin
                     />
                   </div>
                 </div>
+
+                {selectedDoctor && selectedDoctor.isAcceptingBookings === false && (
+                  <div className="flex items-start gap-3 px-4 py-3 rounded-lg bg-status-danger-soft text-xs text-status-danger">
+                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                    <span>
+                      <strong>Dr. {selectedDoctor.name}</strong> is currently not accepting bookings. You can still schedule, but consider
+                      checking with them first.
+                    </span>
+                  </div>
+                )}
 
                 {selectedDoctor && (
                   <div className="flex items-start gap-3 px-4 py-3 rounded-lg bg-surface-canvas text-xs text-ink-700">

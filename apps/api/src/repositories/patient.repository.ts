@@ -45,10 +45,10 @@ export class PatientRepository {
     return toPlainList(docs);
   }
 
-  async getPatientsByUserIds(userIds: string[]) {
+  async getPatientsByUserIds(userIds: string[], hospitalId: string) {
     if (userIds.length === 0) return [];
 
-    const docs = await this.patientModel.find({ userId: { $in: userIds } }).lean();
+    const docs = await this.patientModel.find({ userId: { $in: userIds }, hospitalId }).lean();
     return toPlainList(docs);
   }
 
