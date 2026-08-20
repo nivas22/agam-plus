@@ -7,7 +7,7 @@ import { ArrowLeft, Loader2 } from "lucide-react";
 import { usePatientApi, useHospitalPatient } from "@/hooks/useNewPatientApi";
 import { CreatePatientData, UpdatePatientData } from "@/types/patientNew";
 import { useAuth } from "@/hooks/useAuth";
-import { GENDER } from "@agam-plus/shared";
+import { GENDER } from "../../constants";
 import { calculateAge } from "@/utils/dateUtils";
 import { paletteFor } from "@/lib/avatarPalette";
 import { patientStatusConfig } from "@/lib/patientStatus";

@@ -1,4 +1,4 @@
-import { GENDER } from "@agam-plus/shared";
+import { GENDER } from "../constants";
 
 export interface Patient {
   id: string;

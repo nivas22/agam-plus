@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams } from 'next/navigation';
 import { AppointmentFormData, AppointmentResponse, AppointmentWithDetails } from '@/types/appointment';
 import { apiUrl, fetchWithAuth } from '@/lib/api';
-import { APPOINTMENT_STATUS, ACTIVE_APPOINTMENT_STATUSES } from '@agam-plus/shared';
+import { APPOINTMENT_STATUS, ACTIVE_APPOINTMENT_STATUSES } from '../constants';
 
 // Base API functions with hospital context
 const appointmentsApiFunctions = {

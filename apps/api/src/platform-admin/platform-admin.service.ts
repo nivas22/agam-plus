@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { DB_COLLECTIONS, MEMBERSHIP_STATUS, ROLE } from '@agam-plus/shared';
+import { DB_COLLECTIONS, MEMBERSHIP_STATUS, ROLE } from '../constants';
 import { UserRepository } from '../repositories/user.repository';
 import { HospitalRepository } from '../repositories/hospital.repository';
 import { MembershipRepository } from '../repositories/membership.repository';

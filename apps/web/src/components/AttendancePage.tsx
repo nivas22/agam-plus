@@ -20,7 +20,7 @@ import {
 import PageHeader from "./PageHeader";
 import { getDateRange } from "@/utils/dateUtils";
 import { useHospitalAppointmentsApi } from "@/hooks/useNewAppointmentsApi";
-import { ROLE } from "@agam-plus/shared";
+import { ROLE } from "../constants";
 
 const dateFilterOptions: FilterOption[] = [
   { id: "today", label: "Today", shortLabel: "Today", color: "bg-blue-500", textColor: "text-blue-500" },

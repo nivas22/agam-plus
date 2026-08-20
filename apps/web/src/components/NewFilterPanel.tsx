@@ -4,7 +4,7 @@ import { X, Filter, User } from "lucide-react";
 import { FaVenusMars, FaUserMd, FaUser } from "react-icons/fa";
 import FilterSelect from "./FilterSelect";
 import { PageFilterOptions } from "@/types/filter";
-import { GENDER } from "@agam-plus/shared";
+import { GENDER } from "../constants";
 
 type Option = {
   value: string;

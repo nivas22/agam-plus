@@ -7,7 +7,7 @@ import { AppointmentRepository } from '../repositories/appointment.repository';
 import { EmailService } from '../email/email.service';
 import { ApiError } from '../common/errors/api-error';
 import { DoctorProfile, TimeSlot } from '../types/doctor';
-import { ACTIVE_APPOINTMENT_STATUSES } from '@agam-plus/shared';
+import { ACTIVE_APPOINTMENT_STATUSES } from '../constants';
 
 @Injectable()
 export class DoctorsService {

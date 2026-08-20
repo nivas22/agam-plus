@@ -8,8 +8,6 @@ Monorepo containing a Next.js web app and a NestJS API, managed with pnpm worksp
 apps/
   web/      Next.js (App Router, TypeScript)
   api/      NestJS API
-packages/
-  shared/   Shared TypeScript types used by both apps
 ```
 
 ## Requirements
@@ -30,8 +28,6 @@ pnpm build        # build everything
 pnpm lint
 pnpm test
 ```
-
-`packages/shared` is a workspace dependency (`@agam-plus/shared`) — `pnpm build` compiles it before the apps that depend on it (Turborepo's `^build` dependency).
 
 ## Deploying to Vercel
 

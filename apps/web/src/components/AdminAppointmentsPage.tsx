@@ -20,7 +20,7 @@ import { ChangeDoctorDialog, RescheduleDialog, CancelDialog, NoShowDialog } from
 import { useHospitalAppointmentsApi } from "@/hooks/useNewAppointmentsApi";
 import { useHospitalPatients } from "@/hooks/useNewPatientApi";
 import { useHospitalDoctors } from "@/hooks/useNewDoctorApi";
-import { ROLE, APPOINTMENT_STATUS } from "@agam-plus/shared";
+import { ROLE, APPOINTMENT_STATUS } from "../constants";
 import { paletteFor } from "@/lib/avatarPalette";
 
 interface AppointmentsPageProps {

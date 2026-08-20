@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { GENDER, APPOINTMENT_STATUS_VALUES } from '@agam-plus/shared';
+import { GENDER, APPOINTMENT_STATUS_VALUES } from '../../constants';
 
 /* -------------------------------------------------------------------------- */
 /*                              AUTH SCHEMAS                                  */

@@ -2,7 +2,7 @@
 import { useState, useEffect, ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import { User, Mail, Phone, Save, CheckCircle2, Award, FileText, Briefcase, ArrowLeft } from "lucide-react";
-import { GENDER } from "@agam-plus/shared";
+import { GENDER } from "../../../constants";
 import { useAuth } from "@/hooks/useAuth";
 import { getDoctorById, useUpdateHospitalDoctor } from "@/hooks/useNewDoctorApi";
 

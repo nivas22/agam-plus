@@ -1,4 +1,4 @@
-import { GENDER } from '@agam-plus/shared';
+import { GENDER } from '../constants';
 import { format, startOfWeek, endOfWeek, isWithinInterval, parseISO, startOfDay, endOfDay, addDays, addMonths, parse, addWeeks, isSameDay, isSameWeek } from 'date-fns';
 
 export function calculateDuration(startDate: string, endDate: string): string {

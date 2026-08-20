@@ -3,7 +3,7 @@ import { PatientRepository } from '../repositories/patient.repository';
 import { UserRepository } from '../repositories/user.repository';
 import { MembershipRepository } from '../repositories/membership.repository';
 import { ApiError } from '../common/errors/api-error';
-import { ROLE, MEMBERSHIP_STATUS } from '@agam-plus/shared';
+import { ROLE, MEMBERSHIP_STATUS } from '../constants';
 import { JwtUser } from '../auth/decorators/current-user.decorator';
 
 const generatePatientId = (): string => {

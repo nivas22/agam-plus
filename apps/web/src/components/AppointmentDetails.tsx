@@ -23,7 +23,7 @@ import { Patient } from "@/types/patientNew";
 import { Doctor } from "@/types/doctorNew";
 import { useUpdateHospitalAppointmentStatus } from "@/hooks/useNewAppointmentsApi";
 import { useDoctorSlots, useNextAvailableSlots } from "@/hooks/useDoctorSlots";
-import { APPOINTMENT_STATUS, normalizeAppointmentStatus } from "@agam-plus/shared";
+import { APPOINTMENT_STATUS, normalizeAppointmentStatus } from "../constants";
 
 
 interface AppointmentDetailsProps {

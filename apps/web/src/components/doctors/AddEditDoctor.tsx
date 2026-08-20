@@ -9,7 +9,7 @@ import { CreateDoctorData, Doctor } from "@/types/doctorNew";
 import { TimeSlot } from "@/types/appointment";
 import { useNewDoctorApi, useHospitalDoctor } from "@/hooks/useNewDoctorApi";
 import { useAuth } from "@/hooks/useAuth";
-import { GENDER } from "@agam-plus/shared";
+import { GENDER } from "../../constants";
 import DoctorAvatar from "@/components/doctors/DoctorAvatar";
 import ConfirmDeleteModal from "@/components/ConfirmDeleteModal";
 import { Field, PillGroup, ToggleSwitch, inputClass } from "@/components/common/EditFormControls";

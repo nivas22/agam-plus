@@ -1,7 +1,7 @@
 'use client';
 import { useState, ChangeEvent } from "react";
 import { User, Mail, Phone, Save, CheckCircle2 } from "lucide-react";
-import { GENDER } from "@agam-plus/shared";
+import { GENDER } from "../../../constants";
 
 interface CreateDoctorData {
   fullName?: string;

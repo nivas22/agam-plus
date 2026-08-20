@@ -12,7 +12,7 @@ import {
   ACTIVE_APPOINTMENT_STATUSES,
   isValidAppointmentTransition,
   normalizeAppointmentStatus,
-} from '@agam-plus/shared';
+} from '../constants';
 
 // Timestamp field to stamp when an appointment enters a given status.
 const STATUS_TIMESTAMP_FIELD: Partial<Record<APPOINTMENT_STATUS, string>> = {

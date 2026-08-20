@@ -8,7 +8,7 @@ import { AppointmentWithDetails } from "@/types/appointment";
 import { Doctor } from "@/types/doctorNew";
 import { useDoctorSlots } from "@/hooks/useDoctorSlots";
 import { paletteFor } from "@/lib/avatarPalette";
-import { APPOINTMENT_STATUS } from "@agam-plus/shared";
+import { APPOINTMENT_STATUS } from "../../constants";
 
 type UpdateStatusFn = (
   appointmentId: string,

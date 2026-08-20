@@ -1,7 +1,11 @@
 import { Controller, Get } from '@nestjs/common';
-import type { HealthStatus } from '@agam-plus/shared';
 import { AppService } from './app.service';
 import { Public } from './auth/decorators/public.decorator';
+
+interface HealthStatus {
+  status: 'ok' | 'error';
+  timestamp: string;
+}
 
 @Controller()
 export class AppController {

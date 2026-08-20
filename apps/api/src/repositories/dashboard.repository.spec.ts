@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 import { DashboardRepository } from './dashboard.repository';
-import { DB_COLLECTIONS } from '@agam-plus/shared';
+import { DB_COLLECTIONS } from '../constants';
 import { connectTestMongo, closeTestMongo, clearTestMongo } from '../test-utils/mongo-memory';
 
 describe('DashboardRepository', () => {

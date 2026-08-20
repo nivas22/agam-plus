@@ -6,7 +6,7 @@ import MobileAdminDashboard from '@/components/mobile/MobileAdminDashboard';
 import { useAuth } from '@/hooks/useAuth';
 import { useRoleBasedDashboard } from '@/hooks/useDashboardData';
 import { useCurrentDoctorProfile } from '@/hooks/useNewDoctorApi';
-import { ROLE } from '@agam-plus/shared';
+import { ROLE } from '../../../../../constants';
 
 export default function MobileDashboardPage() {
   const params = useParams();

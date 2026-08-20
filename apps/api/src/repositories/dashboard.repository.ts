@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/mongoose';
 import { Connection } from 'mongoose';
-import { DB_COLLECTIONS, ACTIVE_APPOINTMENT_STATUSES } from '@agam-plus/shared';
+import { DB_COLLECTIONS, ACTIVE_APPOINTMENT_STATUSES } from '../constants';
 import { toPlainList } from './mongo.util';
 
 // Generic collection-name-driven queries (mirrors the old Firestore

@@ -18,7 +18,7 @@ import {
 import { AppointmentWithDetails } from "@/types/appointment";
 import { useUpdateHospitalAppointmentStatus } from "@/hooks/useNewAppointmentsApi";
 import { toast } from "react-hot-toast";
-import { APPOINTMENT_STATUS, normalizeAppointmentStatus } from "@agam-plus/shared";
+import { APPOINTMENT_STATUS, normalizeAppointmentStatus } from "../constants";
 
 interface DoctorAppointmentBottomSheetProps {
   appointment: AppointmentWithDetails;

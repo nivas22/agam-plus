@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
-import { DB_COLLECTIONS } from '@agam-plus/shared';
+import { DB_COLLECTIONS } from '../constants';
 
 export type DoctorProfileDocument = HydratedDocument<DoctorProfile>;
 

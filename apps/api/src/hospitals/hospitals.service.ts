@@ -7,7 +7,7 @@ import { PatientRepository } from '../repositories/patient.repository';
 import { DashboardRepository } from '../repositories/dashboard.repository';
 import { UserRepository } from '../repositories/user.repository';
 import { ApiError } from '../common/errors/api-error';
-import { DB_COLLECTIONS, ROLE } from '@agam-plus/shared';
+import { DB_COLLECTIONS, ROLE } from '../constants';
 import { getDateCategory } from '../utils/dateUtils';
 import { JwtUser } from '../auth/decorators/current-user.decorator';
 import { AdminDashboardData, DoctorDashboardData } from '../types/dashboard';
