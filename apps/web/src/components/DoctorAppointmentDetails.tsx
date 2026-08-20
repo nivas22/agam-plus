@@ -18,6 +18,7 @@ import {
 import { AppointmentWithDetails } from "@/types/appointment";
 import { useUpdateHospitalAppointmentStatus } from "@/hooks/useNewAppointmentsApi";
 import { toast } from "react-hot-toast";
+import { APPOINTMENT_STATUS, normalizeAppointmentStatus } from "@agam-plus/shared";
 
 interface DoctorAppointmentBottomSheetProps {
   appointment: AppointmentWithDetails;
@@ -38,12 +39,16 @@ export default function DoctorAppointmentBottomSheet({
   const updateStatusMutation = useUpdateHospitalAppointmentStatus();
   const appointmentDate = new Date(appointment.date);
   const isPast = appointmentDate < new Date();
+  const status = normalizeAppointmentStatus(appointment.status);
+  const isPreConsultation = status !== APPOINTMENT_STATUS.IN_CONSULTATION && [
+    APPOINTMENT_STATUS.PENDING,
+    APPOINTMENT_STATUS.CONFIRMED,
+    APPOINTMENT_STATUS.CHECKED_IN,
+    APPOINTMENT_STATUS.WAITING,
+  ].includes(status);
 
   // Handle status updates
-  const handleUpdateStatus = async (
-    status: 'scheduled' | 'completed' | 'cancelled' | 'no-show' | 'not-available',
-    notes?: string
-  ) => {
+  const handleUpdateStatus = async (status: string, notes?: string) => {
     try {
       await updateStatusMutation.mutateAsync({
         appointmentId: appointment.id,
@@ -51,33 +56,43 @@ export default function DoctorAppointmentBottomSheet({
         sessionNotes: notes,
         appointmentData: appointment,
       });
-      
+
       let message = "";
-      switch(status) {
-        case "completed":
+      switch (status) {
+        case APPOINTMENT_STATUS.IN_CONSULTATION:
+          message = "🩺 Consultation started";
+          break;
+        case APPOINTMENT_STATUS.COMPLETED:
           message = "✅ Appointment marked as completed";
           break;
-        case "cancelled":
+        case APPOINTMENT_STATUS.CANCELLED:
           message = "🗑️ Appointment cancelled successfully";
           break;
-        case "no-show":
+        case APPOINTMENT_STATUS.NO_SHOW:
           message = "⏰ Appointment marked as no-show";
+          break;
+        case APPOINTMENT_STATUS.RESCHEDULED:
+          message = "📅 Appointment flagged for rescheduling";
           break;
         default:
           message = "📝 Appointment status updated";
       }
-      
+
       toast.success(message);
-      
+
       if (onRefetch) {
         await onRefetch();
       }
-      
+
       onClose();
     } catch (error) {
       console.error("Error updating appointment:", error);
-      toast.error("❌ Failed to update appointment status");
+      toast.error(error instanceof Error ? error.message : "❌ Failed to update appointment status");
     }
+  };
+
+  const handleStartConsultation = async () => {
+    await handleUpdateStatus(APPOINTMENT_STATUS.IN_CONSULTATION);
   };
 
   const handleCompleteWithNotes = () => {
@@ -89,37 +104,47 @@ export default function DoctorAppointmentBottomSheet({
       toast.error("Please enter session notes");
       return;
     }
-    await handleUpdateStatus("completed", sessionNotes);
+    await handleUpdateStatus(APPOINTMENT_STATUS.COMPLETED, sessionNotes);
     setShowNotesModal(false);
   };
 
   const handleCancelAppointment = async () => {
     setShowConfirmCancel(false);
-    await handleUpdateStatus("cancelled");
+    await handleUpdateStatus(APPOINTMENT_STATUS.CANCELLED);
   };
 
   const handleNoShowAppointment = async () => {
     setShowConfirmNoShow(false);
-    await handleUpdateStatus("no-show");
+    await handleUpdateStatus(APPOINTMENT_STATUS.NO_SHOW);
   };
 
+  // "Not available" flags the appointment as needing a new slot, rather than
+  // a distinct backend status of its own.
   const handleDoctorIsNotAvailable = async () => {
     setShowConfirmNotAvailable(false);
-    await handleUpdateStatus("not-available");
+    await handleUpdateStatus(APPOINTMENT_STATUS.RESCHEDULED);
   };
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (rawStatus: string) => {
     const baseClasses =
       "px-3 py-1.5 rounded-full text-sm font-medium border";
 
-    switch (status) {
-      case "completed":
+    switch (normalizeAppointmentStatus(rawStatus)) {
+      case APPOINTMENT_STATUS.COMPLETED:
         return `${baseClasses} bg-status-open-soft text-status-open border-status-open/20`;
-      case "cancelled":
+      case APPOINTMENT_STATUS.CANCELLED:
         return `${baseClasses} bg-status-danger-soft text-status-danger border-status-danger/20`;
-      case "no-show":
+      case APPOINTMENT_STATUS.NO_SHOW:
         return `${baseClasses} bg-surface-canvas text-ink-700 border-border`;
-      case "scheduled":
+      case APPOINTMENT_STATUS.PENDING:
+      case APPOINTMENT_STATUS.RESCHEDULED:
+        return `${baseClasses} bg-status-warning-soft text-status-warning border-status-warning/20`;
+      case APPOINTMENT_STATUS.CHECKED_IN:
+      case APPOINTMENT_STATUS.WAITING:
+        return `${baseClasses} bg-brand-violet-soft text-brand-violet border-brand-violet/20`;
+      case APPOINTMENT_STATUS.IN_CONSULTATION:
+        return `${baseClasses} bg-brand-violet text-white border-brand-violet`;
+      case APPOINTMENT_STATUS.CONFIRMED:
         return `${baseClasses} bg-brand-violet-soft text-brand-violet border-brand-violet/20`;
       default:
         return `${baseClasses} bg-surface-canvas text-ink-700 border-border`;
@@ -209,9 +234,9 @@ export default function DoctorAppointmentBottomSheet({
 
             <div className="flex items-center gap-3">
               <div className={getStatusBadge(appointment.status)}>
-                {appointment.status || "scheduled"}
+                {appointment.status || "confirmed"}
               </div>
-              {appointment.status === "scheduled" && isPast && (
+              {isPreConsultation && isPast && (
                 <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-status-warning-soft text-status-warning border border-status-warning/20">
                   Pending Update
                 </span>
@@ -246,7 +271,7 @@ export default function DoctorAppointmentBottomSheet({
         )}
 
         {/* Actions */}
-        {appointment.status === "scheduled" && (
+        {isPreConsultation && (
           <div className="p-4">
             <h4 className="font-medium text-ink-700 mb-3">
               Update Status
@@ -254,7 +279,7 @@ export default function DoctorAppointmentBottomSheet({
 
             <div className="grid grid-cols-2 gap-3">
               <button
-                onClick={handleCompleteWithNotes}
+                onClick={handleStartConsultation}
                 disabled={updateStatusMutation.isPending}
                 className="flex items-center justify-center gap-2 p-3 bg-status-open-soft text-status-open rounded-lg hover:bg-status-open/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
@@ -263,7 +288,7 @@ export default function DoctorAppointmentBottomSheet({
                 ) : (
                   <CheckCircle className="w-4 h-4" />
                 )}
-                <span className="text-sm font-medium">Complete</span>
+                <span className="text-sm font-medium">Start Consultation</span>
               </button>
 
               <button
@@ -296,10 +321,43 @@ export default function DoctorAppointmentBottomSheet({
           </div>
         )}
 
+        {status === APPOINTMENT_STATUS.IN_CONSULTATION && (
+          <div className="p-4">
+            <h4 className="font-medium text-ink-700 mb-3">
+              Update Status
+            </h4>
+
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={handleCompleteWithNotes}
+                disabled={updateStatusMutation.isPending}
+                className="flex items-center justify-center gap-2 p-3 bg-status-open-soft text-status-open rounded-lg hover:bg-status-open/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {updateStatusMutation.isPending ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <CheckCircle className="w-4 h-4" />
+                )}
+                <span className="text-sm font-medium">Complete</span>
+              </button>
+
+              <button
+                onClick={() => setShowConfirmCancel(true)}
+                disabled={updateStatusMutation.isPending}
+                className="flex items-center justify-center gap-2 p-3 bg-status-danger-soft text-status-danger rounded-lg hover:bg-status-danger/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <XCircle className="w-4 h-4" />
+                <span className="text-sm font-medium">Cancel</span>
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* View-only actions */}
-        {(appointment.status === "completed" ||
-          appointment.status === "cancelled" ||
-          appointment.status === "no-show") && (
+        {(status === APPOINTMENT_STATUS.COMPLETED ||
+          status === APPOINTMENT_STATUS.CANCELLED ||
+          status === APPOINTMENT_STATUS.NO_SHOW ||
+          status === APPOINTMENT_STATUS.RESCHEDULED) && (
           <div className="p-4">
             <button
               onClick={onClose}

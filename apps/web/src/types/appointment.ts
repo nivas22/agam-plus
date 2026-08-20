@@ -15,7 +15,7 @@ export interface Appointment {
   doctorProfileId: string;
   date: string;
   time: string;
-  status: 'scheduled' | 'completed' | 'cancelled' | 'no-show';
+  status: 'pending' | 'confirmed' | 'checked-in' | 'waiting' | 'in-consultation' | 'completed' | 'cancelled' | 'no-show' | 'rescheduled' | 'scheduled';
   notes?: string;
   sessionNotes?: string;
   createdAt: string;
@@ -36,6 +36,8 @@ export interface AppointmentWithDetails extends Appointment {
   rescheduleTime?: string;
   rescheduledAt?: string;
   reopenedAt?: string;
+  cancelReason?: string;
+  noShowReason?: string;
 }
 
 export type AppointmentResponse = {

@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/mongoose';
 import { Connection } from 'mongoose';
-import { DB_COLLECTIONS } from '@agam-plus/shared';
+import { DB_COLLECTIONS, ACTIVE_APPOINTMENT_STATUSES } from '@agam-plus/shared';
 import { toPlainList } from './mongo.util';
 
 // Generic collection-name-driven queries (mirrors the old Firestore
@@ -65,9 +65,8 @@ export class DashboardRepository {
       .sort({ date: 1 })
       .toArray();
 
-    const filtered = toPlainList(docs as any[]).filter(
-      (doc: any) => doc.status === 'scheduled' || doc.status === 'confirmed' || doc.status === 'pending',
-    );
+    const activeStatuses: string[] = [...ACTIVE_APPOINTMENT_STATUSES, 'scheduled'];
+    const filtered = toPlainList(docs as any[]).filter((doc: any) => activeStatuses.includes(doc.status));
 
     return filtered.slice(0, limit);
   }

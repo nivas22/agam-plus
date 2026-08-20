@@ -1,31 +1,11 @@
 'use client';
 
-import { useParams, useRouter } from 'next/navigation';
-import AddDoctorPersonal from '@/components/doctors/AddDoctorPersonal';
-import { useNewDoctorApi } from '@/hooks/useNewDoctorApi';
-import { CreateDoctorData } from '@/types/doctorNew';
+import { useParams } from 'next/navigation';
+import AddEditDoctor from '@/components/doctors/AddEditDoctor';
 
 export default function AddDoctorPage() {
   const params = useParams();
-  const router = useRouter();
   const hospitalId = params.id as string;
-  const { createDoctor } = useNewDoctorApi(hospitalId, undefined, true);
 
-  return (
-    // <div className="min-h-screen bg-surface-canvas py-4 md:py-8">
-      <AddDoctorPersonal
-          onBack={() => router.push(`/hospital/${hospitalId}/doctors`)}
-          onSave={(data) => {
-            const payload: CreateDoctorData = {
-              name: data.name ?? "",
-              email: data.email ?? "",
-              phone: data.phone ?? "",
-              hospitalId: hospitalId,
-            };
-
-            createDoctor(payload);
-          }}
-        />
-    // </div>
-  );
+  return <AddEditDoctor isNew userRole="admin" canEdit={true} hospitalId={hospitalId} />;
 }

@@ -7,6 +7,21 @@ import { ApiError } from '../common/errors/api-error';
 import { AppointmentWithDetails } from '../types/appointment';
 import { JwtUser, HospitalUserProfile } from '../auth/decorators/current-user.decorator';
 import { CreateAppointmentBody, UpdateAppointmentBody, AppointmentListQuery } from './appointments.types';
+import {
+  APPOINTMENT_STATUS,
+  ACTIVE_APPOINTMENT_STATUSES,
+  isValidAppointmentTransition,
+  normalizeAppointmentStatus,
+} from '@agam-plus/shared';
+
+// Timestamp field to stamp when an appointment enters a given status.
+const STATUS_TIMESTAMP_FIELD: Partial<Record<APPOINTMENT_STATUS, string>> = {
+  [APPOINTMENT_STATUS.CONFIRMED]: 'confirmedAt',
+  [APPOINTMENT_STATUS.CHECKED_IN]: 'checkedInAt',
+  [APPOINTMENT_STATUS.WAITING]: 'waitingAt',
+  [APPOINTMENT_STATUS.IN_CONSULTATION]: 'consultationStartedAt',
+  [APPOINTMENT_STATUS.COMPLETED]: 'completedAt',
+};
 
 interface GenerateAppointmentsParams {
   doctor: any;
@@ -192,8 +207,9 @@ export class AppointmentsService {
     let attempts = 0;
     const SAFETY_LIMIT = 1000;
 
-    // IMPORTANT: All appointments are created with 'scheduled' status
-    // Appointments can only be marked as 'completed' through the update endpoint
+    // All appointments created here are admin/staff-booked (Flow 2), so they
+    // start CONFIRMED directly. PENDING is reserved for a future patient
+    // self-booking flow that would require admin confirmation first.
     const baseAppointmentData = {
       doctorProfileId: membership.userId,
       doctorName: doctor.name,
@@ -202,7 +218,8 @@ export class AppointmentsService {
       hospitalId,
       frequency,
       notes,
-      status: 'scheduled' as const, // Always 'scheduled' on creation
+      status: APPOINTMENT_STATUS.CONFIRMED as const,
+      confirmedAt: new Date().toISOString(),
       createdBy,
       userRole,
       createdAt: new Date().toISOString(),
@@ -290,9 +307,10 @@ export class AppointmentsService {
       if (!dayAvailability) return [];
 
       // Check for existing appointments on this date
+      // Include legacy 'scheduled' for appointments created before this status migration.
       const existingAppointments = await this.appointmentRepository.getAppointmentsByDoctorAndDate(doctor.userId, date, [
+        ...ACTIVE_APPOINTMENT_STATUSES,
         'scheduled',
-        'confirmed',
       ]);
 
       const bookedSlots = existingAppointments.map((appt: any) => appt.time);
@@ -363,9 +381,18 @@ export class AppointmentsService {
       }
 
       // Doctors cannot reassign appointments to other doctors
-      if (appointmentData?.doctorId && appointmentData.doctorId !== userProfile?.userId) {
+      if (appointmentData?.doctorProfileId && appointmentData.doctorProfileId !== userProfile?.userId) {
         throw ApiError.forbidden('Doctors cannot reassign appointments to other doctors');
       }
+    }
+
+    const isRescheduling = Boolean(appointmentData?.rescheduleDate && appointmentData?.rescheduleTime);
+
+    // Rescheduling is a compound action (new date/time + status reset) validated
+    // on its own below; every other status change must follow the queue lifecycle.
+    if (!isRescheduling && !isValidAppointmentTransition(existingData.status, status as APPOINTMENT_STATUS)) {
+      const currentStatus = normalizeAppointmentStatus(existingData.status);
+      throw ApiError.badRequest(`Cannot change appointment status from '${currentStatus}' to '${status}'`);
     }
 
     const updateData: any = {
@@ -375,33 +402,42 @@ export class AppointmentsService {
       updatedByRole: userRole,
     };
 
-    // Track when appointment is marked as completed
-    if (status === 'completed') {
-      updateData.completedAt = new Date().toISOString();
+    // Stamp the timestamp for whichever lifecycle stage was just entered
+    const timestampField = STATUS_TIMESTAMP_FIELD[status as APPOINTMENT_STATUS];
+    if (timestampField && existingData.status !== status) {
+      updateData[timestampField] = new Date().toISOString();
     }
 
     if (sessionNotes) {
       updateData.sessionNotes = sessionNotes;
     }
 
-    if (appointmentData?.doctorId) {
-      // Verify new doctor belongs to this hospital (admin only)
-      if (userRole === 'admin') {
-        const doctorProfile = await this.doctorRepository.getDoctorProfileByUserId(appointmentData.doctorId);
+    if (appointmentData?.doctorProfileId) {
+      // Verify the new doctor belongs to this hospital
+      const newDoctor = (await this.doctorRepository.getDoctorProfileById(appointmentData.doctorProfileId)) as any;
 
-        if (!doctorProfile) {
-          throw ApiError.notFound('Doctor not found in this hospital');
-        }
+      if (!newDoctor || newDoctor.hospitalId !== hospitalId) {
+        throw ApiError.notFound('Doctor not found in this hospital');
       }
 
-      updateData.doctorId = appointmentData.doctorId;
-      updateData.doctorName = appointmentData.doctorName || existingData.doctorName;
+      updateData.doctorProfileId = appointmentData.doctorProfileId;
+      updateData.doctorName = newDoctor.name || appointmentData.doctorName || existingData.doctorName;
+      updateData.doctorSpecialization = newDoctor.specialization || existingData.doctorSpecialization;
     }
 
-    if (appointmentData?.rescheduleDate && appointmentData?.rescheduleTime) {
+    if (appointmentData?.cancelReason) {
+      updateData.cancelReason = appointmentData.cancelReason;
+    }
+
+    if (appointmentData?.noShowReason) {
+      updateData.noShowReason = appointmentData.noShowReason;
+    }
+
+    if (isRescheduling && appointmentData) {
       updateData.date = appointmentData.rescheduleDate;
       updateData.time = appointmentData.rescheduleTime;
-      updateData.status = 'scheduled';
+      updateData.status = APPOINTMENT_STATUS.CONFIRMED;
+      updateData.confirmedAt = new Date().toISOString();
       updateData.rescheduledAt = new Date().toISOString();
       updateData.rescheduledBy = userProfile?.userId;
     }
@@ -450,7 +486,7 @@ export class AppointmentsService {
 
     // Soft delete by updating status
     await this.appointmentRepository.updateAppointment(appointmentId, {
-      status: 'cancelled',
+      status: APPOINTMENT_STATUS.CANCELLED,
       deletedBy: userProfile?.userId,
       deletedByRole: userRole,
     });

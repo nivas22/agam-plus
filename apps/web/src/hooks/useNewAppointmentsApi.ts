@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams } from 'next/navigation';
 import { AppointmentFormData, AppointmentResponse, AppointmentWithDetails } from '@/types/appointment';
 import { apiUrl, fetchWithAuth } from '@/lib/api';
+import { APPOINTMENT_STATUS, ACTIVE_APPOINTMENT_STATUSES } from '@agam-plus/shared';
 
 // Base API functions with hospital context
 const appointmentsApiFunctions = {
@@ -447,11 +448,12 @@ export const useHospitalAppointmentStats = (hospitalId?: string, userRole: strin
   const { data, isLoading, error } = useHospitalAppointments(hospitalId, undefined, userRole);
 
   const appointments = data?.appointments ?? [];
+  const activeStatuses: string[] = [...ACTIVE_APPOINTMENT_STATUSES, 'scheduled'];
   const stats = {
     total: appointments?.length || 0,
-    upcoming: appointments?.filter((a: AppointmentWithDetails) => a.status === 'scheduled').length || 0,
-    completed: appointments?.filter((a: AppointmentWithDetails) => a.status === 'completed').length || 0,
-    cancelled: appointments?.filter((a: AppointmentWithDetails) => a.status === 'cancelled').length || 0,
+    upcoming: appointments?.filter((a: AppointmentWithDetails) => activeStatuses.includes(a.status)).length || 0,
+    completed: appointments?.filter((a: AppointmentWithDetails) => a.status === APPOINTMENT_STATUS.COMPLETED).length || 0,
+    cancelled: appointments?.filter((a: AppointmentWithDetails) => a.status === APPOINTMENT_STATUS.CANCELLED).length || 0,
     today: appointments?.filter((a: AppointmentWithDetails) => {
       const appointmentDate = new Date(a.date).toDateString();
       const today = new Date().toDateString();

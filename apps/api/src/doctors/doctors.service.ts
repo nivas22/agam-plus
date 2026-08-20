@@ -7,6 +7,7 @@ import { AppointmentRepository } from '../repositories/appointment.repository';
 import { EmailService } from '../email/email.service';
 import { ApiError } from '../common/errors/api-error';
 import { DoctorProfile, TimeSlot } from '../types/doctor';
+import { ACTIVE_APPOINTMENT_STATUSES } from '@agam-plus/shared';
 
 @Injectable()
 export class DoctorsService {
@@ -586,11 +587,11 @@ export class DoctorsService {
       if (!dayAvailability) return [];
 
       // Get existing appointments using repository function
-      const existingAppointments = await this.appointmentRepository.getAppointmentsByDoctorAndDate(
-        doctor.id,
-        date,
-        ['scheduled', 'confirmed'],
-      );
+      // Include legacy 'scheduled' for appointments created before this status migration.
+      const existingAppointments = await this.appointmentRepository.getAppointmentsByDoctorAndDate(doctor.id, date, [
+        ...ACTIVE_APPOINTMENT_STATUSES,
+        'scheduled',
+      ]);
 
       const existingTimes = existingAppointments.map((appt: any) => appt.time);
 

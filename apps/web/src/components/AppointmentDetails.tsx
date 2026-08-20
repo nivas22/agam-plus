@@ -23,6 +23,7 @@ import { Patient } from "@/types/patientNew";
 import { Doctor } from "@/types/doctorNew";
 import { useUpdateHospitalAppointmentStatus } from "@/hooks/useNewAppointmentsApi";
 import { useDoctorSlots, useNextAvailableSlots } from "@/hooks/useDoctorSlots";
+import { APPOINTMENT_STATUS, normalizeAppointmentStatus } from "@agam-plus/shared";
 
 
 interface AppointmentDetailsProps {
@@ -43,7 +44,7 @@ interface AppointmentDetailsProps {
   userId?: string;
 }
 
-type ActiveAction = "changeDoctor" | "cancel" | "reschedule" | "reopen" | "viewNotes";
+type ActiveAction = "changeDoctor" | "cancel" | "noShow" | "reschedule" | "reopen" | "viewNotes";
 
 interface ActionConfig {
   title: string;
@@ -111,37 +112,52 @@ export default function AppointmentDetails({
   useEffect(() => {
     if (selectedApp) {
       const actions: ActiveAction[] = [];
-      
-      switch (selectedApp.status) {
-        case "scheduled":
-          actions.push("changeDoctor", "cancel", "reschedule");
+      const normalizedStatus = normalizeAppointmentStatus(selectedApp.status);
+
+      // Check-in / start waiting / start consultation / complete are one-click
+      // "advance" actions on the appointments list row itself — this modal only
+      // covers the secondary actions (reassign, cancel, reschedule, reopen).
+      switch (normalizedStatus) {
+        case APPOINTMENT_STATUS.PENDING:
+          actions.push("cancel");
           break;
-        case "completed":
+        case APPOINTMENT_STATUS.CONFIRMED:
+          actions.push("changeDoctor", "cancel", "noShow", "reschedule");
+          break;
+        case APPOINTMENT_STATUS.CHECKED_IN:
+        case APPOINTMENT_STATUS.WAITING:
+        case APPOINTMENT_STATUS.IN_CONSULTATION:
+          actions.push("cancel");
+          break;
+        case APPOINTMENT_STATUS.COMPLETED:
           actions.push("changeDoctor", "reopen", "viewNotes");
           break;
-        case "cancelled":
+        case APPOINTMENT_STATUS.CANCELLED:
+        case APPOINTMENT_STATUS.NO_SHOW:
           actions.push("reopen", "reschedule");
           break;
-        case "no-show":
-          actions.push("reopen", "reschedule");
+        case APPOINTMENT_STATUS.RESCHEDULED:
+          actions.push("reschedule", "cancel");
           break;
         default:
           actions.push("changeDoctor", "cancel", "reschedule");
       }
-      
+
       setAvailableActions(actions);
-      
+
       // Set default action based on status
-      if (selectedApp.status === "completed") {
+      if (normalizedStatus === APPOINTMENT_STATUS.COMPLETED) {
         setActiveAction("viewNotes");
-      } else if (selectedApp.status === "cancelled" || selectedApp.status === "no-show") {
-        setActiveAction("reopen");
-      } else {
+      } else if (normalizedStatus === APPOINTMENT_STATUS.CANCELLED || normalizedStatus === APPOINTMENT_STATUS.NO_SHOW || normalizedStatus === APPOINTMENT_STATUS.RESCHEDULED) {
+        setActiveAction(normalizedStatus === APPOINTMENT_STATUS.RESCHEDULED ? "reschedule" : "reopen");
+      } else if (normalizedStatus === APPOINTMENT_STATUS.CONFIRMED) {
         setActiveAction("changeDoctor");
+      } else {
+        setActiveAction("cancel");
       }
-      
+
       // Pre-fill session notes for completed appointments
-      if (selectedApp.status === "completed" && selectedApp.sessionNotes) {
+      if (normalizedStatus === APPOINTMENT_STATUS.COMPLETED && selectedApp.sessionNotes) {
         setSessionNotes(selectedApp.sessionNotes);
       }
 
@@ -226,13 +242,26 @@ export default function AppointmentDetails({
   // Cancel the selected appointment
   const cancelAppointment = async () => {
     try {
-      await updateAppointmentStatus(selectedApp.id, "cancelled");
+      await updateAppointmentStatus(selectedApp.id, APPOINTMENT_STATUS.CANCELLED);
       toast.success("Appointment cancelled!");
       setUpdateAppointmentsMode(false);
       setSelectedAppointmentsToUpdate([]);
     } catch (err) {
       console.error(err);
       toast.error("Failed to cancel appointment");
+    }
+  };
+
+  // Mark the selected appointment as a no-show
+  const markNoShow = async () => {
+    try {
+      await updateAppointmentStatus(selectedApp.id, APPOINTMENT_STATUS.NO_SHOW);
+      toast.success("Appointment marked as no-show!");
+      setUpdateAppointmentsMode(false);
+      setSelectedAppointmentsToUpdate([]);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to update appointment");
     }
   };
 
@@ -244,7 +273,7 @@ export default function AppointmentDetails({
     }
 
     try {
-      await updateAppointmentStatus(selectedApp.id, "scheduled", undefined, {
+      await updateAppointmentStatus(selectedApp.id, APPOINTMENT_STATUS.CONFIRMED, undefined, {
         ...selectedApp,
         rescheduleDate,
         rescheduleTime,
@@ -262,10 +291,10 @@ export default function AppointmentDetails({
     }
   };
 
-  // Reopen appointment (change status back to scheduled)
+  // Reopen appointment (change status back to confirmed)
   const reopenAppointment = async () => {
     try {
-      await updateAppointmentStatus(selectedApp.id, "scheduled", undefined, {
+      await updateAppointmentStatus(selectedApp.id, APPOINTMENT_STATUS.CONFIRMED, undefined, {
         ...selectedApp,
         reopenedAt: new Date().toISOString(),
       });
@@ -282,7 +311,7 @@ export default function AppointmentDetails({
   // Update session notes for completed appointment
   const updateSessionNotes = async () => {
     try {
-      await updateAppointmentStatus(selectedApp.id, "completed", sessionNotes);
+      await updateAppointmentStatus(selectedApp.id, APPOINTMENT_STATUS.COMPLETED, sessionNotes);
       toast.success("Session notes updated!");
       setUpdateAppointmentsMode(false);
       setSelectedAppointmentsToUpdate([]);
@@ -301,7 +330,7 @@ export default function AppointmentDetails({
       action: updateScope === "selected" ? updateSelectedAppointment : updateAllFutureAppointments,
       buttonText: updateScope === "selected" ? "Update Doctor" : "Update All Appointments",
       enabled: !!selectedDoctorForAppointments && (updateScope === "all" || selectedAppointmentsToUpdate.length > 0),
-      availableStatuses: ["scheduled", "completed"]
+      availableStatuses: [APPOINTMENT_STATUS.CONFIRMED, APPOINTMENT_STATUS.COMPLETED]
     },
     cancel: {
       title: "Cancel Appointment",
@@ -310,7 +339,16 @@ export default function AppointmentDetails({
       action: cancelAppointment,
       buttonText: "Cancel Appointment",
       enabled: selectedAppointmentsToUpdate.length > 0,
-      availableStatuses: ["scheduled"]
+      availableStatuses: [APPOINTMENT_STATUS.PENDING, APPOINTMENT_STATUS.CONFIRMED, APPOINTMENT_STATUS.CHECKED_IN, APPOINTMENT_STATUS.WAITING, APPOINTMENT_STATUS.IN_CONSULTATION, APPOINTMENT_STATUS.RESCHEDULED]
+    },
+    noShow: {
+      title: "Mark No-show",
+      icon: <Ban className="w-5 h-5 text-status-danger" />,
+      description: "The patient did not arrive for this appointment",
+      action: markNoShow,
+      buttonText: "Mark No-show",
+      enabled: selectedAppointmentsToUpdate.length > 0,
+      availableStatuses: [APPOINTMENT_STATUS.CONFIRMED]
     },
     reschedule: {
       title: "Reschedule Appointment",
@@ -319,16 +357,16 @@ export default function AppointmentDetails({
       action: rescheduleAppointment,
       buttonText: "Reschedule",
       enabled: selectedAppointmentsToUpdate.length > 0 && !!rescheduleDate && !!rescheduleTime,
-      availableStatuses: ["scheduled", "cancelled", "no-show"]
+      availableStatuses: [APPOINTMENT_STATUS.CONFIRMED, APPOINTMENT_STATUS.CANCELLED, APPOINTMENT_STATUS.NO_SHOW, APPOINTMENT_STATUS.RESCHEDULED]
     },
     reopen: {
       title: "Reopen Appointment",
       icon: <RotateCcw className="w-5 h-5 text-status-warning" />,
-      description: "Reopen this appointment and change status back to scheduled",
+      description: "Reopen this appointment and change status back to confirmed",
       action: reopenAppointment,
       buttonText: "Reopen Appointment",
       enabled: selectedAppointmentsToUpdate.length > 0,
-      availableStatuses: ["completed", "cancelled", "no-show"]
+      availableStatuses: [APPOINTMENT_STATUS.COMPLETED, APPOINTMENT_STATUS.CANCELLED, APPOINTMENT_STATUS.NO_SHOW]
     },
     viewNotes: {
       title: "Session Notes",
@@ -337,7 +375,7 @@ export default function AppointmentDetails({
       action: updateSessionNotes,
       buttonText: "Update Notes",
       enabled: sessionNotes.trim().length > 0,
-      availableStatuses: ["completed"]
+      availableStatuses: [APPOINTMENT_STATUS.COMPLETED]
     }
   };
 
@@ -354,14 +392,22 @@ export default function AppointmentDetails({
 
   // Get status badge class
   const getStatusBadgeClass = (status: string) => {
-    switch (status) {
-      case "completed":
+    switch (normalizeAppointmentStatus(status)) {
+      case APPOINTMENT_STATUS.COMPLETED:
         return "bg-status-open-soft text-status-open border-status-open/20";
-      case "cancelled":
+      case APPOINTMENT_STATUS.CANCELLED:
         return "bg-status-danger-soft text-status-danger border-status-danger/20";
-      case "no-show":
+      case APPOINTMENT_STATUS.NO_SHOW:
         return "bg-surface-canvas text-ink-900 border-border";
-      case "scheduled":
+      case APPOINTMENT_STATUS.PENDING:
+      case APPOINTMENT_STATUS.RESCHEDULED:
+        return "bg-status-warning-soft text-status-warning border-status-warning/20";
+      case APPOINTMENT_STATUS.CHECKED_IN:
+      case APPOINTMENT_STATUS.WAITING:
+        return "bg-brand-violet-soft text-brand-violet border-brand-violet/20";
+      case APPOINTMENT_STATUS.IN_CONSULTATION:
+        return "bg-brand-violet text-white border-brand-violet";
+      case APPOINTMENT_STATUS.CONFIRMED:
         return "bg-brand-violet-soft text-brand-violet border-brand-violet/20";
       default:
         return "bg-surface-canvas text-ink-900 border-border";
@@ -587,7 +633,7 @@ export default function AppointmentDetails({
                   </div>
 
                   {/* Update Scope Selection (only for changeDoctor action) */}
-                  {selectedApp.status === "scheduled" && (
+                  {normalizeAppointmentStatus(selectedApp.status) === APPOINTMENT_STATUS.CONFIRMED && (
                     <div className="mb-6">
                       <div className="flex items-center gap-2 text-sm font-medium text-ink-700 mb-3">
                         <User className="w-4 h-4" />
@@ -707,7 +753,7 @@ export default function AppointmentDetails({
                   )}
 
                   {/* Future Appointments List (for reference) */}
-                  {updateScope === "all" && selectedApp.status === "scheduled" && (
+                  {updateScope === "all" && normalizeAppointmentStatus(selectedApp.status) === APPOINTMENT_STATUS.CONFIRMED && (
                     <div className="mb-4">
                       <div className="flex items-center gap-2 text-sm font-medium text-ink-700 mb-3">
                         <Calendar className="w-4 h-4" />
@@ -869,6 +915,19 @@ export default function AppointmentDetails({
                 </div>
               )}
 
+              {/* No-show Warning (only for noShow action) */}
+              {activeAction === "noShow" && (
+                <div className="mb-6 p-4 bg-status-danger-soft rounded-xl border border-status-danger/20">
+                  <h4 className="font-medium text-status-danger mb-2 flex items-center gap-2">
+                    <Ban className="w-4 h-4" />
+                    Confirm No-show
+                  </h4>
+                  <p className="text-sm text-status-danger">
+                    Mark this appointment as a no-show? Use this once it's clear the patient won't be arriving.
+                  </p>
+                </div>
+              )}
+
               {/* Reopen Warning (only for reopen action) */}
               {activeAction === "reopen" && (
                 <div className="mb-6 p-4 bg-status-warning-soft rounded-xl border border-status-warning/20">
@@ -899,9 +958,9 @@ export default function AppointmentDetails({
               onClick={currentAction.action}
               disabled={!currentAction.enabled}
               className={`px-6 py-2 rounded-lg text-white flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${
-                activeAction === "changeDoctor" 
-                  ? "bg-brand-violet hover:bg-brand-violet-hover" 
-                  : activeAction === "cancel"
+                activeAction === "changeDoctor"
+                  ? "bg-brand-violet hover:bg-brand-violet-hover"
+                  : activeAction === "cancel" || activeAction === "noShow"
                   ? "bg-status-danger hover:bg-status-danger-hover"
                   : activeAction === "reschedule"
                   ? "bg-brand-violet hover:bg-brand-violet-hover"

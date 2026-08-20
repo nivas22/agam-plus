@@ -56,6 +56,18 @@ export class Appointment {
   patientGender?: string;
 
   @Prop()
+  confirmedAt?: Date;
+
+  @Prop()
+  checkedInAt?: Date;
+
+  @Prop()
+  waitingAt?: Date;
+
+  @Prop()
+  consultationStartedAt?: Date;
+
+  @Prop()
   completedAt?: Date;
 
   @Prop()
@@ -69,6 +81,12 @@ export class Appointment {
 
   @Prop()
   reopenedAt?: Date;
+
+  @Prop()
+  cancelReason?: string;
+
+  @Prop()
+  noShowReason?: string;
 
   @Prop()
   createdAt?: Date;

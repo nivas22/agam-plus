@@ -1,29 +1,31 @@
 // components/CreateAppointment.tsx
 'use client';
 
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { toast } from "react-hot-toast";
 import {
   ArrowLeft,
-  Save,
   ChevronDown,
   Search,
-  Calendar,
-  Clock,
-  User,
-  Stethoscope,
+  Info,
+  AlertCircle,
   CalendarCheck,
   Loader2,
-  CheckCircle2
+  CheckCircle2,
 } from "lucide-react";
+import { format } from "date-fns";
 import { DateTime } from "luxon";
 import { useHospitalAppointmentsApi } from "@/hooks/useNewAppointmentsApi";
 import { useHospitalPatients } from "@/hooks/useNewPatientApi";
 import { useHospitalDoctors } from "@/hooks/useNewDoctorApi";
 import { Doctor } from "@/types/doctorNew";
 import { Patient } from "@/types/patientNew";
+import { TimeSlot } from "@/types/appointment";
 import { useAuth } from "@/hooks/useAuth";
 import { useDoctorSlots } from "@/hooks/useDoctorSlots";
+import { paletteFor } from "@/lib/avatarPalette";
+import { Field, inputClass } from "@/components/common/EditFormControls";
 
 interface CreateAppointmentProps {
   canEdit: boolean;
@@ -31,275 +33,359 @@ interface CreateAppointmentProps {
   hospitalId: string;
 }
 
-export default function CreateAppointment({userRole, hospitalId}: CreateAppointmentProps) {
-  const { data: patientsData = { patients: []}, isLoading: patientsLoading, } = useHospitalPatients(hospitalId, undefined, true);
-  const { data: doctorsData = { doctors : []}, isLoading: doctorsLoading } = useHospitalDoctors(hospitalId, undefined, true);
+const DAYS_OF_WEEK = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+const DAY_ORDER = Object.fromEntries(DAYS_OF_WEEK.map((d, i) => [d, i]));
+
+const FREQUENCIES: { value: "once" | "weekly" | "monthly"; label: string; hint: string }[] = [
+  { value: "once", label: "Just once", hint: "A single visit" },
+  { value: "weekly", label: "Weekly", hint: "Same days each week" },
+  { value: "monthly", label: "Monthly", hint: "Same date each month" },
+];
+
+interface ComboItem {
+  id: string;
+  label: string;
+  avatarName: string;
+  subtitle: string;
+}
+
+function getInitials(name?: string): string {
+  const parts = (name || "").trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+function InitialsAvatar({ name, size = 34 }: { name: string; size?: number }) {
+  const [c1, c2] = paletteFor(name || "?");
+  return (
+    <div
+      className="rounded-lg flex items-center justify-center text-white font-semibold shrink-0 shadow-sm"
+      style={{ width: size, height: size, fontSize: Math.round(size * 0.36), background: `linear-gradient(135deg, ${c1}, ${c2})` }}
+    >
+      {getInitials(name)}
+    </div>
+  );
+}
+
+function uniqueAvailableDays(availability?: TimeSlot[]): string[] {
+  if (!availability?.length) return [];
+  const set = new Set(availability.map((a) => a.day));
+  return DAYS_OF_WEEK.filter((d) => set.has(d));
+}
+
+function formatTimeForDisplay(time: string): string {
+  const [hours, minutes] = time.split(":");
+  const hour = parseInt(hours, 10);
+  const period = hour >= 12 ? "PM" : "AM";
+  const displayHour = hour % 12 || 12;
+  return `${displayHour}:${minutes} ${period}`;
+}
+
+function Combobox({
+  label,
+  required,
+  placeholder,
+  meta,
+  items,
+  selected,
+  search,
+  onSearchChange,
+  open,
+  onOpenChange,
+  onSelect,
+  searchPlaceholder,
+  emptyLabel,
+  accent,
+}: {
+  label: string;
+  required?: boolean;
+  placeholder: string;
+  meta: string;
+  items: ComboItem[];
+  selected: ComboItem | null;
+  search: string;
+  onSearchChange: (v: string) => void;
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  onSelect: (item: ComboItem) => void;
+  searchPlaceholder: string;
+  emptyLabel: string;
+  accent: "violet" | "open";
+}) {
+  const openRing = accent === "open" ? "border-status-open ring-2 ring-status-open/15" : "border-brand-violet ring-2 ring-brand-violet/15";
+  const selectedRow = accent === "open" ? "bg-status-open-soft" : "bg-brand-violet-soft";
+
+  return (
+    <div className="relative">
+      <label className="block text-sm font-semibold text-ink-900 mb-2">
+        {label}
+        {required && <span className="text-brand-violet ml-0.5">*</span>}
+      </label>
+      <button
+        type="button"
+        onClick={() => onOpenChange(!open)}
+        className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg border bg-surface-paper text-left transition-colors min-h-[58px] ${
+          open ? openRing : "border-border hover:border-ink-500"
+        }`}
+      >
+        {selected ? (
+          <>
+            <InitialsAvatar name={selected.avatarName} />
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-semibold text-ink-900 truncate">{selected.label}</span>
+              <span className="block text-xs text-ink-500 truncate">{selected.subtitle}</span>
+            </span>
+          </>
+        ) : (
+          <>
+            <span className="w-[34px] h-[34px] rounded-lg bg-surface-canvas border border-border flex items-center justify-center text-ink-500 shrink-0">—</span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-medium text-ink-500">{placeholder}</span>
+              <span className="block text-xs text-ink-500 truncate">{meta}</span>
+            </span>
+          </>
+        )}
+        <ChevronDown className={`w-4 h-4 text-ink-500 shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+
+      {open && (
+        <div className="absolute z-20 mt-2 w-full bg-surface-paper border border-border rounded-lg shadow-lg overflow-hidden">
+          <div className="p-2 border-b border-border">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-500" />
+              <input
+                autoFocus
+                value={search}
+                onChange={(e) => onSearchChange(e.target.value)}
+                onMouseDown={(e) => e.stopPropagation()}
+                placeholder={searchPlaceholder}
+                className="w-full pl-8 pr-3 py-2 text-sm rounded-md border border-border bg-surface-canvas focus:outline-none focus:ring-2 focus:ring-brand-violet/20"
+              />
+            </div>
+          </div>
+          <div className="max-h-64 overflow-y-auto p-2">
+            {items.length ? (
+              items.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => onSelect(item)}
+                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-left hover:bg-surface-canvas transition-colors ${
+                    selected?.id === item.id ? selectedRow : ""
+                  }`}
+                >
+                  <InitialsAvatar name={item.avatarName} />
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-medium text-ink-900 truncate">{item.label}</span>
+                    <span className="block text-xs text-ink-500 truncate">{item.subtitle}</span>
+                  </span>
+                </button>
+              ))
+            ) : (
+              <div className="py-6 text-center text-sm text-ink-500">{emptyLabel}</div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SlipRow({ k, v, sub }: { k: string; v?: string; sub?: string }) {
+  return (
+    <div className="flex gap-3 text-xs">
+      <span className="w-16 shrink-0 font-mono text-[10px] uppercase tracking-wider text-ink-500 pt-0.5">{k}</span>
+      {v ? (
+        <span className="font-medium text-ink-900 min-w-0">
+          {v}
+          {sub && (
+            <>
+              <br />
+              <span className="text-ink-500 font-normal">{sub}</span>
+            </>
+          )}
+        </span>
+      ) : (
+        <span className="text-ink-500/60">Not chosen</span>
+      )}
+    </div>
+  );
+}
+
+export default function CreateAppointment({ userRole, hospitalId }: CreateAppointmentProps) {
+  const { data: patientsData = { patients: [] }, isLoading: patientsLoading } = useHospitalPatients(hospitalId, undefined, true);
+  const { data: doctorsData = { doctors: [] }, isLoading: doctorsLoading } = useHospitalDoctors(hospitalId, undefined, true);
   const { navigateToHospitalRoute, currentHospitalMembership } = useAuth();
 
-  const {
-      addAppointment,
-    } = useHospitalAppointmentsApi(
-      hospitalId,
-      userRole,
-      false,
-      undefined,
-    );
+  const { addAppointment } = useHospitalAppointmentsApi(hospitalId, userRole, false, undefined);
+  const searchParams = useSearchParams();
 
-  // State
-  const [filteredDoctors, setFilteredDoctors] = useState<Doctor[]>([]);
-  const [filteredPatients, setFilteredPatients] = useState<Patient[]>([]);
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [appointmentDate, setAppointmentDate] = useState("");
   const [appointmentTime, setAppointmentTime] = useState("");
   const [frequency, setFrequency] = useState<"once" | "weekly" | "monthly">("once");
   const [numberOfOccurrences, setNumberOfOccurrences] = useState(1);
-  
-  const [loading, setLoading] = useState(false);
+
   const [saving, setSaving] = useState(false);
   const [notes, setNotes] = useState("");
   const [doctorSearch, setDoctorSearch] = useState("");
   const [patientSearch, setPatientSearch] = useState("");
   const [showDoctorList, setShowDoctorList] = useState(false);
   const [showPatientList, setShowPatientList] = useState(false);
-  const [availableDays, setAvailableDays] = useState<string[]>([]);
   const [selectedDays, setSelectedDays] = useState<string[]>([]);
-  // const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
+  const [prefilled, setPrefilled] = useState(false);
 
-  const isoDate = appointmentDate
-  ? DateTime.fromISO(appointmentDate).toISODate() ?? undefined
-  : undefined;
+  // Prefill from a "Book this slot" deep link (?doctorId=&date=&time=)
+  useEffect(() => {
+    if (prefilled || !doctorsData.doctors?.length) return;
+    const doctorId = searchParams.get("doctorId");
+    const date = searchParams.get("date");
+    const time = searchParams.get("time");
+    if (doctorId) {
+      const match = doctorsData.doctors.find((d) => d.id === doctorId);
+      if (match) setSelectedDoctor(match);
+    }
+    if (date) setAppointmentDate(date);
+    if (time) setAppointmentTime(time);
+    setPrefilled(true);
+  }, [doctorsData.doctors, searchParams, prefilled]);
 
-  const { data: slotData, isLoading: slotsLoading } = useDoctorSlots(
-    hospitalId,
-    selectedDoctor?.id ?? undefined,
-    isoDate
-  );
+  const isoDate = appointmentDate ? DateTime.fromISO(appointmentDate).toISODate() ?? undefined : undefined;
 
+  const { data: slotData, isLoading: slotsLoading } = useDoctorSlots(hospitalId, selectedDoctor?.id ?? undefined, isoDate);
   const availableSlots = slotData?.availableSlots ?? [];
-
-  const daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+  const availableDays = useMemo(() => uniqueAvailableDays(selectedDoctor?.availability), [selectedDoctor]);
 
   // Click outside to close dropdowns
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (showDoctorList && !(event.target as Element).closest(".doctor-dropdown")) {
-        setShowDoctorList(false);
-      }
-      if (showPatientList && !(event.target as Element).closest(".patient-dropdown")) {
-        setShowPatientList(false);
-      }
+      if (showDoctorList && !(event.target as Element).closest(".doctor-combo")) setShowDoctorList(false);
+      if (showPatientList && !(event.target as Element).closest(".patient-combo")) setShowPatientList(false);
     };
-
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [showDoctorList, showPatientList]);
 
-  // Filter doctors
-  useEffect(() => {
-    if (!doctorsData.doctors) return;
-    if (!doctorSearch) {
-      setFilteredDoctors(doctorsData.doctors);
-      return;
-    }
-    const q = doctorSearch.toLowerCase();
-    setFilteredDoctors(
-      doctorsData.doctors.filter((d) =>
-        d.name?.toLowerCase().includes(q) ||
-        d.specialization?.toLowerCase().includes(q)
-      )
-    );
-  }, [doctorSearch, doctorsData, doctorsLoading]);
-
-  // Filter patients
-  useEffect(() => {
-    if (!patientsData.patients) return;
-    const { patients } = patientsData;
-
-    if (!patientSearch) {
-      setFilteredPatients(patients);
-      return;
-    }
-    const q = patientSearch.toLowerCase();
-    setFilteredPatients(
-      patients.filter((p) =>
-        p.name?.toLowerCase().includes(q) ||
-        p.email?.toLowerCase().includes(q)
-      )
-    );
-  }, [patientSearch, patientsData.patients, patientsLoading]);
-
   // Auto-select doctor if user role is doctor
   useEffect(() => {
-    if (currentHospitalMembership?.role === 'doctor' && doctorsData.doctors && doctorsData.doctors.length > 0 && !selectedDoctor) {
-      // Find the doctor profile that matches the current user
+    if (currentHospitalMembership?.role === "doctor" && doctorsData.doctors?.length && !selectedDoctor) {
       const currentUserDoctor = doctorsData.doctors.find(
         (doctor) => doctor.profileId === currentHospitalMembership?.userId || doctor.id === currentHospitalMembership?.userId
       );
-      if (currentUserDoctor) {
-        setSelectedDoctor(currentUserDoctor);
-      }
+      if (currentUserDoctor) setSelectedDoctor(currentUserDoctor);
     }
   }, [doctorsData.doctors, currentHospitalMembership, selectedDoctor]);
 
-  // Extract available days from doctor's schedule
+  // Reset day selection whenever the doctor changes
   useEffect(() => {
-    if (selectedDoctor?.availability) {
-      const days = selectedDoctor.availability.map(a => a.day);
-      setAvailableDays(days);
-      // Auto-select all available days for weekly recurrence
-      setSelectedDays(days);
+    setSelectedDays(availableDays);
+  }, [availableDays]);
+
+  const doctorItems: ComboItem[] = useMemo(() => {
+    const q = doctorSearch.toLowerCase();
+    return (doctorsData.doctors || [])
+      .filter((d) => !q || d.name?.toLowerCase().includes(q) || d.specialization?.toLowerCase().includes(q))
+      .map((d) => ({
+        id: d.id,
+        label: `Dr. ${d.name}`,
+        avatarName: d.name,
+        subtitle: [d.specialization, uniqueAvailableDays(d.availability).map((day) => day.slice(0, 3)).join(" ")].filter(Boolean).join(" · "),
+      }));
+  }, [doctorsData.doctors, doctorSearch]);
+
+  const patientItems: ComboItem[] = useMemo(() => {
+    const q = patientSearch.toLowerCase();
+    return (patientsData.patients || [])
+      .filter((p) => !q || p.name?.toLowerCase().includes(q) || p.email?.toLowerCase().includes(q) || p.phone?.toLowerCase().includes(q))
+      .map((p) => ({
+        id: p.id,
+        label: p.name,
+        avatarName: p.name,
+        subtitle: [p.phone, p.email].filter(Boolean).join(" · ") || "No contact on file",
+      }));
+  }, [patientsData.patients, patientSearch]);
+
+  const selectedDoctorItem: ComboItem | null = selectedDoctor
+    ? { id: selectedDoctor.id, label: `Dr. ${selectedDoctor.name}`, avatarName: selectedDoctor.name, subtitle: selectedDoctor.specialization || "" }
+    : null;
+  const selectedPatientItem: ComboItem | null = selectedPatient
+    ? { id: selectedPatient.id, label: selectedPatient.name, avatarName: selectedPatient.name, subtitle: [selectedPatient.phone, selectedPatient.email].filter(Boolean).join(" · ") }
+    : null;
+
+  function toggleDaySelection(day: string) {
+    setSelectedDays((prev) => (prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day].sort((a, b) => DAY_ORDER[a] - DAY_ORDER[b])));
+  }
+
+  const previewDates = useMemo(() => {
+    if (!appointmentDate) return [];
+    if (frequency === "once") return [{ iso: appointmentDate, warn: null as string | null }];
+
+    const limit = Math.min(Math.max(numberOfOccurrences || 1, 1), 52);
+    const results: { iso: string; warn: string | null }[] = [];
+
+    if (frequency === "weekly") {
+      if (!selectedDays.length) return [];
+      let cursor = DateTime.fromISO(appointmentDate);
+      let guard = 0;
+      while (results.length < limit && guard++ < 400) {
+        if (selectedDays.includes(cursor.toFormat("cccc"))) results.push({ iso: cursor.toISODate()!, warn: null });
+        cursor = cursor.plus({ days: 1 });
+      }
     } else {
-      setAvailableDays([]);
-      setSelectedDays([]);
+      const start = DateTime.fromISO(appointmentDate);
+      for (let i = 0; i < limit; i++) {
+        const d = start.plus({ months: i });
+        const warn = availableDays.length && !availableDays.includes(d.toFormat("cccc")) ? "Outside the doctor's usual consulting days" : null;
+        results.push({ iso: d.toISODate()!, warn });
+      }
     }
-  }, [selectedDoctor]);
+    return results;
+  }, [appointmentDate, frequency, numberOfOccurrences, selectedDays, availableDays]);
 
-  // Update loading state based on slots loading
-  useEffect(() => {
-    setLoading(slotsLoading);
-  }, [slotsLoading]);
+  const hasAnyWarning = previewDates.some((d) => d.warn);
 
-  // Find next available slot
-  // const findNextAvailableSlot = async (doctor: Doctor, date: string, preferredTime: string) => {
-  //   const currentDate = new Date(date);
-  //   let attempts = 0;
-  //   const maxAttempts = 30;
-    
-  //   while (attempts < maxAttempts) {
-  //     const slots = await getAvailableSlots(doctor, currentDate.toISOString().split('T')[0]);
-      
-  //     if (slots.length > 0) {
-  //       if (preferredTime && slots.includes(preferredTime)) {
-  //         return {
-  //           date: currentDate.toISOString().split('T')[0],
-  //           time: preferredTime
-  //         };
-  //       }
-        
-  //       return {
-  //         date: currentDate.toISOString().split('T')[0],
-  //         time: slots[0]
-  //       };
-  //     }
-      
-  //     currentDate.setDate(currentDate.getDate() + 1);
-  //     attempts++;
-  //   }
-    
-  //   return null;
-  // };
+  let blockerMessage: string | null = null;
+  if (!selectedDoctor) blockerMessage = "Choose a doctor";
+  else if (!selectedPatient) blockerMessage = "Choose a patient";
+  else if (!appointmentDate) blockerMessage = "Choose a date";
+  else if (!appointmentTime) blockerMessage = "Choose a time";
+  else if (frequency === "weekly" && selectedDays.length === 0) blockerMessage = "Choose at least one day to repeat on";
 
-  // Helper to create appointment object
-  // const makeAppointmentObject = (dateObj: Date, timeStr: string) => ({
-  //   doctorProfileId: selectedDoctor!.id,
-  //   doctorName: selectedDoctor!.name,
-  //   doctorSpecialization: selectedDoctor!.specialization,
-  //   patientId: selectedPatient!.id,
-  //   patientName: selectedPatient!.name,
-  //   date: dateObj.toISOString().split("T")[0],
-  //   time: timeStr,
-  //   frequency,
-  //   notes,
-  //   hospitalId,
-  //   status: "scheduled" as const
-  // });
+  const isValid = !blockerMessage;
+  const previewCount = isValid ? previewDates.length : 0;
 
-  // Generate appointments according to frequency
-  // const generateAppointments = async () => {
-  //   if (!selectedDoctor || !selectedPatient || !appointmentDate || !appointmentTime) {
-  //     return [];
-  //   }
+  const repeatsLabel =
+    frequency === "once"
+      ? "Just once"
+      : frequency === "weekly"
+      ? selectedDays.length
+        ? `Every ${selectedDays.map((d) => d.slice(0, 3)).join(", ")}`
+        : "Weekly — pick days"
+      : `Monthly on day ${appointmentDate ? DateTime.fromISO(appointmentDate).day : "—"}`;
 
-  //   const appointments = [];
-  //   const startDate = new Date(appointmentDate);
-  //   let count = 0;
-  //   const maxOccurrences = frequency === "once" ? 1 : Math.max(1, numberOfOccurrences);
-  //   let attempts = 0;
-  //   const SAFETY_LIMIT = 1000;
-
-  //   if (frequency === "once") {
-  //     const slot = await findNextAvailableSlot(selectedDoctor, appointmentDate, appointmentTime);
-  //     if (slot) {
-  //       appointments.push(makeAppointmentObject(new Date(slot.date), slot.time));
-  //     }
-  //     return appointments;
-  //   }
-
-  //   if (frequency === "weekly") {
-  //     const cursor = new Date(startDate);
-  //     while (count < maxOccurrences && attempts < SAFETY_LIMIT) {
-  //       const dayName = cursor.toLocaleDateString("en-US", { weekday: "long" });
-  //       if (selectedDays.includes(dayName)) {
-  //         const slot = await findNextAvailableSlot(selectedDoctor, cursor.toISOString().split('T')[0], appointmentTime);
-  //         if (slot) {
-  //           appointments.push(makeAppointmentObject(new Date(slot.date), slot.time));
-  //           count++;
-  //         }
-  //       }
-  //       cursor.setDate(cursor.getDate() + 1);
-  //       attempts++;
-  //     }
-  //   }
-
-  //   if (frequency === "monthly") {
-  //     const cursor = new Date(startDate);
-  //     while (count < maxOccurrences && attempts < SAFETY_LIMIT) {
-  //       const slot = await findNextAvailableSlot(selectedDoctor, cursor.toISOString().split('T')[0], appointmentTime);
-  //       if (slot) {
-  //         appointments.push(makeAppointmentObject(new Date(slot.date), slot.time));
-  //         count++;
-  //       }
-  //       cursor.setMonth(cursor.getMonth() + 1);
-  //       attempts++;
-  //     }
-  //   }
-
-  //   if (attempts >= SAFETY_LIMIT) {
-  //     console.warn("Reached attempts safety limit while generating recurring appointments.");
-  //   }
-
-  //   return appointments;
-  // };
-
-  // Submit handler
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (!selectedDoctor || !selectedPatient || !appointmentDate || !appointmentTime) {
-      toast.error("Please fill all required fields");
-      return;
-    }
-
-    if (frequency === "weekly" && selectedDays.length === 0) {
-      toast.error("Please select at least one day for weekly appointments");
+    if (blockerMessage) {
+      toast.error(blockerMessage);
       return;
     }
 
     setSaving(true);
     try {
       await addAppointment({
-        doctorProfileId: selectedDoctor.id,
-        patientId: selectedPatient.id,
+        doctorProfileId: selectedDoctor!.id,
+        patientId: selectedPatient!.id,
         startDate: appointmentDate,
         preferredTime: appointmentTime,
         frequency,
-        numberOfOccurrences: frequency === 'once' ? 1 : numberOfOccurrences,
-        selectedDays: frequency === 'weekly' ? selectedDays : [],
+        numberOfOccurrences: frequency === "once" ? 1 : numberOfOccurrences,
+        selectedDays: frequency === "weekly" ? selectedDays : [],
         notes,
       });
 
-      // if (!appointmentsToSave.length) {
-      //   toast.error("No available slots were found for the selected recurrence/settings.");
-      //   setSaving(false);
-      //   return;
-      // }
-
-      // for (let app of appointmentsToSave) {
-      //   await addAppointment(app);
-      // }
-
-      toast.success(`Appointment created successfully`);
+      toast.success("Appointment created successfully");
       navigateToHospitalRoute("appointments", hospitalId);
     } catch (err) {
       console.error("Error scheduling:", err);
@@ -309,699 +395,437 @@ export default function CreateAppointment({userRole, hospitalId}: CreateAppointm
     }
   };
 
-  // Toggle day selection for weekly appointments
-  const toggleDaySelection = (day: string) => {
-    setSelectedDays((prev) => 
-      prev.includes(day) 
-        ? prev.filter((d) => d !== day)
-        : [...prev, day]
-    );
-  };
-
-  const calculateEndDate = () => {
-    if (!appointmentDate || frequency === "once") return "";
-    const start = new Date(appointmentDate);
-    const end = new Date(start);
-    
-    if (frequency === "weekly") {
-      // Estimate end date based on number of occurrences and selected days
-      let occurrences = 0;
-      const current = new Date(start);
-      const maxDays = 365; // Safety limit
-      let daysPassed = 0;
-      
-      while (occurrences < numberOfOccurrences && daysPassed < maxDays) {
-        const dayName = current.toLocaleDateString("en-US", { weekday: "long" });
-        if (selectedDays.includes(dayName)) {
-          occurrences++;
-          if (occurrences === numberOfOccurrences) {
-            end.setTime(current.getTime());
-          }
-        }
-        current.setDate(current.getDate() + 1);
-        daysPassed++;
-      }
-    } else if (frequency === "monthly") {
-      end.setMonth(start.getMonth() + (numberOfOccurrences - 1));
-    }
-    
-    return end.toISOString().split("T")[0];
-  };
-
-  // Validation for submit button
-  const isValid =
-    selectedDoctor &&
-    selectedPatient &&
-    appointmentDate &&
-    appointmentTime &&
-    (frequency === "once" ||
-     (frequency === "weekly" && selectedDays.length > 0) ||
-     (frequency === "monthly" && numberOfOccurrences >= 1));
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-brand-violet-soft flex justify-center items-center">
-        <div className="text-center">
-          <Loader2 className="w-12 h-12 text-brand-violet animate-spin mx-auto mb-4" />
-          <p className="text-ink-700 font-medium">Loading...</p>
+  function renderSlotArea() {
+    if (!selectedDoctor) {
+      return (
+        <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-surface-canvas text-sm text-ink-500">
+          <Info className="w-4 h-4 shrink-0" />
+          Choose a doctor first — times come from their consulting hours.
         </div>
+      );
+    }
+    if (!appointmentDate) {
+      return (
+        <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-surface-canvas text-sm text-ink-500">
+          <Info className="w-4 h-4 shrink-0" />
+          Choose a date to see available times.
+        </div>
+      );
+    }
+    if (slotsLoading || patientsLoading || doctorsLoading) {
+      return (
+        <div className="flex items-center gap-2 px-4 py-3 text-sm text-ink-500">
+          <Loader2 className="w-4 h-4 animate-spin" /> Loading times…
+        </div>
+      );
+    }
+    if (!availableSlots.length) {
+      return (
+        <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-status-warning-soft text-sm text-status-warning">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          No available times on this date. Try another date.
+        </div>
+      );
+    }
+
+    const groups: Record<"Morning" | "Afternoon" | "Evening", string[]> = { Morning: [], Afternoon: [], Evening: [] };
+    availableSlots.forEach((t) => {
+      const h = parseInt(t.slice(0, 2), 10);
+      (h < 12 ? groups.Morning : h < 16 ? groups.Afternoon : groups.Evening).push(t);
+    });
+
+    return (
+      <div className="space-y-4">
+        {(["Morning", "Afternoon", "Evening"] as const)
+          .filter((k) => groups[k].length)
+          .map((k) => (
+            <div key={k}>
+              <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-widest text-ink-500 mb-2">
+                {k}
+                <span className="flex-1 h-px bg-border" />
+              </div>
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                {groups[k].map((slot) => (
+                  <button
+                    key={slot}
+                    type="button"
+                    onClick={() => setAppointmentTime(slot)}
+                    className={`h-9 rounded-lg border text-sm font-mono transition-colors ${
+                      appointmentTime === slot
+                        ? "bg-brand-violet border-brand-violet text-white"
+                        : "bg-surface-paper border-border text-ink-700 hover:border-brand-violet hover:text-brand-violet"
+                    }`}
+                  >
+                    {formatTimeForDisplay(slot)}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        <p className="text-xs text-ink-500">
+          {availableSlots.length} time slot{availableSlots.length !== 1 ? "s" : ""} free on{" "}
+          {format(new Date(`${appointmentDate}T00:00:00`), "EEEE, d MMMM")}. For a repeating series the same time is held every occurrence.
+        </p>
       </div>
     );
   }
 
+  const today = new Date().toISOString().split("T")[0];
+
   return (
-    <div className="min-h-screen bg-brand-violet-soft md:bg-brand-violet-soft">
-      <div className="max-w-5xl mx-auto px-3 sm:px-4 md:px-6 py-4 md:py-10">
-        {/* Mobile Header */}
-        <div className="md:hidden mb-4">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-2.5 bg-gradient-to-br from-brand-violet to-brand-violet rounded-xl shadow-md">
-              <CalendarCheck className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <h1 className="text-xl font-bold text-ink-900">
-                New Appointment
-              </h1>
-              <p className="text-ink-700 text-xs">
-                Schedule a patient visit
-              </p>
-            </div>
+    <div className="min-h-screen bg-surface-canvas pb-10">
+      <div className="max-w-6xl mx-auto px-4 py-6">
+        <div className="flex items-start gap-3 mb-5">
+          <button
+            type="button"
+            onClick={() => navigateToHospitalRoute("appointments", hospitalId)}
+            className="flex items-center gap-2 p-2 -ml-2 mt-0.5 rounded-lg text-ink-700 hover:bg-surface-paper transition-colors shrink-0"
+          >
+            <ArrowLeft className="w-4 h-4" />
+          </button>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-xl font-bold text-ink-900">Schedule an appointment</h1>
+            <p className="text-sm text-ink-500 mt-0.5">Book once, or set up a repeating series. Nothing is saved until you confirm.</p>
           </div>
         </div>
 
-        {/* Desktop Header */}
-        <div className="hidden md:block mb-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-br from-brand-violet to-brand-violet rounded-2xl blur-lg opacity-30"></div>
-                <div className="relative p-4 bg-gradient-to-br from-brand-violet to-brand-violet rounded-2xl shadow-lg">
-                  <CalendarCheck className="w-8 h-8 text-white" />
+        <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_360px] gap-5 items-start">
+          <div className="min-w-0">
+            {/* 01 */}
+            <section className="bg-surface-paper rounded-xl border border-border shadow-sm mb-4">
+              <div className="flex items-center gap-3 px-5 py-4 border-b border-border">
+                <span className="w-7 h-7 rounded-md bg-brand-violet-soft text-brand-violet text-xs font-mono font-semibold flex items-center justify-center shrink-0">01</span>
+                <div>
+                  <div className="text-sm font-semibold text-ink-900">Who is this for?</div>
+                  <div className="text-xs text-ink-500">The doctor's consulting days set what you can book below.</div>
                 </div>
               </div>
-              <div>
-                <h1 className="text-2xl md:text-3xl font-bold text-ink-900 mb-1">
-                  Schedule New Appointment
-                </h1>
-                <p className="text-ink-700 text-sm md:text-base">
-                  Create a new appointment for a patient
-                </p>
-              </div>
-            </div>
-            <button 
-              onClick={() => navigateToHospitalRoute("appointments", hospitalId)} 
-              className="flex items-center gap-2 px-4 py-2 text-ink-700 hover:text-ink-900 hover:bg-white/50 rounded-lg transition-all"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              <span className="text-sm font-medium">Back</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Main Form Card */}
-        <form onSubmit={handleSubmit} className="bg-surface-paper rounded-xl md:rounded-2xl shadow-md md:shadow-xl border border-border md:border-border/50 overflow-hidden md:bg-white/80 md:backdrop-blur-sm">
-          {/* Card Header */}
-          <div className="bg-gradient-to-r from-brand-violet/5 via-brand-violet/5 to-brand-violet/5 border-b border-border/50 px-4 sm:px-6 py-4">
-            <div className="flex items-center gap-2">
-              <div className="w-1.5 h-6 bg-gradient-to-b from-brand-violet to-brand-violet rounded-full"></div>
-              <div>
-                <h2 className="text-lg font-semibold text-ink-900">Appointment Details</h2>
-                <p className="text-xs text-ink-700">Fill in the information below</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="p-4 sm:p-5 md:p-8">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
-              {/* Left Column - Basic Information */}
-              <div className="space-y-6">
-                {/* Doctor Selection - Only show for admin, hide for doctors */}
-                {currentHospitalMembership?.role === 'doctor' ? (
-                  // Display selected doctor info for doctor role (read-only)
-                  <div className="doctor-info">
-                    <label className="block text-sm font-semibold text-ink-900 mb-3 flex items-center gap-2">
-                      <div className="p-1.5 bg-brand-violet-soft rounded-lg">
-                        <Stethoscope className="w-4 h-4 text-brand-violet" />
+              <div className="p-5 space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {currentHospitalMembership?.role === "doctor" ? (
+                    <div>
+                      <label className="block text-sm font-semibold text-ink-900 mb-2">Doctor</label>
+                      <div className="flex items-center gap-3 px-3 py-3 rounded-lg border border-brand-violet bg-brand-violet-soft min-h-[58px]">
+                        {selectedDoctor ? (
+                          <>
+                            <InitialsAvatar name={selectedDoctor.name} />
+                            <span className="min-w-0 flex-1">
+                              <span className="block text-sm font-semibold text-ink-900 truncate">Dr. {selectedDoctor.name}</span>
+                              <span className="block text-xs text-ink-500 truncate">{selectedDoctor.specialization}</span>
+                            </span>
+                          </>
+                        ) : (
+                          <span className="text-sm text-ink-500">Loading your profile…</span>
+                        )}
                       </div>
-                      Doctor
-                    </label>
-                    <div className="p-4 border-2 border-brand-violet rounded-xl bg-gradient-to-br from-brand-violet-soft to-brand-violet-soft">
-                      {selectedDoctor ? (
-                        <div className="flex items-center gap-3">
-                          <div className="relative">
-                            <div className="w-10 h-10 bg-gradient-to-br from-brand-violet to-brand-violet rounded-xl flex items-center justify-center shadow-md">
-                              <Stethoscope className="w-5 h-5 text-white" />
-                            </div>
-                            <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-status-open rounded-full border-2 border-white"></div>
-                          </div>
-                          <div>
-                            <div className="font-semibold text-ink-900">{selectedDoctor.name}</div>
-                            <div className="text-sm text-ink-700 flex items-center gap-1">
-                              <span className="inline-block w-1.5 h-1.5 bg-brand-violet rounded-full"></span>
-                              {selectedDoctor.specialization}
-                            </div>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-3 text-ink-500">
-                          <div className="w-10 h-10 bg-surface-canvas rounded-xl flex items-center justify-center">
-                            <Stethoscope className="w-5 h-5 text-ink-500" />
-                          </div>
-                          <span className="font-medium">Loading your profile...</span>
-                        </div>
-                      )}
                     </div>
+                  ) : (
+                    <div className="doctor-combo">
+                      <Combobox
+                        label="Doctor"
+                        required
+                        placeholder="Choose a doctor"
+                        meta={`${doctorsData.doctors?.length ?? 0} on the roster`}
+                        items={doctorItems}
+                        selected={selectedDoctorItem}
+                        search={doctorSearch}
+                        onSearchChange={setDoctorSearch}
+                        open={showDoctorList}
+                        onOpenChange={setShowDoctorList}
+                        onSelect={(item) => {
+                          const d = doctorsData.doctors.find((x) => x.id === item.id) ?? null;
+                          setSelectedDoctor(d);
+                          setAppointmentTime("");
+                          setShowDoctorList(false);
+                          setDoctorSearch("");
+                        }}
+                        searchPlaceholder="Search doctors"
+                        emptyLabel="No doctors found"
+                        accent="violet"
+                      />
+                    </div>
+                  )}
+
+                  <div className="patient-combo">
+                    <Combobox
+                      label="Patient"
+                      required
+                      placeholder="Choose a patient"
+                      meta="Search by name, phone or email"
+                      items={patientItems}
+                      selected={selectedPatientItem}
+                      search={patientSearch}
+                      onSearchChange={setPatientSearch}
+                      open={showPatientList}
+                      onOpenChange={setShowPatientList}
+                      onSelect={(item) => {
+                        const p = patientsData.patients.find((x) => x.id === item.id) ?? null;
+                        setSelectedPatient(p);
+                        setShowPatientList(false);
+                        setPatientSearch("");
+                      }}
+                      searchPlaceholder="Search patients"
+                      emptyLabel="No patients found"
+                      accent="open"
+                    />
                   </div>
-                ) : (
-                  // Show doctor selection dropdown for admin
-                  <div className="doctor-dropdown relative">
-                    <label className="block text-sm font-semibold text-ink-900 mb-3 flex items-center gap-2">
-                      <div className="p-1.5 bg-brand-violet-soft rounded-lg">
-                        <Stethoscope className="w-4 h-4 text-brand-violet" />
-                      </div>
-                      Select Doctor *
-                    </label>
-                    <div className="relative">
-                      <div
-                        className={`flex items-center justify-between p-4 border-2 rounded-xl cursor-pointer bg-gradient-to-br transition-all duration-200 ${
-                          selectedDoctor 
-                            ? 'border-brand-violet from-brand-violet-soft to-brand-violet-soft shadow-sm' 
-                            : 'border-border from-white to-white hover:border-brand-violet/20 hover:shadow-sm'
-                        }`}
-                        onClick={() => setShowDoctorList((s) => !s)}
-                      >
-                        <div className="flex-1">
-                          {selectedDoctor ? (
-                            <div className="flex items-center gap-3">
-                              <div className="relative">
-                                <div className="w-10 h-10 bg-gradient-to-br from-brand-violet to-brand-violet rounded-xl flex items-center justify-center shadow-md">
-                                  <Stethoscope className="w-5 h-5 text-white" />
-                                </div>
-                                <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-status-open rounded-full border-2 border-white"></div>
-                              </div>
-                              <div>
-                                <div className="font-semibold text-ink-900">{selectedDoctor.name}</div>
-                                <div className="text-sm text-ink-700 flex items-center gap-1">
-                                  <span className="inline-block w-1.5 h-1.5 bg-brand-violet rounded-full"></span>
-                                  {selectedDoctor.specialization}
-                                </div>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-3 text-ink-500">
-                              <div className="w-10 h-10 bg-surface-canvas rounded-xl flex items-center justify-center">
-                                <Stethoscope className="w-5 h-5 text-ink-500" />
-                              </div>
-                              <span className="font-medium">Choose a doctor</span>
-                            </div>
-                          )}
-                        </div>
-                        <div className={`transition-transform duration-200 ${showDoctorList ? 'rotate-180' : ''}`}>
-                          <ChevronDown className="w-5 h-5 text-ink-500" />
-                        </div>
-                      </div>
+                </div>
 
-                      {showDoctorList && (
-                        <div className="absolute z-20 w-full mt-2 bg-surface-paper border-2 border-brand-violet/20 rounded-xl shadow-2xl max-h-80 overflow-hidden">
-                          <div className="p-3 border-b border-border bg-gradient-to-r from-brand-violet-soft to-brand-violet-soft">
-                            <div className="relative">
-                              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-brand-violet w-4 h-4" />
-                              <input
-                                type="text"
-                                placeholder="Search doctors by name or specialization..."
-                                value={doctorSearch}
-                                onChange={(e) => setDoctorSearch(e.target.value)}
-                                onMouseDown={(e) => e.stopPropagation()}
-                                className="w-full pl-10 pr-4 py-2.5 border-2 border-brand-violet/20 rounded-lg focus:ring-2 focus:ring-brand-violet focus:border-brand-violet bg-surface-paper"
-                              />
-                            </div>
-                          </div>
-
-                          <div className="p-2 max-h-64 overflow-y-auto">
-                            {filteredDoctors.length > 0 ? (
-                              filteredDoctors.map((doctor) => (
-                                <div
-                                  key={doctor.id}
-                                  onClick={() => {
-                                    setSelectedDoctor(doctor);
-                                    setShowDoctorList(false);
-                                    setDoctorSearch("");
-                                  }}
-                                  className="p-3 rounded-lg cursor-pointer hover:bg-gradient-to-r hover:from-brand-violet-soft hover:to-brand-violet-soft border-2 border-transparent hover:border-brand-violet/20 transition-all duration-200 mb-2"
-                                >
-                                  <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 bg-gradient-to-br from-brand-violet to-brand-violet rounded-lg flex items-center justify-center flex-shrink-0">
-                                      <Stethoscope className="w-5 h-5 text-white" />
-                                    </div>
-                                    <div className="flex-1">
-                                      <div className="font-semibold text-ink-900">{doctor.name}</div>
-                                      <div className="text-sm text-ink-700">{doctor.specialization}</div>
-                                      {doctor.availability && (
-                                        <div className="text-xs text-ink-500 mt-1 flex items-center gap-1">
-                                          <Calendar className="w-3 h-3" />
-                                          {doctor.availability.map((a) => a.day.substring(0, 3)).join(", ")}
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
-                                </div>
-                              ))
-                            ) : (
-                              <div className="p-6 text-center text-ink-500">
-                                <Stethoscope className="w-12 h-12 text-border mx-auto mb-2" />
-                                <p className="font-medium">No doctors found</p>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    </div>
+                {selectedDoctor && (
+                  <div className="flex items-start gap-3 px-4 py-3 rounded-lg bg-surface-canvas text-xs text-ink-700">
+                    <Info className="w-4 h-4 text-ink-500 shrink-0 mt-0.5" />
+                    <span>
+                      <strong>Dr. {selectedDoctor.name}</strong> consults{" "}
+                      {availableDays.length ? availableDays.join(", ") : "no days set"}. Times below are already filtered to their hours and
+                      existing bookings.
+                    </span>
                   </div>
                 )}
+              </div>
+            </section>
 
-                {/* Patient Selection */}
-                <div className="patient-dropdown relative">
-                  <label className="block text-sm font-semibold text-ink-900 mb-3 flex items-center gap-2">
-                    <div className="p-1.5 bg-status-open-soft rounded-lg">
-                      <User className="w-4 h-4 text-status-open" />
-                    </div>
-                    Select Patient *
-                  </label>
-                  <div className="relative">
-                    <div
-                      className={`flex items-center justify-between p-4 border-2 rounded-xl cursor-pointer bg-gradient-to-br transition-all duration-200 ${
-                        selectedPatient 
-                          ? 'border-status-open from-status-open-soft to-status-open-soft shadow-sm' 
-                          : 'border-border from-white to-white hover:border-status-open/20 hover:shadow-sm'
-                      }`}
-                      onClick={() => setShowPatientList((s) => !s)}
-                    >
-                      <div className="flex-1">
-                        {selectedPatient ? (
-                          <div className="flex items-center gap-3">
-                            <div className="relative">
-                              <div className="w-10 h-10 bg-gradient-to-br from-status-open to-status-open rounded-xl flex items-center justify-center shadow-md">
-                                <User className="w-5 h-5 text-white" />
-                              </div>
-                              <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-brand-violet rounded-full border-2 border-white"></div>
-                            </div>
-                            <div>
-                              <div className="font-semibold text-ink-900">{selectedPatient.name}</div>
-                              {selectedPatient.email && (
-                                <div className="text-sm text-ink-700 flex items-center gap-1">
-                                  <span className="inline-block w-1.5 h-1.5 bg-status-open rounded-full"></span>
-                                  {selectedPatient.email}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-3 text-ink-500">
-                            <div className="w-10 h-10 bg-surface-canvas rounded-xl flex items-center justify-center">
-                              <User className="w-5 h-5 text-ink-500" />
-                            </div>
-                            <span className="font-medium">Choose a patient</span>
-                          </div>
-                        )}
-                      </div>
-                      <div className={`transition-transform duration-200 ${showPatientList ? 'rotate-180' : ''}`}>
-                        <ChevronDown className="w-5 h-5 text-ink-500" />
-                      </div>
-                    </div>
-
-                    {showPatientList && (
-                      <div className="absolute z-20 w-full mt-2 bg-surface-paper border-2 border-status-open/20 rounded-xl shadow-2xl max-h-80 overflow-hidden">
-                        <div className="p-3 border-b border-border bg-gradient-to-r from-status-open-soft to-status-open-soft">
-                          <div className="relative">
-                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-status-open w-4 h-4" />
-                            <input
-                              type="text"
-                              placeholder="Search patients by name or email..."
-                              value={patientSearch}
-                              onChange={(e) => setPatientSearch(e.target.value)}
-                              onMouseDown={(e) => e.stopPropagation()}
-                              className="w-full pl-10 pr-4 py-2.5 border-2 border-status-open/20 rounded-lg focus:ring-2 focus:ring-status-open focus:border-status-open bg-surface-paper"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="p-2 max-h-64 overflow-y-auto">
-                          {filteredPatients.length > 0 ? (
-                            filteredPatients.map((patient) => (
-                              <div
-                                key={patient.id}
-                                onClick={() => {
-                                  setSelectedPatient(patient);
-                                  setShowPatientList(false);
-                                  setPatientSearch("");
-                                }}
-                                className="p-3 rounded-lg cursor-pointer hover:bg-gradient-to-r hover:from-status-open-soft hover:to-status-open-soft border-2 border-transparent hover:border-status-open/20 transition-all duration-200 mb-2"
-                              >
-                                <div className="flex items-center gap-3">
-                                  <div className="w-10 h-10 bg-gradient-to-br from-status-open to-status-open rounded-lg flex items-center justify-center flex-shrink-0">
-                                    <User className="w-5 h-5 text-white" />
-                                  </div>
-                                  <div className="flex-1">
-                                    <div className="font-semibold text-ink-900">{patient.name}</div>
-                                    {patient.email && (
-                                      <div className="text-sm text-ink-700">{patient.email}</div>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            ))
-                          ) : (
-                            <div className="p-6 text-center text-ink-500">
-                              <User className="w-12 h-12 text-border mx-auto mb-2" />
-                              <p className="font-medium">No patients found</p>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Notes */}
+            {/* 02 */}
+            <section className="bg-surface-paper rounded-xl border border-border shadow-sm mb-4">
+              <div className="flex items-center gap-3 px-5 py-4 border-b border-border">
+                <span className="w-7 h-7 rounded-md bg-brand-violet-soft text-brand-violet text-xs font-mono font-semibold flex items-center justify-center shrink-0">02</span>
                 <div>
-                  <label className="block text-sm font-semibold text-ink-900 mb-3">
-                    Notes (Optional)
-                  </label>
-                  <textarea
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    rows={4}
-                    className="w-full p-4 border-2 border-border rounded-xl focus:ring-2 focus:ring-brand-violet focus:border-brand-violet resize-none transition-all duration-200 hover:border-border"
-                    placeholder="Any special instructions or notes about this appointment..."
-                  />
+                  <div className="text-sm font-semibold text-ink-900">When does it start?</div>
+                  <div className="text-xs text-ink-500">Pick the first date and time.</div>
                 </div>
               </div>
-
-              {/* Right Column - Scheduling */}
-              <div className="space-y-6">
-                {/* Frequency */}
-                <div>
-                  <label className="block text-sm font-semibold text-ink-900 mb-3 flex items-center gap-2">
-                    <div className="p-1.5 bg-brand-violet-soft rounded-lg">
-                      <Calendar className="w-4 h-4 text-brand-violet" />
-                    </div>
-                    Schedule Type
-                  </label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {[
-                      { value: "once", label: "One-time", icon: "📅" },
-                      { value: "weekly", label: "Weekly", icon: "🔄" },
-                      { value: "monthly", label: "Monthly", icon: "📆" }
-                    ].map((option) => (
-                      <button
-                        key={option.value}
-                        type="button"
-                        onClick={() => setFrequency(option.value as any)}
-                        className={`relative p-3 rounded-xl border-2 transition-all duration-200 text-sm font-semibold overflow-hidden ${
-                          frequency === option.value
-                            ? "bg-gradient-to-br from-brand-violet to-brand-violet text-white border-brand-violet shadow-lg scale-105"
-                            : "bg-surface-paper text-ink-700 border-border hover:border-brand-violet hover:shadow-md"
-                        }`}
-                      >
-                        <div className="relative z-10 flex flex-col items-center gap-1">
-                          <span className="text-lg">{option.icon}</span>
-                          <span>{option.label}</span>
-                        </div>
-                        {frequency === option.value && (
-                          <div className="absolute top-1 right-1">
-                            <CheckCircle2 className="w-4 h-4 text-white" />
-                          </div>
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Appointment Date */}
-                <div>
-                  <label className="block text-sm font-semibold text-ink-900 mb-3 flex items-center gap-2">
-                    <div className="p-1.5 bg-brand-violet-soft rounded-lg">
-                      <Calendar className="w-4 h-4 text-brand-violet" />
-                    </div>
-                    Start Date *
-                  </label>
-                  <div className="relative">
+              <div className="p-5 space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Field label="First appointment" required>
                     <input
                       type="date"
                       value={appointmentDate}
+                      min={today}
                       onChange={(e) => {
                         const selected = e.target.value;
-                        const today = new Date().toISOString().split("T")[0];
                         if (selected < today) {
                           toast.error("Please select a date that is today or in the future.");
                           return;
                         }
                         setAppointmentDate(selected);
+                        setAppointmentTime("");
                       }}
-                      min={new Date().toISOString().split("T")[0]}
-                      className="w-full px-4 py-3.5 border-2 border-border rounded-xl focus:ring-2 focus:ring-brand-violet focus:border-brand-violet transition-all duration-200 hover:border-border font-medium text-ink-700"
-                      required
+                      className={inputClass}
                     />
+                  </Field>
+                  <div>
+                    <label className="block text-sm font-semibold text-ink-900 mb-2">Appointment length</label>
+                    <div className="flex items-center h-[42px] px-4 rounded-lg border border-border bg-surface-canvas text-sm text-ink-700">
+                      {selectedDoctor ? `${slotData?.doctor.appointmentDuration ?? selectedDoctor.appointmentDuration ?? 30} minutes` : "Set by the doctor you choose"}
+                    </div>
                   </div>
-                  {appointmentDate && (
-                    <div className="mt-2 p-3 bg-gradient-to-r from-brand-violet-soft to-brand-violet-soft rounded-lg border border-brand-violet/20">
-                      <p className="text-sm font-medium text-brand-violet flex items-center gap-2">
-                        <Calendar className="w-4 h-4" />
-                        {new Date(appointmentDate).toLocaleDateString("en-US", {
-                          weekday: "long",
-                          year: "numeric",
-                          month: "long",
-                          day: "numeric"
-                        })}
-                      </p>
-                    </div>
-                  )}
                 </div>
 
-                {/* Appointment Time */}
                 <div>
-                  <label className="block text-sm font-semibold text-ink-900 mb-3 flex items-center gap-2">
-                    <div className="p-1.5 bg-brand-violet-soft rounded-lg">
-                      <Clock className="w-4 h-4 text-brand-violet" />
-                    </div>
-                    Preferred Time *
+                  <label className="block text-sm font-semibold text-ink-900 mb-2">
+                    Time <span className="text-brand-violet">*</span>
                   </label>
-                  {availableSlots.length > 0 ? (
-                    <div className="space-y-3">
-                      <div className="p-3 bg-gradient-to-r from-brand-violet-soft to-brand-violet-soft rounded-lg border border-brand-violet/20">
-                        <p className="text-xs font-semibold text-brand-violet flex items-center gap-2">
-                          <Clock className="w-3.5 h-3.5" />
-                          {availableSlots.length} time slot{availableSlots.length !== 1 ? 's' : ''} available
-                        </p>
-                      </div>
-                      <div className="grid grid-cols-3 gap-2 max-h-64 overflow-y-auto p-1">
-                        {availableSlots.map((slot) => (
-                          <button
-                            key={slot}
-                            type="button"
-                            onClick={() => setAppointmentTime(slot)}
-                            className={`relative p-3 rounded-xl border-2 transition-all duration-200 font-semibold text-sm ${
-                              appointmentTime === slot
-                                ? "bg-gradient-to-br from-brand-violet to-brand-violet text-white border-brand-violet shadow-lg scale-105"
-                                : "bg-surface-paper text-ink-700 border-border hover:border-brand-violet hover:shadow-md hover:scale-102"
-                            }`}
-                          >
-                            <div className="flex flex-col items-center gap-1">
-                              <Clock className={`w-4 h-4 ${appointmentTime === slot ? 'text-white' : 'text-brand-violet'}`} />
-                              <span>{slot}</span>
-                            </div>
-                            {appointmentTime === slot && (
-                              <div className="absolute -top-1 -right-1">
-                                <CheckCircle2 className="w-5 h-5 text-status-open bg-surface-paper rounded-full" />
-                              </div>
-                            )}
-                          </button>
-                        ))}
-                      </div>
-                      {appointmentTime && (
-                        <div className="p-3 bg-gradient-to-r from-status-open-soft to-status-open-soft rounded-lg border border-status-open/20">
-                          <p className="text-sm font-semibold text-status-open flex items-center gap-2">
-                            <CheckCircle2 className="w-4 h-4" />
-                            Selected: {appointmentTime}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="p-4 bg-gradient-to-r from-status-warning-soft to-status-warning-soft rounded-xl text-status-warning text-sm border-2 border-status-warning/20">
-                      <div className="flex items-start gap-3">
-                        <Clock className="w-5 h-5 flex-shrink-0 mt-0.5" />
-                        <div>
-                          <p className="font-semibold mb-1">
-                            {selectedDoctor && appointmentDate 
-                              ? "No available slots" 
-                              : "Select doctor and date"
-                            }
-                          </p>
-                          <p className="text-xs text-status-warning">
-                            {selectedDoctor && appointmentDate 
-                              ? "No available slots for this date. Please select another date." 
-                              : "Select a doctor and date to see available time slots"
-                            }
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
+                  {renderSlotArea()}
+                </div>
+              </div>
+            </section>
+
+            {/* 03 */}
+            <section className="bg-surface-paper rounded-xl border border-border shadow-sm mb-4">
+              <div className="flex items-center gap-3 px-5 py-4 border-b border-border">
+                <span className="w-7 h-7 rounded-md bg-brand-violet-soft text-brand-violet text-xs font-mono font-semibold flex items-center justify-center shrink-0">03</span>
+                <div>
+                  <div className="text-sm font-semibold text-ink-900">Does it repeat?</div>
+                  <div className="text-xs text-ink-500">Weekly and monthly series are created as individual appointments.</div>
+                </div>
+              </div>
+              <div className="p-5 space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {FREQUENCIES.map((f) => (
+                    <button
+                      key={f.value}
+                      type="button"
+                      onClick={() => setFrequency(f.value)}
+                      className={`text-left px-4 py-3 rounded-lg border transition-colors ${
+                        frequency === f.value ? "border-brand-violet bg-brand-violet-soft" : "border-border bg-surface-paper hover:border-ink-500"
+                      }`}
+                    >
+                      <div className="text-sm font-semibold text-ink-900">{f.label}</div>
+                      <div className="text-xs text-ink-500 mt-0.5">{f.hint}</div>
+                    </button>
+                  ))}
                 </div>
 
-                {/* Weekly Options */}
-                {frequency === "weekly" && selectedDoctor && (
-                  <div className="bg-gradient-to-br from-brand-violet-soft to-brand-violet-soft p-5 rounded-xl border-2 border-brand-violet/20">
-                    <label className="block text-sm font-semibold text-ink-900 mb-3 flex items-center gap-2">
-                      <span className="text-lg">🗓️</span>
-                      Select Days (Based on Doctor's Availability)
-                    </label>
-                    <div className="grid grid-cols-4 gap-2">
-                      {daysOfWeek.map((day) => {
+                {frequency === "weekly" && (
+                  <div>
+                    <label className="block text-sm font-semibold text-ink-900 mb-2">Repeat on</label>
+                    <div className="flex flex-wrap gap-2">
+                      {DAYS_OF_WEEK.map((day) => {
                         const isAvailable = availableDays.includes(day);
                         const isSelected = selectedDays.includes(day);
-                        
                         return (
                           <button
                             key={day}
                             type="button"
                             disabled={!isAvailable}
-                            onClick={() => isAvailable && toggleDaySelection(day)}
-                            className={`relative px-3 py-2.5 rounded-lg text-xs font-bold border-2 transition-all duration-200 ${
+                            onClick={() => toggleDaySelection(day)}
+                            title={isAvailable ? undefined : "Doctor does not consult on this day"}
+                            className={`min-w-[64px] px-3 py-2 rounded-lg text-xs font-semibold border transition-colors ${
                               !isAvailable
-                                ? "bg-surface-canvas text-ink-500 border-border cursor-not-allowed opacity-50"
+                                ? "bg-surface-canvas text-ink-500 border-dashed border-border cursor-not-allowed"
                                 : isSelected
-                                ? "bg-gradient-to-br from-brand-violet to-brand-violet text-white border-brand-violet shadow-md scale-105"
-                                : "bg-surface-paper text-ink-700 border-border hover:border-brand-violet hover:shadow-sm"
+                                ? "bg-ink-900 border-ink-900 text-white"
+                                : "bg-surface-paper border-border text-ink-700 hover:border-ink-500"
                             }`}
                           >
-                            {day.substring(0, 3)}
-                            {isSelected && (
-                              <CheckCircle2 className="absolute -top-1 -right-1 w-4 h-4 text-status-open bg-surface-paper rounded-full" />
-                            )}
+                            {day.slice(0, 3)}
                           </button>
                         );
                       })}
                     </div>
-                    <p className="text-xs text-brand-violet mt-3 font-medium">
-                      {selectedDays.length > 0 
-                        ? `✓ Appointments on ${selectedDays.map(d => d.substring(0, 3)).join(", ")} each week`
-                        : "⚠️ Please select at least one day"
-                      }
-                    </p>
-                  </div>
-                )}
-
-                {/* Monthly Options */}
-                {frequency === "monthly" && (
-                  <div className="bg-gradient-to-br from-brand-violet-soft to-brand-violet-soft p-5 rounded-xl border-2 border-brand-violet/20">
-                    <label className="block text-sm font-semibold text-ink-900 mb-2 flex items-center gap-2">
-                      <span className="text-lg">📆</span>
-                      Monthly Appointments
-                    </label>
-                    <p className="text-sm text-brand-violet font-medium">
-                      Appointments will be scheduled on the same date each month, adjusted for doctor's availability.
-                    </p>
-                  </div>
-                )}
-
-                {/* Number of Occurrences */}
-                {frequency !== "once" && (
-                  <div>
-                    <label className="block text-sm font-semibold text-ink-900 mb-3">
-                      Number of Appointments
-                    </label>
-                    <input
-                      type="number"
-                      min="1"
-                      max="52"
-                      value={numberOfOccurrences}
-                      onChange={(e) => setNumberOfOccurrences(Math.max(1, parseInt(e.target.value || "1")))}
-                      className="w-full px-4 py-3.5 border-2 border-border rounded-xl focus:ring-2 focus:ring-brand-violet focus:border-brand-violet transition-all duration-200 hover:border-border font-semibold text-ink-700 text-lg"
-                    />
-                    {calculateEndDate() && (
-                      <div className="mt-2 p-3 bg-gradient-to-r from-status-open-soft to-status-open-soft rounded-lg border border-status-open/20">
-                        <p className="text-sm font-medium text-status-open flex items-center gap-2">
-                          <Calendar className="w-4 h-4" />
-                          Schedule ends on: <strong>{new Date(calculateEndDate()).toLocaleDateString()}</strong>
-                        </p>
+                    {!selectedDoctor ? (
+                      <p className="text-xs text-ink-500 mt-2">Choose a doctor to see which days they consult.</p>
+                    ) : (
+                      <div className="flex items-start gap-3 mt-3 px-4 py-3 rounded-lg bg-surface-canvas text-xs text-ink-700">
+                        <Info className="w-4 h-4 text-ink-500 shrink-0 mt-0.5" />
+                        <span>Dashed days are outside this doctor's consulting schedule. Change the doctor to book them.</span>
                       </div>
                     )}
                   </div>
                 )}
+
+                {frequency !== "once" && (
+                  <Field label="Number of appointments">
+                    <input
+                      type="number"
+                      min={1}
+                      max={52}
+                      value={numberOfOccurrences}
+                      onChange={(e) => setNumberOfOccurrences(Math.max(1, Math.min(52, parseInt(e.target.value || "1", 10))))}
+                      className={`${inputClass} font-mono`}
+                    />
+                  </Field>
+                )}
+              </div>
+            </section>
+
+            {/* 04 */}
+            <section className="bg-surface-paper rounded-xl border border-border shadow-sm overflow-hidden">
+              <div className="flex items-center gap-3 px-5 py-4 border-b border-border">
+                <span className="w-7 h-7 rounded-md bg-brand-violet-soft text-brand-violet text-xs font-mono font-semibold flex items-center justify-center shrink-0">04</span>
+                <div>
+                  <div className="text-sm font-semibold text-ink-900">Anything the doctor should know?</div>
+                  <div className="text-xs text-ink-500">Shown on the appointment card and in the doctor's day view.</div>
+                </div>
+              </div>
+              <div className="p-5">
+                <Field label="Notes" optional>
+                  <textarea
+                    value={notes}
+                    maxLength={500}
+                    onChange={(e) => setNotes(e.target.value)}
+                    rows={4}
+                    placeholder="Fasting required, follow-up on ECG, wheelchair access needed…"
+                    className={`${inputClass} resize-none`}
+                  />
+                </Field>
+                <div className="text-right text-xs font-mono text-ink-500 mt-1">{notes.length}/500</div>
+              </div>
+            </section>
+          </div>
+
+          {/* ── live slip ── */}
+          <aside className="lg:sticky lg:top-4">
+            <div className="bg-surface-paper rounded-xl border border-border shadow-sm overflow-hidden">
+              <div className="bg-ink-900 text-white px-5 py-4">
+                <div className="text-[10px] font-mono uppercase tracking-widest text-white/50 mb-2">You are about to create</div>
+                <div className="text-xl font-bold flex items-baseline gap-2">
+                  {previewCount}
+                  <span className="text-xs font-normal text-white/60">{previewCount === 1 ? "appointment" : "appointments"}</span>
+                </div>
+              </div>
+
+              <div className="px-5 py-4 border-b border-dashed border-border space-y-3">
+                <SlipRow k="Patient" v={selectedPatient?.name} />
+                <SlipRow k="Doctor" v={selectedDoctor ? `Dr. ${selectedDoctor.name}` : undefined} sub={selectedDoctor?.specialization} />
+                <SlipRow
+                  k="Time"
+                  v={appointmentTime ? formatTimeForDisplay(appointmentTime) : undefined}
+                  sub={appointmentTime ? `${slotData?.doctor.appointmentDuration ?? selectedDoctor?.appointmentDuration ?? 30} minutes` : undefined}
+                />
+                <SlipRow k="Repeats" v={repeatsLabel} />
+              </div>
+
+              {previewCount > 0 ? (
+                <div>
+                  <div className="flex items-center justify-between px-5 pt-3 pb-2">
+                    <span className="text-[10px] font-mono uppercase tracking-widest text-ink-500">Dates</span>
+                  </div>
+                  <div
+                    key={`${appointmentDate}-${frequency}-${numberOfOccurrences}-${selectedDays.join(",")}`}
+                    className="max-h-64 overflow-y-auto px-3 pb-2 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-border [&::-webkit-scrollbar-thumb]:rounded-full"
+                  >
+                    {previewDates.map((o, i) => (
+                      <div key={o.iso} className="grid grid-cols-[20px_58px_34px_1fr] items-center gap-3 px-2 py-2 rounded-md text-xs">
+                        <span className="font-mono text-[10px] text-ink-500">{String(i + 1).padStart(2, "0")}</span>
+                        <span className="font-mono text-ink-900">{format(new Date(`${o.iso}T00:00:00`), "dd MMM")}</span>
+                        <span className="text-ink-500">{format(new Date(`${o.iso}T00:00:00`), "EEE")}</span>
+                        <span className="flex justify-end">
+                          {o.warn ? (
+                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-status-warning-soft text-status-warning" title={o.warn}>
+                              Check
+                            </span>
+                          ) : i === 0 ? (
+                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-brand-violet-soft text-brand-violet">First</span>
+                          ) : null}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  {hasAnyWarning && (
+                    <p className="px-5 pb-3 text-[11px] text-status-warning">Dates marked "Check" fall outside this doctor's usual consulting days.</p>
+                  )}
+                </div>
+              ) : (
+                <div className="px-5 py-8 text-center text-sm text-ink-500">
+                  <CalendarCheck className="w-6 h-6 text-border mx-auto mb-2" />
+                  Pick a doctor, a patient and a time. Every date you're creating will be listed here before you commit.
+                </div>
+              )}
+
+              <div className="px-5 py-4 border-t border-border bg-surface-canvas/50">
+                {blockerMessage && (
+                  <div className="flex items-center gap-2 text-xs text-status-danger mb-3">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    {blockerMessage}
+                  </div>
+                )}
+                <button
+                  type="submit"
+                  disabled={!isValid || saving}
+                  className="w-full h-11 rounded-lg bg-brand-violet hover:bg-brand-violet-hover disabled:bg-border disabled:text-ink-500 text-white text-sm font-semibold flex items-center justify-center gap-2 transition-colors disabled:cursor-not-allowed"
+                >
+                  {saving ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" /> Scheduling…
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="w-4 h-4" />
+                      {isValid ? `Schedule ${previewCount === 1 ? "appointment" : `${previewCount} appointments`}` : "Schedule appointment"}
+                    </>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigateToHospitalRoute("appointments", hospitalId)}
+                  className="w-full h-9 mt-2 rounded-lg border border-border text-sm text-ink-700 hover:bg-surface-canvas transition-colors"
+                >
+                  Cancel
+                </button>
               </div>
             </div>
-
-            {/* Action Buttons */}
-            <div className="flex flex-col sm:flex-row gap-3 pt-6 border-t-2 border-border">
-              <button
-                type="submit"
-                disabled={!isValid || saving}
-                className={`relative group flex items-center justify-center gap-2 flex-1 px-6 py-4 rounded-xl font-bold text-base transition-all duration-200 overflow-hidden ${
-                  !isValid || saving
-                    ? "bg-border text-ink-500 cursor-not-allowed"
-                    : "bg-brand-violet hover:bg-brand-violet-hover text-white shadow-lg hover:shadow-xl"
-                }`}
-              >
-                <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
-                {saving ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin relative z-10" />
-                    <span className="relative z-10">Scheduling...</span>
-                  </>
-                ) : (
-                  <>
-                    <Save className="w-5 h-5 relative z-10" />
-                    <span className="relative z-10">Schedule Appointment{frequency !== "once" ? "s" : ""}</span>
-                  </>
-                )}
-              </button>
-
-              <button 
-                type="button" 
-                onClick={() => navigateToHospitalRoute("appointments", hospitalId)} 
-                className="px-6 py-4 border-2 border-border text-ink-700 rounded-xl hover:bg-surface-canvas hover:border-ink-500 transition-all duration-200 font-semibold"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
+          </aside>
         </form>
-
-        {/* Info Card */}
-        <div className="mt-6 bg-gradient-to-br from-brand-violet-soft to-brand-violet-soft rounded-xl md:rounded-2xl border-2 border-brand-violet/20 overflow-hidden shadow-md">
-          <div className="bg-gradient-to-r from-brand-violet to-brand-violet px-5 py-3">
-            <h4 className="font-bold text-white flex items-center gap-2">
-              <Calendar className="w-5 h-5" />
-              Scheduling Information
-            </h4>
-          </div>
-          <div className="p-5">
-            <ul className="text-brand-violet text-sm space-y-2.5">
-              <li className="flex items-start gap-2">
-                <span className="text-brand-violet font-bold mt-0.5">•</span>
-                <span>Available time slots are based on the doctor's schedule and existing appointments</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-brand-violet font-bold mt-0.5">•</span>
-                <span>For weekly appointments, you can only select days when the doctor is available</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-brand-violet font-bold mt-0.5">•</span>
-                <span>If your preferred time is not available, the system will find the next available slot</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-brand-violet font-bold mt-0.5">•</span>
-                <span>Monthly appointments will be scheduled on the same date each month, adjusted for availability</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-brand-violet font-bold mt-0.5">•</span>
-                <span>Patients will receive notifications about their scheduled appointments</span>
-              </li>
-            </ul>
-          </div>
-        </div>
       </div>
     </div>
   );

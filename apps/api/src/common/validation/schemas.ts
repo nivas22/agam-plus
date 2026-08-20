@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { GENDER } from '@agam-plus/shared';
+import { GENDER, APPOINTMENT_STATUS_VALUES } from '@agam-plus/shared';
 
 /* -------------------------------------------------------------------------- */
 /*                              AUTH SCHEMAS                                  */
@@ -17,8 +17,8 @@ export const switchHospitalSchema = z.object({
 /*                           APPOINTMENT SCHEMAS                              */
 /* -------------------------------------------------------------------------- */
 
-// NOTE: Status is NOT included in creation schema - all appointments are created as 'scheduled'
-// Only the update endpoint can change status to 'completed', 'cancelled', or 'no-show'
+// NOTE: Status is NOT included in creation schema - all appointments are created as 'confirmed'
+// (admin/staff booking). The update endpoint moves status through the queue lifecycle from there.
 export const createAppointmentSchema = z.object({
   doctorProfileId: z.string().min(1, 'Doctor profile ID is required'),
   patientId: z.string().min(1, 'Patient ID is required'),
@@ -32,16 +32,18 @@ export const createAppointmentSchema = z.object({
 
 export const updateAppointmentSchema = z.object({
   appointmentId: z.string().min(1, 'Appointment ID is required'),
-  status: z.enum(['scheduled', 'completed', 'cancelled', 'no-show'], {
-    message: 'Status must be one of: scheduled, completed, cancelled, no-show',
+  status: z.enum(APPOINTMENT_STATUS_VALUES as [string, ...string[]], {
+    message: `Status must be one of: ${APPOINTMENT_STATUS_VALUES.join(', ')}`,
   }),
   sessionNotes: z.string().optional(),
   appointmentData: z
     .object({
-      doctorId: z.string().optional(),
+      doctorProfileId: z.string().optional(),
       doctorName: z.string().optional(),
       rescheduleDate: z.string().optional(),
       rescheduleTime: z.string().optional(),
+      cancelReason: z.string().optional(),
+      noShowReason: z.string().optional(),
     })
     .optional(),
 });

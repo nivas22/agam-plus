@@ -1,39 +1,27 @@
-// components/AppointmentsPage.tsx - Fixed version
+// components/AdminAppointmentsPage.tsx
 'use client';
 
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { AppointmentWithDetails } from "@/types/appointment";
-import { 
-  CalendarDays, 
-  ChevronDown, 
-  ChevronUp, 
+import { format } from "date-fns";
+import {
+  CalendarDays,
+  ChevronDown,
+  Search,
+  Info,
+  Printer,
   Plus,
-  CheckCircle,
-  Clock
 } from "lucide-react";
-import PageHeader from "./PageHeader";
-import { format, parse } from "date-fns";
-import { getDateRange, groupAppointmentsByWeek, isCurrentWeek, statusColors } from "@/utils/dateUtils";
-import CompactDateFilter from "./CompactDateFilter";
-import ConfirmationDialog from "./ConfirmationDialog";
-import { FilterOption } from "@/types/filter";
+import { AppointmentWithDetails } from "@/types/appointment";
+import { Doctor } from "@/types/doctorNew";
 import AppointmentDetails from "./AppointmentDetails";
 import DoctorAppointmentBottomSheet from "./DoctorAppointmentDetails";
-import { Doctor } from "@/types/doctorNew";
-import NewFiltersPanel from "./NewFilterPanel";
-import { useHospitalAppointmentsApi, useUpdateHospitalAppointmentStatus } from "@/hooks/useNewAppointmentsApi";
+import { ChangeDoctorDialog, RescheduleDialog, CancelDialog, NoShowDialog } from "./appointments/AppointmentActionDialogs";
+import { useHospitalAppointmentsApi } from "@/hooks/useNewAppointmentsApi";
 import { useHospitalPatients } from "@/hooks/useNewPatientApi";
 import { useHospitalDoctors } from "@/hooks/useNewDoctorApi";
-import { ROLE } from "@agam-plus/shared";
-
-const dateFilterOptions: FilterOption[] = [
-  { id: "today", label: "Today", shortLabel: "Today", color: "bg-blue-500", textColor: "text-blue-500" },
-  { id: "f_week", label: "This Week", shortLabel: "Week", color: "bg-purple-500", textColor: "text-purple-500" },
-  { id: "f_month", label: "This Month", shortLabel: "Month", color: "bg-pink-500", textColor: "text-pink-500" },
-  { id: "f_3months", label: "Next 3 Months", shortLabel: "Nxt_3M", color: "bg-orange-500", textColor: "text-orange-500" },
-  { id: "f_6months", label: "Next 6 Months", shortLabel: "6M", color: "bg-green-500", textColor: "text-green-500" }
-];
+import { ROLE, APPOINTMENT_STATUS } from "@agam-plus/shared";
+import { paletteFor } from "@/lib/avatarPalette";
 
 interface AppointmentsPageProps {
   userRole: string | undefined;
@@ -43,285 +31,668 @@ interface AppointmentsPageProps {
   isMobile?: boolean;
 }
 
-export default function AppointmentsPage({ 
-  userRole, 
-  canEdit,
-  hospitalId,
-  userId,
-  isMobile
-}: AppointmentsPageProps) {
+const RANGE_OPTIONS = [
+  { value: "today", label: "Today" },
+  { value: "week", label: "Next 7 days" },
+  { value: "month", label: "Next 30 days" },
+  { value: "past", label: "Past appointments" },
+];
+
+// Legacy pre-migration appointments are all stored as 'scheduled' — treat as CONFIRMED everywhere.
+function normalizeStatus(status: string): string {
+  return status === "scheduled" ? APPOINTMENT_STATUS.CONFIRMED : status;
+}
+
+const STATUS_CONFIG: Record<string, { label: string; badge: string; stripe: string }> = {
+  [APPOINTMENT_STATUS.PENDING]: { label: "Pending", badge: "bg-status-warning-soft text-status-warning", stripe: "bg-status-warning" },
+  [APPOINTMENT_STATUS.CONFIRMED]: { label: "Confirmed", badge: "bg-status-open-soft text-status-open", stripe: "bg-status-open" },
+  [APPOINTMENT_STATUS.CHECKED_IN]: { label: "Checked in", badge: "bg-brand-violet-soft text-brand-violet", stripe: "bg-brand-violet" },
+  [APPOINTMENT_STATUS.WAITING]: { label: "Waiting", badge: "bg-brand-violet-soft text-brand-violet", stripe: "bg-brand-violet" },
+  [APPOINTMENT_STATUS.IN_CONSULTATION]: { label: "In consultation", badge: "bg-brand-violet text-white", stripe: "bg-brand-violet" },
+  [APPOINTMENT_STATUS.COMPLETED]: { label: "Completed", badge: "bg-surface-canvas text-ink-500", stripe: "bg-border" },
+  [APPOINTMENT_STATUS.CANCELLED]: { label: "Cancelled", badge: "bg-surface-canvas text-ink-500", stripe: "bg-status-danger-soft" },
+  [APPOINTMENT_STATUS.NO_SHOW]: { label: "No-show", badge: "bg-status-danger-soft text-status-danger", stripe: "bg-status-danger" },
+  [APPOINTMENT_STATUS.RESCHEDULED]: { label: "Needs reschedule", badge: "bg-status-warning-soft text-status-warning", stripe: "bg-status-warning" },
+};
+
+function getStatusConfig(status: string) {
+  return STATUS_CONFIG[normalizeStatus(status)] || STATUS_CONFIG[APPOINTMENT_STATUS.CONFIRMED];
+}
+
+// One click advances an appointment exactly one step through the queue lifecycle.
+const NEXT_STEP: Partial<Record<string, { label: string; status: string }>> = {
+  [APPOINTMENT_STATUS.PENDING]: { label: "Confirm", status: APPOINTMENT_STATUS.CONFIRMED },
+  [APPOINTMENT_STATUS.CONFIRMED]: { label: "Check in", status: APPOINTMENT_STATUS.CHECKED_IN },
+  [APPOINTMENT_STATUS.CHECKED_IN]: { label: "Start waiting", status: APPOINTMENT_STATUS.WAITING },
+  [APPOINTMENT_STATUS.WAITING]: { label: "Start consultation", status: APPOINTMENT_STATUS.IN_CONSULTATION },
+  [APPOINTMENT_STATUS.IN_CONSULTATION]: { label: "Complete", status: APPOINTMENT_STATUS.COMPLETED },
+};
+
+function getNextStep(status: string) {
+  return NEXT_STEP[normalizeStatus(status)];
+}
+
+const ACTIVE_STATUSES = new Set<string>([
+  "scheduled",
+  APPOINTMENT_STATUS.PENDING,
+  APPOINTMENT_STATUS.CONFIRMED,
+  APPOINTMENT_STATUS.CHECKED_IN,
+  APPOINTMENT_STATUS.WAITING,
+  APPOINTMENT_STATUS.IN_CONSULTATION,
+]);
+
+function isActiveStatus(status: string): boolean {
+  return ACTIVE_STATUSES.has(status);
+}
+
+const STATUS_TOAST: Partial<Record<string, string>> = {
+  [APPOINTMENT_STATUS.CONFIRMED]: "Appointment confirmed",
+  [APPOINTMENT_STATUS.CHECKED_IN]: "Patient checked in",
+  [APPOINTMENT_STATUS.WAITING]: "Patient moved to the waiting queue",
+  [APPOINTMENT_STATUS.IN_CONSULTATION]: "Consultation started",
+  [APPOINTMENT_STATUS.COMPLETED]: "Appointment marked as completed",
+  [APPOINTMENT_STATUS.CANCELLED]: "Appointment cancelled",
+  [APPOINTMENT_STATUS.NO_SHOW]: "Appointment marked as no-show",
+};
+
+const DAY_LOAD_MINUTES = 480; // 8-hour reference day
+const WEEK_H0 = 7;
+const WEEK_H1 = 20;
+
+function toISODate(d: Date): string {
+  return d.toISOString().split("T")[0];
+}
+
+function minutesSinceMidnight(time: string): number {
+  const [h, m] = time.split(":").map(Number);
+  return h * 60 + m;
+}
+
+function hmLabel(mins: number): string {
+  const wrapped = ((mins % 1440) + 1440) % 1440;
+  const h = Math.floor(wrapped / 60);
+  const m = wrapped % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
+function formatTime12h(time: string): string {
+  const [hours, minutes] = time.split(":");
+  const hour = parseInt(hours, 10);
+  const period = hour >= 12 ? "PM" : "AM";
+  const displayHour = hour % 12 || 12;
+  return `${displayHour}:${minutes} ${period}`;
+}
+
+function getRangeDates(range: string): { start: string; end: string } {
+  const today = new Date();
+  if (range === "today") return { start: toISODate(today), end: toISODate(today) };
+  if (range === "week") {
+    const end = new Date(today);
+    end.setDate(end.getDate() + 6);
+    return { start: toISODate(today), end: toISODate(end) };
+  }
+  if (range === "month") {
+    const end = new Date(today);
+    end.setDate(end.getDate() + 29);
+    return { start: toISODate(today), end: toISODate(end) };
+  }
+  const start = new Date(today);
+  start.setDate(start.getDate() - 90);
+  const end = new Date(today);
+  end.setDate(end.getDate() - 1);
+  return { start: toISODate(start), end: toISODate(end) };
+}
+
+function getCurrentWeekDates(): { start: string; end: string; days: Date[] } {
+  const today = new Date();
+  const monday = new Date(today);
+  monday.setDate(today.getDate() - ((today.getDay() + 6) % 7));
+  const days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    return d;
+  });
+  return { start: toISODate(monday), end: toISODate(days[6]), days };
+}
+
+function doctorWindowsForDay(doctor: Doctor, dayName: string): { start: number; end: number }[] {
+  return (doctor.availability || [])
+    .filter((s) => s.day === dayName)
+    .map((s) => ({ start: minutesSinceMidnight(s.startTime), end: minutesSinceMidnight(s.endTime) }))
+    .sort((a, b) => a.start - b.start);
+}
+
+function computeGaps(doctor: Doctor, dateStr: string, busyTimes: string[]): { from: number; to: number }[] {
+  const duration = doctor.appointmentDuration || 30;
+  const dayName = format(new Date(`${dateStr}T00:00:00`), "EEEE");
+  const windows = doctorWindowsForDay(doctor, dayName);
+  const busyMins = busyTimes.map(minutesSinceMidnight).sort((a, b) => a - b);
+  const gaps: { from: number; to: number }[] = [];
+  windows.forEach((w) => {
+    let cur = w.start;
+    busyMins
+      .filter((t) => t >= w.start && t < w.end)
+      .forEach((t) => {
+        if (t - cur >= duration) gaps.push({ from: cur, to: t });
+        cur = Math.max(cur, t + duration);
+      });
+    if (w.end - cur >= duration) gaps.push({ from: cur, to: w.end });
+  });
+  return gaps;
+}
+
+type DayLine = { type: "now" } | { type: "gap"; from: number; to: number } | { type: "appt"; appt: AppointmentWithDetails };
+
+function buildDayLines(
+  items: AppointmentWithDetails[],
+  gaps: { from: number; to: number }[] | null,
+  isToday: boolean,
+  nowMins: number
+): DayLine[] {
+  const lines: DayLine[] = [];
+  let placedNow = !isToday;
+  items.forEach((appt) => {
+    if (!placedNow && minutesSinceMidnight(appt.time) > nowMins) {
+      lines.push({ type: "now" });
+      placedNow = true;
+    }
+    if (gaps) {
+      const fit = gaps.find((g) => g.to === minutesSinceMidnight(appt.time));
+      if (fit) lines.push({ type: "gap", from: fit.from, to: fit.to });
+    }
+    lines.push({ type: "appt", appt });
+  });
+  if (!placedNow) lines.push({ type: "now" });
+  if (gaps && items.length) {
+    const tail = gaps[gaps.length - 1];
+    const lastStart = minutesSinceMidnight(items[items.length - 1].time);
+    if (tail && tail.from >= lastStart) lines.push({ type: "gap", from: tail.from, to: tail.to });
+  }
+  return lines;
+}
+
+function SpecDot({ specialization }: { specialization?: string }) {
+  const [c1] = paletteFor(specialization || "General");
+  return <span className="w-1.5 h-1.5 rounded-sm shrink-0" style={{ background: c1 }} />;
+}
+
+export default function AppointmentsPage({ userRole, canEdit, hospitalId, userId, isMobile }: AppointmentsPageProps) {
   const router = useRouter();
 
   const ADD_APPOINTMENT_PATH = isMobile ? `/mobile/hospital/${hospitalId}/appointments/add` : `/hospital/${hospitalId}/appointments/add`;
-  
-  // State for date filtering
-  const [dateFilter, setDateFilter] = useState("today");
-  const [currentFilter, setCurrentFilter] = useState("Today");
-  const [showDateFilters, setShowDateFilters] = useState(false);
-  
-  // Filter states
-  const [searchTerm, setSearchTerm] = useState("");
-  const [showFilters, setShowFilters] = useState(false);
-  const [doctorFilter, setDoctorFilter] = useState("all");
-  const [patientFilter, setPatientFilter] = useState("all");
-  const [statusFilter, setStatusFilter] = useState("all");
 
-  // Modal and selection states
+  const [view, setView] = useState<"agenda" | "week">("agenda");
+  const [range, setRange] = useState("week");
+  const [search, setSearch] = useState("");
+  const [doctorFilter, setDoctorFilter] = useState("all");
+  const [statFilter, setStatFilter] = useState<"today" | "scheduled" | "attention" | null>(null);
+  const [now, setNow] = useState(() => new Date());
+
   const [selectedApp, setSelectedApp] = useState<AppointmentWithDetails | null>(null);
-  const [confirmAction, setConfirmAction] = useState<{ type: "cancel" | "no-show"; appointment: AppointmentWithDetails } | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
+  const [modalPatient, setModalPatient] = useState<any>(null);
   const [updateAppointmentsMode, setUpdateAppointmentsMode] = useState(false);
+  const [actionDialog, setActionDialog] = useState<{ kind: "changeDoctor" | "reschedule" | "cancel" | "noShow"; appt: AppointmentWithDetails } | null>(null);
   const [showNotesModal, setShowNotesModal] = useState(false);
   const [sessionNotes, setSessionNotes] = useState("");
-
-  // Batch update states
+  const [toast, setToast] = useState<string | null>(null);
   const [selectedDoctorForAppointments, setSelectedDoctorForAppointments] = useState<Doctor | null>(null);
   const [selectedAppointmentsToUpdate, setSelectedAppointmentsToUpdate] = useState<AppointmentWithDetails[]>([]);
   const [futureAppointments, setFutureAppointments] = useState<{ [key: string]: AppointmentWithDetails[] }>({});
-  const [modalPatient, setModalPatient] = useState<any>(null);
-  const [expandedWeeks, setExpandedWeeks] = useState<{ [key: string]: boolean }>({});
 
-  // Get date range based on current filter
-  const { start: startDate, end: endDate } = getDateRange(dateFilter);
-  
-  // Create URLSearchParams for the API call
+  // Keep "now" fresh so the agenda's now-line and header clock stay accurate
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 30_000);
+    return () => clearInterval(t);
+  }, []);
+
+  const today = toISODate(now);
+  const nowMins = now.getHours() * 60 + now.getMinutes();
+
+  const currentWeek = useMemo(() => getCurrentWeekDates(), [today]);
+  const rangeDates = useMemo(() => (view === "week" ? { start: currentWeek.start, end: currentWeek.end } : getRangeDates(range)), [view, range, currentWeek]);
+
   const params = useMemo(() => {
     const searchParams = new URLSearchParams();
-    if (startDate) searchParams.append('startDate', startDate);
-    if (endDate) searchParams.append('endDate', endDate);
-    if (userRole) searchParams.append('userRole', userRole);
-    if(userRole == ROLE.DOCTOR && userId) searchParams.append('doctorId', userId);
+    searchParams.append("startDate", rangeDates.start);
+    searchParams.append("endDate", rangeDates.end);
+    if (userRole) searchParams.append("userRole", userRole);
+    if (userRole === ROLE.DOCTOR && userId) searchParams.append("doctorId", userId);
     return searchParams;
-  }, [startDate, endDate]);
+  }, [rangeDates, userRole, userId]);
 
-  // TanStack Query hooks
-   const {
-    appointments,
-    isLoading: appointmentsLoading,
-    refetchAppointments
-  } = useHospitalAppointmentsApi(
-    hospitalId, // hospitalId (optional - will use URL params if not provided)
-    userRole, // userRole (optional, defaults to 'admin'),
+  const { appointments, isLoading: appointmentsLoading, refetchAppointments, updateAppointmentStatus } = useHospitalAppointmentsApi(
+    hospitalId,
+    userRole,
     false,
-    params,
+    params
   );
 
-  const updateStatusMutation = useUpdateHospitalAppointmentStatus();
-  const { data: patientsData = { patients: []}, isLoading: patientsLoading, } = useHospitalPatients(hospitalId, undefined, true);
-  const { data: doctorsData = { doctors : []}, isLoading: doctorsLoading } = useHospitalDoctors(hospitalId, undefined, true);
+  const { data: patientsData = { patients: [] }, isLoading: patientsLoading } = useHospitalPatients(hospitalId, undefined, true);
+  const { data: doctorsData = { doctors: [] }, isLoading: doctorsLoading } = useHospitalDoctors(hospitalId, undefined, true);
 
-  // Process future appointments when appointments change
   useEffect(() => {
-    if (appointments.length > 0) {
-      const futureMap: { [key: string]: AppointmentWithDetails[] } = {};
-      const now = new Date();
-      
-      appointments.forEach((appt) => {
-        const appointmentDate = new Date(appt.date);
-        if (appointmentDate >= now) {
-          if (!futureMap[appt.patientId]) futureMap[appt.patientId] = [];
-          futureMap[appt.patientId].push(appt);
-        }
-      });
-      
-      setFutureAppointments(futureMap);
-    }
+    const futureMap: { [key: string]: AppointmentWithDetails[] } = {};
+    const nowDate = new Date();
+    appointments.forEach((appt) => {
+      if (new Date(appt.date) >= nowDate) {
+        if (!futureMap[appt.patientId]) futureMap[appt.patientId] = [];
+        futureMap[appt.patientId].push(appt);
+      }
+    });
+    setFutureAppointments(futureMap);
   }, [appointments]);
 
+  const selectedDoctor = doctorFilter === "all" ? null : doctorsData.doctors.find((d) => d.id === doctorFilter) || null;
 
-  // Filter appointments with useMemo (client-side filtering on already fetched data)
+  const getPatientCode = useCallback(
+    (patientId: string) => patientsData.patients.find((p) => p.id === patientId)?.patientId,
+    [patientsData.patients]
+  );
+
+  // Stats board: date-range + doctor scoped, independent of search/stat filter — matches the toolbar's own scope
+  const statsScope = useMemo(
+    () => appointments.filter((a) => doctorFilter === "all" || a.doctorProfileId === doctorFilter),
+    [appointments, doctorFilter]
+  );
+  const isAttentionStatus = useCallback(
+    (status: string) => status === APPOINTMENT_STATUS.CANCELLED || status === APPOINTMENT_STATUS.NO_SHOW || status === APPOINTMENT_STATUS.RESCHEDULED,
+    []
+  );
+
+  const stats = useMemo(
+    () => ({
+      total: statsScope.length,
+      today: statsScope.filter((a) => a.date === today && a.status !== APPOINTMENT_STATUS.CANCELLED).length,
+      scheduled: statsScope.filter((a) => isActiveStatus(a.status)).length,
+      attention: statsScope.filter((a) => isAttentionStatus(a.status)).length,
+    }),
+    [statsScope, today, isAttentionStatus]
+  );
+
   const filteredAppointments = useMemo(() => {
-    if (!appointments || appointments.length === 0) return [];
+    let results = statsScope;
+    if (statFilter === "today") results = results.filter((a) => a.date === today);
+    else if (statFilter === "scheduled") results = results.filter((a) => isActiveStatus(a.status));
+    else if (statFilter === "attention") results = results.filter((a) => isAttentionStatus(a.status));
 
-    let results = [...appointments];
-    const search = searchTerm.trim().toLowerCase();
-
-    if (search) {
-      results = results.filter((appt) => {
-        const patient = patientsData.patients.find(p => p.id === appt.patientId);
-        const doctor = doctorsData.doctors.find(d => d.id === appt.doctorProfileId);
-        
-        const patientName = patient?.name?.toLowerCase() || appt.patientName?.toLowerCase() || "";
-        const doctorName = doctor?.name?.toLowerCase() || appt.doctorName?.toLowerCase() || "";
-        const status = appt.status?.toLowerCase() || "";
-        const dateTime = new Date(appt.date).toLocaleString().toLowerCase();
-
+    const q = search.trim().toLowerCase();
+    if (q) {
+      results = results.filter((a) => {
+        const code = getPatientCode(a.patientId) || "";
         return (
-          patientName.includes(search) ||
-          doctorName.includes(search) ||
-          status.includes(search) ||
-          dateTime.includes(search)
+          a.patientName?.toLowerCase().includes(q) ||
+          a.doctorName?.toLowerCase().includes(q) ||
+          code.toLowerCase().includes(q)
         );
       });
     }
+    return [...results].sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
+  }, [statsScope, statFilter, today, search, getPatientCode, isAttentionStatus]);
 
-    if (statusFilter !== "all") {
-      results = results.filter((appt) => appt.status === statusFilter);
-    }
-
-    if (doctorFilter !== "all") {
-      results = results.filter((appt) => appt.doctorProfileId === doctorFilter);
-    }
-
-    if (patientFilter !== "all") {
-      results = results.filter((appt) => appt.patientId === patientFilter);
-    }
-
-    return results;
-  }, [appointments, searchTerm, statusFilter, doctorFilter, patientFilter, patientsData.patients, doctorsData.doctors]);
-
-  const groupedAppointments = useMemo(() => 
-    groupAppointmentsByWeek(filteredAppointments),
-    [filteredAppointments]
-  );
-
-  const handleUpdateAppointmentStatus = useCallback(async (
-    appointmentId: string, 
-    status: 'scheduled' | 'completed' | 'cancelled' | 'no-show', 
-    notes: string = ""
-  ) => {
-    try {
-      await updateStatusMutation.mutateAsync({
-        appointmentId,
-        status,
-        sessionNotes: notes,
-        appointmentData: selectedApp || undefined
-      });
-      
-      let message = "";
-      switch(status) {
-        case "completed":
-          message = "✅ Appointment marked as completed";
-          break;
-        case "cancelled":
-          message = "🗑️ Appointment cancelled successfully";
-          break;
-        case "no-show":
-          message = "⏰ Appointment marked as no-show";
-          break;
-        default:
-          message = "📝 Appointment status updated";
-      }
-      
-      showToast(message);
-      
-      if (status === "completed" && notes) {
-        setShowNotesModal(false);
-        setSessionNotes("");
-      }
-      
-      setConfirmAction(null);
-      setSelectedApp(null);
-      
-      // Refetch appointments to get updated data
-      await refetchAppointments();
-    } catch (error) {
-      console.error("Error updating appointment:", error);
-      showToast("❌ Failed to update appointment status");
-    }
-  }, [updateStatusMutation, selectedApp, refetchAppointments]);
+  const byDay = useMemo(() => {
+    const groups: Record<string, AppointmentWithDetails[]> = {};
+    filteredAppointments.forEach((a) => {
+      (groups[a.date] = groups[a.date] || []).push(a);
+    });
+    return groups;
+  }, [filteredAppointments]);
 
   const showToast = useCallback((message: string) => {
     setToast(message);
-    const timer = setTimeout(() => setToast(null), 3000);
-    return () => clearTimeout(timer);
+    setTimeout(() => setToast(null), 3000);
   }, []);
 
-  // const clearFilters = useCallback(() => {
-  //   setSearchTerm("");
-  //   setStatusFilter("all");
-  //   setDoctorFilter("all");
-  //   setPatientFilter("all");
-  // }, []);
+  const openDetailsModal = useCallback(
+    (appt: AppointmentWithDetails) => {
+      const patient = patientsData.patients.find((p) => p.id === appt.patientId);
+      setModalPatient(patient || { id: appt.patientId, name: appt.patientName });
+      setSelectedAppointmentsToUpdate([appt]);
+      setSelectedDoctorForAppointments(null);
+      setSelectedApp(appt);
+      setUpdateAppointmentsMode(true);
+    },
+    [patientsData.patients]
+  );
 
-  // const hasActiveFilters = useMemo(() => 
-  //   searchTerm ||
-  //   statusFilter !== "all" ||
-  //   doctorFilter !== "all" ||
-  //   patientFilter !== "all",
-  //   [searchTerm, statusFilter, doctorFilter, patientFilter]
-  // );
-
-  const openModalForPatient = useCallback((patientId: string, appointment: AppointmentWithDetails) => {
-    const patient = patientsData.patients.find((p) => p.id === patientId);
-    setModalPatient(patient);
-    setSelectedAppointmentsToUpdate(appointment ? [appointment] : []);
-    setSelectedDoctorForAppointments(null);
-    setUpdateAppointmentsMode(true);
-    setSelectedApp(appointment || null);
-  }, [patientsData.patients]);
-
-  // const handleConfirmAction = useCallback((type: "cancel" | "no-show", appointment: AppointmentWithDetails) => {
-  //   if (!canEdit) return;
-  //   setConfirmAction({ type, appointment });
-  // }, [canEdit]);
-
-  const executeAction = useCallback(async () => {
-    if (!confirmAction) return;
-
-    const { type, appointment } = confirmAction;
-    if (type === "cancel") {
-      await handleUpdateAppointmentStatus(appointment.id, "cancelled");
-    } else if (type === "no-show") {
-      await handleUpdateAppointmentStatus(appointment.id, "no-show");
-    }
-  }, [confirmAction, handleUpdateAppointmentStatus]);
-
-  const toggleWeekExpansion = useCallback((weekKey: string) => {
-    setExpandedWeeks(prev => ({
-      ...prev,
-      [weekKey]: !prev[weekKey]
-    }));
+  const openCompleteFlow = useCallback((appt: AppointmentWithDetails) => {
+    setSelectedApp(appt);
+    setSessionNotes(appt.sessionNotes || "");
+    setShowNotesModal(true);
   }, []);
+
+  const handleUpdateStatus = useCallback(
+    async (appointmentId: string, status: string, notes = "") => {
+      try {
+        await updateAppointmentStatus(appointmentId, status, notes);
+        showToast(STATUS_TOAST[status] || "Appointment updated");
+        setShowNotesModal(false);
+        setSessionNotes("");
+        setSelectedApp(null);
+        await refetchAppointments();
+      } catch (err) {
+        console.error("Error updating appointment:", err);
+        showToast(err instanceof Error ? err.message : "Failed to update appointment");
+      }
+    },
+    [updateAppointmentStatus, refetchAppointments, showToast]
+  );
+
+  // A row's primary action always moves it exactly one step forward — except
+  // "Complete", which needs session notes first, so it opens that modal instead.
+  const advanceAppointment = useCallback(
+    (appt: AppointmentWithDetails) => {
+      const step = getNextStep(appt.status);
+      if (!step) return;
+      if (step.status === APPOINTMENT_STATUS.COMPLETED) {
+        openCompleteFlow(appt);
+      } else {
+        handleUpdateStatus(appt.id, step.status);
+      }
+    },
+    [handleUpdateStatus, openCompleteFlow]
+  );
+
+  // Shared success handler for the change-doctor / reschedule / cancel / no-show dialogs.
+  const handleDialogSuccess = useCallback(
+    async (message: string) => {
+      showToast(message);
+      await refetchAppointments();
+    },
+    [showToast, refetchAppointments]
+  );
 
   const updateSelectedAppointments = useCallback(async () => {
     setUpdateAppointmentsMode(false);
-    showToast("✅ Appointments updated successfully");
-    
-    // Refetch appointments after update
+    showToast("Appointment updated");
     await refetchAppointments();
-  }, [refetchAppointments]);
+  }, [refetchAppointments, showToast]);
 
   const updateAllFutureAppointments = useCallback(async () => {
-    const allFutureIds = futureAppointments[modalPatient?.id]?.map(a => a.id) || [];
-    console.log("Updating all future appointments:", allFutureIds, "with doctor:", selectedDoctorForAppointments);
     setUpdateAppointmentsMode(false);
-    showToast("✅ All future appointments updated");
-    
-    // Refetch appointments after update
+    showToast("All future appointments updated");
     await refetchAppointments();
-  }, [futureAppointments, modalPatient, selectedDoctorForAppointments, refetchAppointments]);
+  }, [refetchAppointments, showToast]);
 
-  const getInitials = useCallback((name: string) => {
-    return name
-      ? name
-          .split(" ")
-          .map((n) => n[0])
-          .join("")
-          .toUpperCase()
-      : "U";
-  }, []);
-
-  // const handleEditAppointment = useCallback((appointment: AppointmentWithDetails) => {
-  //   if (!canEdit) return;
-  //   router.push(`/admin/appointments/edit/${appointment.id}`);
-  // }, [canEdit, router]);
-
-  const handleDateFilterChange = useCallback((val: string) => {
-    setDateFilter(val);
-    setCurrentFilter(dateFilterOptions.find((o) => o.id === val)?.label || "Today");
-    // The useNewAppointments hook will automatically refetch when params change
-  }, []);
-
-  const handleViewChange = useCallback((view: 'list' | 'calendar') => {
-    if (view === 'calendar') {
-      router.push(`/hospital/${hospitalId}/appointments/calendar`);
-    }
-    // If 'list', we're already on the list view, so do nothing
-  }, [router, hospitalId]);
-
-  // Combined loading state
   const isDataLoading = appointmentsLoading || patientsLoading || doctorsLoading;
+
+  function rebook(appt: AppointmentWithDetails) {
+    router.push(`${ADD_APPOINTMENT_PATH}?doctorId=${appt.doctorProfileId}`);
+  }
+
+  function bookSlot(date: string, from: number) {
+    if (!selectedDoctor) return;
+    router.push(`${ADD_APPOINTMENT_PATH}?doctorId=${selectedDoctor.id}&date=${date}&time=${hmLabel(from)}`);
+  }
+
+  function ApptRow({ appt }: { appt: AppointmentWithDetails }) {
+    const cfg = getStatusConfig(appt.status);
+    const norm = normalizeStatus(appt.status);
+    const dim = appt.status === APPOINTMENT_STATUS.CANCELLED || appt.status === APPOINTMENT_STATUS.NO_SHOW || appt.status === APPOINTMENT_STATUS.COMPLETED;
+    const code = getPatientCode(appt.patientId);
+    const nextStep = getNextStep(appt.status);
+    // These mirror the backend's transition rules exactly, so a button never offers a move the API would reject.
+    const canChangeDoctor =
+      norm === APPOINTMENT_STATUS.PENDING || norm === APPOINTMENT_STATUS.CONFIRMED || norm === APPOINTMENT_STATUS.CHECKED_IN || norm === APPOINTMENT_STATUS.WAITING;
+    const canReschedule = norm === APPOINTMENT_STATUS.PENDING || norm === APPOINTMENT_STATUS.CONFIRMED;
+    const canMarkNoShow = norm === APPOINTMENT_STATUS.CONFIRMED;
+    const canCancel = isActiveStatus(appt.status);
+    // Once every active-state action has its own explicit button, only terminal rows still need the details modal.
+    const openableViaRow = appt.status === APPOINTMENT_STATUS.COMPLETED || appt.status === APPOINTMENT_STATUS.CANCELLED || appt.status === APPOINTMENT_STATUS.NO_SHOW;
+    const doctor = doctorsData.doctors.find((d) => d.id === appt.doctorProfileId);
+    const duration = doctor?.appointmentDuration || 30;
+
+    return (
+      <div
+        className={`flex border-b border-border last:border-b-0 hover:bg-surface-canvas/60 transition-colors ${
+          userRole === ROLE.DOCTOR || openableViaRow ? "cursor-pointer" : ""
+        }`}
+        onClick={() => {
+          if (userRole === ROLE.DOCTOR) setSelectedApp(appt);
+          else if (openableViaRow) openDetailsModal(appt);
+        }}
+      >
+        <div className="w-20 shrink-0 py-3.5 pl-4 border-r border-border">
+          <div className="font-mono text-sm font-semibold text-ink-900">{formatTime12h(appt.time)}</div>
+          <div className="font-mono text-[10px] text-ink-500 mt-0.5">{duration} min</div>
+        </div>
+        <div className={`w-[3px] shrink-0 ${cfg.stripe}`} />
+        <div className="flex-1 min-w-0 flex flex-wrap items-center gap-x-4 gap-y-1.5 py-3 px-4">
+          <div className="min-w-[160px]">
+            <div className={`text-sm font-semibold truncate ${dim ? "text-ink-500" : "text-ink-900"} ${appt.status === APPOINTMENT_STATUS.CANCELLED || appt.status === APPOINTMENT_STATUS.NO_SHOW ? "line-through" : ""}`}>
+              {appt.patientName}
+            </div>
+            {(code || appt.patientAge != null) && (
+              <div className="font-mono text-[11px] text-ink-500 mt-0.5">
+                {[code, appt.patientAge != null ? `${appt.patientAge}y` : null].filter(Boolean).join(" · ")}
+              </div>
+            )}
+          </div>
+          <div className="min-w-[160px]">
+            <div className={`text-sm truncate ${dim ? "text-ink-500" : "text-ink-900"}`}>Dr. {appt.doctorName}</div>
+            <div className="text-xs text-ink-500 flex items-center gap-1.5 mt-0.5">
+              <SpecDot specialization={appt.doctorSpecialization} />
+              {appt.doctorSpecialization}
+            </div>
+          </div>
+          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${cfg.badge}`}>{cfg.label}</span>
+          <div className="ml-auto flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+            {canEdit && nextStep && (
+              <button
+                type="button"
+                onClick={() => advanceAppointment(appt)}
+                className="h-8 px-3 rounded-lg border border-status-open/30 bg-status-open-soft text-status-open text-xs font-medium hover:bg-status-open/10 transition-colors"
+              >
+                {nextStep.label}
+              </button>
+            )}
+            {canEdit && appt.status === APPOINTMENT_STATUS.COMPLETED && (
+              <button
+                type="button"
+                onClick={() => openDetailsModal(appt)}
+                className="h-8 px-3 rounded-lg border border-border text-xs font-medium text-ink-700 hover:bg-surface-canvas transition-colors"
+              >
+                Visit notes
+              </button>
+            )}
+            {canEdit && (appt.status === APPOINTMENT_STATUS.CANCELLED || appt.status === APPOINTMENT_STATUS.NO_SHOW) && (
+              <button
+                type="button"
+                onClick={() => rebook(appt)}
+                className="h-8 px-3 rounded-lg border border-border text-xs font-medium text-ink-700 hover:bg-surface-canvas transition-colors"
+              >
+                Rebook
+              </button>
+            )}
+            {canEdit && appt.status === APPOINTMENT_STATUS.RESCHEDULED && (
+              <button
+                type="button"
+                onClick={() => setActionDialog({ kind: "reschedule", appt })}
+                className="h-8 px-3 rounded-lg border border-status-warning/30 bg-status-warning-soft text-status-warning text-xs font-medium hover:bg-status-warning/10 transition-colors"
+              >
+                Pick new time
+              </button>
+            )}
+            {canEdit && canChangeDoctor && (
+              <button
+                type="button"
+                onClick={() => setActionDialog({ kind: "changeDoctor", appt })}
+                className="h-8 px-3 rounded-lg border border-border text-xs font-medium text-ink-700 hover:bg-surface-canvas transition-colors"
+              >
+                Change doctor
+              </button>
+            )}
+            {canEdit && canReschedule && (
+              <button
+                type="button"
+                onClick={() => setActionDialog({ kind: "reschedule", appt })}
+                className="h-8 px-3 rounded-lg border border-border text-xs font-medium text-ink-700 hover:bg-surface-canvas transition-colors"
+              >
+                Reschedule
+              </button>
+            )}
+            {canEdit && canMarkNoShow && (
+              <button
+                type="button"
+                onClick={() => setActionDialog({ kind: "noShow", appt })}
+                className="h-8 px-3 rounded-lg border border-border text-xs font-medium text-ink-700 hover:bg-surface-canvas transition-colors"
+              >
+                No-show
+              </button>
+            )}
+            {canEdit && canCancel && (
+              <button
+                type="button"
+                onClick={() => setActionDialog({ kind: "cancel", appt })}
+                className="h-8 px-3 rounded-lg border border-status-danger/30 text-xs font-medium text-status-danger hover:bg-status-danger-soft transition-colors"
+              >
+                Cancel
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  function GapRow({ date, from, to }: { date: string; from: number; to: number }) {
+    return (
+      <div className="flex border-b border-border last:border-b-0 bg-[repeating-linear-gradient(135deg,var(--surface-canvas,#F4F6F9)_0,transparent_1px,transparent_10px,var(--surface-canvas,#F4F6F9)_11px)]">
+        <div className="w-20 shrink-0 py-2 pl-4 border-r border-border">
+          <div className="font-mono text-xs text-ink-500">{hmLabel(from)}</div>
+        </div>
+        <div className="flex-1 min-w-0 flex items-center gap-3 py-2 px-4 text-xs text-ink-500">
+          <span className="font-mono font-semibold text-ink-700">{to - from} min</span> open
+          {canEdit && (
+            <button
+              type="button"
+              onClick={() => bookSlot(date, from)}
+              className="ml-auto h-7 px-3 rounded-lg border border-dashed border-ink-500/40 text-brand-violet text-xs font-semibold hover:border-brand-violet hover:bg-brand-violet-soft transition-colors"
+            >
+              Book this slot
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  function DayCard({ date, items }: { date: string; items: AppointmentWithDetails[] }) {
+    const d = new Date(`${date}T00:00:00`);
+    const isToday = date === today;
+    const live = items.filter((a) => a.status !== APPOINTMENT_STATUS.CANCELLED);
+    const cancelledCount = items.length - live.length;
+    const load = Math.min(100, Math.round((live.reduce((sum, a) => sum + (doctorsData.doctors.find((doc) => doc.id === a.doctorProfileId)?.appointmentDuration || 30), 0) / DAY_LOAD_MINUTES) * 100));
+    const gaps = selectedDoctor ? computeGaps(selectedDoctor, date, live.map((a) => a.time)) : null;
+    const lines = buildDayLines(items, gaps, isToday, nowMins);
+
+    return (
+      <section className={`bg-surface-paper rounded-xl border shadow-sm overflow-hidden ${isToday ? "border-status-open/40 ring-1 ring-status-open/20" : "border-border"}`}>
+        <div className={`flex items-center gap-3 px-5 py-3.5 border-b ${isToday ? "bg-status-open-soft border-status-open/20" : "bg-surface-canvas/40 border-border"}`}>
+          <span className="font-mono text-xl font-bold text-ink-900 leading-none">{String(d.getDate()).padStart(2, "0")}</span>
+          <div className="leading-tight">
+            <div className="text-sm font-semibold text-ink-900">{format(d, "EEE")}</div>
+            <div className="text-xs text-ink-500">{format(d, "MMMM yyyy")}</div>
+          </div>
+          {isToday && <span className="font-mono text-[10px] uppercase tracking-widest bg-status-open text-white px-2 py-0.5 rounded-full">Today</span>}
+          <span className="ml-auto font-mono text-xs text-ink-500">
+            {live.length} booked{cancelledCount ? ` · ${cancelledCount} cancelled` : ""}
+          </span>
+          <div className="w-20 h-1.5 rounded-full bg-border overflow-hidden" title={`${load}% of an 8-hour day`}>
+            <div className="h-full bg-status-open rounded-full" style={{ width: `${load}%` }} />
+          </div>
+        </div>
+        <div>
+          {lines.map((line, i) => {
+            if (line.type === "now")
+              return (
+                <div key={`now-${i}`} className="relative h-5">
+                  <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-px bg-status-danger z-10" />
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 font-mono text-[9px] uppercase tracking-widest bg-status-danger text-white px-1.5 py-0.5 rounded-full z-10">
+                    Now {hmLabel(nowMins)}
+                  </span>
+                </div>
+              );
+            if (line.type === "gap") return <GapRow key={`gap-${i}`} date={date} from={line.from} to={line.to} />;
+            return <ApptRow key={line.appt.id} appt={line.appt} />;
+          })}
+        </div>
+      </section>
+    );
+  }
+
+  function WeekView() {
+    const hours = Array.from({ length: WEEK_H1 - WEEK_H0 }, (_, i) => WEEK_H0 + i);
+    const q = search.trim().toLowerCase();
+    const scoped = appointments.filter((a) => doctorFilter === "all" || a.doctorProfileId === doctorFilter).filter((a) => !q || (a.patientName + a.doctorName).toLowerCase().includes(q));
+    const nowTop = ((nowMins - WEEK_H0 * 60) / 60) * 56;
+
+    return (
+      <div className="bg-surface-paper rounded-xl border border-border shadow-sm overflow-hidden">
+        <div className="grid grid-cols-[56px_repeat(7,1fr)] border-b border-border">
+          <div />
+          {currentWeek.days.map((d) => {
+            const isT = toISODate(d) === today;
+            return (
+              <div key={d.toISOString()} className={`text-center py-2 border-l border-border ${isT ? "bg-status-open-soft" : ""}`}>
+                <div className="font-mono text-[9px] uppercase tracking-widest text-ink-500">{format(d, "EEE")}</div>
+                <div className={`text-sm font-semibold mt-0.5 ${isT ? "text-status-open" : "text-ink-900"}`}>{format(d, "d")}</div>
+              </div>
+            );
+          })}
+        </div>
+        <div className="grid grid-cols-[56px_repeat(7,1fr)] relative">
+          <div className="border-r border-border">
+            {hours.map((h) => (
+              <div key={h} className="h-14 text-right pr-2 font-mono text-[10px] text-ink-500 border-b border-border">
+                {String(h).padStart(2, "0")}:00
+              </div>
+            ))}
+          </div>
+          {currentWeek.days.map((d) => {
+            const key = toISODate(d);
+            const isT = key === today;
+            const dayItems = scoped.filter((a) => a.date === key);
+            return (
+              <div key={key} className={`relative border-l border-border ${isT ? "bg-status-open-soft/20" : ""}`}>
+                {hours.map((h) => (
+                  <div key={h} className="h-14 border-b border-border" />
+                ))}
+                {dayItems.map((a) => {
+                  const cfg = getStatusConfig(a.status);
+                  const doctor = doctorsData.doctors.find((doc) => doc.id === a.doctorProfileId);
+                  const dur = doctor?.appointmentDuration || 30;
+                  const top = ((minutesSinceMidnight(a.time) - WEEK_H0 * 60) / 60) * 56;
+                  const height = Math.max((dur / 60) * 56 - 3, 24);
+                  return (
+                    <button
+                      key={a.id}
+                      type="button"
+                      onClick={() => (userRole === ROLE.DOCTOR ? setSelectedApp(a) : openDetailsModal(a))}
+                      title={`${a.time} · ${a.patientName} · Dr. ${a.doctorName} · ${cfg.label}`}
+                      className={`absolute left-0.5 right-0.5 rounded-md px-1.5 py-1 text-left overflow-hidden border-l-2 ${cfg.badge}`}
+                      style={{ top, height, borderLeftColor: "currentColor" }}
+                    >
+                      <div className="font-mono text-[9px] opacity-75">{a.time}</div>
+                      <div className="text-[11px] font-semibold truncate">{a.patientName}</div>
+                    </button>
+                  );
+                })}
+              </div>
+            );
+          })}
+          <div className="absolute left-14 right-0 h-0.5 bg-status-danger z-10" style={{ top: nowTop }} />
+        </div>
+        <div className="flex flex-wrap gap-4 px-4 py-3 border-t border-border bg-surface-canvas/40">
+          {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
+            <span key={key} className="flex items-center gap-1.5 text-xs text-ink-500">
+              <span className={`w-2 h-2 rounded-sm ${cfg.stripe}`} />
+              {cfg.label}
+            </span>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   if (isDataLoading && appointments.length === 0) {
     return (
@@ -331,289 +702,174 @@ export default function AppointmentsPage({
     );
   }
 
+  const statCards: { key: "today" | "scheduled" | "attention" | null; label: string; n: number }[] = [
+    { key: null, label: "in this range", n: stats.total },
+    { key: "today", label: "today", n: stats.today },
+    { key: "scheduled", label: "active", n: stats.scheduled },
+    { key: "attention", label: "needs attention", n: stats.attention },
+  ];
+
   return (
-    <div className="space-y-6 sm:px-6 lg:px-8 pb-20 relative">
-      {/* Header */}
-      <PageHeader
-        title="Bookings"
-        type="appointment"
-        search={searchTerm}
-        setSearch={setSearchTerm}
-        dataLength={filteredAppointments.length}
-        showFilters={showFilters}
-        setShowFilters={setShowFilters}
-        icon={CalendarDays}
-        filter={undefined}
-        setFilter={undefined}
-        refreshData={refetchAppointments}
-        onCalendarClick={undefined}
-        viewMode="list"
-        onViewChange={handleViewChange}
-        isMobile={isMobile}
-      />
+    <div className="pb-16">
+      <div className="flex flex-wrap items-start gap-4 mb-4">
+        <div>
+          <h1 className="text-xl font-bold text-ink-900">Appointments</h1>
+          <p className="text-sm text-ink-500 mt-0.5">{format(now, "EEEE, d MMMM yyyy")} · {format(now, "HH:mm")}</p>
+        </div>
+        <div className="ml-auto flex flex-wrap gap-2">
+          {statCards.map((c) => (
+            <button
+              key={c.label}
+              type="button"
+              onClick={() => setStatFilter((cur) => (c.key === null ? null : cur === c.key ? null : c.key))}
+              className={`text-left px-3.5 py-2 rounded-lg border bg-surface-paper shadow-sm min-w-[104px] transition-colors ${
+                statFilter === c.key && c.key !== null ? "border-ink-900 ring-1 ring-ink-900" : "border-border hover:border-ink-500"
+              }`}
+            >
+              <div className="font-mono text-lg font-semibold text-ink-900 leading-none">{c.n}</div>
+              <div className="text-[11px] text-ink-500 mt-1 whitespace-nowrap">{c.label}</div>
+            </button>
+          ))}
+        </div>
+      </div>
 
-      {/* Date Filter */}
-      <CompactDateFilter
-        currentFilter={currentFilter}
-        showDateFilters={showDateFilters}
-        setShowDateFilters={setShowDateFilters}
-        dateFilter={dateFilter}
-        setDateFilter={handleDateFilterChange}
-        dateFilterOptions={dateFilterOptions}
-        setCurrentPage={() => {}}
-      />
+      <div className="flex flex-wrap items-center gap-2 mb-3.5">
+        <div className="relative flex-1 min-w-[220px] max-w-[300px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-ink-500" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Patient, doctor or UHID"
+            className="w-full h-9 pl-8 pr-3 rounded-lg border border-border bg-surface-paper text-sm focus:outline-none focus:ring-2 focus:ring-brand-violet/20 focus:border-brand-violet"
+          />
+        </div>
+        <select
+          value={range}
+          onChange={(e) => setRange(e.target.value)}
+          disabled={view === "week"}
+          className="h-9 pl-3 pr-8 rounded-lg border border-border bg-surface-paper text-sm disabled:opacity-50"
+        >
+          {RANGE_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+        <select value={doctorFilter} onChange={(e) => setDoctorFilter(e.target.value)} className="h-9 pl-3 pr-8 rounded-lg border border-border bg-surface-paper text-sm max-w-[220px]">
+          <option value="all">All doctors</option>
+          {doctorsData.doctors.map((d) => (
+            <option key={d.id} value={d.id}>
+              Dr. {d.name} · {d.specialization}
+            </option>
+          ))}
+        </select>
+        <div className="ml-auto flex items-center gap-2">
+          <div className="flex items-center bg-surface-canvas border border-border rounded-lg p-0.5">
+            <button
+              type="button"
+              onClick={() => setView("agenda")}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 transition-colors ${view === "agenda" ? "bg-surface-paper text-ink-900 shadow-sm" : "text-ink-500"}`}
+            >
+              <CalendarDays className="w-3.5 h-3.5" /> Agenda
+            </button>
+            <button
+              type="button"
+              onClick={() => setView("week")}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 transition-colors ${view === "week" ? "bg-surface-paper text-ink-900 shadow-sm" : "text-ink-500"}`}
+            >
+              <ChevronDown className="w-3.5 h-3.5 -rotate-90" /> Week
+            </button>
+          </div>
+          <button
+            type="button"
+            onClick={() => window.print()}
+            className="h-9 px-3.5 rounded-lg border border-border bg-surface-paper text-sm font-medium text-ink-700 hover:bg-surface-canvas transition-colors flex items-center gap-1.5"
+          >
+            <Printer className="w-3.5 h-3.5" /> Day sheet
+          </button>
+          {canEdit && (
+            <button
+              type="button"
+              onClick={() => router.push(ADD_APPOINTMENT_PATH)}
+              className="h-9 px-4 rounded-lg bg-brand-violet hover:bg-brand-violet-hover text-white text-sm font-medium flex items-center gap-1.5 transition-colors"
+            >
+              <Plus className="w-4 h-4" /> New appointment
+            </button>
+          )}
+        </div>
+      </div>
 
-      {/* Filters Panel */}
-      {showFilters && (
-        <NewFiltersPanel
-          title="appointments"
-          statusFilter={statusFilter}
-          setStatusFilter={setStatusFilter}
-          doctors={doctorsData.doctors}
-          doctorFilter={doctorFilter}
-          setDoctorFilter={setDoctorFilter}
-          patients={patientsData.patients}
-          patientFilter={patientFilter}
-          setPatientFilter={setPatientFilter}
-          onClose={() => setShowFilters(false)}
-          filterType=""
-          filters={{
-            statusFilter: false,
-            doctorFilter: true && userRole !== ROLE.DOCTOR,
-            frequencyFilter: false,
-            genderFilter: false,
-            patientFilter: true,
-            dateFilter: false,
-          }}
-          frequencyFilter=""
-          setFrequencyFilter={() => {}}
-          genderFilter=""
-          setGenderFilter={() => {}}
-          dateFilter=""
-          setDateFilter={() => {}}
-          onClear={() => {}}
-        />
+      {view === "agenda" && doctorFilter === "all" && (
+        <div className="flex items-start gap-2.5 px-4 py-2.5 rounded-lg border border-border bg-surface-paper text-xs text-ink-500 mb-4">
+          <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+          Pick a single doctor to see the open gaps in their day — you can book straight into one.
+        </div>
       )}
 
-      {/* Weekly Grouped List */}
-      {Object.keys(groupedAppointments).length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-12 px-4">
-          {/* Animated Icon Container */}
-          <div className="relative mb-6">
-            <div className="absolute inset-0 bg-status-open rounded-full blur-2xl opacity-20 animate-pulse"></div>
-            <div className="relative w-24 h-24 bg-status-open-soft rounded-3xl flex items-center justify-center shadow-lg border-4 border-surface-paper">
-              <CalendarDays className="w-12 h-12 text-status-open" />
-            </div>
-          </div>
-
-          {/* Title and Description */}
-          <h3 className="text-xl font-bold text-ink-900 mb-2 text-center">
-            No Appointments Found
-          </h3>
-          <p className="text-sm text-ink-500 text-center max-w-xs mb-8 leading-relaxed">
-            {searchTerm || statusFilter !== "all" || doctorFilter !== "all" || patientFilter !== "all"
-              ? "Try adjusting your filters or select a different date range" 
-              : "Your appointment schedule is empty. New appointments will appear here."}
-          </p>
-
-          {/* Decorative Elements */}
-          <div className="grid grid-cols-3 gap-3 w-full max-w-sm">
-            <div className="bg-brand-violet-soft rounded-2xl p-4 text-center border border-brand-violet/20">
-              <div className="w-10 h-10 bg-brand-violet rounded-xl mx-auto mb-2 flex items-center justify-center">
-                <CalendarDays className="w-5 h-5 text-white" />
-              </div>
-              <p className="text-xs font-semibold text-brand-violet">Schedule</p>
-            </div>
-            <div className="bg-status-open-soft rounded-2xl p-4 text-center border border-status-open/20">
-              <div className="w-10 h-10 bg-status-open rounded-xl mx-auto mb-2 flex items-center justify-center">
-                <CheckCircle className="w-5 h-5 text-white" />
-              </div>
-              <p className="text-xs font-semibold text-status-open">Track</p>
-            </div>
-            <div className="bg-brand-violet-soft rounded-2xl p-4 text-center border border-brand-violet/20">
-              <div className="w-10 h-10 bg-brand-violet rounded-xl mx-auto mb-2 flex items-center justify-center">
-                <Clock className="w-5 h-5 text-white" />
-              </div>
-              <p className="text-xs font-semibold text-brand-violet">Manage</p>
-            </div>
-          </div>
-
-          {/* Helpful Tip */}
-          <div className="mt-8 bg-status-open-soft rounded-2xl p-4 border border-status-open/20 w-full max-w-sm">
-            <div className="flex items-start gap-3">
-              <div className="w-8 h-8 bg-status-open rounded-lg flex items-center justify-center flex-shrink-0">
-                <span className="text-white text-lg">💡</span>
-              </div>
-              <div>
-                <p className="text-xs font-semibold text-status-open mb-1">Quick Tip</p>
-                <p className="text-xs text-status-open leading-relaxed">
-                  Appointments will automatically appear here once they are scheduled by patients or added by the admin.
-                </p>
-              </div>
-            </div>
-          </div>
+      {view === "week" ? (
+        <WeekView />
+      ) : Object.keys(byDay).length === 0 ? (
+        <div className="bg-surface-paper border border-border rounded-xl py-14 px-6 text-center shadow-sm">
+          <CalendarDays className="w-8 h-8 text-border mx-auto mb-3" />
+          <h3 className="text-base font-semibold text-ink-900 mb-1">Nothing booked in this range</h3>
+          <p className="text-sm text-ink-500 mb-5">Widen the date range, or book the first appointment.</p>
+          {canEdit && (
+            <button
+              type="button"
+              onClick={() => router.push(ADD_APPOINTMENT_PATH)}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-brand-violet hover:bg-brand-violet-hover text-white text-sm font-medium transition-colors"
+            >
+              <Plus className="w-4 h-4" /> New appointment
+            </button>
+          )}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {Object.entries(groupedAppointments).map(([week, weekAppointments]) => {
-            const isExpanded = expandedWeeks[week] === true;
-            const weekStartDate = new Date(week.split(" - ")[0] + " " + new Date().getFullYear());
-            const currentWeek = isCurrentWeek(weekStartDate);
-
-            return (
-              <div key={week} className="rounded-xl border border-border overflow-hidden bg-surface-paper shadow-sm">
-                {/* Week Header */}
-                <div
-                  className="flex justify-between items-center p-4 cursor-pointer"
-                  onClick={() => toggleWeekExpansion(week)}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={`w-2 h-10 rounded-full ${currentWeek ? 'bg-brand-violet' : 'bg-border'}`}></div>
-                    <div>
-                      <h3 className="font-bold text-ink-900">{week}</h3>
-                      <p className="text-sm text-ink-500">
-                        {weekAppointments.length} appointment{weekAppointments.length !== 1 ? 's' : ''}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {currentWeek && (
-                      <span className="bg-brand-violet-soft text-brand-violet text-xs font-medium px-2.5 py-1 rounded-full">
-                        This Week
-                      </span>
-                    )}
-                    {isExpanded ? (
-                      <ChevronUp className="w-5 h-5 text-ink-500" />
-                    ) : (
-                      <ChevronDown className="w-5 h-5 text-ink-500" />
-                    )}
-                  </div>
-                </div>
-                
-                {/* Week Appointments */}
-                {isExpanded && (
-                  <div className="border-t border-border divide-y divide-border">
-                    {weekAppointments.map((appt) => {
-
-                      // const patient = patientsData.patients && patientsData.patients.length > 0 && patientsData.patients.find((p) => p.id === appt.patientId);
-                      // const doctor = doctorsData.doctors.find((d) => d.id === appt.doctorId);
-                      const appointmentDate = new Date(appt.date);
-                      const parsedTime = parse(appt.time, "HH:mm", new Date()); 
-                      const formattedTime = format(parsedTime, "h:mm a");
-
-                      return (
-                        <div
-                          key={appt.id}
-                          className="p-4 cursor-pointer transition-colors hover:bg-surface-canvas"
-                          onClick={() => openModalForPatient(appt.patientId, appt)}
-                        >
-                          <div className="flex items-start gap-3">
-                            <div className="flex-shrink-0">
-                              <div className="w-12 h-12 rounded-xl bg-brand-violet-soft flex items-center justify-center text-lg font-bold text-brand-violet">
-                                  {getInitials(appt.patientName)}
-                                </div>
-                            </div>
-
-                            <div className="flex-grow">
-                              <div className="flex justify-between">
-                                <p className="font-semibold text-ink-900">{appt.patientName}</p>
-                                <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${statusColors[appt.status] || "bg-surface-canvas text-ink-900"}`}>
-                                  {appt.status}
-                                </span>
-                              </div>
-                              <p className="text-ink-700 text-sm mt-1">Dr. {appt.doctorName}</p>
-                              <div className="flex items-center gap-2 text-sm text-ink-500 mt-2">
-                                <CalendarDays className="w-4 h-4" />
-                                <span>{format(appointmentDate, "EEE, MMM d")}</span>
-                                <span className="mx-1">•</span>
-                                <span>{formattedTime}</span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            );
-          })}
+        <div className="space-y-3.5">
+          {Object.entries(byDay).map(([date, items]) => (
+            <DayCard key={date} date={date} items={items} />
+          ))}
         </div>
-      )}
-
-      {/* Empty State */}
-      {/* {!isDataLoading && filteredAppointments.length === 0 && (
-        <NoDataFound
-          searchQuery={searchTerm}
-          hasFilters={hasActiveFilters}
-          onClearFilters={clearFilters}
-        />
-      )} */}
-
-      {/* Floating Add Button */}
-      {canEdit && (
-        <button
-          onClick={() => router.push(ADD_APPOINTMENT_PATH)}
-          className="fixed bottom-20 right-6 w-14 h-14 rounded-full bg-brand-violet text-white flex items-center justify-center shadow-2xl hover:bg-brand-violet-hover transition-all transform hover:scale-110 z-10"
-          aria-label="Add new appointment1"
-        >
-          <Plus size={24} />
-        </button>
       )}
 
       {/* Appointment Details Modal - Conditional based on role */}
-      {updateAppointmentsMode && selectedApp && (
-        userRole === "doctor" ? (
-          <DoctorAppointmentBottomSheet
-            appointment={selectedApp}
-            onClose={() => {
-              setUpdateAppointmentsMode(false);
-              setSelectedApp(null);
-            }}
-            onRefetch={refetchAppointments}
-          />
-        ) : (
-          <AppointmentDetails
-            hospitalId={hospitalId}
-            userRole={userRole}
-            updateAppointmentsMode={updateAppointmentsMode}
-            setUpdateAppointmentsMode={setUpdateAppointmentsMode}
-            selectedPatient={modalPatient}
-            doctors={doctorsData.doctors || []}
-            futureAppointments={futureAppointments}
-            selectedAppointmentsToUpdate={selectedAppointmentsToUpdate}
-            setSelectedAppointmentsToUpdate={setSelectedAppointmentsToUpdate}
-            selectedDoctorForAppointments={selectedDoctorForAppointments}
-            setSelectedDoctorForAppointments={setSelectedDoctorForAppointments}
-            updateSelectedAppointments={updateSelectedAppointments}
-            updateAllFutureAppointments={updateAllFutureAppointments}
-            selectedApp={selectedApp}
-          />
-        )
+      {updateAppointmentsMode && selectedApp && userRole !== ROLE.DOCTOR && (
+        <AppointmentDetails
+          hospitalId={hospitalId}
+          userRole={userRole}
+          updateAppointmentsMode={updateAppointmentsMode}
+          setUpdateAppointmentsMode={setUpdateAppointmentsMode}
+          selectedPatient={modalPatient}
+          doctors={doctorsData.doctors || []}
+          futureAppointments={futureAppointments}
+          selectedAppointmentsToUpdate={selectedAppointmentsToUpdate}
+          setSelectedAppointmentsToUpdate={setSelectedAppointmentsToUpdate}
+          selectedDoctorForAppointments={selectedDoctorForAppointments}
+          setSelectedDoctorForAppointments={setSelectedDoctorForAppointments}
+          updateSelectedAppointments={updateSelectedAppointments}
+          updateAllFutureAppointments={updateAllFutureAppointments}
+          selectedApp={selectedApp}
+        />
+      )}
+
+      {selectedApp && userRole === ROLE.DOCTOR && !updateAppointmentsMode && (
+        <DoctorAppointmentBottomSheet appointment={selectedApp} onClose={() => setSelectedApp(null)} onRefetch={refetchAppointments} />
       )}
 
       {/* Session Notes Modal */}
       {showNotesModal && selectedApp && (
-        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-trace-background bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-surface-paper rounded-xl shadow-xl w-full max-w-md p-6">
-            <h3 className="text-lg font-semibold text-ink-900 mb-4">
-              Session Notes for {selectedApp.patientName}
-            </h3>
-
+            <h3 className="text-lg font-semibold text-ink-900 mb-4">Complete visit — {selectedApp.patientName}</h3>
             <div className="mb-4">
-              <label className="block text-sm font-medium text-ink-700 mb-2">
-                Session Notes *
-              </label>
+              <label className="block text-sm font-medium text-ink-700 mb-2">Session notes</label>
               <textarea
                 value={sessionNotes}
                 onChange={(e) => setSessionNotes(e.target.value)}
-                placeholder="Enter details about the session, treatment provided, observations, etc."
+                placeholder="Details about the session, treatment provided, observations, etc."
                 rows={4}
                 className="w-full p-3 border border-border rounded-lg focus:ring-2 focus:ring-brand-violet focus:border-brand-violet resize-none"
-                required
               />
             </div>
-
             <div className="flex gap-3 justify-end">
               <button
                 onClick={() => {
@@ -625,40 +881,61 @@ export default function AppointmentsPage({
                 Cancel
               </button>
               <button
-                onClick={() => handleUpdateAppointmentStatus(selectedApp.id, "completed", sessionNotes)}
-                disabled={!sessionNotes.trim()}
-                className="px-4 py-2 bg-brand-violet text-white rounded-lg hover:bg-brand-violet-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={() => handleUpdateStatus(selectedApp.id, "completed", sessionNotes)}
+                className="px-4 py-2 bg-brand-violet text-white rounded-lg hover:bg-brand-violet-hover transition-colors"
               >
-                Save Notes & Complete
+                Mark completed
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Confirmation Dialog */}
-      {confirmAction && (
-        <ConfirmationDialog
-          isOpen={true}
-          onClose={() => setConfirmAction(null)}
-          onConfirm={executeAction}
-          title={confirmAction.type === "cancel" ? "Cancel Appointment" : "Mark as No Show"}
-          message={
-            confirmAction.type === "cancel" 
-              ? "Are you sure you want to cancel this appointment? This action cannot be undone."
-              : "Are you sure you want to mark this appointment as no-show? This will indicate the patient did not arrive."
-          }
-          confirmText={confirmAction.type === "cancel" ? "Yes, Cancel" : "Yes, Mark as No Show"}
-          confirmColor={confirmAction.type === "cancel" ? "red" : "gray"}
+      {/* Appointment action dialogs (change doctor / reschedule / cancel / no-show) */}
+      {actionDialog?.kind === "changeDoctor" && (
+        <ChangeDoctorDialog
+          appointment={actionDialog.appt}
+          doctors={doctorsData.doctors}
+          allAppointments={appointments}
+          patientCode={getPatientCode(actionDialog.appt.patientId)}
+          onClose={() => setActionDialog(null)}
+          updateAppointmentStatus={updateAppointmentStatus}
+          onSuccess={handleDialogSuccess}
+        />
+      )}
+      {actionDialog?.kind === "reschedule" && (
+        <RescheduleDialog
+          appointment={actionDialog.appt}
+          doctor={doctorsData.doctors.find((d) => d.id === actionDialog.appt.doctorProfileId) || null}
+          hospitalId={hospitalId}
+          patientCode={getPatientCode(actionDialog.appt.patientId)}
+          onClose={() => setActionDialog(null)}
+          updateAppointmentStatus={updateAppointmentStatus}
+          onSuccess={handleDialogSuccess}
+        />
+      )}
+      {actionDialog?.kind === "cancel" && (
+        <CancelDialog
+          appointment={actionDialog.appt}
+          patientCode={getPatientCode(actionDialog.appt.patientId)}
+          onClose={() => setActionDialog(null)}
+          updateAppointmentStatus={updateAppointmentStatus}
+          onSuccess={handleDialogSuccess}
+        />
+      )}
+      {actionDialog?.kind === "noShow" && (
+        <NoShowDialog
+          appointment={actionDialog.appt}
+          doctorName={doctorsData.doctors.find((d) => d.id === actionDialog.appt.doctorProfileId)?.name}
+          patientCode={getPatientCode(actionDialog.appt.patientId)}
+          onClose={() => setActionDialog(null)}
+          updateAppointmentStatus={updateAppointmentStatus}
+          onSuccess={handleDialogSuccess}
         />
       )}
 
       {/* Toast Notification */}
-      {toast && (
-        <div className="fixed bottom-5 right-5 bg-trace-background text-white px-4 py-3 rounded-lg shadow-lg animate-fadeIn z-50">
-          {toast}
-        </div>
-      )}
+      {toast && <div className="fixed bottom-5 right-5 bg-ink-900 text-white px-4 py-3 rounded-lg shadow-lg z-50">{toast}</div>}
     </div>
   );
 }
