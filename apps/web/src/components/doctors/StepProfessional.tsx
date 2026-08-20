@@ -21,7 +21,7 @@ export function StepProfessional({
   return (
     <div className="space-y-6">
       <h3 className="text-xl font-semibold flex items-center gap-2">
-        <GraduationCap className="w-6 h-6 text-green-600" /> Professional Info
+        <GraduationCap className="w-6 h-6 text-status-open" /> Professional Info
       </h3>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>

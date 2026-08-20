@@ -6,10 +6,10 @@ export interface DoctorStatusConfig {
 }
 
 export const DOCTOR_STATUS_CONFIG: Record<string, DoctorStatusConfig> = {
-  approved: { dot: 'bg-emerald-500', bg: 'bg-emerald-100', text: 'text-emerald-700', label: 'Approved' },
-  pending: { dot: 'bg-amber-500', bg: 'bg-amber-100', text: 'text-amber-700', label: 'Pending' },
-  rejected: { dot: 'bg-rose-500', bg: 'bg-rose-100', text: 'text-rose-700', label: 'Rejected' },
-  inactive: { dot: 'bg-slate-400', bg: 'bg-slate-100', text: 'text-slate-600', label: 'Inactive' },
+  approved: { dot: 'bg-status-open', bg: 'bg-status-open-soft', text: 'text-status-open', label: 'Approved' },
+  pending: { dot: 'bg-status-warning', bg: 'bg-status-warning-soft', text: 'text-status-warning', label: 'Pending' },
+  rejected: { dot: 'bg-status-danger', bg: 'bg-status-danger-soft', text: 'text-status-danger', label: 'Rejected' },
+  inactive: { dot: 'bg-ink-500', bg: 'bg-surface-canvas', text: 'text-ink-500', label: 'Inactive' },
 };
 
 export function doctorStatusConfig(status?: string): DoctorStatusConfig {

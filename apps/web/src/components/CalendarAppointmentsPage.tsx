@@ -225,27 +225,27 @@ export default function CalendarAppointmentsPage({
         onClick={() => handleAppointmentClick(appointment)}
         onMouseEnter={(e) => handleMouseEnter(appointment, e)}
         onMouseLeave={handleMouseLeave}
-        className="mb-1 p-2 rounded-lg cursor-pointer transition-all hover:shadow-md border border-gray-200 bg-white hover:border-blue-300"
+        className="mb-1 p-2 rounded-lg cursor-pointer transition-all hover:shadow-md border border-border bg-surface-paper hover:border-brand-violet"
       >
         <div className="flex items-start gap-2">
-          <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center text-xs font-semibold text-purple-600 flex-shrink-0">
+          <div className="w-8 h-8 rounded-full bg-brand-violet-soft flex items-center justify-center text-xs font-semibold text-brand-violet flex-shrink-0">
             {getInitials(appointment.doctorName)}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-gray-800 truncate">
+            <p className="text-sm font-semibold text-ink-900 truncate">
               Dr. {appointment.doctorName}
             </p>
-            <p className="text-xs text-gray-600 truncate">
+            <p className="text-xs text-ink-700 truncate">
               {appointment.patientName}
               {patient?.patientId && (
-                <span className="text-gray-400 ml-1">#{patient.patientId}</span>
+                <span className="text-ink-500 ml-1">#{patient.patientId}</span>
               )}
             </p>
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-ink-500">
               {formattedTime}
             </p>
             <div className="flex items-center gap-1 mt-1">
-              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[appointment.status] || "bg-gray-100 text-gray-800"}`}>
+              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[appointment.status] || "bg-surface-canvas text-ink-900"}`}>
                 {appointment.status}
               </span>
             </div>
@@ -258,7 +258,7 @@ export default function CalendarAppointmentsPage({
   if (appointmentsLoading && appointments.length === 0) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-violet"></div>
       </div>
     );
   }
@@ -285,13 +285,13 @@ export default function CalendarAppointmentsPage({
 
       {/* Filters Panel */}
       {showFilters && (
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
+        <div className="bg-surface-paper rounded-xl p-4 shadow-sm border border-border">
           <div className="flex items-center gap-3 flex-wrap">
             {/* Doctor Filter */}
             <select
               value={doctorFilter}
               onChange={(e) => setDoctorFilter(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+              className="px-4 py-2 border border-border rounded-lg focus:ring-2 focus:ring-brand-violet focus:border-brand-violet bg-surface-paper"
             >
               <option value="all">All Doctors</option>
               {doctorsData.doctors.map((doctor) => (
@@ -305,7 +305,7 @@ export default function CalendarAppointmentsPage({
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+              className="px-4 py-2 border border-border rounded-lg focus:ring-2 focus:ring-brand-violet focus:border-brand-violet bg-surface-paper"
             >
               <option value="all">All Status</option>
               <option value="scheduled">Scheduled</option>
@@ -322,7 +322,7 @@ export default function CalendarAppointmentsPage({
                   setDoctorFilter("all");
                   setStatusFilter("all");
                 }}
-                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 underline"
+                className="px-4 py-2 text-sm text-ink-700 hover:text-ink-900 underline"
               >
                 Clear Filters
               </button>
@@ -332,42 +332,42 @@ export default function CalendarAppointmentsPage({
       )}
 
       {/* Date Navigation and Calendar Container */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+      <div className="bg-surface-paper rounded-xl shadow-sm border border-border overflow-hidden">
         {/* Date Navigation */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200">
+        <div className="flex items-center justify-between p-4 border-b border-border">
           <div className="flex items-center gap-3">
             <button
               onClick={handleToday}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="px-4 py-2 bg-brand-violet text-white rounded-lg hover:bg-brand-violet-hover transition-colors"
             >
               Today
             </button>
             <div className="flex items-center gap-2">
               <button
                 onClick={handlePrevious}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                className="p-2 hover:bg-surface-canvas rounded-lg transition-colors"
               >
                 <ChevronLeft className="w-5 h-5" />
               </button>
               <button
                 onClick={handleNext}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                className="p-2 hover:bg-surface-canvas rounded-lg transition-colors"
               >
                 <ChevronRight className="w-5 h-5" />
               </button>
             </div>
-            <h2 className="text-lg font-semibold text-gray-800">
+            <h2 className="text-lg font-semibold text-ink-900">
               {format(currentDate, 'MMMM yyyy')}
             </h2>
           </div>
 
-          <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-1">
+          <div className="flex items-center gap-2 bg-surface-canvas rounded-lg p-1">
             <button
               onClick={() => setViewMode('day')}
               className={`px-4 py-2 rounded-md transition-colors ${
                 viewMode === 'day' 
-                  ? 'bg-white text-blue-600 shadow-sm' 
-                  : 'text-gray-600 hover:text-gray-800'
+                  ? 'bg-surface-paper text-brand-violet shadow-sm' 
+                  : 'text-ink-700 hover:text-ink-900'
               }`}
             >
               Day
@@ -376,8 +376,8 @@ export default function CalendarAppointmentsPage({
               onClick={() => setViewMode('week')}
               className={`px-4 py-2 rounded-md transition-colors ${
                 viewMode === 'week' 
-                  ? 'bg-white text-blue-600 shadow-sm' 
-                  : 'text-gray-600 hover:text-gray-800'
+                  ? 'bg-surface-paper text-brand-violet shadow-sm' 
+                  : 'text-ink-700 hover:text-ink-900'
               }`}
             >
               Week
@@ -386,8 +386,8 @@ export default function CalendarAppointmentsPage({
               onClick={() => setViewMode('month')}
               className={`px-4 py-2 rounded-md transition-colors ${
                 viewMode === 'month' 
-                  ? 'bg-white text-blue-600 shadow-sm' 
-                  : 'text-gray-600 hover:text-gray-800'
+                  ? 'bg-surface-paper text-brand-violet shadow-sm' 
+                  : 'text-ink-700 hover:text-ink-900'
               }`}
             >
               Month
@@ -397,28 +397,28 @@ export default function CalendarAppointmentsPage({
       </div>
 
       {/* Calendar Grid */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+      <div className="bg-surface-paper rounded-xl shadow-sm border border-border overflow-hidden">
         {filteredAppointments.length > 0 ? (
           <div className="overflow-auto">
             <div className="min-w-max">
               {/* Day Headers */}
-              <div className="sticky top-0 bg-white border-b border-gray-200 z-10">
+              <div className="sticky top-0 bg-surface-paper border-b border-border z-10">
                 <div className="flex">
-                  <div className="w-20 flex-shrink-0 border-r border-gray-200"></div>
+                  <div className="w-20 flex-shrink-0 border-r border-border"></div>
                   {calendarDays.map((day) => (
                     <div
                       key={day.dateString}
-                      className="flex-1 min-w-[150px] p-4 text-center border-r border-gray-200"
+                      className="flex-1 min-w-[150px] p-4 text-center border-r border-border"
                     >
                       <div className="flex flex-col items-center">
-                        <span className="text-sm font-medium text-gray-600">
+                        <span className="text-sm font-medium text-ink-700">
                           {day.dayOfWeek}
                         </span>
                         <span
                           className={`mt-1 w-10 h-10 flex items-center justify-center rounded-full text-lg font-semibold ${
                             day.isToday
-                              ? 'bg-blue-600 text-white'
-                              : 'text-gray-800'
+                              ? 'bg-brand-violet text-white'
+                              : 'text-ink-900'
                           }`}
                         >
                           {day.dayNumber}
@@ -432,9 +432,9 @@ export default function CalendarAppointmentsPage({
               {/* Time Grid */}
           <div className="relative">
             {timeSlots.map((timeSlot) => (
-              <div key={timeSlot} className="flex border-b border-gray-200">
+              <div key={timeSlot} className="flex border-b border-border">
                 {/* Time Label */}
-                <div className="w-20 flex-shrink-0 p-2 text-right text-sm text-gray-500 border-r border-gray-200">
+                <div className="w-20 flex-shrink-0 p-2 text-right text-sm text-ink-500 border-r border-border">
                   {format(parse(timeSlot, 'HH:mm', new Date(2000, 0, 1)), 'h a')}
                 </div>
 
@@ -445,7 +445,7 @@ export default function CalendarAppointmentsPage({
                   return (
                     <div
                       key={`${day.dateString}-${timeSlot}`}
-                      className="flex-1 min-w-[150px] min-h-[80px] p-2 border-r border-gray-200 bg-white hover:bg-gray-50 transition-colors"
+                      className="flex-1 min-w-[150px] min-h-[80px] p-2 border-r border-border bg-surface-paper hover:bg-surface-canvas transition-colors"
                     >
                       {dayAppointments.map((appointment) => 
                         renderAppointmentCard(appointment)
@@ -459,8 +459,8 @@ export default function CalendarAppointmentsPage({
             </div>
           </div>
         ) : (
-          <div className="p-8 text-center text-gray-500">
-            <CalendarDays className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+          <div className="p-8 text-center text-ink-500">
+            <CalendarDays className="w-16 h-16 text-border mx-auto mb-4" />
             <p>No appointments to display</p>
           </div>
         )}
@@ -477,37 +477,37 @@ export default function CalendarAppointmentsPage({
               top: `${hoverPosition.y}px`,
             }}
           >
-            <div className="bg-white rounded-xl shadow-2xl border border-gray-200 p-4 w-80 animate-fadeIn">
+            <div className="bg-surface-paper rounded-xl shadow-2xl border border-border p-4 w-80 animate-fadeIn">
               <div className="flex items-start gap-3 mb-3">
-                <div className="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center text-lg font-bold text-purple-600">
+                <div className="w-12 h-12 rounded-full bg-brand-violet-soft flex items-center justify-center text-lg font-bold text-brand-violet">
                   {getInitials(hoveredAppointment.doctorName)}
                 </div>
                 <div className="flex-1">
-                  <h3 className="font-bold text-gray-800 text-lg">
+                  <h3 className="font-bold text-ink-900 text-lg">
                     Dr. {hoveredAppointment.doctorName}
                   </h3>
                   {hoveredAppointment.doctorSpecialization && (
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-ink-500">
                       {hoveredAppointment.doctorSpecialization}
                     </p>
                   )}
                 </div>
               </div>
 
-              <div className="space-y-2 border-t border-gray-100 pt-3">
+              <div className="space-y-2 border-t border-border pt-3">
                 <div className="flex items-center gap-2">
-                  <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-sm font-semibold text-blue-600">
+                  <div className="w-10 h-10 rounded-full bg-brand-violet-soft flex items-center justify-center text-sm font-semibold text-brand-violet">
                     {getInitials(hoveredAppointment.patientName)}
                   </div>
                   <div>
-                    <p className="font-semibold text-gray-800">
+                    <p className="font-semibold text-ink-900">
                       {hoveredAppointment.patientName}
                       {patient?.patientId && (
-                        <span className="text-gray-400 ml-1 font-normal text-xs">#{patient.patientId}</span>
+                        <span className="text-ink-500 ml-1 font-normal text-xs">#{patient.patientId}</span>
                       )}
                     </p>
                     {hoveredAppointment.patientAge && (
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-ink-500">
                         {hoveredAppointment.patientAge} years
                         {hoveredAppointment.patientGender && ` • ${hoveredAppointment.patientGender}`}
                       </p>
@@ -515,14 +515,14 @@ export default function CalendarAppointmentsPage({
                   </div>
                 </div>
 
-              <div className="flex items-center gap-2 text-sm text-gray-600 pt-2">
+              <div className="flex items-center gap-2 text-sm text-ink-700 pt-2">
                 <CalendarDays className="w-4 h-4" />
                 <span>
                   {format(new Date(hoveredAppointment.date), "EEE, MMM d, yyyy")}
                 </span>
               </div>
 
-              <div className="flex items-center gap-2 text-sm text-gray-600">
+              <div className="flex items-center gap-2 text-sm text-ink-700">
                 <div className="w-4 h-4 flex items-center justify-center">⏰</div>
                 <span>
                   {format(parse(hoveredAppointment.time, "HH:mm", new Date(2000, 0, 1)), "h:mm a")}
@@ -530,28 +530,28 @@ export default function CalendarAppointmentsPage({
               </div>
 
               {hoveredAppointment.patientPhone && (
-                <div className="flex items-center gap-2 text-sm text-gray-600">
+                <div className="flex items-center gap-2 text-sm text-ink-700">
                   <div className="w-4 h-4 flex items-center justify-center">📞</div>
                   <span>{hoveredAppointment.patientPhone}</span>
                 </div>
               )}
 
               <div className="pt-2">
-                <span className={`px-3 py-1.5 rounded-full text-sm font-medium ${statusColors[hoveredAppointment.status] || "bg-gray-100 text-gray-800"}`}>
+                <span className={`px-3 py-1.5 rounded-full text-sm font-medium ${statusColors[hoveredAppointment.status] || "bg-surface-canvas text-ink-900"}`}>
                   {hoveredAppointment.status}
                 </span>
               </div>
 
               {hoveredAppointment.notes && (
-                <div className="pt-2 border-t border-gray-100">
-                  <p className="text-xs text-gray-500 font-medium mb-1">Notes:</p>
-                  <p className="text-sm text-gray-700">{hoveredAppointment.notes}</p>
+                <div className="pt-2 border-t border-border">
+                  <p className="text-xs text-ink-500 font-medium mb-1">Notes:</p>
+                  <p className="text-sm text-ink-700">{hoveredAppointment.notes}</p>
                 </div>
               )}
             </div>
 
-            <div className="mt-3 pt-3 border-t border-gray-100">
-              <p className="text-xs text-gray-400 text-center">
+            <div className="mt-3 pt-3 border-t border-border">
+              <p className="text-xs text-ink-500 text-center">
                 Click to view full details
               </p>
             </div>
@@ -564,7 +564,7 @@ export default function CalendarAppointmentsPage({
       {canEdit && (
         <button
           onClick={() => router.push(`/hospital/${hospitalId}/appointments/add`)}
-          className="fixed bottom-6 right-6 w-14 h-14 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-2xl hover:bg-blue-700 transition-all transform hover:scale-110 z-20"
+          className="fixed bottom-6 right-6 w-14 h-14 rounded-full bg-brand-violet text-white flex items-center justify-center shadow-2xl hover:bg-brand-violet-hover transition-all transform hover:scale-110 z-20"
           aria-label="Add new appointment2"
         >
           <Plus size={24} />

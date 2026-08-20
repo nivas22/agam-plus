@@ -111,50 +111,50 @@ export default function RequestAccessPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-surface-canvas via-brand-violet-soft to-brand-violet-soft">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-4 border-indigo-200 border-t-indigo-600 mx-auto"></div>
-          <p className="mt-6 text-gray-600 font-medium">Loading hospitals...</p>
+          <div className="animate-spin rounded-full h-16 w-16 border-4 border-brand-violet/20 border-t-brand-violet mx-auto"></div>
+          <p className="mt-6 text-ink-700 font-medium">Loading hospitals...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 py-6 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gradient-to-br from-surface-canvas via-brand-violet-soft to-brand-violet-soft py-6 px-4 sm:px-6 lg:px-8">
       <div className="max-w-6xl mx-auto">
         {/* Header with back button */}
         <div className="mb-6 animate-fade-in">
           <button
             onClick={handleBack}
-            className="group inline-flex items-center text-sm font-medium text-indigo-600 hover:text-indigo-700 mb-4 transition-colors"
+            className="group inline-flex items-center text-sm font-medium text-brand-violet hover:text-brand-violet-hover mb-4 transition-colors"
           >
             <ArrowLeft className="mr-2 w-4 h-4 transition-transform group-hover:-translate-x-1" />
             Back to Hospital Selection
           </button>
           
-          <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl p-6 shadow-lg">
+          <div className="bg-gradient-to-r from-brand-violet to-brand-violet rounded-2xl p-6 shadow-lg">
             <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">
               Request Hospital Access
             </h1>
-            <p className="text-sm text-indigo-100">
+            <p className="text-sm text-brand-violet-soft">
               Search and connect with healthcare facilities
             </p>
           </div>
         </div>
 
         {/* Search Card */}
-        <div className="bg-white rounded-xl shadow-sm p-4 mb-6 border border-gray-200 animate-slide-up">
+        <div className="bg-surface-paper rounded-xl shadow-sm p-4 mb-6 border border-border animate-slide-up">
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Search className="w-4 h-4 text-gray-400" />
+              <Search className="w-4 h-4 text-ink-500" />
             </div>
             <input
               type="text"
               placeholder="Search hospitals by name or location..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="block w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg text-sm bg-white placeholder-gray-400 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all"
+              className="block w-full pl-10 pr-4 py-2.5 border border-border rounded-lg text-sm bg-surface-paper placeholder-ink-500 focus:outline-none focus:border-brand-violet focus:ring-2 focus:ring-brand-violet/20 transition-all"
             />
           </div>
         </div>
@@ -173,13 +173,13 @@ export default function RequestAccessPage() {
           </div>
         ) : (
           <div className="text-center py-16 animate-fade-in">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-100 rounded-2xl mb-6">
-              <Building2 className="w-8 h-8 text-indigo-600" />
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-brand-violet-soft rounded-2xl mb-6">
+              <Building2 className="w-8 h-8 text-brand-violet" />
             </div>
-            <h3 className="text-xl font-bold text-gray-900 mb-2">
+            <h3 className="text-xl font-bold text-ink-900 mb-2">
               No hospitals found
             </h3>
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-ink-700">
               {searchTerm ? 'Try adjusting your search terms.' : 'No hospitals available for access.'}
             </p>
           </div>
@@ -188,27 +188,27 @@ export default function RequestAccessPage() {
         {/* Request Modal */}
         {selectedHospital && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm overflow-y-auto h-full w-full flex items-center justify-center z-50 p-4 animate-fade-in">
-            <div className="relative bg-white rounded-2xl shadow-2xl max-w-lg w-full mx-auto p-8 animate-scale-in">
+            <div className="relative bg-surface-paper rounded-2xl shadow-2xl max-w-lg w-full mx-auto p-8 animate-scale-in">
               <button
                 onClick={() => setSelectedHospital(null)}
-                className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+                className="absolute top-4 right-4 text-ink-500 hover:text-ink-700 transition-colors"
               >
                 <X className="w-6 h-6" />
               </button>
               
               <div className="text-center mb-6">
-                <div className="inline-flex items-center justify-center w-14 h-14 bg-indigo-100 rounded-xl mb-4">
-                  <Building2 className="w-7 h-7 text-indigo-600" />
+                <div className="inline-flex items-center justify-center w-14 h-14 bg-brand-violet-soft rounded-xl mb-4">
+                  <Building2 className="w-7 h-7 text-brand-violet" />
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-1">
+                <h3 className="text-xl font-bold text-ink-900 mb-1">
                   Request Access
                 </h3>
-                <p className="text-sm text-gray-600">{selectedHospital.name}</p>
+                <p className="text-sm text-ink-700">{selectedHospital.name}</p>
               </div>
               
               <div className="space-y-5">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <label className="block text-sm font-semibold text-ink-700 mb-2">
                     Select Your Role
                   </label>
                   <div className="grid grid-cols-2 gap-3">
@@ -216,8 +216,8 @@ export default function RequestAccessPage() {
                       onClick={() => setSelectedRole('doctor')}
                       className={`flex items-center justify-center px-4 py-3 rounded-xl border-2 transition-all duration-200 ${
                         selectedRole === 'doctor'
-                          ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
-                          : 'border-gray-200 hover:border-gray-300 text-gray-700'
+                          ? 'border-brand-violet bg-brand-violet-soft text-brand-violet'
+                          : 'border-border hover:border-border text-ink-700'
                       }`}
                     >
                       <UserCheck className="mr-2 w-5 h-5" />
@@ -227,8 +227,8 @@ export default function RequestAccessPage() {
                       onClick={() => setSelectedRole('staff')}
                       className={`flex items-center justify-center px-4 py-3 rounded-xl border-2 transition-all duration-200 ${
                         selectedRole === 'staff'
-                          ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
-                          : 'border-gray-200 hover:border-gray-300 text-gray-700'
+                          ? 'border-brand-violet bg-brand-violet-soft text-brand-violet'
+                          : 'border-border hover:border-border text-ink-700'
                       }`}
                     >
                       <Users className="mr-2 w-5 h-5" />
@@ -238,16 +238,16 @@ export default function RequestAccessPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <label className="block text-sm font-semibold text-ink-700 mb-2">
                     Message to Hospital Admin
-                    <span className="text-gray-400 font-normal ml-1">(Optional)</span>
+                    <span className="text-ink-500 font-normal ml-1">(Optional)</span>
                   </label>
                   <textarea
                     value={requestMessage}
                     onChange={(e) => setRequestMessage(e.target.value)}
                     placeholder="Introduce yourself and explain why you'd like to join this hospital..."
                     rows={4}
-                    className="block w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all duration-200 resize-none"
+                    className="block w-full px-4 py-3 border-2 border-border rounded-xl focus:outline-none focus:border-brand-violet focus:ring-2 focus:ring-brand-violet/20 transition-all duration-200 resize-none"
                   />
                 </div>
               </div>
@@ -256,14 +256,14 @@ export default function RequestAccessPage() {
                 <button
                   onClick={() => setSelectedHospital(null)}
                   disabled={isSubmitting}
-                  className="flex-1 px-6 py-3 text-sm font-semibold text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-300 disabled:opacity-50 transition-all duration-200"
+                  className="flex-1 px-6 py-3 text-sm font-semibold text-ink-700 bg-surface-canvas rounded-xl hover:bg-border focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-border disabled:opacity-50 transition-all duration-200"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={submitRequest}
                   disabled={isSubmitting}
-                  className="flex-1 inline-flex items-center justify-center px-6 py-3 text-sm font-medium text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 transition-colors shadow-sm">
+                  className="flex-1 inline-flex items-center justify-center px-6 py-3 text-sm font-medium text-white bg-brand-violet rounded-xl hover:bg-brand-violet-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-violet disabled:opacity-50 transition-colors shadow-sm">
                   {isSubmitting ? (
                     <>
                       <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></div>
@@ -283,11 +283,11 @@ export default function RequestAccessPage() {
 
         {/* Success Toast */}
         {showSuccess && (
-          <div className="fixed bottom-6 right-6 bg-emerald-500 text-white px-5 py-3 rounded-lg shadow-lg flex items-center gap-3 animate-slide-up z-50">
+          <div className="fixed bottom-6 right-6 bg-status-open text-white px-5 py-3 rounded-lg shadow-lg flex items-center gap-3 animate-slide-up z-50">
             <CheckCircle className="w-5 h-5" />
             <div>
               <p className="font-semibold text-sm">Request Sent Successfully!</p>
-              <p className="text-xs text-emerald-100">The hospital admin will review your request.</p>
+              <p className="text-xs text-status-open-soft">The hospital admin will review your request.</p>
             </div>
           </div>
         )}
@@ -345,21 +345,21 @@ interface HospitalCardProps {
 function HospitalCard({ hospital, onRequest, index }: HospitalCardProps) {
   return (
     <div 
-      className="group bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden border border-gray-200 hover:border-indigo-300 animate-slide-up"
+      className="group bg-surface-paper rounded-xl shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden border border-border hover:border-brand-violet animate-slide-up"
       style={{ animationDelay: `${index * 0.05}s` }}
     >
       <div className="p-4">
         {/* Hospital Header */}
         <div className="flex items-start justify-between mb-3">
           <div className="flex items-start flex-1 min-w-0">
-            <div className="w-10 h-10 rounded-lg flex items-center justify-center mr-3 flex-shrink-0 bg-indigo-100">
-              <Building2 className="w-5 h-5 text-indigo-600" />
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center mr-3 flex-shrink-0 bg-brand-violet-soft">
+              <Building2 className="w-5 h-5 text-brand-violet" />
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className="text-sm font-semibold text-gray-900 truncate mb-0.5">
+              <h3 className="text-sm font-semibold text-ink-900 truncate mb-0.5">
                 {hospital.name}
               </h3>
-              <div className="flex items-center text-xs text-gray-500">
+              <div className="flex items-center text-xs text-ink-500">
                 <MapPin className="w-3 h-3 mr-1 flex-shrink-0" />
                 <p className="truncate">{hospital.address}</p>
               </div>
@@ -369,14 +369,14 @@ function HospitalCard({ hospital, onRequest, index }: HospitalCardProps) {
 
         {/* Status and Action */}
         <div className="flex items-center justify-between">
-          <div className="text-sm text-gray-500">
+          <div className="text-sm text-ink-500">
             {hospital.isMember && (
-              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-700">
+              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-status-open-soft text-status-open">
                 Member
               </span>
             )}
             {hospital.isRequested && (
-              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700">
+              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-status-warning-soft text-status-warning">
                 Pending
               </span>
             )}
@@ -385,7 +385,7 @@ function HospitalCard({ hospital, onRequest, index }: HospitalCardProps) {
           {!hospital.isMember && !hospital.isRequested && (
             <button
               onClick={() => onRequest(hospital)}
-              className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
+              className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-lg text-white bg-brand-violet hover:bg-brand-violet-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-violet transition-colors"
             >
               <Send className="mr-1.5 w-3 h-3" />
               Request

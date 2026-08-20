@@ -132,13 +132,13 @@ export default function NewFiltersPanel({
       : PATIENT_STATUS_OPTIONS;
 
   return (
-    <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 mb-6">
+    <div className="bg-surface-paper p-4 rounded-xl shadow-sm border border-border mb-6">
       {/* Header */}
       <div className="flex justify-between items-center mb-4">
-        <h3 className="font-medium text-gray-700">Filter {title}</h3>
+        <h3 className="font-medium text-ink-700">Filter {title}</h3>
         <button
           onClick={onClose}
-          className="text-gray-400 hover:text-gray-600"
+          className="text-ink-500 hover:text-ink-700"
         >
           <X className="w-5 h-5" />
         </button>
@@ -223,7 +223,7 @@ export default function NewFiltersPanel({
       <div className="flex justify-end mt-4">
         <button
           onClick={onClear}
-          className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 font-medium"
+          className="px-4 py-2 text-sm text-ink-700 hover:text-ink-900 font-medium"
         >
           Clear all filters
         </button>

@@ -17,7 +17,7 @@ export default function SplashScreen() {
   }, [router]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-indigo-700 flex flex-col items-center justify-center p-6 relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-brand-violet via-brand-violet to-brand-violet-hover flex flex-col items-center justify-center p-6 relative overflow-hidden">
       {/* Animated background circles */}
       <div className="absolute top-20 left-10 w-64 h-64 bg-white/10 rounded-full blur-3xl animate-pulse"></div>
       <div className="absolute bottom-20 right-10 w-80 h-80 bg-white/10 rounded-full blur-3xl animate-pulse delay-1000"></div>

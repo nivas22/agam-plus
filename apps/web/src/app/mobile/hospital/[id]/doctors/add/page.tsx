@@ -33,10 +33,10 @@ export default function AddDoctorMobilePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-surface-canvas flex items-center justify-center">
         <div className="text-center">
-          <div className="w-10 h-10 border-3 border-gray-200 border-t-green-600 rounded-full animate-spin mx-auto mb-3"></div>
-          <p className="text-gray-600 text-sm font-medium">Loading...</p>
+          <div className="w-10 h-10 border-3 border-border border-t-status-open rounded-full animate-spin mx-auto mb-3"></div>
+          <p className="text-ink-700 text-sm font-medium">Loading...</p>
         </div>
       </div>
     );

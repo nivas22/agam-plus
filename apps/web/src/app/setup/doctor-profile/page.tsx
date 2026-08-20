@@ -118,121 +118,121 @@ export default function SetupDoctorProfile() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-brand-violet-soft via-surface-paper to-brand-violet-soft flex items-center justify-center">
         <div className="text-center">
-          <div className="w-12 h-12 border-3 border-gray-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-3"></div>
-          <p className="text-gray-600 text-sm font-medium">Loading profile...</p>
+          <div className="w-12 h-12 border-3 border-border border-t-brand-violet rounded-full animate-spin mx-auto mb-3"></div>
+          <p className="text-ink-700 text-sm font-medium">Loading profile...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 p-4 md:p-8">
+    <div className="min-h-screen bg-gradient-to-br from-brand-violet-soft via-surface-paper to-brand-violet-soft p-4 md:p-8">
       <div className="max-w-4xl mx-auto">
         {/* Header with Back Button */}
         <div className="mb-6">
           <button
             onClick={() => router.back()}
-            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors mb-4"
+            className="flex items-center gap-2 text-ink-700 hover:text-ink-900 transition-colors mb-4"
           >
             <ArrowLeft size={20} />
             <span className="text-sm font-medium">Back</span>
           </button>
           <div className="text-center">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full mb-4 shadow-lg">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-brand-violet to-brand-violet rounded-full mb-4 shadow-lg">
               <Award className="w-8 h-8 text-white" />
             </div>
-            <h1 className="text-3xl font-bold text-gray-800 mb-2">Edit Doctor Profile</h1>
-            <p className="text-gray-600">Update your professional information</p>
+            <h1 className="text-3xl font-bold text-ink-900 mb-2">Edit Doctor Profile</h1>
+            <p className="text-ink-700">Update your professional information</p>
           </div>
         </div>
 
         {/* Success Message */}
         {saveSuccess && (
-          <div className="mb-6 bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-3 animate-fadeIn">
-            <CheckCircle2 className="w-5 h-5 text-green-600" />
-            <span className="text-green-800 font-medium">Profile updated successfully!</span>
+          <div className="mb-6 bg-status-open-soft border border-status-open/20 rounded-xl p-4 flex items-center gap-3 animate-fadeIn">
+            <CheckCircle2 className="w-5 h-5 text-status-open" />
+            <span className="text-status-open font-medium">Profile updated successfully!</span>
           </div>
         )}
 
         {/* Error Message */}
         {saveError && (
-          <div className="mb-6 bg-red-50 border border-red-200 rounded-xl p-4 flex items-center gap-3 animate-fadeIn">
-            <div className="w-5 h-5 rounded-full bg-red-600 flex items-center justify-center flex-shrink-0">
+          <div className="mb-6 bg-status-danger-soft border border-status-danger/20 rounded-xl p-4 flex items-center gap-3 animate-fadeIn">
+            <div className="w-5 h-5 rounded-full bg-status-danger flex items-center justify-center flex-shrink-0">
               <span className="text-white text-xs font-bold">!</span>
             </div>
-            <span className="text-red-800 font-medium">{saveError}</span>
+            <span className="text-status-danger font-medium">{saveError}</span>
           </div>
         )}
 
         {/* Form Card */}
-        <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8 border border-gray-100">
+        <div className="bg-surface-paper rounded-2xl shadow-xl p-6 md:p-8 border border-border">
           {/* Personal Info Section */}
           <div className="mb-8">
-            <h2 className="text-xl font-semibold text-gray-800 mb-6 flex items-center gap-2">
-              <div className="w-1 h-6 bg-gradient-to-b from-blue-500 to-purple-600 rounded-full"></div>
+            <h2 className="text-xl font-semibold text-ink-900 mb-6 flex items-center gap-2">
+              <div className="w-1 h-6 bg-gradient-to-b from-brand-violet to-brand-violet rounded-full"></div>
               Personal Information
             </h2>
 
             <div className="space-y-5">
               {/* Full Name */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Full Name <span className="text-red-500">*</span>
+                <label className="block text-sm font-medium text-ink-700 mb-2">
+                  Full Name <span className="text-status-danger">*</span>
                 </label>
                 <div className="relative">
-                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-ink-500" />
                   <input
                     type="text"
                     name="fullName"
                     value={formData.fullName || ""}
                     onChange={handleInputChange}
                     placeholder="Dr. John Doe"
-                    className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none"
+                    className="w-full pl-11 pr-4 py-3 border border-border rounded-xl focus:ring-2 focus:ring-brand-violet focus:border-transparent transition-all outline-none"
                   />
                 </div>
               </div>
 
               {/* Email */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Email Address <span className="text-red-500">*</span>
+                <label className="block text-sm font-medium text-ink-700 mb-2">
+                  Email Address <span className="text-status-danger">*</span>
                 </label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-ink-500" />
                   <input
                     type="email"
                     name="email"
                     value={formData.email || ""}
                     onChange={handleInputChange}
                     placeholder="doctor@hospital.com"
-                    className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none"
+                    className="w-full pl-11 pr-4 py-3 border border-border rounded-xl focus:ring-2 focus:ring-brand-violet focus:border-transparent transition-all outline-none"
                   />
                 </div>
               </div>
 
               {/* Phone */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-ink-700 mb-2">
                   Phone Number
                 </label>
                 <div className="relative">
-                  <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-ink-500" />
                   <input
                     type="tel"
                     name="phone"
                     value={formData.phone || ""}
                     onChange={handleInputChange}
                     placeholder="+1 (555) 000-0000"
-                    className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none"
+                    className="w-full pl-11 pr-4 py-3 border border-border rounded-xl focus:ring-2 focus:ring-brand-violet focus:border-transparent transition-all outline-none"
                   />
                 </div>
               </div>
 
               {/* Gender */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-3">
+                <label className="block text-sm font-medium text-ink-700 mb-3">
                   Gender
                 </label>
                 <div className="flex flex-wrap gap-3">
@@ -243,8 +243,8 @@ export default function SetupDoctorProfile() {
                       onClick={() => handleSelectChange("gender", g)}
                       className={`px-5 py-2.5 rounded-xl border-2 font-medium transition-all ${
                         formData.gender === g
-                          ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white border-blue-600 shadow-lg shadow-blue-200 scale-105"
-                          : "bg-white text-gray-700 border-gray-300 hover:border-blue-300 hover:shadow-md"
+                          ? "bg-gradient-to-r from-brand-violet to-brand-violet text-white border-brand-violet shadow-lg shadow-brand-violet-soft scale-105"
+                          : "bg-surface-paper text-ink-700 border-border hover:border-brand-violet hover:shadow-md"
                       }`}
                     >
                       {g}
@@ -257,80 +257,80 @@ export default function SetupDoctorProfile() {
 
           {/* Professional Info Section */}
           <div className="mb-8">
-            <h2 className="text-xl font-semibold text-gray-800 mb-6 flex items-center gap-2">
-              <div className="w-1 h-6 bg-gradient-to-b from-purple-500 to-pink-600 rounded-full"></div>
+            <h2 className="text-xl font-semibold text-ink-900 mb-6 flex items-center gap-2">
+              <div className="w-1 h-6 bg-gradient-to-b from-brand-violet to-brand-violet rounded-full"></div>
               Professional Information
             </h2>
 
             <div className="space-y-5">
               {/* Specialization */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Specialization <span className="text-red-500">*</span>
+                <label className="block text-sm font-medium text-ink-700 mb-2">
+                  Specialization <span className="text-status-danger">*</span>
                 </label>
                 <div className="relative">
-                  <Award className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <Award className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-ink-500" />
                   <input
                     type="text"
                     name="specialization"
                     value={formData.specialization || ""}
                     onChange={handleInputChange}
                     placeholder="e.g., Cardiology, Neurology"
-                    className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none"
+                    className="w-full pl-11 pr-4 py-3 border border-border rounded-xl focus:ring-2 focus:ring-brand-violet focus:border-transparent transition-all outline-none"
                   />
                 </div>
               </div>
 
               {/* Qualification */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Qualification <span className="text-red-500">*</span>
+                <label className="block text-sm font-medium text-ink-700 mb-2">
+                  Qualification <span className="text-status-danger">*</span>
                 </label>
                 <div className="relative">
-                  <Award className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <Award className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-ink-500" />
                   <input
                     type="text"
                     name="qualification"
                     value={formData.qualification || ""}
                     onChange={handleInputChange}
                     placeholder="e.g., MBBS, MD"
-                    className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none"
+                    className="w-full pl-11 pr-4 py-3 border border-border rounded-xl focus:ring-2 focus:ring-brand-violet focus:border-transparent transition-all outline-none"
                   />
                 </div>
               </div>
 
               {/* Experience */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-ink-700 mb-2">
                   Years of Experience
                 </label>
                 <div className="relative">
-                  <Briefcase className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <Briefcase className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-ink-500" />
                   <input
                     type="text"
                     name="experience"
                     value={formData.experience || ""}
                     onChange={handleInputChange}
                     placeholder="e.g., 10+ years"
-                    className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none"
+                    className="w-full pl-11 pr-4 py-3 border border-border rounded-xl focus:ring-2 focus:ring-brand-violet focus:border-transparent transition-all outline-none"
                   />
                 </div>
               </div>
 
               {/* Bio */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-ink-700 mb-2">
                   Professional Bio
                 </label>
                 <div className="relative">
-                  <FileText className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+                  <FileText className="absolute left-3 top-3 w-5 h-5 text-ink-500" />
                   <textarea
                     name="bio"
                     value={formData.bio || ""}
                     onChange={handleInputChange}
                     placeholder="Tell us about your medical background, expertise, and approach to patient care..."
                     rows={5}
-                    className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none resize-none"
+                    className="w-full pl-11 pr-4 py-3 border border-border rounded-xl focus:ring-2 focus:ring-brand-violet focus:border-transparent transition-all outline-none resize-none"
                   />
                 </div>
               </div>
@@ -338,14 +338,14 @@ export default function SetupDoctorProfile() {
           </div>
 
           {/* Save Button */}
-          <div className="pt-6 border-t border-gray-200">
+          <div className="pt-6 border-t border-border">
             <button
               onClick={handleSave}
               disabled={!isFormValid || updateDoctorMutation.isPending}
               className={`w-full py-3.5 rounded-xl font-semibold text-white transition-all flex items-center justify-center gap-2 ${
                 !isFormValid || updateDoctorMutation.isPending
-                  ? "bg-gray-300 cursor-not-allowed"
-                  : "bg-gradient-to-r from-blue-500 via-blue-600 to-purple-600 hover:shadow-xl hover:scale-[1.02] active:scale-[0.98]"
+                  ? "bg-border cursor-not-allowed"
+                  : "bg-gradient-to-r from-brand-violet via-brand-violet-hover to-brand-violet hover:shadow-xl hover:scale-[1.02] active:scale-[0.98]"
               }`}
             >
               {updateDoctorMutation.isPending ? (
@@ -361,7 +361,7 @@ export default function SetupDoctorProfile() {
               )}
             </button>
             {!isFormValid && (
-              <p className="text-sm text-gray-500 text-center mt-3">
+              <p className="text-sm text-ink-500 text-center mt-3">
                 Please fill in all required fields (*)
               </p>
             )}
@@ -369,7 +369,7 @@ export default function SetupDoctorProfile() {
         </div>
 
         {/* Footer Note */}
-        <p className="text-center text-gray-500 text-sm mt-6">
+        <p className="text-center text-ink-500 text-sm mt-6">
           Your information is secure and will only be used for professional purposes
         </p>
       </div>

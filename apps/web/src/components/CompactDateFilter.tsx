@@ -29,13 +29,13 @@ export default function CompactDateFilter({
   dateFilterOptions,
 }: CompactDateFilterProps) {
   return (
-    <div className="bg-white p-2 rounded-xl shadow-md border border-gray-100 mb-4 mt-4">
+    <div className="bg-surface-paper p-2 rounded-xl shadow-md border border-border mb-4 mt-4">
       <div className="flex items-center justify-between">
         {/* Current filter display */}
         <div className="flex items-center gap-2">
-          <CalendarDays className="w-4 h-4 text-gray-500" />
-          <span className="text-sm font-medium text-gray-700">Date Range:</span>
-          <span className="text-sm font-semibold text-blue-600">
+          <CalendarDays className="w-4 h-4 text-ink-500" />
+          <span className="text-sm font-medium text-ink-700">Date Range:</span>
+          <span className="text-sm font-semibold text-brand-violet">
             {currentFilter}
           </span>
         </div>
@@ -43,7 +43,7 @@ export default function CompactDateFilter({
         {/* Toggle button */}
         <button
           onClick={() => setShowDateFilters(!showDateFilters)}
-          className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors text-sm font-medium"
+          className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-surface-canvas hover:bg-border transition-colors text-sm font-medium"
         >
           <span>Change</span>
           {showDateFilters ? (
@@ -56,7 +56,7 @@ export default function CompactDateFilter({
 
       {/* Collapsible date options */}
       {showDateFilters && (
-        <div className="mt-3 pt-2 border-t border-gray-100">
+        <div className="mt-3 pt-2 border-t border-border">
           <div className="flex flex-wrap gap-2">
             {dateFilterOptions.map((range) => (
               <button
@@ -69,7 +69,7 @@ export default function CompactDateFilter({
                 className={`px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
                   dateFilter === range.id
                     ? `${range.color} text-white shadow-md`
-                    : `bg-white text-gray-700 border border-gray-200 hover:${range.textColor} hover:border-current`
+                    : `bg-surface-paper text-ink-700 border border-border hover:${range.textColor} hover:border-current`
                 }`}
               >
                 {range.label}

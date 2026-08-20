@@ -289,42 +289,42 @@ export default function AddEditDoctor({
 
     if (!isNew && isDoctorLoading)
         return (
-            <div className="min-h-screen flex items-center justify-center bg-gray-50">
+            <div className="min-h-screen flex items-center justify-center bg-surface-canvas">
                 <div className="text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                    <p className="text-gray-600">Loading doctor information...</p>
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-violet mx-auto mb-4"></div>
+                    <p className="text-ink-700">Loading doctor information...</p>
                 </div>
             </div>
         );
 
     return (
-        <div className="min-h-screen bg-gray-50 py-4 md:py-8">
+        <div className="min-h-screen bg-surface-canvas py-4 md:py-8">
             <div className="max-w-4xl mx-auto px-3 sm:px-4">
                 {/* Compact Header */}
                 <div className="mb-6">
                     <div className="flex items-center gap-3 mb-4">
                         <button
                             onClick={() => router.push(`/hospital/${hospitalId}/doctors`)}
-                            className="flex items-center gap-2 px-3 py-2 bg-white rounded-lg shadow-sm border border-gray-200 hover:border-blue-300 transition-colors"
+                            className="flex items-center gap-2 px-3 py-2 bg-surface-paper rounded-lg shadow-sm border border-border hover:border-brand-violet transition-colors"
                         >
-                            <ArrowLeft className="w-4 h-4 text-gray-600" />
-                            <span className="text-sm font-medium text-gray-700 hidden xs:inline">Back</span>
+                            <ArrowLeft className="w-4 h-4 text-ink-700" />
+                            <span className="text-sm font-medium text-ink-700 hidden xs:inline">Back</span>
                         </button>
                     </div>
 
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 md:p-6">
+                    <div className="bg-surface-paper rounded-xl shadow-sm border border-border p-4 md:p-6">
                         <div className="flex items-center justify-between mb-4">
                             <div>
-                                <h1 className="text-xl md:text-2xl font-bold text-gray-900 flex items-center gap-2">
-                                    <Stethoscope className="w-5 h-5 md:w-6 md:h-6 text-blue-600" />
+                                <h1 className="text-xl md:text-2xl font-bold text-ink-900 flex items-center gap-2">
+                                    <Stethoscope className="w-5 h-5 md:w-6 md:h-6 text-brand-violet" />
                                     {isNew ? "Add New Doctor" : "Edit Doctor"}
                                 </h1>
-                                <p className="text-gray-600 text-sm mt-1">
+                                <p className="text-ink-700 text-sm mt-1">
                                     {isNew ? "Add a new doctor to the system" : "Update doctor information"}
                                 </p>
                             </div>
                             <div className="text-right">
-                                <div className="inline-flex items-center px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
+                                <div className="inline-flex items-center px-3 py-1 bg-brand-violet-soft text-brand-violet rounded-full text-xs font-medium">
                                     Step {currentStep}/{totalSteps}
                                 </div>
                             </div>
@@ -334,9 +334,9 @@ export default function AddEditDoctor({
                         <div className="mb-2">
                             <div className="flex items-center justify-between relative">
                                 {/* Progress line */}
-                                <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-gray-200 -translate-y-1/2 -z-10"></div>
+                                <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-border -translate-y-1/2 -z-10"></div>
                                 <div
-                                    className="absolute top-1/2 left-0 h-0.5 bg-blue-600 -translate-y-1/2 -z-10 transition-all duration-300"
+                                    className="absolute top-1/2 left-0 h-0.5 bg-brand-violet -translate-y-1/2 -z-10 transition-all duration-300"
                                     style={{ width: `${((currentStep - 1) / (totalSteps - 1)) * 100}%` }}
                                 ></div>
 
@@ -349,29 +349,29 @@ export default function AddEditDoctor({
                                     return (
                                         <div key={index} className="flex flex-col items-center relative z-10">
                                             <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 transition-all duration-200 ${isCompleted
-                                                    ? 'bg-green-500 border-green-500 text-white'
+                                                    ? 'bg-status-open border-status-open text-white'
                                                     : isActive
-                                                        ? 'bg-blue-600 border-blue-600 text-white shadow-md'
-                                                        : 'bg-white border-gray-300 text-gray-400'
+                                                        ? 'bg-brand-violet border-brand-violet text-white shadow-md'
+                                                        : 'bg-surface-paper border-border text-ink-500'
                                                 }`}>
                                                 {isCompleted ? (
                                                     <div className="w-3 h-3 bg-white rounded-full flex items-center justify-center">
-                                                        <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+                                                        <div className="w-1.5 h-1.5 bg-status-open rounded-full"></div>
                                                     </div>
                                                 ) : (
                                                     <StepIcon className="w-3 h-3" />
                                                 )}
                                             </div>
                                             <div className="text-center mt-2 hidden sm:block">
-                                                <div className={`text-xs font-medium ${isActive ? 'text-blue-600' : isCompleted ? 'text-green-600' : 'text-gray-500'
+                                                <div className={`text-xs font-medium ${isActive ? 'text-brand-violet' : isCompleted ? 'text-status-open' : 'text-ink-500'
                                                     }`}>
                                                     {step.title}
                                                 </div>
-                                                <div className="text-[10px] text-gray-400 mt-0.5">{step.description}</div>
+                                                <div className="text-[10px] text-ink-500 mt-0.5">{step.description}</div>
                                             </div>
                                             {/* Mobile only - just numbers */}
                                             <div className="text-center mt-1 sm:hidden">
-                                                <div className={`text-xs font-medium ${isActive ? 'text-blue-600' : isCompleted ? 'text-green-600' : 'text-gray-500'
+                                                <div className={`text-xs font-medium ${isActive ? 'text-brand-violet' : isCompleted ? 'text-status-open' : 'text-ink-500'
                                                     }`}>
                                                     {stepNumber}
                                                 </div>
@@ -385,7 +385,7 @@ export default function AddEditDoctor({
                 </div>
 
                 {/* Form Content */}
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                <div className="bg-surface-paper rounded-xl shadow-sm border border-border overflow-hidden">
                     <div className="p-4 md:p-6">
                         {currentStep === 1 && (
                             <StepPersonal
@@ -421,13 +421,13 @@ export default function AddEditDoctor({
                     </div>
 
                     {/* Compact Navigation */}
-                    <div className="bg-gray-50 px-4 md:px-6 py-4 border-t border-gray-200">
+                    <div className="bg-surface-canvas px-4 md:px-6 py-4 border-t border-border">
                         <div className="flex items-center justify-between">
                             <div>
                                 {currentStep > 1 && (
                                     <button
                                         onClick={prevStep}
-                                        className="flex items-center gap-2 px-4 py-2.5 text-gray-700 bg-white hover:bg-gray-100 rounded-lg border border-gray-300 hover:border-gray-400 transition-colors text-sm font-medium"
+                                        className="flex items-center gap-2 px-4 py-2.5 text-ink-700 bg-surface-paper hover:bg-surface-canvas rounded-lg border border-border hover:border-ink-500 transition-colors text-sm font-medium"
                                     >
                                         <ChevronLeft className="w-4 h-4" />
                                         <span className="hidden xs:inline">Previous</span>
@@ -439,7 +439,7 @@ export default function AddEditDoctor({
                                 {currentStep < totalSteps ? (
                                     <button
                                         onClick={nextStep}
-                                        className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors text-sm"
+                                        className="flex items-center gap-2 px-5 py-2.5 bg-brand-violet hover:bg-brand-violet-hover text-white rounded-lg font-medium transition-colors text-sm"
                                     >
                                         <span>Next</span>
                                         <ChevronRight className="w-4 h-4" />
@@ -448,7 +448,7 @@ export default function AddEditDoctor({
                                     <button
                                         onClick={saveDoctor}
                                         disabled={saving}
-                                        className="flex items-center justify-center gap-2 px-5 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                        className="flex items-center justify-center gap-2 px-5 py-2.5 bg-brand-violet hover:bg-brand-violet-hover text-white rounded-lg font-medium transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
                                         <Save className="w-4 h-4" />
                                         {saving ? "Saving..." : isNew ? "Save" : "Update"}
@@ -459,7 +459,7 @@ export default function AddEditDoctor({
 
                         {/* Minimal Step Indicator */}
                         <div className="text-center mt-3">
-                            <span className="text-xs text-gray-500">
+                            <span className="text-xs text-ink-500">
                                 {stepConfig[currentStep - 1]?.title} • Step {currentStep} of {totalSteps}
                             </span>
                         </div>

@@ -360,29 +360,29 @@ export default function CreateAppointment({userRole, hospitalId}: CreateAppointm
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex justify-center items-center">
+      <div className="min-h-screen bg-brand-violet-soft flex justify-center items-center">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 text-blue-600 animate-spin mx-auto mb-4" />
-          <p className="text-gray-600 font-medium">Loading...</p>
+          <Loader2 className="w-12 h-12 text-brand-violet animate-spin mx-auto mb-4" />
+          <p className="text-ink-700 font-medium">Loading...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 md:bg-gradient-to-br bg-gray-50">
+    <div className="min-h-screen bg-brand-violet-soft md:bg-brand-violet-soft">
       <div className="max-w-5xl mx-auto px-3 sm:px-4 md:px-6 py-4 md:py-10">
         {/* Mobile Header */}
         <div className="md:hidden mb-4">
           <div className="flex items-center gap-3 mb-4">
-            <div className="p-2.5 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl shadow-md">
+            <div className="p-2.5 bg-gradient-to-br from-brand-violet to-brand-violet rounded-xl shadow-md">
               <CalendarCheck className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-gray-900">
+              <h1 className="text-xl font-bold text-ink-900">
                 New Appointment
               </h1>
-              <p className="text-gray-600 text-xs">
+              <p className="text-ink-700 text-xs">
                 Schedule a patient visit
               </p>
             </div>
@@ -394,23 +394,23 @@ export default function CreateAppointment({userRole, hospitalId}: CreateAppointm
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl blur-lg opacity-30"></div>
-                <div className="relative p-4 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl shadow-lg">
+                <div className="absolute inset-0 bg-gradient-to-br from-brand-violet to-brand-violet rounded-2xl blur-lg opacity-30"></div>
+                <div className="relative p-4 bg-gradient-to-br from-brand-violet to-brand-violet rounded-2xl shadow-lg">
                   <CalendarCheck className="w-8 h-8 text-white" />
                 </div>
               </div>
               <div>
-                <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-1">
+                <h1 className="text-2xl md:text-3xl font-bold text-ink-900 mb-1">
                   Schedule New Appointment
                 </h1>
-                <p className="text-gray-600 text-sm md:text-base">
+                <p className="text-ink-700 text-sm md:text-base">
                   Create a new appointment for a patient
                 </p>
               </div>
             </div>
             <button 
               onClick={() => navigateToHospitalRoute("appointments", hospitalId)} 
-              className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-white/50 rounded-lg transition-all"
+              className="flex items-center gap-2 px-4 py-2 text-ink-700 hover:text-ink-900 hover:bg-white/50 rounded-lg transition-all"
             >
               <ArrowLeft className="w-4 h-4" />
               <span className="text-sm font-medium">Back</span>
@@ -419,14 +419,14 @@ export default function CreateAppointment({userRole, hospitalId}: CreateAppointm
         </div>
 
         {/* Main Form Card */}
-        <form onSubmit={handleSubmit} className="bg-white rounded-xl md:rounded-2xl shadow-md md:shadow-xl border border-gray-200 md:border-gray-200/50 overflow-hidden md:bg-white/80 md:backdrop-blur-sm">
+        <form onSubmit={handleSubmit} className="bg-surface-paper rounded-xl md:rounded-2xl shadow-md md:shadow-xl border border-border md:border-border/50 overflow-hidden md:bg-white/80 md:backdrop-blur-sm">
           {/* Card Header */}
-          <div className="bg-gradient-to-r from-blue-600/5 via-indigo-600/5 to-purple-600/5 border-b border-gray-200/50 px-4 sm:px-6 py-4">
+          <div className="bg-gradient-to-r from-brand-violet/5 via-brand-violet/5 to-brand-violet/5 border-b border-border/50 px-4 sm:px-6 py-4">
             <div className="flex items-center gap-2">
-              <div className="w-1.5 h-6 bg-gradient-to-b from-blue-600 to-indigo-600 rounded-full"></div>
+              <div className="w-1.5 h-6 bg-gradient-to-b from-brand-violet to-brand-violet rounded-full"></div>
               <div>
-                <h2 className="text-lg font-semibold text-gray-900">Appointment Details</h2>
-                <p className="text-xs text-gray-600">Fill in the information below</p>
+                <h2 className="text-lg font-semibold text-ink-900">Appointment Details</h2>
+                <p className="text-xs text-ink-700">Fill in the information below</p>
               </div>
             </div>
           </div>
@@ -439,33 +439,33 @@ export default function CreateAppointment({userRole, hospitalId}: CreateAppointm
                 {currentHospitalMembership?.role === 'doctor' ? (
                   // Display selected doctor info for doctor role (read-only)
                   <div className="doctor-info">
-                    <label className="block text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                      <div className="p-1.5 bg-blue-100 rounded-lg">
-                        <Stethoscope className="w-4 h-4 text-blue-600" />
+                    <label className="block text-sm font-semibold text-ink-900 mb-3 flex items-center gap-2">
+                      <div className="p-1.5 bg-brand-violet-soft rounded-lg">
+                        <Stethoscope className="w-4 h-4 text-brand-violet" />
                       </div>
                       Doctor
                     </label>
-                    <div className="p-4 border-2 border-blue-300 rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50">
+                    <div className="p-4 border-2 border-brand-violet rounded-xl bg-gradient-to-br from-brand-violet-soft to-brand-violet-soft">
                       {selectedDoctor ? (
                         <div className="flex items-center gap-3">
                           <div className="relative">
-                            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-md">
+                            <div className="w-10 h-10 bg-gradient-to-br from-brand-violet to-brand-violet rounded-xl flex items-center justify-center shadow-md">
                               <Stethoscope className="w-5 h-5 text-white" />
                             </div>
-                            <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white"></div>
+                            <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-status-open rounded-full border-2 border-white"></div>
                           </div>
                           <div>
-                            <div className="font-semibold text-gray-900">{selectedDoctor.name}</div>
-                            <div className="text-sm text-gray-600 flex items-center gap-1">
-                              <span className="inline-block w-1.5 h-1.5 bg-blue-500 rounded-full"></span>
+                            <div className="font-semibold text-ink-900">{selectedDoctor.name}</div>
+                            <div className="text-sm text-ink-700 flex items-center gap-1">
+                              <span className="inline-block w-1.5 h-1.5 bg-brand-violet rounded-full"></span>
                               {selectedDoctor.specialization}
                             </div>
                           </div>
                         </div>
                       ) : (
-                        <div className="flex items-center gap-3 text-gray-500">
-                          <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center">
-                            <Stethoscope className="w-5 h-5 text-gray-400" />
+                        <div className="flex items-center gap-3 text-ink-500">
+                          <div className="w-10 h-10 bg-surface-canvas rounded-xl flex items-center justify-center">
+                            <Stethoscope className="w-5 h-5 text-ink-500" />
                           </div>
                           <span className="font-medium">Loading your profile...</span>
                         </div>
@@ -475,9 +475,9 @@ export default function CreateAppointment({userRole, hospitalId}: CreateAppointm
                 ) : (
                   // Show doctor selection dropdown for admin
                   <div className="doctor-dropdown relative">
-                    <label className="block text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                      <div className="p-1.5 bg-blue-100 rounded-lg">
-                        <Stethoscope className="w-4 h-4 text-blue-600" />
+                    <label className="block text-sm font-semibold text-ink-900 mb-3 flex items-center gap-2">
+                      <div className="p-1.5 bg-brand-violet-soft rounded-lg">
+                        <Stethoscope className="w-4 h-4 text-brand-violet" />
                       </div>
                       Select Doctor *
                     </label>
@@ -485,8 +485,8 @@ export default function CreateAppointment({userRole, hospitalId}: CreateAppointm
                       <div
                         className={`flex items-center justify-between p-4 border-2 rounded-xl cursor-pointer bg-gradient-to-br transition-all duration-200 ${
                           selectedDoctor 
-                            ? 'border-blue-300 from-blue-50 to-indigo-50 shadow-sm' 
-                            : 'border-gray-200 from-white to-white hover:border-blue-200 hover:shadow-sm'
+                            ? 'border-brand-violet from-brand-violet-soft to-brand-violet-soft shadow-sm' 
+                            : 'border-border from-white to-white hover:border-brand-violet/20 hover:shadow-sm'
                         }`}
                         onClick={() => setShowDoctorList((s) => !s)}
                       >
@@ -494,45 +494,45 @@ export default function CreateAppointment({userRole, hospitalId}: CreateAppointm
                           {selectedDoctor ? (
                             <div className="flex items-center gap-3">
                               <div className="relative">
-                                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-md">
+                                <div className="w-10 h-10 bg-gradient-to-br from-brand-violet to-brand-violet rounded-xl flex items-center justify-center shadow-md">
                                   <Stethoscope className="w-5 h-5 text-white" />
                                 </div>
-                                <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white"></div>
+                                <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-status-open rounded-full border-2 border-white"></div>
                               </div>
                               <div>
-                                <div className="font-semibold text-gray-900">{selectedDoctor.name}</div>
-                                <div className="text-sm text-gray-600 flex items-center gap-1">
-                                  <span className="inline-block w-1.5 h-1.5 bg-blue-500 rounded-full"></span>
+                                <div className="font-semibold text-ink-900">{selectedDoctor.name}</div>
+                                <div className="text-sm text-ink-700 flex items-center gap-1">
+                                  <span className="inline-block w-1.5 h-1.5 bg-brand-violet rounded-full"></span>
                                   {selectedDoctor.specialization}
                                 </div>
                               </div>
                             </div>
                           ) : (
-                            <div className="flex items-center gap-3 text-gray-500">
-                              <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center">
-                                <Stethoscope className="w-5 h-5 text-gray-400" />
+                            <div className="flex items-center gap-3 text-ink-500">
+                              <div className="w-10 h-10 bg-surface-canvas rounded-xl flex items-center justify-center">
+                                <Stethoscope className="w-5 h-5 text-ink-500" />
                               </div>
                               <span className="font-medium">Choose a doctor</span>
                             </div>
                           )}
                         </div>
                         <div className={`transition-transform duration-200 ${showDoctorList ? 'rotate-180' : ''}`}>
-                          <ChevronDown className="w-5 h-5 text-gray-400" />
+                          <ChevronDown className="w-5 h-5 text-ink-500" />
                         </div>
                       </div>
 
                       {showDoctorList && (
-                        <div className="absolute z-20 w-full mt-2 bg-white border-2 border-blue-200 rounded-xl shadow-2xl max-h-80 overflow-hidden">
-                          <div className="p-3 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
+                        <div className="absolute z-20 w-full mt-2 bg-surface-paper border-2 border-brand-violet/20 rounded-xl shadow-2xl max-h-80 overflow-hidden">
+                          <div className="p-3 border-b border-border bg-gradient-to-r from-brand-violet-soft to-brand-violet-soft">
                             <div className="relative">
-                              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-blue-500 w-4 h-4" />
+                              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-brand-violet w-4 h-4" />
                               <input
                                 type="text"
                                 placeholder="Search doctors by name or specialization..."
                                 value={doctorSearch}
                                 onChange={(e) => setDoctorSearch(e.target.value)}
                                 onMouseDown={(e) => e.stopPropagation()}
-                                className="w-full pl-10 pr-4 py-2.5 border-2 border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                                className="w-full pl-10 pr-4 py-2.5 border-2 border-brand-violet/20 rounded-lg focus:ring-2 focus:ring-brand-violet focus:border-brand-violet bg-surface-paper"
                               />
                             </div>
                           </div>
@@ -547,17 +547,17 @@ export default function CreateAppointment({userRole, hospitalId}: CreateAppointm
                                     setShowDoctorList(false);
                                     setDoctorSearch("");
                                   }}
-                                  className="p-3 rounded-lg cursor-pointer hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 border-2 border-transparent hover:border-blue-200 transition-all duration-200 mb-2"
+                                  className="p-3 rounded-lg cursor-pointer hover:bg-gradient-to-r hover:from-brand-violet-soft hover:to-brand-violet-soft border-2 border-transparent hover:border-brand-violet/20 transition-all duration-200 mb-2"
                                 >
                                   <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                                    <div className="w-10 h-10 bg-gradient-to-br from-brand-violet to-brand-violet rounded-lg flex items-center justify-center flex-shrink-0">
                                       <Stethoscope className="w-5 h-5 text-white" />
                                     </div>
                                     <div className="flex-1">
-                                      <div className="font-semibold text-gray-900">{doctor.name}</div>
-                                      <div className="text-sm text-gray-600">{doctor.specialization}</div>
+                                      <div className="font-semibold text-ink-900">{doctor.name}</div>
+                                      <div className="text-sm text-ink-700">{doctor.specialization}</div>
                                       {doctor.availability && (
-                                        <div className="text-xs text-gray-500 mt-1 flex items-center gap-1">
+                                        <div className="text-xs text-ink-500 mt-1 flex items-center gap-1">
                                           <Calendar className="w-3 h-3" />
                                           {doctor.availability.map((a) => a.day.substring(0, 3)).join(", ")}
                                         </div>
@@ -567,8 +567,8 @@ export default function CreateAppointment({userRole, hospitalId}: CreateAppointm
                                 </div>
                               ))
                             ) : (
-                              <div className="p-6 text-center text-gray-500">
-                                <Stethoscope className="w-12 h-12 text-gray-300 mx-auto mb-2" />
+                              <div className="p-6 text-center text-ink-500">
+                                <Stethoscope className="w-12 h-12 text-border mx-auto mb-2" />
                                 <p className="font-medium">No doctors found</p>
                               </div>
                             )}
@@ -581,9 +581,9 @@ export default function CreateAppointment({userRole, hospitalId}: CreateAppointm
 
                 {/* Patient Selection */}
                 <div className="patient-dropdown relative">
-                  <label className="block text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                    <div className="p-1.5 bg-green-100 rounded-lg">
-                      <User className="w-4 h-4 text-green-600" />
+                  <label className="block text-sm font-semibold text-ink-900 mb-3 flex items-center gap-2">
+                    <div className="p-1.5 bg-status-open-soft rounded-lg">
+                      <User className="w-4 h-4 text-status-open" />
                     </div>
                     Select Patient *
                   </label>
@@ -591,8 +591,8 @@ export default function CreateAppointment({userRole, hospitalId}: CreateAppointm
                     <div
                       className={`flex items-center justify-between p-4 border-2 rounded-xl cursor-pointer bg-gradient-to-br transition-all duration-200 ${
                         selectedPatient 
-                          ? 'border-green-300 from-green-50 to-emerald-50 shadow-sm' 
-                          : 'border-gray-200 from-white to-white hover:border-green-200 hover:shadow-sm'
+                          ? 'border-status-open from-status-open-soft to-status-open-soft shadow-sm' 
+                          : 'border-border from-white to-white hover:border-status-open/20 hover:shadow-sm'
                       }`}
                       onClick={() => setShowPatientList((s) => !s)}
                     >
@@ -600,47 +600,47 @@ export default function CreateAppointment({userRole, hospitalId}: CreateAppointm
                         {selectedPatient ? (
                           <div className="flex items-center gap-3">
                             <div className="relative">
-                              <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center shadow-md">
+                              <div className="w-10 h-10 bg-gradient-to-br from-status-open to-status-open rounded-xl flex items-center justify-center shadow-md">
                                 <User className="w-5 h-5 text-white" />
                               </div>
-                              <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-blue-500 rounded-full border-2 border-white"></div>
+                              <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-brand-violet rounded-full border-2 border-white"></div>
                             </div>
                             <div>
-                              <div className="font-semibold text-gray-900">{selectedPatient.name}</div>
+                              <div className="font-semibold text-ink-900">{selectedPatient.name}</div>
                               {selectedPatient.email && (
-                                <div className="text-sm text-gray-600 flex items-center gap-1">
-                                  <span className="inline-block w-1.5 h-1.5 bg-green-500 rounded-full"></span>
+                                <div className="text-sm text-ink-700 flex items-center gap-1">
+                                  <span className="inline-block w-1.5 h-1.5 bg-status-open rounded-full"></span>
                                   {selectedPatient.email}
                                 </div>
                               )}
                             </div>
                           </div>
                         ) : (
-                          <div className="flex items-center gap-3 text-gray-500">
-                            <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center">
-                              <User className="w-5 h-5 text-gray-400" />
+                          <div className="flex items-center gap-3 text-ink-500">
+                            <div className="w-10 h-10 bg-surface-canvas rounded-xl flex items-center justify-center">
+                              <User className="w-5 h-5 text-ink-500" />
                             </div>
                             <span className="font-medium">Choose a patient</span>
                           </div>
                         )}
                       </div>
                       <div className={`transition-transform duration-200 ${showPatientList ? 'rotate-180' : ''}`}>
-                        <ChevronDown className="w-5 h-5 text-gray-400" />
+                        <ChevronDown className="w-5 h-5 text-ink-500" />
                       </div>
                     </div>
 
                     {showPatientList && (
-                      <div className="absolute z-20 w-full mt-2 bg-white border-2 border-green-200 rounded-xl shadow-2xl max-h-80 overflow-hidden">
-                        <div className="p-3 border-b border-gray-200 bg-gradient-to-r from-green-50 to-emerald-50">
+                      <div className="absolute z-20 w-full mt-2 bg-surface-paper border-2 border-status-open/20 rounded-xl shadow-2xl max-h-80 overflow-hidden">
+                        <div className="p-3 border-b border-border bg-gradient-to-r from-status-open-soft to-status-open-soft">
                           <div className="relative">
-                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-green-500 w-4 h-4" />
+                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-status-open w-4 h-4" />
                             <input
                               type="text"
                               placeholder="Search patients by name or email..."
                               value={patientSearch}
                               onChange={(e) => setPatientSearch(e.target.value)}
                               onMouseDown={(e) => e.stopPropagation()}
-                              className="w-full pl-10 pr-4 py-2.5 border-2 border-green-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white"
+                              className="w-full pl-10 pr-4 py-2.5 border-2 border-status-open/20 rounded-lg focus:ring-2 focus:ring-status-open focus:border-status-open bg-surface-paper"
                             />
                           </div>
                         </div>
@@ -655,24 +655,24 @@ export default function CreateAppointment({userRole, hospitalId}: CreateAppointm
                                   setShowPatientList(false);
                                   setPatientSearch("");
                                 }}
-                                className="p-3 rounded-lg cursor-pointer hover:bg-gradient-to-r hover:from-green-50 hover:to-emerald-50 border-2 border-transparent hover:border-green-200 transition-all duration-200 mb-2"
+                                className="p-3 rounded-lg cursor-pointer hover:bg-gradient-to-r hover:from-status-open-soft hover:to-status-open-soft border-2 border-transparent hover:border-status-open/20 transition-all duration-200 mb-2"
                               >
                                 <div className="flex items-center gap-3">
-                                  <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                                  <div className="w-10 h-10 bg-gradient-to-br from-status-open to-status-open rounded-lg flex items-center justify-center flex-shrink-0">
                                     <User className="w-5 h-5 text-white" />
                                   </div>
                                   <div className="flex-1">
-                                    <div className="font-semibold text-gray-900">{patient.name}</div>
+                                    <div className="font-semibold text-ink-900">{patient.name}</div>
                                     {patient.email && (
-                                      <div className="text-sm text-gray-600">{patient.email}</div>
+                                      <div className="text-sm text-ink-700">{patient.email}</div>
                                     )}
                                   </div>
                                 </div>
                               </div>
                             ))
                           ) : (
-                            <div className="p-6 text-center text-gray-500">
-                              <User className="w-12 h-12 text-gray-300 mx-auto mb-2" />
+                            <div className="p-6 text-center text-ink-500">
+                              <User className="w-12 h-12 text-border mx-auto mb-2" />
                               <p className="font-medium">No patients found</p>
                             </div>
                           )}
@@ -684,14 +684,14 @@ export default function CreateAppointment({userRole, hospitalId}: CreateAppointm
 
                 {/* Notes */}
                 <div>
-                  <label className="block text-sm font-semibold text-gray-800 mb-3">
+                  <label className="block text-sm font-semibold text-ink-900 mb-3">
                     Notes (Optional)
                   </label>
                   <textarea
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
                     rows={4}
-                    className="w-full p-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-300 resize-none transition-all duration-200 hover:border-gray-300"
+                    className="w-full p-4 border-2 border-border rounded-xl focus:ring-2 focus:ring-brand-violet focus:border-brand-violet resize-none transition-all duration-200 hover:border-border"
                     placeholder="Any special instructions or notes about this appointment..."
                   />
                 </div>
@@ -701,9 +701,9 @@ export default function CreateAppointment({userRole, hospitalId}: CreateAppointm
               <div className="space-y-6">
                 {/* Frequency */}
                 <div>
-                  <label className="block text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                    <div className="p-1.5 bg-purple-100 rounded-lg">
-                      <Calendar className="w-4 h-4 text-purple-600" />
+                  <label className="block text-sm font-semibold text-ink-900 mb-3 flex items-center gap-2">
+                    <div className="p-1.5 bg-brand-violet-soft rounded-lg">
+                      <Calendar className="w-4 h-4 text-brand-violet" />
                     </div>
                     Schedule Type
                   </label>
@@ -719,8 +719,8 @@ export default function CreateAppointment({userRole, hospitalId}: CreateAppointm
                         onClick={() => setFrequency(option.value as any)}
                         className={`relative p-3 rounded-xl border-2 transition-all duration-200 text-sm font-semibold overflow-hidden ${
                           frequency === option.value
-                            ? "bg-gradient-to-br from-purple-500 to-indigo-600 text-white border-purple-600 shadow-lg scale-105"
-                            : "bg-white text-gray-700 border-gray-200 hover:border-purple-300 hover:shadow-md"
+                            ? "bg-gradient-to-br from-brand-violet to-brand-violet text-white border-brand-violet shadow-lg scale-105"
+                            : "bg-surface-paper text-ink-700 border-border hover:border-brand-violet hover:shadow-md"
                         }`}
                       >
                         <div className="relative z-10 flex flex-col items-center gap-1">
@@ -739,9 +739,9 @@ export default function CreateAppointment({userRole, hospitalId}: CreateAppointm
 
                 {/* Appointment Date */}
                 <div>
-                  <label className="block text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                    <div className="p-1.5 bg-blue-100 rounded-lg">
-                      <Calendar className="w-4 h-4 text-blue-600" />
+                  <label className="block text-sm font-semibold text-ink-900 mb-3 flex items-center gap-2">
+                    <div className="p-1.5 bg-brand-violet-soft rounded-lg">
+                      <Calendar className="w-4 h-4 text-brand-violet" />
                     </div>
                     Start Date *
                   </label>
@@ -759,13 +759,13 @@ export default function CreateAppointment({userRole, hospitalId}: CreateAppointm
                         setAppointmentDate(selected);
                       }}
                       min={new Date().toISOString().split("T")[0]}
-                      className="w-full px-4 py-3.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-300 transition-all duration-200 hover:border-gray-300 font-medium text-gray-700"
+                      className="w-full px-4 py-3.5 border-2 border-border rounded-xl focus:ring-2 focus:ring-brand-violet focus:border-brand-violet transition-all duration-200 hover:border-border font-medium text-ink-700"
                       required
                     />
                   </div>
                   {appointmentDate && (
-                    <div className="mt-2 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
-                      <p className="text-sm font-medium text-blue-800 flex items-center gap-2">
+                    <div className="mt-2 p-3 bg-gradient-to-r from-brand-violet-soft to-brand-violet-soft rounded-lg border border-brand-violet/20">
+                      <p className="text-sm font-medium text-brand-violet flex items-center gap-2">
                         <Calendar className="w-4 h-4" />
                         {new Date(appointmentDate).toLocaleDateString("en-US", {
                           weekday: "long",
@@ -780,16 +780,16 @@ export default function CreateAppointment({userRole, hospitalId}: CreateAppointm
 
                 {/* Appointment Time */}
                 <div>
-                  <label className="block text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                    <div className="p-1.5 bg-indigo-100 rounded-lg">
-                      <Clock className="w-4 h-4 text-indigo-600" />
+                  <label className="block text-sm font-semibold text-ink-900 mb-3 flex items-center gap-2">
+                    <div className="p-1.5 bg-brand-violet-soft rounded-lg">
+                      <Clock className="w-4 h-4 text-brand-violet" />
                     </div>
                     Preferred Time *
                   </label>
                   {availableSlots.length > 0 ? (
                     <div className="space-y-3">
-                      <div className="p-3 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg border border-indigo-200">
-                        <p className="text-xs font-semibold text-indigo-800 flex items-center gap-2">
+                      <div className="p-3 bg-gradient-to-r from-brand-violet-soft to-brand-violet-soft rounded-lg border border-brand-violet/20">
+                        <p className="text-xs font-semibold text-brand-violet flex items-center gap-2">
                           <Clock className="w-3.5 h-3.5" />
                           {availableSlots.length} time slot{availableSlots.length !== 1 ? 's' : ''} available
                         </p>
@@ -802,25 +802,25 @@ export default function CreateAppointment({userRole, hospitalId}: CreateAppointm
                             onClick={() => setAppointmentTime(slot)}
                             className={`relative p-3 rounded-xl border-2 transition-all duration-200 font-semibold text-sm ${
                               appointmentTime === slot
-                                ? "bg-gradient-to-br from-indigo-500 to-purple-600 text-white border-indigo-600 shadow-lg scale-105"
-                                : "bg-white text-gray-700 border-gray-200 hover:border-indigo-300 hover:shadow-md hover:scale-102"
+                                ? "bg-gradient-to-br from-brand-violet to-brand-violet text-white border-brand-violet shadow-lg scale-105"
+                                : "bg-surface-paper text-ink-700 border-border hover:border-brand-violet hover:shadow-md hover:scale-102"
                             }`}
                           >
                             <div className="flex flex-col items-center gap-1">
-                              <Clock className={`w-4 h-4 ${appointmentTime === slot ? 'text-white' : 'text-indigo-500'}`} />
+                              <Clock className={`w-4 h-4 ${appointmentTime === slot ? 'text-white' : 'text-brand-violet'}`} />
                               <span>{slot}</span>
                             </div>
                             {appointmentTime === slot && (
                               <div className="absolute -top-1 -right-1">
-                                <CheckCircle2 className="w-5 h-5 text-green-500 bg-white rounded-full" />
+                                <CheckCircle2 className="w-5 h-5 text-status-open bg-surface-paper rounded-full" />
                               </div>
                             )}
                           </button>
                         ))}
                       </div>
                       {appointmentTime && (
-                        <div className="p-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-200">
-                          <p className="text-sm font-semibold text-green-800 flex items-center gap-2">
+                        <div className="p-3 bg-gradient-to-r from-status-open-soft to-status-open-soft rounded-lg border border-status-open/20">
+                          <p className="text-sm font-semibold text-status-open flex items-center gap-2">
                             <CheckCircle2 className="w-4 h-4" />
                             Selected: {appointmentTime}
                           </p>
@@ -828,7 +828,7 @@ export default function CreateAppointment({userRole, hospitalId}: CreateAppointm
                       )}
                     </div>
                   ) : (
-                    <div className="p-4 bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl text-amber-800 text-sm border-2 border-amber-200">
+                    <div className="p-4 bg-gradient-to-r from-status-warning-soft to-status-warning-soft rounded-xl text-status-warning text-sm border-2 border-status-warning/20">
                       <div className="flex items-start gap-3">
                         <Clock className="w-5 h-5 flex-shrink-0 mt-0.5" />
                         <div>
@@ -838,7 +838,7 @@ export default function CreateAppointment({userRole, hospitalId}: CreateAppointm
                               : "Select doctor and date"
                             }
                           </p>
-                          <p className="text-xs text-amber-700">
+                          <p className="text-xs text-status-warning">
                             {selectedDoctor && appointmentDate 
                               ? "No available slots for this date. Please select another date." 
                               : "Select a doctor and date to see available time slots"
@@ -852,8 +852,8 @@ export default function CreateAppointment({userRole, hospitalId}: CreateAppointm
 
                 {/* Weekly Options */}
                 {frequency === "weekly" && selectedDoctor && (
-                  <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-5 rounded-xl border-2 border-blue-200">
-                    <label className="block text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                  <div className="bg-gradient-to-br from-brand-violet-soft to-brand-violet-soft p-5 rounded-xl border-2 border-brand-violet/20">
+                    <label className="block text-sm font-semibold text-ink-900 mb-3 flex items-center gap-2">
                       <span className="text-lg">🗓️</span>
                       Select Days (Based on Doctor's Availability)
                     </label>
@@ -870,21 +870,21 @@ export default function CreateAppointment({userRole, hospitalId}: CreateAppointm
                             onClick={() => isAvailable && toggleDaySelection(day)}
                             className={`relative px-3 py-2.5 rounded-lg text-xs font-bold border-2 transition-all duration-200 ${
                               !isAvailable
-                                ? "bg-gray-100 text-gray-400 border-gray-300 cursor-not-allowed opacity-50"
+                                ? "bg-surface-canvas text-ink-500 border-border cursor-not-allowed opacity-50"
                                 : isSelected
-                                ? "bg-gradient-to-br from-blue-500 to-indigo-600 text-white border-blue-600 shadow-md scale-105"
-                                : "bg-white text-gray-700 border-gray-300 hover:border-blue-300 hover:shadow-sm"
+                                ? "bg-gradient-to-br from-brand-violet to-brand-violet text-white border-brand-violet shadow-md scale-105"
+                                : "bg-surface-paper text-ink-700 border-border hover:border-brand-violet hover:shadow-sm"
                             }`}
                           >
                             {day.substring(0, 3)}
                             {isSelected && (
-                              <CheckCircle2 className="absolute -top-1 -right-1 w-4 h-4 text-green-500 bg-white rounded-full" />
+                              <CheckCircle2 className="absolute -top-1 -right-1 w-4 h-4 text-status-open bg-surface-paper rounded-full" />
                             )}
                           </button>
                         );
                       })}
                     </div>
-                    <p className="text-xs text-blue-800 mt-3 font-medium">
+                    <p className="text-xs text-brand-violet mt-3 font-medium">
                       {selectedDays.length > 0 
                         ? `✓ Appointments on ${selectedDays.map(d => d.substring(0, 3)).join(", ")} each week`
                         : "⚠️ Please select at least one day"
@@ -895,12 +895,12 @@ export default function CreateAppointment({userRole, hospitalId}: CreateAppointm
 
                 {/* Monthly Options */}
                 {frequency === "monthly" && (
-                  <div className="bg-gradient-to-br from-purple-50 to-pink-50 p-5 rounded-xl border-2 border-purple-200">
-                    <label className="block text-sm font-semibold text-gray-800 mb-2 flex items-center gap-2">
+                  <div className="bg-gradient-to-br from-brand-violet-soft to-brand-violet-soft p-5 rounded-xl border-2 border-brand-violet/20">
+                    <label className="block text-sm font-semibold text-ink-900 mb-2 flex items-center gap-2">
                       <span className="text-lg">📆</span>
                       Monthly Appointments
                     </label>
-                    <p className="text-sm text-purple-800 font-medium">
+                    <p className="text-sm text-brand-violet font-medium">
                       Appointments will be scheduled on the same date each month, adjusted for doctor's availability.
                     </p>
                   </div>
@@ -909,7 +909,7 @@ export default function CreateAppointment({userRole, hospitalId}: CreateAppointm
                 {/* Number of Occurrences */}
                 {frequency !== "once" && (
                   <div>
-                    <label className="block text-sm font-semibold text-gray-800 mb-3">
+                    <label className="block text-sm font-semibold text-ink-900 mb-3">
                       Number of Appointments
                     </label>
                     <input
@@ -918,11 +918,11 @@ export default function CreateAppointment({userRole, hospitalId}: CreateAppointm
                       max="52"
                       value={numberOfOccurrences}
                       onChange={(e) => setNumberOfOccurrences(Math.max(1, parseInt(e.target.value || "1")))}
-                      className="w-full px-4 py-3.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-300 transition-all duration-200 hover:border-gray-300 font-semibold text-gray-700 text-lg"
+                      className="w-full px-4 py-3.5 border-2 border-border rounded-xl focus:ring-2 focus:ring-brand-violet focus:border-brand-violet transition-all duration-200 hover:border-border font-semibold text-ink-700 text-lg"
                     />
                     {calculateEndDate() && (
-                      <div className="mt-2 p-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-200">
-                        <p className="text-sm font-medium text-green-800 flex items-center gap-2">
+                      <div className="mt-2 p-3 bg-gradient-to-r from-status-open-soft to-status-open-soft rounded-lg border border-status-open/20">
+                        <p className="text-sm font-medium text-status-open flex items-center gap-2">
                           <Calendar className="w-4 h-4" />
                           Schedule ends on: <strong>{new Date(calculateEndDate()).toLocaleDateString()}</strong>
                         </p>
@@ -934,14 +934,14 @@ export default function CreateAppointment({userRole, hospitalId}: CreateAppointm
             </div>
 
             {/* Action Buttons */}
-            <div className="flex flex-col sm:flex-row gap-3 pt-6 border-t-2 border-gray-200">
+            <div className="flex flex-col sm:flex-row gap-3 pt-6 border-t-2 border-border">
               <button
                 type="submit"
                 disabled={!isValid || saving}
                 className={`relative group flex items-center justify-center gap-2 flex-1 px-6 py-4 rounded-xl font-bold text-base transition-all duration-200 overflow-hidden ${
                   !isValid || saving
-                    ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                    : "bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-lg hover:shadow-xl"
+                    ? "bg-border text-ink-500 cursor-not-allowed"
+                    : "bg-brand-violet hover:bg-brand-violet-hover text-white shadow-lg hover:shadow-xl"
                 }`}
               >
                 <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
@@ -961,7 +961,7 @@ export default function CreateAppointment({userRole, hospitalId}: CreateAppointm
               <button 
                 type="button" 
                 onClick={() => navigateToHospitalRoute("appointments", hospitalId)} 
-                className="px-6 py-4 border-2 border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 font-semibold"
+                className="px-6 py-4 border-2 border-border text-ink-700 rounded-xl hover:bg-surface-canvas hover:border-ink-500 transition-all duration-200 font-semibold"
               >
                 Cancel
               </button>
@@ -970,33 +970,33 @@ export default function CreateAppointment({userRole, hospitalId}: CreateAppointm
         </form>
 
         {/* Info Card */}
-        <div className="mt-6 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl md:rounded-2xl border-2 border-blue-200 overflow-hidden shadow-md">
-          <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-5 py-3">
+        <div className="mt-6 bg-gradient-to-br from-brand-violet-soft to-brand-violet-soft rounded-xl md:rounded-2xl border-2 border-brand-violet/20 overflow-hidden shadow-md">
+          <div className="bg-gradient-to-r from-brand-violet to-brand-violet px-5 py-3">
             <h4 className="font-bold text-white flex items-center gap-2">
               <Calendar className="w-5 h-5" />
               Scheduling Information
             </h4>
           </div>
           <div className="p-5">
-            <ul className="text-blue-800 text-sm space-y-2.5">
+            <ul className="text-brand-violet text-sm space-y-2.5">
               <li className="flex items-start gap-2">
-                <span className="text-blue-600 font-bold mt-0.5">•</span>
+                <span className="text-brand-violet font-bold mt-0.5">•</span>
                 <span>Available time slots are based on the doctor's schedule and existing appointments</span>
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-blue-600 font-bold mt-0.5">•</span>
+                <span className="text-brand-violet font-bold mt-0.5">•</span>
                 <span>For weekly appointments, you can only select days when the doctor is available</span>
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-blue-600 font-bold mt-0.5">•</span>
+                <span className="text-brand-violet font-bold mt-0.5">•</span>
                 <span>If your preferred time is not available, the system will find the next available slot</span>
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-blue-600 font-bold mt-0.5">•</span>
+                <span className="text-brand-violet font-bold mt-0.5">•</span>
                 <span>Monthly appointments will be scheduled on the same date each month, adjusted for availability</span>
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-blue-600 font-bold mt-0.5">•</span>
+                <span className="text-brand-violet font-bold mt-0.5">•</span>
                 <span>Patients will receive notifications about their scheduled appointments</span>
               </li>
             </ul>

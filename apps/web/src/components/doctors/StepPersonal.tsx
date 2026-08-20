@@ -24,7 +24,7 @@ export function StepPersonal({
   return (
     <div className="space-y-6">
       <h3 className="text-xl font-semibold flex items-center gap-2">
-        <User className="w-6 h-6 text-blue-600" /> Personal Info
+        <User className="w-6 h-6 text-brand-violet" /> Personal Info
       </h3>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
@@ -65,7 +65,7 @@ export function StepPersonal({
                 key={g}
                 type="button"
                 onClick={() => handleSelectChange?.("gender", g)}
-                className={`px-3 py-1 rounded-lg border ${formData.gender === g ? "bg-blue-500 text-white" : "bg-gray-100"}`}>
+                className={`px-3 py-1 rounded-lg border ${formData.gender === g ? "bg-brand-violet text-white" : "bg-surface-canvas"}`}>
                 {g}
               </button>
             ))}
@@ -81,7 +81,7 @@ export function StepPersonal({
                 key={s}
                 type="button"
                 onClick={() => handleSelectChange?.("maritalStatus", s)}
-                className={`px-3 py-1 rounded-lg border ${formData.maritalStatus === s ? "bg-purple-500 text-white" : "bg-gray-100"}`}>
+                className={`px-3 py-1 rounded-lg border ${formData.maritalStatus === s ? "bg-brand-violet text-white" : "bg-surface-canvas"}`}>
                 {s}
               </button>
             ))}

@@ -173,8 +173,8 @@ export default function AddEditPatient1({
   if (isLoading && !isNew) {
     return (
       <div className="flex justify-center items-center h-64">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
-        <span className="ml-2 text-gray-600">Loading patient data...</span>
+        <Loader2 className="w-8 h-8 animate-spin text-brand-violet" />
+        <span className="ml-2 text-ink-700">Loading patient data...</span>
       </div>
     );
   }
@@ -186,18 +186,18 @@ export default function AddEditPatient1({
         <div className="flex items-center gap-3 mb-6 pt-4">
           <button
             onClick={() => navigateToHospitalRoute(`patients`)}
-            className="flex items-center gap-2 text-gray-600 hover:text-gray-800 transition-colors group"
+            className="flex items-center gap-2 text-ink-700 hover:text-ink-900 transition-colors group"
           >
             <ArrowLeft className="w-5 h-5 group-hover:-translate-x-0.5 transition-transform" />
             <span className="text-sm font-medium">Back to Patients</span>
           </button>
         </div>
-        <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
-          <h3 className="text-lg font-semibold text-red-800 mb-2">Error Loading Patient</h3>
-          <p className="text-red-600">{patientError.message}</p>
+        <div className="bg-status-danger-soft border border-status-danger/20 rounded-lg p-6 text-center">
+          <h3 className="text-lg font-semibold text-status-danger mb-2">Error Loading Patient</h3>
+          <p className="text-status-danger">{patientError.message}</p>
           <button
             onClick={() => navigateToHospitalRoute(`patients`)}
-            className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+            className="mt-4 px-4 py-2 bg-status-danger text-white rounded-lg hover:bg-status-danger-hover"
           >
             Return to Patients
           </button>
@@ -213,16 +213,16 @@ export default function AddEditPatient1({
         <button
           onClick={() => navigateToHospitalRoute(`patients`, hospitalId)}
           disabled={isSaving}
-          className="flex items-center gap-2 text-gray-600 hover:text-gray-800 transition-colors group disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex items-center gap-2 text-ink-700 hover:text-ink-900 transition-colors group disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <ArrowLeft className="w-5 h-5 group-hover:-translate-x-0.5 transition-transform" />
           <span className="text-sm font-medium">Back to Patients</span>
         </button>
-        <div className="h-4 w-px bg-gray-300"></div>
+        <div className="h-4 w-px bg-border"></div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <User className="w-5 h-5 text-blue-600" />
-            <h1 className="text-xl font-bold text-gray-900 truncate">
+            <User className="w-5 h-5 text-brand-violet" />
+            <h1 className="text-xl font-bold text-ink-900 truncate">
               {isNew ? "Add New Patient" : "Edit Patient"}
             </h1>
           </div>
@@ -231,9 +231,9 @@ export default function AddEditPatient1({
 
       {/* Form Error Alert */}
       {formError && (
-        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-          <div className="flex items-center gap-2 text-red-800">
-            <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+        <div className="mb-6 p-4 bg-status-danger-soft border border-status-danger/20 rounded-lg">
+          <div className="flex items-center gap-2 text-status-danger">
+            <div className="w-2 h-2 bg-status-danger rounded-full"></div>
             <p className="text-sm font-medium">{formError}</p>
           </div>
         </div>
@@ -241,25 +241,25 @@ export default function AddEditPatient1({
 
       <form
         onSubmit={handleSubmit}
-        className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-6"
+        className="bg-surface-paper rounded-xl shadow-sm border border-border p-6 space-y-6"
       >
         {/* Personal Information - Single Column Layout */}
         <div className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Left Column */}
             <div className="space-y-5">
-              <div className="flex items-center gap-2 text-gray-700">
-                <div className="w-1.5 h-4 bg-blue-500 rounded-full"></div>
-                <h3 className="font-semibold text-gray-800">Personal Information</h3>
+              <div className="flex items-center gap-2 text-ink-700">
+                <div className="w-1.5 h-4 bg-brand-violet rounded-full"></div>
+                <h3 className="font-semibold text-ink-900">Personal Information</h3>
               </div>
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-ink-700 mb-2">
                     Full Name *
                   </label>
                   <div className="relative">
-                    <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-ink-500 w-4 h-4" />
                     <input
                       type="text"
                       name="name"
@@ -267,18 +267,18 @@ export default function AddEditPatient1({
                       value={formData.name}
                       onChange={handleChange}
                       disabled={isSaving}
-                      className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full pl-10 pr-4 py-2.5 border border-border rounded-lg focus:ring-2 focus:ring-brand-violet focus:border-brand-violet transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       required
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-ink-700 mb-2">
                     Email Address
                   </label>
                   <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-ink-500 w-4 h-4" />
                     <input
                       type="email"
                       name="email"
@@ -286,17 +286,17 @@ export default function AddEditPatient1({
                       value={formData.email || ""}
                       onChange={handleChange}
                       disabled={isSaving}
-                      className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full pl-10 pr-4 py-2.5 border border-border rounded-lg focus:ring-2 focus:ring-brand-violet focus:border-brand-violet transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-ink-700 mb-2">
                     Phone Number
                   </label>
                   <div className="relative">
-                    <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-ink-500 w-4 h-4" />
                     <input
                       type="tel"
                       name="phone"
@@ -304,17 +304,17 @@ export default function AddEditPatient1({
                       value={formData.phone || ""}
                       onChange={handleChange}
                       disabled={isSaving}
-                      className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full pl-10 pr-4 py-2.5 border border-border rounded-lg focus:ring-2 focus:ring-brand-violet focus:border-brand-violet transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-ink-700 mb-2">
                     Secondary Phone Number
                   </label>
                   <div className="relative">
-                    <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-ink-500 w-4 h-4" />
                     <input
                       type="tel"
                       name="secondaryPhone"
@@ -322,7 +322,7 @@ export default function AddEditPatient1({
                       value={formData.secondaryPhone || ""}
                       onChange={handleChange}
                       disabled={isSaving}
-                      className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full pl-10 pr-4 py-2.5 border border-border rounded-lg focus:ring-2 focus:ring-brand-violet focus:border-brand-violet transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     />
                   </div>
                 </div>
@@ -331,37 +331,37 @@ export default function AddEditPatient1({
 
             {/* Right Column */}
             <div className="space-y-5">
-              <div className="flex items-center gap-2 text-gray-700">
-                <div className="w-1.5 h-4 bg-green-500 rounded-full"></div>
-                <h3 className="font-semibold text-gray-800">Additional Details</h3>
+              <div className="flex items-center gap-2 text-ink-700">
+                <div className="w-1.5 h-4 bg-status-open rounded-full"></div>
+                <h3 className="font-semibold text-ink-900">Additional Details</h3>
               </div>
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-ink-700 mb-2">
                     Date of Birth *
                   </label>
                   <div className="relative">
-                    <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-ink-500 w-4 h-4" />
                     <input
                       type="date"
                       name="dateOfBirth"
                       value={formData.dateOfBirth || ""}
                       onChange={handleChange}
                       disabled={isSaving}
-                      className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full pl-10 pr-4 py-2.5 border border-border rounded-lg focus:ring-2 focus:ring-brand-violet focus:border-brand-violet transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       required
                     />
                   </div>
                   {formData.dateOfBirth && (
-                    <p className="text-xs text-gray-500 mt-1.5 font-medium">
+                    <p className="text-xs text-ink-500 mt-1.5 font-medium">
                       Age: {calculateAge(formData.dateOfBirth)} years
                     </p>
                   )}
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-ink-700 mb-2">
                     Gender
                   </label>
                   <div className="flex gap-2">
@@ -373,8 +373,8 @@ export default function AddEditPatient1({
                         disabled={isSaving}
                         className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium border transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${
                           formData.gender === g
-                            ? "bg-blue-500 text-white border-blue-600 shadow-sm"
-                            : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400"
+                            ? "bg-brand-violet text-white border-brand-violet shadow-sm"
+                            : "bg-surface-paper text-ink-700 border-border hover:bg-surface-canvas hover:border-ink-500"
                         }`}
                       >
                         {g}
@@ -384,11 +384,11 @@ export default function AddEditPatient1({
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-ink-700 mb-2">
                     Address
                   </label>
                   <div className="relative">
-                    <MapPin className="absolute left-3 top-3 text-gray-400 w-4 h-4" />
+                    <MapPin className="absolute left-3 top-3 text-ink-500 w-4 h-4" />
                     <textarea
                       name="address"
                       placeholder="123 Main St, City, State"
@@ -396,7 +396,7 @@ export default function AddEditPatient1({
                       onChange={handleChange}
                       disabled={isSaving}
                       rows={2}
-                      className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full pl-10 pr-4 py-2.5 border border-border rounded-lg focus:ring-2 focus:ring-brand-violet focus:border-brand-violet resize-none transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     />
                   </div>
                 </div>
@@ -406,9 +406,9 @@ export default function AddEditPatient1({
 
           {/* Notes Section */}
           <div>
-            <div className="flex items-center gap-2 text-gray-700 mb-4">
-              <div className="w-1.5 h-4 bg-green-600 rounded-full"></div>
-              <h3 className="font-semibold text-gray-800">Additional Notes</h3>
+            <div className="flex items-center gap-2 text-ink-700 mb-4">
+              <div className="w-1.5 h-4 bg-status-open rounded-full"></div>
+              <h3 className="font-semibold text-ink-900">Additional Notes</h3>
             </div>
             <textarea
               name="notes"
@@ -417,17 +417,17 @@ export default function AddEditPatient1({
               onChange={handleChange}
               disabled={isSaving}
               rows={3}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full p-3 border border-border rounded-lg focus:ring-2 focus:ring-brand-violet focus:border-brand-violet resize-none transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             />
           </div>
         </div>
 
         {/* Action Buttons */}
-        <div className="flex flex-col sm:flex-row gap-3 pt-6 border-t border-gray-200">
+        <div className="flex flex-col sm:flex-row gap-3 pt-6 border-t border-border">
           <button
             type="submit"
             disabled={isSaving}
-            className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex-1 sm:flex-none"
+            className="flex items-center justify-center gap-2 bg-brand-violet hover:bg-brand-violet-hover text-white px-6 py-3 rounded-lg transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex-1 sm:flex-none"
           >
             {isSaving ? (
               <>
@@ -445,7 +445,7 @@ export default function AddEditPatient1({
             type="button"
             onClick={() => router.push(`hospital/${hospitalId}/patients`)}
             disabled={isSaving}
-            className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex-1 sm:flex-none"
+            className="px-6 py-3 border border-border text-ink-700 rounded-lg hover:bg-surface-canvas transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex-1 sm:flex-none"
           >
             Cancel
           </button>

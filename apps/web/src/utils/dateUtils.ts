@@ -185,10 +185,10 @@ export function isCurrentWeek(date: Date): boolean {
 }
 
 export const statusColors: { [key: string]: string } = {
-  scheduled: "bg-blue-100 text-blue-800",
-  completed: "bg-green-100 text-green-800",
-  cancelled: "bg-red-100 text-red-800",
-  "no-show": "bg-gray-100 text-gray-800",
+  scheduled: "bg-brand-violet-soft text-brand-violet",
+  completed: "bg-status-open-soft text-status-open",
+  cancelled: "bg-status-danger-soft text-status-danger",
+  "no-show": "bg-surface-canvas text-ink-500",
 };
 
 export function getDateRange(dateFilter: string) {

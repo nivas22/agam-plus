@@ -326,7 +326,7 @@ export default function AppointmentsPage({
   if (isDataLoading && appointments.length === 0) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-violet"></div>
       </div>
     );
   }
@@ -400,17 +400,17 @@ export default function AppointmentsPage({
         <div className="flex flex-col items-center justify-center py-12 px-4">
           {/* Animated Icon Container */}
           <div className="relative mb-6">
-            <div className="absolute inset-0 bg-gradient-to-r from-emerald-400 to-green-500 rounded-full blur-2xl opacity-20 animate-pulse"></div>
-            <div className="relative w-24 h-24 bg-gradient-to-br from-emerald-50 to-green-50 rounded-3xl flex items-center justify-center shadow-lg border-4 border-white">
-              <CalendarDays className="w-12 h-12 text-emerald-600" />
+            <div className="absolute inset-0 bg-status-open rounded-full blur-2xl opacity-20 animate-pulse"></div>
+            <div className="relative w-24 h-24 bg-status-open-soft rounded-3xl flex items-center justify-center shadow-lg border-4 border-surface-paper">
+              <CalendarDays className="w-12 h-12 text-status-open" />
             </div>
           </div>
 
           {/* Title and Description */}
-          <h3 className="text-xl font-bold text-gray-900 mb-2 text-center">
+          <h3 className="text-xl font-bold text-ink-900 mb-2 text-center">
             No Appointments Found
           </h3>
-          <p className="text-sm text-gray-500 text-center max-w-xs mb-8 leading-relaxed">
+          <p className="text-sm text-ink-500 text-center max-w-xs mb-8 leading-relaxed">
             {searchTerm || statusFilter !== "all" || doctorFilter !== "all" || patientFilter !== "all"
               ? "Try adjusting your filters or select a different date range" 
               : "Your appointment schedule is empty. New appointments will appear here."}
@@ -418,35 +418,35 @@ export default function AppointmentsPage({
 
           {/* Decorative Elements */}
           <div className="grid grid-cols-3 gap-3 w-full max-w-sm">
-            <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-4 text-center border border-blue-200">
-              <div className="w-10 h-10 bg-blue-500 rounded-xl mx-auto mb-2 flex items-center justify-center">
+            <div className="bg-brand-violet-soft rounded-2xl p-4 text-center border border-brand-violet/20">
+              <div className="w-10 h-10 bg-brand-violet rounded-xl mx-auto mb-2 flex items-center justify-center">
                 <CalendarDays className="w-5 h-5 text-white" />
               </div>
-              <p className="text-xs font-semibold text-blue-900">Schedule</p>
+              <p className="text-xs font-semibold text-brand-violet">Schedule</p>
             </div>
-            <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-2xl p-4 text-center border border-emerald-200">
-              <div className="w-10 h-10 bg-emerald-500 rounded-xl mx-auto mb-2 flex items-center justify-center">
+            <div className="bg-status-open-soft rounded-2xl p-4 text-center border border-status-open/20">
+              <div className="w-10 h-10 bg-status-open rounded-xl mx-auto mb-2 flex items-center justify-center">
                 <CheckCircle className="w-5 h-5 text-white" />
               </div>
-              <p className="text-xs font-semibold text-emerald-900">Track</p>
+              <p className="text-xs font-semibold text-status-open">Track</p>
             </div>
-            <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-2xl p-4 text-center border border-purple-200">
-              <div className="w-10 h-10 bg-purple-500 rounded-xl mx-auto mb-2 flex items-center justify-center">
+            <div className="bg-brand-violet-soft rounded-2xl p-4 text-center border border-brand-violet/20">
+              <div className="w-10 h-10 bg-brand-violet rounded-xl mx-auto mb-2 flex items-center justify-center">
                 <Clock className="w-5 h-5 text-white" />
               </div>
-              <p className="text-xs font-semibold text-purple-900">Manage</p>
+              <p className="text-xs font-semibold text-brand-violet">Manage</p>
             </div>
           </div>
 
           {/* Helpful Tip */}
-          <div className="mt-8 bg-gradient-to-r from-emerald-50 to-green-50 rounded-2xl p-4 border border-emerald-200 w-full max-w-sm">
+          <div className="mt-8 bg-status-open-soft rounded-2xl p-4 border border-status-open/20 w-full max-w-sm">
             <div className="flex items-start gap-3">
-              <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center flex-shrink-0">
+              <div className="w-8 h-8 bg-status-open rounded-lg flex items-center justify-center flex-shrink-0">
                 <span className="text-white text-lg">💡</span>
               </div>
               <div>
-                <p className="text-xs font-semibold text-emerald-900 mb-1">Quick Tip</p>
-                <p className="text-xs text-emerald-700 leading-relaxed">
+                <p className="text-xs font-semibold text-status-open mb-1">Quick Tip</p>
+                <p className="text-xs text-status-open leading-relaxed">
                   Appointments will automatically appear here once they are scheduled by patients or added by the admin.
                 </p>
               </div>
@@ -461,38 +461,38 @@ export default function AppointmentsPage({
             const currentWeek = isCurrentWeek(weekStartDate);
 
             return (
-              <div key={week} className="rounded-xl border border-gray-200 overflow-hidden bg-white shadow-sm">
+              <div key={week} className="rounded-xl border border-border overflow-hidden bg-surface-paper shadow-sm">
                 {/* Week Header */}
-                <div 
+                <div
                   className="flex justify-between items-center p-4 cursor-pointer"
                   onClick={() => toggleWeekExpansion(week)}
                 >
                   <div className="flex items-center gap-3">
-                    <div className={`w-2 h-10 rounded-full ${currentWeek ? 'bg-blue-500' : 'bg-gray-300'}`}></div>
+                    <div className={`w-2 h-10 rounded-full ${currentWeek ? 'bg-brand-violet' : 'bg-border'}`}></div>
                     <div>
-                      <h3 className="font-bold text-gray-800">{week}</h3>
-                      <p className="text-sm text-gray-500">
+                      <h3 className="font-bold text-ink-900">{week}</h3>
+                      <p className="text-sm text-ink-500">
                         {weekAppointments.length} appointment{weekAppointments.length !== 1 ? 's' : ''}
                       </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
                     {currentWeek && (
-                      <span className="bg-blue-100 text-blue-700 text-xs font-medium px-2.5 py-1 rounded-full">
+                      <span className="bg-brand-violet-soft text-brand-violet text-xs font-medium px-2.5 py-1 rounded-full">
                         This Week
                       </span>
                     )}
                     {isExpanded ? (
-                      <ChevronUp className="w-5 h-5 text-gray-500" />
+                      <ChevronUp className="w-5 h-5 text-ink-500" />
                     ) : (
-                      <ChevronDown className="w-5 h-5 text-gray-500" />
+                      <ChevronDown className="w-5 h-5 text-ink-500" />
                     )}
                   </div>
                 </div>
                 
                 {/* Week Appointments */}
                 {isExpanded && (
-                  <div className="border-t border-gray-100 divide-y divide-gray-100">
+                  <div className="border-t border-border divide-y divide-border">
                     {weekAppointments.map((appt) => {
 
                       // const patient = patientsData.patients && patientsData.patients.length > 0 && patientsData.patients.find((p) => p.id === appt.patientId);
@@ -504,25 +504,25 @@ export default function AppointmentsPage({
                       return (
                         <div
                           key={appt.id}
-                          className="p-4 cursor-pointer transition-colors hover:bg-gray-50"
+                          className="p-4 cursor-pointer transition-colors hover:bg-surface-canvas"
                           onClick={() => openModalForPatient(appt.patientId, appt)}
                         >
                           <div className="flex items-start gap-3">
                             <div className="flex-shrink-0">
-                              <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center text-lg font-bold text-blue-600">
+                              <div className="w-12 h-12 rounded-xl bg-brand-violet-soft flex items-center justify-center text-lg font-bold text-brand-violet">
                                   {getInitials(appt.patientName)}
                                 </div>
                             </div>
 
                             <div className="flex-grow">
                               <div className="flex justify-between">
-                                <p className="font-semibold text-gray-800">{appt.patientName}</p>
-                                <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${statusColors[appt.status] || "bg-gray-100 text-gray-800"}`}>
+                                <p className="font-semibold text-ink-900">{appt.patientName}</p>
+                                <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${statusColors[appt.status] || "bg-surface-canvas text-ink-900"}`}>
                                   {appt.status}
                                 </span>
                               </div>
-                              <p className="text-gray-600 text-sm mt-1">Dr. {appt.doctorName}</p>
-                              <div className="flex items-center gap-2 text-sm text-gray-500 mt-2">
+                              <p className="text-ink-700 text-sm mt-1">Dr. {appt.doctorName}</p>
+                              <div className="flex items-center gap-2 text-sm text-ink-500 mt-2">
                                 <CalendarDays className="w-4 h-4" />
                                 <span>{format(appointmentDate, "EEE, MMM d")}</span>
                                 <span className="mx-1">•</span>
@@ -554,7 +554,7 @@ export default function AppointmentsPage({
       {canEdit && (
         <button
           onClick={() => router.push(ADD_APPOINTMENT_PATH)}
-          className="fixed bottom-20 right-6 w-14 h-14 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-2xl hover:bg-blue-700 transition-all transform hover:scale-110 z-10"
+          className="fixed bottom-20 right-6 w-14 h-14 rounded-full bg-brand-violet text-white flex items-center justify-center shadow-2xl hover:bg-brand-violet-hover transition-all transform hover:scale-110 z-10"
           aria-label="Add new appointment1"
         >
           <Plus size={24} />
@@ -595,13 +595,13 @@ export default function AppointmentsPage({
       {/* Session Notes Modal */}
       {showNotesModal && selectedApp && (
         <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">
+          <div className="bg-surface-paper rounded-xl shadow-xl w-full max-w-md p-6">
+            <h3 className="text-lg font-semibold text-ink-900 mb-4">
               Session Notes for {selectedApp.patientName}
             </h3>
-            
+
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-ink-700 mb-2">
                 Session Notes *
               </label>
               <textarea
@@ -609,25 +609,25 @@ export default function AppointmentsPage({
                 onChange={(e) => setSessionNotes(e.target.value)}
                 placeholder="Enter details about the session, treatment provided, observations, etc."
                 rows={4}
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                className="w-full p-3 border border-border rounded-lg focus:ring-2 focus:ring-brand-violet focus:border-brand-violet resize-none"
                 required
               />
             </div>
-            
+
             <div className="flex gap-3 justify-end">
               <button
                 onClick={() => {
                   setShowNotesModal(false);
                   setSessionNotes("");
                 }}
-                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                className="px-4 py-2 border border-border text-ink-700 rounded-lg hover:bg-surface-canvas transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={() => handleUpdateAppointmentStatus(selectedApp.id, "completed", sessionNotes)}
                 disabled={!sessionNotes.trim()}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2 bg-brand-violet text-white rounded-lg hover:bg-brand-violet-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Save Notes & Complete
               </button>
@@ -655,7 +655,7 @@ export default function AppointmentsPage({
 
       {/* Toast Notification */}
       {toast && (
-        <div className="fixed bottom-5 right-5 bg-gray-900 text-white px-4 py-3 rounded-lg shadow-lg animate-fadeIn z-50">
+        <div className="fixed bottom-5 right-5 bg-trace-background text-white px-4 py-3 rounded-lg shadow-lg animate-fadeIn z-50">
           {toast}
         </div>
       )}

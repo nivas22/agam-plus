@@ -7,9 +7,9 @@ interface QuickStatProps {
 
 export default function QuickStat({ value, label }: QuickStatProps) {
   return (
-    <div className="text-center p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
-      <p className="text-2xl font-bold text-gray-900">{value}</p>
-      <p className="text-sm text-gray-600">{label}</p>
+    <div className="text-center p-4 bg-surface-canvas rounded-lg hover:bg-surface-canvas transition">
+      <p className="text-2xl font-bold text-ink-900">{value}</p>
+      <p className="text-sm text-ink-700">{label}</p>
     </div>
   );
 }

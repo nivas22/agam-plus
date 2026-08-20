@@ -22,12 +22,12 @@ export default function FilterSelect({
 }: FilterSelectProps) {
   return (
     <div>
-      <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
+      <label className="flex items-center gap-2 text-sm font-medium text-ink-700 mb-2">
         {Icon && <Icon className="w-4 h-4" />}
         {label}
       </label>
       <select
-        className="border border-gray-200 p-2.5 rounded-lg w-full focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+        className="border border-border p-2.5 rounded-lg w-full focus:ring-2 focus:ring-brand-violet focus:border-brand-violet"
         value={value}
         onChange={(e) => onChange(e.target.value)}
       >

@@ -137,7 +137,7 @@ export default function LoginPage() {
 
             <div className="feature-item">
               <div className="feature-icon feature-icon-purple">
-                <svg className="feature-icon-inner w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <svg className="feature-icon-inner w-5 h-5 text-brand-violet" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
                 </svg>
               </div>
@@ -149,7 +149,7 @@ export default function LoginPage() {
 
             <div className="feature-item">
               <div className="feature-icon feature-icon-orange">
-                <svg className="feature-icon-inner w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <svg className="feature-icon-inner w-5 h-5 text-status-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                 </svg>
               </div>
@@ -232,12 +232,12 @@ export default function LoginPage() {
           {/* Email Form */}
           <form className="space-y-4" onSubmit={handleEmailLogin}>
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="email" className="block text-sm font-medium text-ink-700 mb-1">
                 Email address
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <FaEnvelope className="h-5 w-5 text-gray-400" />
+                  <FaEnvelope className="h-5 w-5 text-ink-500" />
                 </div>
                 <input
                   id="email"
@@ -247,7 +247,7 @@ export default function LoginPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   disabled={isLoading || !isEmailLoginEnabled}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed transition-colors duration-200"
+                  className="w-full pl-10 pr-4 py-3 border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-violet focus:border-transparent disabled:bg-surface-canvas disabled:cursor-not-allowed transition-colors duration-200"
                   placeholder="Enter your email"
                   required
                 />
@@ -255,12 +255,12 @@ export default function LoginPage() {
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="password" className="block text-sm font-medium text-ink-700 mb-1">
                 Password
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <FaLock className="h-5 w-5 text-gray-400" />
+                  <FaLock className="h-5 w-5 text-ink-500" />
                 </div>
                 <input
                   id="password"
@@ -270,7 +270,7 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   disabled={isLoading || !isEmailLoginEnabled}
-                  className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed transition-colors duration-200"
+                  className="w-full pl-10 pr-12 py-3 border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-violet focus:border-transparent disabled:bg-surface-canvas disabled:cursor-not-allowed transition-colors duration-200"
                   placeholder="Enter your password"
                   required
                 />
@@ -278,7 +278,7 @@ export default function LoginPage() {
                   type="button"
                   onClick={togglePasswordVisibility}
                   disabled={isLoading || !isEmailLoginEnabled}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-ink-500 hover:text-ink-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {showPassword ? <FaEyeSlash className="h-5 w-5" /> : <FaEye className="h-5 w-5" />}
                 </button>
@@ -289,7 +289,7 @@ export default function LoginPage() {
             <div className="flex justify-end">
               <Link 
                 href="/forgot-password" 
-                className="text-sm text-blue-600 hover:text-blue-800 font-medium transition-colors duration-200"
+                className="text-sm text-brand-violet hover:text-brand-violet-hover font-medium transition-colors duration-200"
               >
                 Forgot your password?
               </Link>
@@ -298,11 +298,11 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={isLoading || !isEmailLoginEnabled}
-              className="w-full py-3 px-4 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-3 px-4 bg-brand-violet text-white rounded-xl font-medium hover:bg-brand-violet-hover transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-violet disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isLoggingInWithEmail ? (
                 <div className="flex items-center justify-center">
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                  <div className="w-5 h-5 border-2 border-surface-paper border-t-transparent rounded-full animate-spin mr-2"></div>
                   Signing in...
                 </div>
               ) : isEmailLoginEnabled ? (
@@ -315,11 +315,11 @@ export default function LoginPage() {
 
           {/* Registration Link */}
           <div className="mt-6 text-center">
-            <p className="text-gray-600">
+            <p className="text-ink-700">
               Don&apos;t have an account?{' '}
               <Link 
                 href="/register" 
-                className="text-blue-600 hover:text-blue-800 font-medium transition-colors duration-200"
+                className="text-brand-violet hover:text-brand-violet-hover font-medium transition-colors duration-200"
               >
                 Request Access
               </Link>
@@ -327,9 +327,9 @@ export default function LoginPage() {
           </div>
 
           {/* Hospital Access Info */}
-          <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
-            <h4 className="text-sm font-medium text-gray-700 mb-2">How it works:</h4>
-            <ul className="text-xs text-gray-600 space-y-1">
+          <div className="mt-6 p-4 bg-surface-canvas rounded-lg border border-border">
+            <h4 className="text-sm font-medium text-ink-700 mb-2">How it works:</h4>
+            <ul className="text-xs text-ink-700 space-y-1">
               <li>• Sign in with your Google account</li>
               <li>• Request access to hospitals you work with</li>
               <li>• Hospital admins will approve your access</li>
@@ -339,13 +339,13 @@ export default function LoginPage() {
 
           {/* Footer */}
           <div className="mt-8 text-center">
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-ink-500">
               By signing in, you agree to our{" "}
-              <Link href="/terms" className="text-blue-600 hover:text-blue-800 font-medium">
+              <Link href="/terms" className="text-brand-violet hover:text-brand-violet-hover font-medium">
                 Terms of Service
               </Link>{" "}
               and{" "}
-              <Link href="/privacy" className="text-blue-600 hover:text-blue-800 font-medium">
+              <Link href="/privacy" className="text-brand-violet hover:text-brand-violet-hover font-medium">
                 Privacy Policy
               </Link>
             </p>

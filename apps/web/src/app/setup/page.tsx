@@ -183,9 +183,9 @@ export default function DoctorProfileStepper() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-4">
-        <div className="flex items-center gap-3 text-gray-700">
-          <div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-brand-violet-soft via-brand-violet-soft to-brand-violet-soft p-4">
+        <div className="flex items-center gap-3 text-ink-700">
+          <div className="w-6 h-6 border-2 border-brand-violet border-t-transparent rounded-full animate-spin" />
           <span>Loading your profile...</span>
         </div>
       </div>
@@ -194,11 +194,11 @@ export default function DoctorProfileStepper() {
 
   if (error || !user) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 via-rose-50 to-orange-50 p-4">
-        <div className="max-w-md w-full bg-white border border-red-200 text-red-700 rounded-xl p-6 shadow">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-status-danger-soft via-status-danger-soft to-status-warning-soft p-4">
+        <div className="max-w-md w-full bg-surface-paper border border-status-danger/20 text-status-danger rounded-xl p-6 shadow">
           <h2 className="text-lg font-semibold mb-2">Unable to load your account</h2>
           <p className="text-sm mb-4">Please sign in again or try refreshing the page.</p>
-          <pre className="text-xs text-red-500 overflow-auto">{String((error as any)?.message || '')}</pre>
+          <pre className="text-xs text-status-danger overflow-auto">{String((error as any)?.message || '')}</pre>
         </div>
       </div>
     );
@@ -206,8 +206,8 @@ export default function DoctorProfileStepper() {
 
   if (!currentMembership) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-yellow-50 via-amber-50 to-orange-50 p-4">
-        <div className="max-w-md w-full bg-white border border-amber-200 text-amber-800 rounded-xl p-6 shadow">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-status-warning-soft via-status-warning-soft to-status-warning-soft p-4">
+        <div className="max-w-md w-full bg-surface-paper border border-status-warning/20 text-status-warning rounded-xl p-6 shadow">
           <h2 className="text-lg font-semibold mb-2">No hospital context</h2>
           <p className="text-sm">We couldn't find your current hospital membership. Please select a hospital and try again.</p>
         </div>
@@ -216,12 +216,12 @@ export default function DoctorProfileStepper() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-4 md:p-8">
+    <div className="min-h-screen bg-gradient-to-br from-brand-violet-soft via-brand-violet-soft to-brand-violet-soft p-4 md:p-8">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">Complete Your Profile</h1>
-          <p className="text-gray-600">Step {currentStep} of 2</p>
+          <h1 className="text-3xl font-bold text-ink-900 mb-2">Complete Your Profile</h1>
+          <p className="text-ink-700">Step {currentStep} of 2</p>
         </div>
 
         {/* Stepper */}
@@ -234,10 +234,10 @@ export default function DoctorProfileStepper() {
                   onClick={() => step.complete && setCurrentStep(step.number)}
                   className={`relative flex items-center justify-center w-12 h-12 rounded-full border-2 transition-all cursor-pointer ${
                     step.complete
-                      ? 'bg-green-500 border-green-500'
+                      ? 'bg-status-open border-status-open'
                       : currentStep === step.number
-                      ? 'bg-indigo-500 border-indigo-500'
-                      : 'bg-white border-gray-300'
+                      ? 'bg-brand-violet border-brand-violet'
+                      : 'bg-surface-paper border-border'
                   }`}
                 >
                   {step.complete ? (
@@ -245,15 +245,15 @@ export default function DoctorProfileStepper() {
                   ) : (
                     <step.icon
                       className={`w-6 h-6 ${
-                        currentStep === step.number ? 'text-white' : 'text-gray-400'
+                        currentStep === step.number ? 'text-white' : 'text-ink-500'
                       }`}
                     />
                   )}
-                  
+
                   {/* Step Label */}
                   <div className="absolute -bottom-8 whitespace-nowrap">
                     <p className={`text-sm font-medium ${
-                      currentStep === step.number ? 'text-indigo-600' : step.complete ? 'text-green-600' : 'text-gray-500'
+                      currentStep === step.number ? 'text-brand-violet' : step.complete ? 'text-status-open' : 'text-ink-500'
                     }`}>
                       {step.title}
                     </p>
@@ -264,7 +264,7 @@ export default function DoctorProfileStepper() {
                 {index < steps.length - 1 && (
                   <div
                     className={`w-24 md:w-32 h-1 mx-2 transition-all ${
-                      step.complete ? 'bg-green-500' : 'bg-gray-300'
+                      step.complete ? 'bg-status-open' : 'bg-border'
                     }`}
                   />
                 )}
@@ -275,69 +275,69 @@ export default function DoctorProfileStepper() {
 
         {/* Success Message */}
         {saveSuccess && (
-          <div className="mb-6 bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-3 animate-fadeIn">
-            <CheckCircle2 className="w-5 h-5 text-green-600" />
-            <span className="text-green-800 font-medium">
+          <div className="mb-6 bg-status-open-soft border border-status-open/20 rounded-xl p-4 flex items-center gap-3 animate-fadeIn">
+            <CheckCircle2 className="w-5 h-5 text-status-open" />
+            <span className="text-status-open font-medium">
               {currentStep === 1 ? 'Personal information saved!' : 'Professional information saved!'}
             </span>
           </div>
         )}
 
         {/* Form Card */}
-        <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8 border border-gray-100">
+        <div className="bg-surface-paper rounded-2xl shadow-xl p-6 md:p-8 border border-border">
           {/* Step 1: Personal Info */}
           {currentStep === 1 && (
             <div>
               <div className="mb-8">
-                <h2 className="text-xl font-semibold text-gray-800 mb-6 flex items-center gap-2">
-                  <div className="w-1 h-6 bg-gradient-to-b from-indigo-500 to-purple-600 rounded-full"></div>
+                <h2 className="text-xl font-semibold text-ink-900 mb-6 flex items-center gap-2">
+                  <div className="w-1 h-6 bg-gradient-to-b from-brand-violet to-brand-violet rounded-full"></div>
                   Personal Information
                 </h2>
 
                 <div className="space-y-5">
                   {/* Full Name */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Full Name <span className="text-red-500">*</span>
+                    <label className="block text-sm font-medium text-ink-700 mb-2">
+                      Full Name <span className="text-status-danger">*</span>
                     </label>
                     <div className="relative">
-                      <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                      <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-ink-500" />
                       <input
                         type="text"
                         name="fullName"
                         value={formData.fullName || ""}
                         onChange={handleInputChange}
                         placeholder="Dr. John Doe"
-                        className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none"
+                        className="w-full pl-11 pr-4 py-3 border border-border rounded-xl focus:ring-2 focus:ring-brand-violet focus:border-transparent transition-all outline-none"
                       />
                     </div>
                   </div>
 
                   {/* Email */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Email Address <span className="text-red-500">*</span>
+                    <label className="block text-sm font-medium text-ink-700 mb-2">
+                      Email Address <span className="text-status-danger">*</span>
                     </label>
                     <div className="relative">
-                      <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                      <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-ink-500" />
                       <input
                         type="email"
                         name="email"
                         value={formData.email || ""}
                         onChange={handleInputChange}
                         placeholder="doctor@hospital.com"
-                        className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none"
+                        className="w-full pl-11 pr-4 py-3 border border-border rounded-xl focus:ring-2 focus:ring-brand-violet focus:border-transparent transition-all outline-none"
                       />
                     </div>
                   </div>
 
                   {/* Phone */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Phone Number <span className="text-red-500">*</span>
+                    <label className="block text-sm font-medium text-ink-700 mb-2">
+                      Phone Number <span className="text-status-danger">*</span>
                     </label>
                     <div className="relative">
-                      <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                      <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-ink-500" />
                       <input
                         type="tel"
                         name="phone"
@@ -345,14 +345,14 @@ export default function DoctorProfileStepper() {
                         onChange={handleInputChange}
                         placeholder="+1 (555) 000-0000"
                         required
-                        className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none"
+                        className="w-full pl-11 pr-4 py-3 border border-border rounded-xl focus:ring-2 focus:ring-brand-violet focus:border-transparent transition-all outline-none"
                       />
                     </div>
                   </div>
 
                   {/* Gender */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-3">
+                    <label className="block text-sm font-medium text-ink-700 mb-3">
                       Gender
                     </label>
                     <div className="flex flex-wrap gap-3">
@@ -363,8 +363,8 @@ export default function DoctorProfileStepper() {
                           onClick={() => handleSelectChange("gender", g)}
                           className={`px-5 py-2.5 rounded-xl border-2 font-medium transition-all ${
                             formData.gender === g
-                              ? "bg-gradient-to-r from-indigo-500 to-purple-600 text-white border-purple-600 shadow-lg shadow-indigo-200 scale-105"
-                              : "bg-white text-gray-700 border-gray-300 hover:border-blue-300 hover:shadow-md"
+                              ? "bg-gradient-to-r from-brand-violet to-brand-violet text-white border-brand-violet shadow-lg shadow-brand-violet-soft scale-105"
+                              : "bg-surface-paper text-ink-700 border-border hover:border-brand-violet hover:shadow-md"
                           }`}
                         >
                           {g}
@@ -381,24 +381,24 @@ export default function DoctorProfileStepper() {
           {currentStep === 2 && (
             <div>
               <div className="mb-8">
-                <h2 className="text-xl font-semibold text-gray-800 mb-6 flex items-center gap-2">
-                  <div className="w-1 h-6 bg-gradient-to-b from-indigo-500 to-purple-600 rounded-full"></div>
+                <h2 className="text-xl font-semibold text-ink-900 mb-6 flex items-center gap-2">
+                  <div className="w-1 h-6 bg-gradient-to-b from-brand-violet to-brand-violet rounded-full"></div>
                   Professional Information
                 </h2>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Specialization */}
                   <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Specialization <span className="text-red-500">*</span>
+                    <label className="block text-sm font-medium text-ink-700 mb-2">
+                      Specialization <span className="text-status-danger">*</span>
                     </label>
                     <div className="relative">
-                      <Award className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none z-10" />
+                      <Award className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-ink-500 pointer-events-none z-10" />
                       <select
                         name="specialization"
                         value={formData.specialization || ""}
                         onChange={handleInputChange}
-                        className="w-full pl-11 pr-10 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all outline-none appearance-none bg-white"
+                        className="w-full pl-11 pr-10 py-3 border border-border rounded-xl focus:ring-2 focus:ring-brand-violet focus:border-transparent transition-all outline-none appearance-none bg-surface-paper"
                       >
                         <option value="">Select your specialization</option>
                         {specializations.map((s) => (
@@ -406,7 +406,7 @@ export default function DoctorProfileStepper() {
                         ))}
                       </select>
                       <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
-                        <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-5 h-5 text-ink-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                         </svg>
                       </div>
@@ -415,11 +415,11 @@ export default function DoctorProfileStepper() {
 
                   {/* Years of Experience */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-ink-700 mb-2">
                       Years of Experience
                     </label>
                     <div className="relative">
-                      <Briefcase className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                      <Briefcase className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-ink-500" />
                       <input
                         type="number"
                         name="experience"
@@ -428,61 +428,61 @@ export default function DoctorProfileStepper() {
                         placeholder="e.g., 5"
                         min="0"
                         max="50"
-                        className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all outline-none"
+                        className="w-full pl-11 pr-4 py-3 border border-border rounded-xl focus:ring-2 focus:ring-brand-violet focus:border-transparent transition-all outline-none"
                       />
                     </div>
                   </div>
 
                   {/* Qualification */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-ink-700 mb-2">
                       Highest Qualification
                     </label>
                     <div className="relative">
-                      <GraduationCap className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                      <GraduationCap className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-ink-500" />
                       <input
                         type="text"
                         name="qualification"
                         value={formData.qualification || ""}
                         onChange={handleInputChange}
                         placeholder="e.g., MD, MBBS"
-                        className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all outline-none"
+                        className="w-full pl-11 pr-4 py-3 border border-border rounded-xl focus:ring-2 focus:ring-brand-violet focus:border-transparent transition-all outline-none"
                       />
                     </div>
                   </div>
 
                   {/* License Number */}
                   <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-ink-700 mb-2">
                       Medical License Number
                     </label>
                     <div className="relative">
-                      <Award className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                      <Award className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-ink-500" />
                       <input
                         type="text"
                         name="licenseNumber"
                         value={formData.licenseNumber || ""}
                         onChange={handleInputChange}
                         placeholder="e.g., MED-123456"
-                        className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all outline-none"
+                        className="w-full pl-11 pr-4 py-3 border border-border rounded-xl focus:ring-2 focus:ring-brand-violet focus:border-transparent transition-all outline-none"
                       />
                     </div>
                   </div>
 
                   {/* Address */}
                   <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-ink-700 mb-2">
                       Practice Address
                     </label>
                     <div className="relative">
-                      <MapPin className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+                      <MapPin className="absolute left-3 top-3 w-5 h-5 text-ink-500" />
                       <textarea
                         name="address"
                         value={formData.address || ""}
                         onChange={handleInputChange}
                         placeholder="Enter your clinic or hospital address"
                         rows={3}
-                        className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all outline-none resize-none"
+                        className="w-full pl-11 pr-4 py-3 border border-border rounded-xl focus:ring-2 focus:ring-brand-violet focus:border-transparent transition-all outline-none resize-none"
                       />
                     </div>
                   </div>
@@ -492,11 +492,11 @@ export default function DoctorProfileStepper() {
           )}
 
           {/* Navigation Buttons */}
-          <div className="pt-6 border-t border-gray-200 flex gap-4">
+          <div className="pt-6 border-t border-border flex gap-4">
             {currentStep > 1 && (
               <button
                 onClick={() => setCurrentStep(currentStep - 1)}
-                className="px-6 py-3.5 rounded-xl font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 transition-all flex items-center gap-2"
+                className="px-6 py-3.5 rounded-xl font-semibold text-ink-700 bg-surface-canvas hover:bg-border transition-all flex items-center gap-2"
               >
                 <ArrowLeft className="w-5 h-5" />
                 Previous
@@ -508,10 +508,10 @@ export default function DoctorProfileStepper() {
               disabled={(currentStep === 1 && !isStep1Valid) || (currentStep === 2 && !isStep2Valid) || isSaving}
               className={`flex-1 py-3.5 rounded-xl font-semibold text-white transition-all flex items-center justify-center gap-2 ${
                 ((currentStep === 1 && !isStep1Valid) || (currentStep === 2 && !isStep2Valid) || isSaving)
-                  ? "bg-gray-300 cursor-not-allowed"
+                  ? "bg-border cursor-not-allowed"
                   : currentStep === 1
-                  ? "bg-gradient-to-r from-indigo-600 to-purple-600 hover:shadow-xl hover:scale-[1.02] active:scale-[0.98]"
-                  : "bg-gradient-to-r from-indigo-600 to-purple-600 hover:shadow-xl hover:scale-[1.02] active:scale-[0.98]"
+                  ? "bg-gradient-to-r from-brand-violet to-brand-violet hover:shadow-xl hover:scale-[1.02] active:scale-[0.98]"
+                  : "bg-gradient-to-r from-brand-violet to-brand-violet hover:shadow-xl hover:scale-[1.02] active:scale-[0.98]"
               }`}
             >
               {isSaving ? (
@@ -534,7 +534,7 @@ export default function DoctorProfileStepper() {
           </div>
 
           {((currentStep === 1 && !isStep1Valid) || (currentStep === 2 && !isStep2Valid)) && (
-            <p className="text-sm text-gray-500 text-center mt-3">
+            <p className="text-sm text-ink-500 text-center mt-3">
               Please fill in all required fields (*) to continue
             </p>
           )}

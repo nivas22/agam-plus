@@ -23,16 +23,16 @@ export default function MobileLoadingSpinner({
   // Variant configurations for background and spinner color
   const variantConfig = {
     admin: {
-      bg: 'bg-gradient-to-br from-blue-50 via-indigo-50 to-cyan-50',
-      spinnerColor: 'border-indigo-600',
+      bg: 'bg-gradient-to-br from-brand-violet-soft via-brand-violet-soft to-brand-violet-soft',
+      spinnerColor: 'border-brand-violet',
     },
     doctor: {
-      bg: 'bg-gradient-to-br from-emerald-50 via-green-50 to-teal-50',
-      spinnerColor: 'border-emerald-600',
+      bg: 'bg-gradient-to-br from-status-open-soft via-status-open-soft to-status-open-soft',
+      spinnerColor: 'border-status-open',
     },
     default: {
-      bg: 'bg-gradient-to-br from-gray-50 to-gray-100',
-      spinnerColor: 'border-gray-600',
+      bg: 'bg-gradient-to-br from-surface-canvas to-surface-canvas',
+      spinnerColor: 'border-ink-700',
     },
   };
 
@@ -46,7 +46,7 @@ export default function MobileLoadingSpinner({
       <div
         className={`${sizeClasses[size]} border-solid ${config.spinnerColor} border-t-transparent rounded-full animate-spin mb-3`}
       />
-      <p className="text-gray-600 text-sm font-medium">{message}</p>
+      <p className="text-ink-700 text-sm font-medium">{message}</p>
     </div>
   );
 }

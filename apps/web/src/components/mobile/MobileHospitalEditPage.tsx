@@ -130,24 +130,24 @@ export default function MobileHospitalEditPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-surface-canvas">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-4 py-3 sticky top-0 z-10">
+      <div className="bg-surface-paper border-b border-border px-4 py-3 sticky top-0 z-10">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
               onClick={() => router.push(`/mobile/hospital/${currentHospital?.id}/profile`)}
-              className="p-2 -ml-2 hover:bg-gray-100 rounded-lg transition-colors active:scale-95"
+              className="p-2 -ml-2 hover:bg-surface-canvas rounded-lg transition-colors active:scale-95"
               aria-label="Go back"
             >
-              <ArrowLeft size={20} className="text-gray-700" />
+              <ArrowLeft size={20} className="text-ink-700" />
             </button>
-            <h1 className="text-lg font-bold text-gray-900">Edit Hospital</h1>
+            <h1 className="text-lg font-bold text-ink-900">Edit Hospital</h1>
           </div>
           <button
             onClick={handleSave}
             disabled={saving}
-            className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg font-semibold text-sm hover:bg-purple-700 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 px-4 py-2 bg-brand-violet text-white rounded-lg font-semibold text-sm hover:bg-brand-violet-hover active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {saving ? (
               <>
@@ -167,16 +167,16 @@ export default function MobileHospitalEditPage() {
       {/* Form Content */}
       <div className="px-4 py-4 space-y-4">
         {/* Hospital Logo */}
-        <div className="bg-white rounded-2xl p-4 shadow-sm">
-          <label className="block text-sm font-semibold text-gray-700 mb-3">
+        <div className="bg-surface-paper rounded-2xl p-4 shadow-sm">
+          <label className="block text-sm font-semibold text-ink-700 mb-3">
             Hospital Logo URL
           </label>
           <div className="flex items-center gap-3">
-            <div className="w-16 h-16 rounded-xl bg-purple-50 flex items-center justify-center overflow-hidden">
+            <div className="w-16 h-16 rounded-xl bg-brand-violet-soft flex items-center justify-center overflow-hidden">
               {formData.logo ? (
                 <img src={formData.logo} alt="Logo" className="w-full h-full object-cover" />
               ) : (
-                <ImageIcon size={24} className="text-purple-400" />
+                <ImageIcon size={24} className="text-brand-violet" />
               )}
             </div>
             <input
@@ -184,82 +184,82 @@ export default function MobileHospitalEditPage() {
               value={formData.logo}
               onChange={(e) => handleInputChange('logo', e.target.value)}
               placeholder="Enter logo URL"
-              className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              className="flex-1 px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-violet focus:border-transparent"
             />
           </div>
         </div>
 
         {/* Basic Information */}
-        <div className="bg-white rounded-2xl overflow-hidden shadow-sm">
-          <div className="px-4 py-3 bg-gray-50 border-b border-gray-100">
-            <h3 className="text-sm font-bold text-gray-900">Basic Information</h3>
+        <div className="bg-surface-paper rounded-2xl overflow-hidden shadow-sm">
+          <div className="px-4 py-3 bg-surface-canvas border-b border-border">
+            <h3 className="text-sm font-bold text-ink-900">Basic Information</h3>
           </div>
-          
+
           <div className="p-4 space-y-4">
             {/* Hospital Name */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <label className="block text-sm font-semibold text-ink-700 mb-2">
                 Hospital Name *
               </label>
               <div className="relative">
-                <Building2 size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <Building2 size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-500" />
                 <input
                   type="text"
                   value={formData.name}
                   onChange={(e) => handleInputChange('name', e.target.value)}
                   placeholder="Enter hospital name"
-                  className="w-full pl-10 pr-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full pl-10 pr-3 py-2.5 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-violet focus:border-transparent"
                 />
               </div>
             </div>
 
             {/* Email */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <label className="block text-sm font-semibold text-ink-700 mb-2">
                 Email Address *
               </label>
               <div className="relative">
-                <Mail size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <Mail size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-500" />
                 <input
                   type="email"
                   value={formData.email}
                   onChange={(e) => handleInputChange('email', e.target.value)}
                   placeholder="hospital@example.com"
-                  className="w-full pl-10 pr-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full pl-10 pr-3 py-2.5 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-violet focus:border-transparent"
                 />
               </div>
             </div>
 
             {/* Phone */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <label className="block text-sm font-semibold text-ink-700 mb-2">
                 Phone Number *
               </label>
               <div className="relative">
-                <Phone size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <Phone size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-500" />
                 <input
                   type="tel"
                   value={formData.phone}
                   onChange={(e) => handleInputChange('phone', e.target.value)}
                   placeholder="+1 (555) 000-0000"
-                  className="w-full pl-10 pr-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full pl-10 pr-3 py-2.5 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-violet focus:border-transparent"
                 />
               </div>
             </div>
 
             {/* Secondary Number */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <label className="block text-sm font-semibold text-ink-700 mb-2">
                 Secondary Number
               </label>
               <div className="relative">
-                <Phone size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <Phone size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-500" />
                 <input
                   type="tel"
                   value={formData.secondaryNumber}
                   onChange={(e) => handleInputChange('secondaryNumber', e.target.value)}
                   placeholder="+1 (555) 000-0001"
-                  className="w-full pl-10 pr-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full pl-10 pr-3 py-2.5 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-violet focus:border-transparent"
                 />
               </div>
             </div>
@@ -267,32 +267,32 @@ export default function MobileHospitalEditPage() {
         </div>
 
         {/* Location Information */}
-        <div className="bg-white rounded-2xl overflow-hidden shadow-sm">
-          <div className="px-4 py-3 bg-gray-50 border-b border-gray-100">
-            <h3 className="text-sm font-bold text-gray-900">Location Details</h3>
+        <div className="bg-surface-paper rounded-2xl overflow-hidden shadow-sm">
+          <div className="px-4 py-3 bg-surface-canvas border-b border-border">
+            <h3 className="text-sm font-bold text-ink-900">Location Details</h3>
           </div>
-          
+
           <div className="p-4 space-y-4">
             {/* Address */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <label className="block text-sm font-semibold text-ink-700 mb-2">
                 Address *
               </label>
               <div className="relative">
-                <MapPin size={18} className="absolute left-3 top-3 text-gray-400" />
+                <MapPin size={18} className="absolute left-3 top-3 text-ink-500" />
                 <textarea
                   value={formData.address}
                   onChange={(e) => handleInputChange('address', e.target.value)}
                   placeholder="Enter full address"
                   rows={3}
-                  className="w-full pl-10 pr-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+                  className="w-full pl-10 pr-3 py-2.5 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-violet focus:border-transparent resize-none"
                 />
               </div>
             </div>
 
             {/* City */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <label className="block text-sm font-semibold text-ink-700 mb-2">
                 City
               </label>
               <input
@@ -300,13 +300,13 @@ export default function MobileHospitalEditPage() {
                 value={formData.city}
                 onChange={(e) => handleInputChange('city', e.target.value)}
                 placeholder="Enter city"
-                className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full px-3 py-2.5 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-violet focus:border-transparent"
               />
             </div>
 
             {/* Location/Region */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <label className="block text-sm font-semibold text-ink-700 mb-2">
                 Location/Region
               </label>
               <input
@@ -314,23 +314,23 @@ export default function MobileHospitalEditPage() {
                 value={formData.location}
                 onChange={(e) => handleInputChange('location', e.target.value)}
                 placeholder="Enter location or region"
-                className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full px-3 py-2.5 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-violet focus:border-transparent"
               />
             </div>
           </div>
         </div>
 
         {/* Specializations */}
-        <div className="bg-white rounded-2xl overflow-hidden shadow-sm">
-          <div className="px-4 py-3 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
-            <h3 className="text-sm font-bold text-gray-900">Specializations</h3>
-            <span className="text-xs text-purple-600 font-semibold">
+        <div className="bg-surface-paper rounded-2xl overflow-hidden shadow-sm">
+          <div className="px-4 py-3 bg-surface-canvas border-b border-border flex items-center justify-between">
+            <h3 className="text-sm font-bold text-ink-900">Specializations</h3>
+            <span className="text-xs text-brand-violet font-semibold">
               {selectedSpecializations.length} selected
             </span>
           </div>
-          
+
           <div className="p-4">
-            <label className="block text-sm font-semibold text-gray-700 mb-3">
+            <label className="block text-sm font-semibold text-ink-700 mb-3">
               Select Medical Specializations
             </label>
             <div className="grid grid-cols-1 gap-2 max-h-64 overflow-y-auto">
@@ -341,26 +341,26 @@ export default function MobileHospitalEditPage() {
                   onClick={() => toggleSpecialization(specialization)}
                   className={`flex items-center justify-between px-3 py-2.5 rounded-lg border-2 transition-all text-left ${
                     selectedSpecializations.includes(specialization)
-                      ? 'border-purple-500 bg-purple-50'
-                      : 'border-gray-200 bg-white hover:border-gray-300'
+                      ? 'border-brand-violet bg-brand-violet-soft'
+                      : 'border-border bg-surface-paper hover:border-ink-500'
                   }`}
                 >
                   <span className={`text-sm font-medium ${
                     selectedSpecializations.includes(specialization)
-                      ? 'text-purple-900'
-                      : 'text-gray-700'
+                      ? 'text-brand-violet-hover'
+                      : 'text-ink-700'
                   }`}>
                     {specialization}
                   </span>
                   {selectedSpecializations.includes(specialization) && (
-                    <div className="w-5 h-5 rounded-full bg-purple-600 flex items-center justify-center">
+                    <div className="w-5 h-5 rounded-full bg-brand-violet flex items-center justify-center">
                       <Check size={14} className="text-white" />
                     </div>
                   )}
                 </button>
               ))}
             </div>
-            <p className="mt-3 text-xs text-gray-500">
+            <p className="mt-3 text-xs text-ink-500">
               Tap to select or deselect specializations
             </p>
           </div>
@@ -371,7 +371,7 @@ export default function MobileHospitalEditPage() {
           <button
             onClick={handleSave}
             disabled={saving}
-            className="w-full flex items-center justify-center gap-2 px-4 py-3.5 bg-purple-600 text-white rounded-xl font-semibold text-sm hover:bg-purple-700 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+            className="w-full flex items-center justify-center gap-2 px-4 py-3.5 bg-brand-violet text-white rounded-xl font-semibold text-sm hover:bg-brand-violet-hover active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
           >
             {saving ? (
               <>

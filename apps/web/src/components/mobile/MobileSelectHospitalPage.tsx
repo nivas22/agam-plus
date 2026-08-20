@@ -49,33 +49,33 @@ export default function MobileSelectHospitalPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-surface-canvas">
       {/* Simple Top Header with Back Button - Always Visible */}
-      <div className="bg-white border-b border-gray-200 px-4 py-3 sticky top-0 z-10">
+      <div className="bg-surface-paper border-b border-border px-4 py-3 sticky top-0 z-10">
         <div className="flex items-center gap-3">
           <button
             onClick={handleBack}
-            className="p-2 -ml-2 hover:bg-gray-100 rounded-lg transition-colors active:scale-95"
+            className="p-2 -ml-2 hover:bg-surface-canvas rounded-lg transition-colors active:scale-95"
             aria-label="Go back"
           >
-            <ArrowLeft size={20} className="text-gray-700" />
+            <ArrowLeft size={20} className="text-ink-700" />
           </button>
-          <h1 className="text-lg font-bold text-gray-900">Switch Hospital</h1>
+          <h1 className="text-lg font-bold text-ink-900">Switch Hospital</h1>
         </div>
       </div>
 
-      <div className="bg-gray-50 min-h-screen py-4 px-4">
+      <div className="bg-surface-canvas min-h-screen py-4 px-4">
       <div className="max-w-2xl mx-auto">
         {/* Approved Hospitals Section */}
         {approvedHospitals.length > 0 && (
           <div className="mb-4">
             <div className="flex items-center mb-3 px-1">
-              <div className="flex items-center justify-center w-8 h-8 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg mr-2.5 shadow-sm">
+              <div className="flex items-center justify-center w-8 h-8 bg-gradient-to-br from-status-open to-status-open-hover rounded-lg mr-2.5 shadow-sm">
                 <Check className="text-white w-4 h-4" />
               </div>
               <div>
-                <h2 className="text-base font-bold text-gray-900">Your Hospitals</h2>
-                <p className="text-xs text-gray-500">{approvedHospitals.length} active</p>
+                <h2 className="text-base font-bold text-ink-900">Your Hospitals</h2>
+                <p className="text-xs text-ink-500">{approvedHospitals.length} active</p>
               </div>
             </div>
             <div className="space-y-3">
@@ -97,12 +97,12 @@ export default function MobileSelectHospitalPage() {
         {pendingHospitals.length > 0 && (
           <div className="mb-4">
             <div className="flex items-center mb-3 px-1">
-              <div className="flex items-center justify-center w-8 h-8 bg-gradient-to-br from-amber-500 to-orange-600 rounded-lg mr-2.5 shadow-sm">
+              <div className="flex items-center justify-center w-8 h-8 bg-gradient-to-br from-status-warning to-status-warning-hover rounded-lg mr-2.5 shadow-sm">
                 <Clock className="text-white w-4 h-4" />
               </div>
               <div>
-                <h2 className="text-base font-bold text-gray-900">Pending Approval</h2>
-                <p className="text-xs text-gray-500">{pendingHospitals.length} request{pendingHospitals.length === 1 ? '' : 's'}</p>
+                <h2 className="text-base font-bold text-ink-900">Pending Approval</h2>
+                <p className="text-xs text-ink-500">{pendingHospitals.length} request{pendingHospitals.length === 1 ? '' : 's'}</p>
               </div>
             </div>
             <div className="space-y-3">
@@ -121,13 +121,13 @@ export default function MobileSelectHospitalPage() {
         {/* No Hospitals State */}
         {approvedHospitals.length === 0 && pendingHospitals.length === 0 && (
           <div className="text-center py-12 px-4">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-2xl mb-4">
-              <HospitalIcon className="text-indigo-600 w-8 h-8" />
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-brand-violet-soft rounded-2xl mb-4">
+              <HospitalIcon className="text-brand-violet w-8 h-8" />
             </div>
-            <h3 className="text-xl font-bold text-gray-900 mb-2">
+            <h3 className="text-xl font-bold text-ink-900 mb-2">
               No Hospital Access Yet
             </h3>
-            <p className="text-sm text-gray-500 max-w-xs mx-auto leading-relaxed">
+            <p className="text-sm text-ink-500 max-w-xs mx-auto leading-relaxed">
               You don't have access to any hospitals. Use the Request Access option from the profile menu to join a hospital.
             </p>
           </div>
@@ -153,8 +153,8 @@ function MobileHospitalCard({ hospital, member, onSelect, isSwitching, type }: M
   return (
     <div 
       className={`
-        bg-white rounded-xl shadow-sm overflow-hidden border border-gray-200
-        ${isSwitching ? 'ring-2 ring-indigo-500' : ''}
+        bg-surface-paper rounded-xl shadow-sm overflow-hidden border border-border
+        ${isSwitching ? 'ring-2 ring-brand-violet' : ''}
         transition-all hover:shadow-md
       `}
     >
@@ -163,18 +163,18 @@ function MobileHospitalCard({ hospital, member, onSelect, isSwitching, type }: M
         <div className="flex items-start gap-3 mb-3">
           <div className={`
             w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm
-            ${isApproved 
-              ? 'bg-gradient-to-br from-indigo-500 to-purple-600' 
-              : 'bg-gradient-to-br from-amber-500 to-orange-600'
+            ${isApproved
+              ? 'bg-gradient-to-br from-brand-violet to-brand-violet-hover'
+              : 'bg-gradient-to-br from-status-warning to-status-warning-hover'
             }
           `}>
             <HospitalIcon className="w-6 h-6 text-white" />
           </div>
           <div className="flex-1 min-w-0">
-            <h3 className="text-base font-bold text-gray-900 mb-1 line-clamp-1">
+            <h3 className="text-base font-bold text-ink-900 mb-1 line-clamp-1">
               {hospital.name}
             </h3>
-            <div className="flex items-start text-xs text-gray-500">
+            <div className="flex items-start text-xs text-ink-500">
               <MapPin className="mt-0.5 mr-1 flex-shrink-0 w-3.5 h-3.5" />
               <p className="line-clamp-2">{hospital.address}</p>
             </div>
@@ -182,19 +182,19 @@ function MobileHospitalCard({ hospital, member, onSelect, isSwitching, type }: M
           
           {/* Status Badge */}
           {isApproved ? (
-            <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-green-100 flex-shrink-0">
-              <Check className="w-4 h-4 text-green-600" />
+            <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-status-open-soft flex-shrink-0">
+              <Check className="w-4 h-4 text-status-open" />
             </span>
           ) : (
-            <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-orange-100 flex-shrink-0">
-              <Clock className="w-4 h-4 text-orange-600" />
+            <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-status-warning-soft flex-shrink-0">
+              <Clock className="w-4 h-4 text-status-warning" />
             </span>
           )}
         </div>
 
         {/* Role Badge */}
         <div className="flex items-center gap-2 mb-3">
-          <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-100">
+          <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-brand-violet-soft text-brand-violet border border-brand-violet/20">
             <Shield className="mr-1.5 w-3.5 h-3.5" />
             <span className="capitalize">{member.role}</span>
           </span>
@@ -205,7 +205,7 @@ function MobileHospitalCard({ hospital, member, onSelect, isSwitching, type }: M
           <button
             onClick={() => onSelect(hospital)}
             disabled={isSwitching}
-            className="w-full flex justify-center items-center py-2.5 px-4 rounded-lg text-sm font-semibold text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm active:scale-95"
+            className="w-full flex justify-center items-center py-2.5 px-4 rounded-lg text-sm font-semibold text-white bg-gradient-to-r from-brand-violet to-brand-violet-hover hover:from-brand-violet-hover hover:to-brand-violet-hover disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm active:scale-95"
           >
             {isSwitching ? (
               <>
@@ -222,7 +222,7 @@ function MobileHospitalCard({ hospital, member, onSelect, isSwitching, type }: M
         )}
 
         {!isApproved && (
-          <div className="text-center py-2.5 text-xs font-semibold text-orange-700 bg-orange-50 rounded-lg border border-orange-200">
+          <div className="text-center py-2.5 text-xs font-semibold text-status-warning bg-status-warning-soft rounded-lg border border-status-warning/20">
             <Clock className="inline mr-1.5 w-3.5 h-3.5" />
             Awaiting approval
           </div>

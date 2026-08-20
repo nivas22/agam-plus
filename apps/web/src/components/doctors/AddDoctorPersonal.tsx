@@ -75,19 +75,19 @@ export default function AddDoctorPersonal({ initial, onBack, onSave }: AddDoctor
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 md:bg-gradient-to-br bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-brand-violet-soft via-brand-violet-soft to-brand-violet-soft md:bg-gradient-to-br bg-surface-canvas">
       <div className="max-w-4xl mx-auto px-3 sm:px-4 md:px-6 py-4 md:py-10">
         {/* Mobile Header */}
         <div className="md:hidden mb-4">
           <div className="flex items-center gap-3 mb-4">
-            <div className="p-2.5 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl shadow-md">
+            <div className="p-2.5 bg-gradient-to-br from-brand-violet to-brand-violet rounded-xl shadow-md">
               <Stethoscope className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-gray-900">
+              <h1 className="text-xl font-bold text-ink-900">
                 Add New Doctor
               </h1>
-              <p className="text-gray-600 text-xs">
+              <p className="text-ink-700 text-xs">
                 Personal Information
               </p>
             </div>
@@ -98,16 +98,16 @@ export default function AddDoctorPersonal({ initial, onBack, onSave }: AddDoctor
         <div className="hidden md:block mb-6">
           <div className="flex items-center gap-4">
             <div className="relative">
-              <div className="absolute inset-0 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl blur-lg opacity-30"></div>
-              <div className="relative p-4 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl shadow-lg">
+              <div className="absolute inset-0 bg-gradient-to-br from-brand-violet to-brand-violet rounded-2xl blur-lg opacity-30"></div>
+              <div className="relative p-4 bg-gradient-to-br from-brand-violet to-brand-violet rounded-2xl shadow-lg">
                 <Stethoscope className="w-8 h-8 text-white" />
               </div>
             </div>
             <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-1">
+              <h1 className="text-2xl md:text-3xl font-bold text-ink-900 mb-1">
                 Add New Doctor
               </h1>
-              <p className="text-gray-600 text-sm md:text-base">
+              <p className="text-ink-700 text-sm md:text-base">
                 Complete the personal information to get started
               </p>
             </div>
@@ -115,26 +115,26 @@ export default function AddDoctorPersonal({ initial, onBack, onSave }: AddDoctor
         </div>
 
         {/* Form Card */}
-        <div className="bg-white rounded-xl md:rounded-2xl shadow-md md:shadow-xl border border-gray-200 md:border-gray-200/50 overflow-hidden md:bg-white/80 md:backdrop-blur-sm">
+        <div className="bg-surface-paper rounded-xl md:rounded-2xl shadow-md md:shadow-xl border border-border md:border-border/50 overflow-hidden md:bg-white/80 md:backdrop-blur-sm">
           {/* Card Header with Actions */}
-          <div className="bg-gradient-to-r from-blue-600/5 via-indigo-600/5 to-purple-600/5 border-b border-gray-200/50 px-4 sm:px-6 py-4">
+          <div className="bg-gradient-to-r from-brand-violet/5 via-brand-violet/5 to-brand-violet/5 border-b border-border/50 px-4 sm:px-6 py-4">
             <div className="flex items-center justify-between gap-4 flex-wrap">
               <div className="flex items-center gap-2">
                 {onBack && (
                   <button
                     onClick={onBack}
                     disabled={isSaving}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-gray-600 hover:text-gray-900 hover:bg-white/50 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-ink-700 hover:text-ink-900 hover:bg-white/50 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <ArrowLeft className="w-4 h-4" />
                     <span className="text-sm font-medium hidden sm:inline">Back</span>
                   </button>
                 )}
                 <div className="hidden md:flex items-center gap-2">
-                  <div className="w-1.5 h-6 bg-gradient-to-b from-blue-600 to-indigo-600 rounded-full"></div>
+                  <div className="w-1.5 h-6 bg-gradient-to-b from-brand-violet to-brand-violet rounded-full"></div>
                   <div>
-                    <h2 className="text-lg font-semibold text-gray-900">Personal Information</h2>
-                    <p className="text-xs text-gray-600">Fill in the doctor's basic details</p>
+                    <h2 className="text-lg font-semibold text-ink-900">Personal Information</h2>
+                    <p className="text-xs text-ink-700">Fill in the doctor's basic details</p>
                   </div>
                 </div>
               </div>
@@ -142,7 +142,7 @@ export default function AddDoctorPersonal({ initial, onBack, onSave }: AddDoctor
               <button
                 onClick={handleSave}
                 disabled={isSaving}
-                className="relative group inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-lg font-semibold transition-all text-sm shadow-md hover:shadow-lg disabled:opacity-70 disabled:cursor-not-allowed overflow-hidden"
+                className="relative group inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-brand-violet to-brand-violet hover:from-brand-violet-hover hover:to-brand-violet-hover text-white rounded-lg font-semibold transition-all text-sm shadow-md hover:shadow-lg disabled:opacity-70 disabled:cursor-not-allowed overflow-hidden"
               >
                 <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
                 {isSaving ? (

@@ -17,9 +17,9 @@ export default function MobilePageWrapper({
   const { isAdmin } = useAuth();
 
   // Light blue for admin, green for doctor
-  const bgColor = isAdmin 
-    ? 'bg-gradient-to-br from-blue-50 via-indigo-50 to-cyan-50'
-    : 'bg-gradient-to-br from-emerald-50 via-green-50 to-teal-50';
+  const bgColor = isAdmin
+    ? 'bg-brand-violet-soft'
+    : 'bg-status-open-soft';
 
   const paddingClass = padding ? 'p-4' : '';
 

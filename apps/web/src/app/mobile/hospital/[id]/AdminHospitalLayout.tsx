@@ -105,30 +105,30 @@ export default function MobileAdminHospitalLayout({
 
   return (
     <ProtectedRoute requiredRole="admin">
-      <div className="flex flex-col min-h-screen bg-gray-50">
+      <div className="flex flex-col min-h-screen bg-surface-canvas">
         {/* Top Header - Hidden on Profile Page */}
         {!isProfilePage && !isPatientsPage && !isAvailabilityPage && !isDoctorsPage && !isCreateAppointmentPage && (
-          <header className="sticky top-0 bg-white border-b border-gray-200 px-4 py-3 z-10">
+          <header className="sticky top-0 bg-surface-paper border-b border-border px-4 py-3 z-10">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-indigo-50 rounded-lg flex items-center justify-center">
-                  <FaHospital className="text-indigo-600 text-lg" />
+                <div className="w-10 h-10 bg-brand-violet-soft rounded-lg flex items-center justify-center">
+                  <FaHospital className="text-brand-violet text-lg" />
                 </div>
                 <div>
-                  <h1 className="text-base font-bold text-gray-900 truncate">
+                  <h1 className="text-base font-bold text-ink-900 truncate">
                     {currentHospital?.name || 'Hospital'}
                   </h1>
-                  <p className="text-xs text-gray-500 truncate">
+                  <p className="text-xs text-ink-500 truncate">
                     {currentSection ? currentSection.label : "Dashboard"}
                   </p>
                 </div>
               </div>
               <button
                 onClick={() => navigateTo('/profile')}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors active:scale-95"
+                className="p-2 hover:bg-surface-canvas rounded-lg transition-colors active:scale-95"
                 aria-label="Profile"
               >
-                <UserIcon size={20} className="text-gray-700" />
+                <UserIcon size={20} className="text-ink-700" />
               </button>
             </div>
           </header>
@@ -141,7 +141,7 @@ export default function MobileAdminHospitalLayout({
               key={pathname}
               fallback={
                 <div className="flex justify-center items-center h-64">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-violet"></div>
                 </div>
               }
             >
@@ -152,7 +152,7 @@ export default function MobileAdminHospitalLayout({
 
         {/* Bottom Navigation Bar - Hidden on Profile and Add Appointment Pages */}
         {!isProfilePage && !isCreateAppointmentPage && (
-          <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-2xl z-40">
+          <nav className="fixed bottom-0 left-0 right-0 bg-surface-paper border-t border-border shadow-2xl z-40">
           <div className="flex items-center justify-around px-1 py-1.5">
             {navItems.slice(0, 5).map((item) => {
               const active = isActive(item.to);
@@ -162,14 +162,14 @@ export default function MobileAdminHospitalLayout({
                   onClick={() => navigateTo(item.to)}
                   className={`flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-lg transition-all duration-200 min-w-0 flex-1 relative ${
                     active
-                      ? "text-indigo-600"
-                      : "text-gray-500 hover:text-gray-700 active:scale-95"
+                      ? "text-brand-violet"
+                      : "text-ink-500 hover:text-ink-700 active:scale-95"
                   }`}
                 >
                   <div className={`relative ${active ? 'scale-110' : ''} transition-transform`}>
                     {item.icon}
                     {item.to.includes('/doctors') && pendingCount > 0 && (
-                      <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center text-white text-[10px] font-bold">
+                      <div className="absolute -top-1 -right-1 w-4 h-4 bg-status-danger rounded-full flex items-center justify-center text-white text-[10px] font-bold">
                         {pendingCount > 9 ? '9+' : pendingCount}
                       </div>
                     )}
@@ -180,7 +180,7 @@ export default function MobileAdminHospitalLayout({
                     {item.label}
                   </span>
                   {active && (
-                    <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-1 bg-indigo-600 rounded-t-full" />
+                    <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-1 bg-brand-violet rounded-t-full" />
                   )}
                 </button>
               );

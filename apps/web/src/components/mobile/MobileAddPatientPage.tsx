@@ -185,27 +185,27 @@ export default function MobileAddPatientPage({ hospitalId, hospitalSpecializatio
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-surface-canvas">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-4 py-3 sticky top-0 z-10">
+      <div className="bg-surface-paper border-b border-border px-4 py-3 sticky top-0 z-10">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
               onClick={() => router.push(`/mobile/hospital/${hospitalId}/patients`)}
-              className="p-2 -ml-2 hover:bg-gray-100 rounded-lg transition-colors active:scale-95"
+              className="p-2 -ml-2 hover:bg-surface-canvas rounded-lg transition-colors active:scale-95"
               aria-label="Go back"
             >
-              <ArrowLeft size={20} className="text-gray-700" />
+              <ArrowLeft size={20} className="text-ink-700" />
             </button>
             <div>
-              <h1 className="text-lg font-bold text-gray-900">{isEdit ? 'Edit Patient' : 'Add Patient'}</h1>
-              <p className="text-xs text-gray-500">{isEdit ? 'Update patient details' : 'Fill in patient details'}</p>
+              <h1 className="text-lg font-bold text-ink-900">{isEdit ? 'Edit Patient' : 'Add Patient'}</h1>
+              <p className="text-xs text-ink-500">{isEdit ? 'Update patient details' : 'Fill in patient details'}</p>
             </div>
           </div>
           <button
             onClick={handleSave}
             disabled={saving || loading}
-            className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg font-semibold text-sm hover:bg-purple-700 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 px-4 py-2 bg-brand-violet text-white rounded-lg font-semibold text-sm hover:bg-brand-violet-hover active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {saving ? (
               <>
@@ -229,103 +229,103 @@ export default function MobileAddPatientPage({ hospitalId, hospitalSpecializatio
         /* Form Content */
         <div className="px-4 py-4 space-y-4">
         {/* Personal Information */}
-        <div className="bg-white rounded-2xl overflow-hidden shadow-sm">
-          <div className="px-4 py-3 bg-gray-50 border-b border-gray-100">
-            <h3 className="text-sm font-bold text-gray-900">Personal Information</h3>
+        <div className="bg-surface-paper rounded-2xl overflow-hidden shadow-sm">
+          <div className="px-4 py-3 bg-surface-canvas border-b border-border">
+            <h3 className="text-sm font-bold text-ink-900">Personal Information</h3>
           </div>
           
           <div className="p-4 space-y-4">
             {/* Name */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <label className="block text-sm font-semibold text-ink-700 mb-2">
                 Full Name *
               </label>
               <div className="relative">
-                <User size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <User size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-500" />
                 <input
                   type="text"
                   value={formData.name}
                   onChange={(e) => handleInputChange('name', e.target.value)}
                   placeholder="John Doe"
                   disabled={isEdit}
-                  className={`w-full pl-10 pr-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent ${isEdit ? 'bg-gray-50 text-gray-500 cursor-not-allowed' : ''}`}
+                  className={`w-full pl-10 pr-3 py-2.5 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-violet focus:border-transparent ${isEdit ? 'bg-surface-canvas text-ink-500 cursor-not-allowed' : ''}`}
                 />
               </div>
-              {isEdit && <p className="mt-1 text-xs text-gray-500">Name cannot be changed</p>}
+              {isEdit && <p className="mt-1 text-xs text-ink-500">Name cannot be changed</p>}
             </div>
 
             {/* Email */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <label className="block text-sm font-semibold text-ink-700 mb-2">
                 Email Address *
               </label>
               <div className="relative">
-                <Mail size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <Mail size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-500" />
                 <input
                   type="email"
                   value={formData.email}
                   onChange={(e) => handleInputChange('email', e.target.value)}
                   placeholder="patient@example.com"
                   disabled={isEdit}
-                  className={`w-full pl-10 pr-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent ${isEdit ? 'bg-gray-50 text-gray-500 cursor-not-allowed' : ''}`}
+                  className={`w-full pl-10 pr-3 py-2.5 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-violet focus:border-transparent ${isEdit ? 'bg-surface-canvas text-ink-500 cursor-not-allowed' : ''}`}
                 />
               </div>
-              {isEdit && <p className="mt-1 text-xs text-gray-500">Email cannot be changed</p>}
+              {isEdit && <p className="mt-1 text-xs text-ink-500">Email cannot be changed</p>}
             </div>
 
             {/* Phone */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <label className="block text-sm font-semibold text-ink-700 mb-2">
                 Phone Number *
               </label>
               <div className="relative">
-                <Phone size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <Phone size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-500" />
                 <input
                   type="tel"
                   value={formData.phone}
                   onChange={(e) => handleInputChange('phone', e.target.value)}
                   placeholder="+1 (555) 000-0000"
-                  className="w-full pl-10 pr-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full pl-10 pr-3 py-2.5 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-violet focus:border-transparent"
                 />
               </div>
             </div>
 
             {/* Secondary Phone */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <label className="block text-sm font-semibold text-ink-700 mb-2">
                 Secondary Phone
               </label>
               <div className="relative">
-                <Phone size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <Phone size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-500" />
                 <input
                   type="tel"
                   value={formData.secondaryPhone}
                   onChange={(e) => handleInputChange('secondaryPhone', e.target.value)}
                   placeholder="+1 (555) 000-0000"
-                  className="w-full pl-10 pr-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full pl-10 pr-3 py-2.5 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-violet focus:border-transparent"
                 />
               </div>
             </div>
 
             {/* Date of Birth */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <label className="block text-sm font-semibold text-ink-700 mb-2">
                 Date of Birth *
               </label>
               <div className="relative">
-                <Calendar size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <Calendar size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-500" />
                 <input
                   type="date"
                   value={formData.dateOfBirth}
                   onChange={(e) => handleInputChange('dateOfBirth', e.target.value)}
-                  className="w-full pl-10 pr-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full pl-10 pr-3 py-2.5 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-violet focus:border-transparent"
                 />
               </div>
             </div>
 
             {/* Gender */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <label className="block text-sm font-semibold text-ink-700 mb-2">
                 Gender *
               </label>
               <div className="grid grid-cols-3 gap-2">
@@ -336,8 +336,8 @@ export default function MobileAddPatientPage({ hospitalId, hospitalSpecializatio
                     onClick={() => handleInputChange('gender', gender)}
                     className={`px-3 py-2.5 rounded-lg border-2 transition-all text-sm font-medium ${
                       formData.gender === gender
-                        ? 'border-purple-500 bg-purple-50 text-purple-900'
-                        : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                        ? 'border-brand-violet bg-brand-violet-soft text-brand-violet'
+                        : 'border-border bg-surface-paper text-ink-700 hover:border-border'
                     }`}
                   >
                     {gender}
@@ -348,15 +348,15 @@ export default function MobileAddPatientPage({ hospitalId, hospitalSpecializatio
 
             {/* Blood Group */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <label className="block text-sm font-semibold text-ink-700 mb-2">
                 Blood Group
               </label>
               <div className="relative">
-                <Droplet size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <Droplet size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-500" />
                 <select
                   value={formData.bloodGroup}
                   onChange={(e) => handleInputChange('bloodGroup', e.target.value)}
-                  className="w-full pl-10 pr-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent appearance-none bg-white"
+                  className="w-full pl-10 pr-3 py-2.5 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-violet focus:border-transparent appearance-none bg-surface-paper"
                 >
                   <option value="">Select Blood Group</option>
                   {bloodGroups.map((group) => (
@@ -368,17 +368,17 @@ export default function MobileAddPatientPage({ hospitalId, hospitalSpecializatio
 
             {/* Address */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <label className="block text-sm font-semibold text-ink-700 mb-2">
                 Address *
               </label>
               <div className="relative">
-                <MapPin size={18} className="absolute left-3 top-3 text-gray-400" />
+                <MapPin size={18} className="absolute left-3 top-3 text-ink-500" />
                 <textarea
                   value={formData.address}
                   onChange={(e) => handleInputChange('address', e.target.value)}
                   placeholder="Enter full address"
                   rows={3}
-                  className="w-full pl-10 pr-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+                  className="w-full pl-10 pr-3 py-2.5 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-violet focus:border-transparent resize-none"
                 />
               </div>
             </div>
@@ -386,15 +386,15 @@ export default function MobileAddPatientPage({ hospitalId, hospitalSpecializatio
         </div>
 
         {/* Medical Preferences */}
-        <div className="bg-white rounded-2xl overflow-hidden shadow-sm">
-          <div className="px-4 py-3 bg-gray-50 border-b border-gray-100">
-            <h3 className="text-sm font-bold text-gray-900">Medical Preferences</h3>
+        <div className="bg-surface-paper rounded-2xl overflow-hidden shadow-sm">
+          <div className="px-4 py-3 bg-surface-canvas border-b border-border">
+            <h3 className="text-sm font-bold text-ink-900">Medical Preferences</h3>
           </div>
           
           <div className="p-4 space-y-4">
             {/* Looking For Specialization */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-3">
+              <label className="block text-sm font-semibold text-ink-700 mb-3">
                 Looking For Doctor Specialization
               </label>
               <div className="grid grid-cols-1 gap-2 max-h-64 overflow-y-auto">
@@ -405,19 +405,19 @@ export default function MobileAddPatientPage({ hospitalId, hospitalSpecializatio
                     onClick={() => handleInputChange('lookingForSpecialization', specialization)}
                     className={`flex items-center justify-between px-3 py-2.5 rounded-lg border-2 transition-all text-left ${
                       formData.lookingForSpecialization === specialization
-                        ? 'border-purple-500 bg-purple-50'
-                        : 'border-gray-200 bg-white hover:border-gray-300'
+                        ? 'border-brand-violet bg-brand-violet-soft'
+                        : 'border-border bg-surface-paper hover:border-border'
                     }`}
                   >
                     <span className={`text-sm font-medium ${
                       formData.lookingForSpecialization === specialization
-                        ? 'text-purple-900'
-                        : 'text-gray-700'
+                        ? 'text-brand-violet'
+                        : 'text-ink-700'
                     }`}>
                       {specialization}
                     </span>
                     {formData.lookingForSpecialization === specialization && (
-                      <div className="w-5 h-5 rounded-full bg-purple-600 flex items-center justify-center">
+                      <div className="w-5 h-5 rounded-full bg-brand-violet flex items-center justify-center">
                         <Check size={14} className="text-white" />
                       </div>
                     )}
@@ -425,7 +425,7 @@ export default function MobileAddPatientPage({ hospitalId, hospitalSpecializatio
                 ))}
               </div>
               {hospitalSpecializations.length > 0 && (
-                <p className="mt-2 text-xs text-gray-500">
+                <p className="mt-2 text-xs text-ink-500">
                   Showing specializations available at this hospital
                 </p>
               )}
@@ -438,7 +438,7 @@ export default function MobileAddPatientPage({ hospitalId, hospitalSpecializatio
           <button
             onClick={handleSave}
             disabled={saving}
-            className="w-full flex items-center justify-center gap-2 px-4 py-3.5 bg-purple-600 text-white rounded-xl font-semibold text-sm hover:bg-purple-700 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+            className="w-full flex items-center justify-center gap-2 px-4 py-3.5 bg-brand-violet text-white rounded-xl font-semibold text-sm hover:bg-brand-violet-hover active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
           >
             {saving ? (
               <>

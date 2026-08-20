@@ -12,7 +12,7 @@ export default function AddDoctorPage() {
   const { createDoctor } = useNewDoctorApi(hospitalId, undefined, true);
 
   return (
-    // <div className="min-h-screen bg-gray-50 py-4 md:py-8">
+    // <div className="min-h-screen bg-surface-canvas py-4 md:py-8">
       <AddDoctorPersonal
           onBack={() => router.push(`/hospital/${hospitalId}/doctors`)}
           onSave={(data) => {

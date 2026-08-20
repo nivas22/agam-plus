@@ -107,10 +107,10 @@ export default function AttendancePage({ canEdit = false, userRole, doctors, pat
   // Get status badge class
   const getStatusClass = useCallback((status: string) => {
     switch (status) {
-      case "completed": return "bg-green-100 text-green-800";
-      case "cancelled": return "bg-red-100 text-red-800";
-      case "no-show": return "bg-orange-100 text-orange-800";
-      default: return "bg-blue-100 text-blue-800";
+      case "completed": return "bg-status-open-soft text-status-open";
+      case "cancelled": return "bg-status-danger-soft text-status-danger";
+      case "no-show": return "bg-status-warning-soft text-status-warning";
+      default: return "bg-brand-violet-soft text-brand-violet";
     }
   }, []);
 
@@ -156,7 +156,7 @@ export default function AttendancePage({ canEdit = false, userRole, doctors, pat
   if (appointmentsLoading && appointments.length === 0) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-violet"></div>
       </div>
     );
   }
@@ -201,32 +201,32 @@ export default function AttendancePage({ canEdit = false, userRole, doctors, pat
         </div> */}
 
         {showFilters && (
-          <div className="bg-white p-4 rounded-xl shadow-md border border-gray-100 mb-4">
+          <div className="bg-surface-paper p-4 rounded-xl shadow-md border border-border mb-4">
             <div className="flex justify-between items-center mb-3">
-              <h3 className="font-medium text-gray-700">Filters</h3>
+              <h3 className="font-medium text-ink-700">Filters</h3>
               <div className="flex gap-2">
-                <button 
+                <button
                   onClick={clearFilters}
-                  className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                  className="text-sm text-brand-violet hover:text-brand-violet-hover font-medium"
                 >
                   Clear All
                 </button>
-                <button 
+                <button
                   onClick={() => setShowFilters(false)}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="text-ink-500 hover:text-ink-700"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
             </div>
-            
+
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                <label className="block text-sm font-medium text-ink-700 mb-1">Status</label>
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
-                  className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm"
+                  className="w-full p-2.5 border border-border rounded-lg focus:ring-2 focus:ring-brand-violet focus:border-brand-violet shadow-sm"
                 >
                   <option value="all">All Statuses</option>
                   <option value="scheduled">Scheduled</option>
@@ -237,11 +237,11 @@ export default function AttendancePage({ canEdit = false, userRole, doctors, pat
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Patient</label>
+                <label className="block text-sm font-medium text-ink-700 mb-1">Patient</label>
                 <select
                   value={patientFilter}
                   onChange={(e) => setPatientFilter(e.target.value)}
-                  className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm"
+                  className="w-full p-2.5 border border-border rounded-lg focus:ring-2 focus:ring-brand-violet focus:border-brand-violet shadow-sm"
                 >
                   <option value="all">All Patients</option>
                   {patients.map(patient => (
@@ -253,11 +253,11 @@ export default function AttendancePage({ canEdit = false, userRole, doctors, pat
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Doctor</label>
+                <label className="block text-sm font-medium text-ink-700 mb-1">Doctor</label>
                 <select
                   value={doctorFilter}
                   onChange={(e) => setDoctorFilter(e.target.value)}
-                  className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm"
+                  className="w-full p-2.5 border border-border rounded-lg focus:ring-2 focus:ring-brand-violet focus:border-brand-violet shadow-sm"
                 >
                   <option value="all">All Doctors</option>
                   {doctors.map(doctor => (
@@ -272,17 +272,17 @@ export default function AttendancePage({ canEdit = false, userRole, doctors, pat
         )}
 
         {/* Compact Date Filter */}
-        <div className="bg-white p-2 rounded-xl shadow-md border border-gray-100 mb-4">
+        <div className="bg-surface-paper p-2 rounded-xl shadow-md border border-border mb-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <CalendarDays className="w-4 h-4 text-gray-500" />
-              <span className="text-sm font-medium text-gray-700">Date Range:</span>
-              <span className="text-sm font-semibold text-blue-600">{currentFilter}</span>
+              <CalendarDays className="w-4 h-4 text-ink-500" />
+              <span className="text-sm font-medium text-ink-700">Date Range:</span>
+              <span className="text-sm font-semibold text-brand-violet">{currentFilter}</span>
             </div>
-            
+
             <button
               onClick={() => setShowDateFilters(!showDateFilters)}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors text-sm font-medium"
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-surface-canvas hover:bg-border transition-colors text-sm font-medium"
             >
               <span>Change</span>
               {showDateFilters ? (
@@ -295,7 +295,7 @@ export default function AttendancePage({ canEdit = false, userRole, doctors, pat
 
           {/* Collapsible Date Options */}
           {showDateFilters && (
-            <div className="mt-3 pt-2 border-t border-gray-100">
+            <div className="mt-3 pt-2 border-t border-border">
               <div className="flex flex-wrap gap-2">
                 {dateFilterOptions.map((range) => (
                   <button
@@ -308,7 +308,7 @@ export default function AttendancePage({ canEdit = false, userRole, doctors, pat
                     className={`px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
                       dateFilter === range.id
                         ? `${range.color} text-white shadow-md`
-                        : `bg-white text-gray-700 border border-gray-200 hover:${range.textColor} hover:border-current`
+                        : `bg-surface-paper text-ink-700 border border-border hover:${range.textColor} hover:border-current`
                     }`}
                   >
                     {range.label}
@@ -322,7 +322,7 @@ export default function AttendancePage({ canEdit = false, userRole, doctors, pat
         {/* Stats Summary - Attractive Badge Style */}
         <div className="grid grid-cols-3 gap-2 mb-3">
           {/* Completed Badge */}
-          <div className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-emerald-500 to-green-600 rounded-xl shadow-md hover:shadow-lg transition-all hover:scale-105">
+          <div className="flex items-center gap-2 px-3 py-2 bg-status-open rounded-xl shadow-md hover:shadow-lg transition-all hover:scale-105">
             <CheckCircle className="w-4 h-4 text-white flex-shrink-0" />
             <div className="flex flex-col min-w-0">
               <span className="text-lg font-bold text-white leading-none">
@@ -333,7 +333,7 @@ export default function AttendancePage({ canEdit = false, userRole, doctors, pat
           </div>
           
           {/* Cancelled Badge */}
-          <div className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-red-500 to-red-600 rounded-xl shadow-md hover:shadow-lg transition-all hover:scale-105">
+          <div className="flex items-center gap-2 px-3 py-2 bg-status-danger rounded-xl shadow-md hover:shadow-lg transition-all hover:scale-105">
             <XCircle className="w-4 h-4 text-white flex-shrink-0" />
             <div className="flex flex-col min-w-0">
               <span className="text-lg font-bold text-white leading-none">
@@ -344,7 +344,7 @@ export default function AttendancePage({ canEdit = false, userRole, doctors, pat
           </div>
           
           {/* No Show Badge */}
-          <div className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-orange-500 to-orange-600 rounded-xl shadow-md hover:shadow-lg transition-all hover:scale-105">
+          <div className="flex items-center gap-2 px-3 py-2 bg-status-warning rounded-xl shadow-md hover:shadow-lg transition-all hover:scale-105">
             <Clock className="w-4 h-4 text-white flex-shrink-0" />
             <div className="flex flex-col min-w-0">
               <span className="text-lg font-bold text-white leading-none">
@@ -361,51 +361,51 @@ export default function AttendancePage({ canEdit = false, userRole, doctors, pat
             <div className="flex flex-col items-center justify-center py-12 px-4">
               {/* Animated Icon Container */}
               <div className="relative mb-6">
-                <div className="absolute inset-0 bg-gradient-to-r from-emerald-400 to-green-500 rounded-full blur-2xl opacity-20 animate-pulse"></div>
-                <div className="relative w-24 h-24 bg-gradient-to-br from-emerald-50 to-green-50 rounded-3xl flex items-center justify-center shadow-lg border-4 border-white">
-                  <Calendar className="w-12 h-12 text-emerald-600" />
+                <div className="absolute inset-0 bg-status-open rounded-full blur-2xl opacity-20 animate-pulse"></div>
+                <div className="relative w-24 h-24 bg-status-open-soft rounded-3xl flex items-center justify-center shadow-lg border-4 border-surface-paper">
+                  <Calendar className="w-12 h-12 text-status-open" />
                 </div>
               </div>
 
               {/* Title and Description */}
-              <h3 className="text-xl font-bold text-gray-900 mb-2 text-center">
+              <h3 className="text-xl font-bold text-ink-900 mb-2 text-center">
                 No Attendance Records
               </h3>
-              <p className="text-sm text-gray-500 text-center max-w-xs mb-8 leading-relaxed">
+              <p className="text-sm text-ink-500 text-center max-w-xs mb-8 leading-relaxed">
                 Try adjusting your filters or select a different date range to view attendance records.
               </p>
 
               {/* Decorative Elements */}
               <div className="grid grid-cols-3 gap-3 w-full max-w-sm">
-                <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-4 text-center border border-blue-200">
-                  <div className="w-10 h-10 bg-blue-500 rounded-xl mx-auto mb-2 flex items-center justify-center">
+                <div className="bg-brand-violet-soft rounded-2xl p-4 text-center border border-brand-violet/20">
+                  <div className="w-10 h-10 bg-brand-violet rounded-xl mx-auto mb-2 flex items-center justify-center">
                     <CalendarDays className="w-5 h-5 text-white" />
                   </div>
-                  <p className="text-xs font-semibold text-blue-900">Track</p>
+                  <p className="text-xs font-semibold text-brand-violet">Track</p>
                 </div>
-                <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-2xl p-4 text-center border border-emerald-200">
-                  <div className="w-10 h-10 bg-emerald-500 rounded-xl mx-auto mb-2 flex items-center justify-center">
+                <div className="bg-status-open-soft rounded-2xl p-4 text-center border border-status-open/20">
+                  <div className="w-10 h-10 bg-status-open rounded-xl mx-auto mb-2 flex items-center justify-center">
                     <CheckCircle className="w-5 h-5 text-white" />
                   </div>
-                  <p className="text-xs font-semibold text-emerald-900">Present</p>
+                  <p className="text-xs font-semibold text-status-open">Present</p>
                 </div>
-                <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-2xl p-4 text-center border border-red-200">
-                  <div className="w-10 h-10 bg-red-500 rounded-xl mx-auto mb-2 flex items-center justify-center">
+                <div className="bg-status-danger-soft rounded-2xl p-4 text-center border border-status-danger/20">
+                  <div className="w-10 h-10 bg-status-danger rounded-xl mx-auto mb-2 flex items-center justify-center">
                     <XCircle className="w-5 h-5 text-white" />
                   </div>
-                  <p className="text-xs font-semibold text-red-900">Absent</p>
+                  <p className="text-xs font-semibold text-status-danger">Absent</p>
                 </div>
               </div>
 
               {/* Helpful Tip */}
-              <div className="mt-8 bg-gradient-to-r from-emerald-50 to-green-50 rounded-2xl p-4 border border-emerald-200 w-full max-w-sm">
+              <div className="mt-8 bg-status-open-soft rounded-2xl p-4 border border-status-open/20 w-full max-w-sm">
                 <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <div className="w-8 h-8 bg-status-open rounded-lg flex items-center justify-center flex-shrink-0">
                     <span className="text-white text-lg">💡</span>
                   </div>
                   <div>
-                    <p className="text-xs font-semibold text-emerald-900 mb-1">Quick Tip</p>
-                    <p className="text-xs text-emerald-700 leading-relaxed">
+                    <p className="text-xs font-semibold text-status-open mb-1">Quick Tip</p>
+                    <p className="text-xs text-status-open leading-relaxed">
                       Attendance records are automatically tracked when appointments are marked as completed or cancelled.
                     </p>
                   </div>
@@ -413,30 +413,30 @@ export default function AttendancePage({ canEdit = false, userRole, doctors, pat
               </div>
             </div>
           ) : (
-            <div className="divide-y divide-gray-100">
+            <div className="divide-y divide-border">
               {currentAppointments.map(appointment => {
-                
+
                 return (
-                  <div key={appointment.id} className="p-4 hover:bg-gray-50 transition-colors">
+                  <div key={appointment.id} className="p-4 hover:bg-surface-canvas transition-colors">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3 flex-1 min-w-0">
-                        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center text-blue-600 font-bold flex-shrink-0">
+                        <div className="w-10 h-10 rounded-lg bg-brand-violet-soft flex items-center justify-center text-brand-violet font-bold flex-shrink-0">
                           {appointment.patientName ? appointment.patientName.charAt(0).toUpperCase() : "P"}
                         </div>
                         <div className="min-w-0 flex-1">
-                          <h3 className="font-semibold text-gray-800 truncate">
+                          <h3 className="font-semibold text-ink-900 truncate">
                             {appointment.patientName || "Unknown Patient"}
                           </h3>
-                          <p className="text-sm text-gray-600 flex items-center gap-1 truncate">
+                          <p className="text-sm text-ink-700 flex items-center gap-1 truncate">
                             <Stethoscope className="w-3 h-3 flex-shrink-0" />
                             <span className="truncate">Dr. {appointment?.doctorName || "Not Assigned"}</span>
                           </p>
                           <div className="flex items-center gap-2 mt-1">
-                            <p className="text-xs text-gray-500">
+                            <p className="text-xs text-ink-500">
                               {formatDate(appointment.date)}
                             </p>
-                            <span className="text-gray-300">•</span>
-                            <p className="text-xs text-gray-500">
+                            <span className="text-border">•</span>
+                            <p className="text-xs text-ink-500">
                               {formatTime(appointment.time)}
                             </p>
                           </div>
@@ -461,23 +461,23 @@ export default function AttendancePage({ canEdit = false, userRole, doctors, pat
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="flex justify-between items-center bg-white p-3 rounded-xl shadow-sm border border-gray-200">
+          <div className="flex justify-between items-center bg-surface-paper p-3 rounded-xl shadow-sm border border-border">
             <button
               onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
               disabled={currentPage === 1}
-              className="p-2 rounded-lg border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+              className="p-2 rounded-lg border border-border disabled:opacity-50 disabled:cursor-not-allowed hover:bg-surface-canvas"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
-            
-            <span className="text-sm text-gray-600">
+
+            <span className="text-sm text-ink-700">
               Page {currentPage} of {totalPages}
             </span>
-            
+
             <button
               onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
               disabled={currentPage === totalPages}
-              className="p-2 rounded-lg border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+              className="p-2 rounded-lg border border-border disabled:opacity-50 disabled:cursor-not-allowed hover:bg-surface-canvas"
             >
               <ChevronRight className="w-4 h-4" />
             </button>

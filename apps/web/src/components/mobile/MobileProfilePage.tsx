@@ -141,18 +141,18 @@ export default function MobileProfilePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-surface-canvas">
       {/* Simple Top Header with Back Button - Always Visible */}
-      <div className="bg-white border-b border-gray-200 px-4 py-3 sticky top-0 z-10">
+      <div className="bg-surface-paper border-b border-border px-4 py-3 sticky top-0 z-10">
         <div className="flex items-center gap-3">
           <button
             onClick={() => router.push(`/mobile/hospital/${hospitalId}/dashboard`)}
-            className="p-2 -ml-2 hover:bg-gray-100 rounded-lg transition-colors active:scale-95"
+            className="p-2 -ml-2 hover:bg-surface-canvas rounded-lg transition-colors active:scale-95"
             aria-label="Go back"
           >
-            <ArrowLeft size={20} className="text-gray-700" />
+            <ArrowLeft size={20} className="text-ink-700" />
           </button>
-          <h1 className="text-lg font-bold text-gray-900">Settings</h1>
+          <h1 className="text-lg font-bold text-ink-900">Settings</h1>
         </div>
       </div>
 
@@ -165,9 +165,9 @@ export default function MobileProfilePage() {
       {!loading && !profileData && (
         <div className="flex items-center justify-center py-20 px-4">
           <div className="text-center">
-            <AlertTriangle className="text-red-500 mx-auto mb-3" size={32} />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Profile Not Found</h3>
-            <p className="text-sm text-gray-500">Please try again</p>
+            <AlertTriangle className="text-status-danger mx-auto mb-3" size={32} />
+            <h3 className="text-lg font-semibold text-ink-900 mb-2">Profile Not Found</h3>
+            <p className="text-sm text-ink-500">Please try again</p>
           </div>
         </div>
       )}
@@ -177,10 +177,10 @@ export default function MobileProfilePage() {
       <>
       {/* Profile Header Card */}
       <div className="px-4 pt-4 pb-3">
-        <div className="bg-gradient-to-br from-purple-600 to-purple-700 rounded-2xl p-4 shadow-lg">
+        <div className="bg-gradient-to-br from-brand-violet to-brand-violet-hover rounded-2xl p-4 shadow-lg">
           <div className="flex items-center gap-3">
             <div className="relative">
-              <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center text-2xl font-bold text-purple-600 overflow-hidden">
+              <div className="w-16 h-16 rounded-full bg-surface-paper flex items-center justify-center text-2xl font-bold text-brand-violet overflow-hidden">
                 {profileData.profileImage ? (
                   <Image 
                     src={profileData.profileImage} 
@@ -193,12 +193,12 @@ export default function MobileProfilePage() {
                   profileData.name.charAt(0).toUpperCase()
                 )}
               </div>
-              <div className="absolute -bottom-0.5 -right-0.5 w-5 h-5 bg-green-500 rounded-full border-2 border-white"></div>
+              <div className="absolute -bottom-0.5 -right-0.5 w-5 h-5 bg-status-open rounded-full border-2 border-white"></div>
             </div>
             
             <div className="flex-1">
               <h2 className="text-xl font-bold text-white">{profileData.name}</h2>
-              <p className="text-purple-100 text-sm">{profileData.email}</p>
+              <p className="text-brand-violet-soft text-sm">{profileData.email}</p>
             </div>
           </div>
         </div>
@@ -208,189 +208,189 @@ export default function MobileProfilePage() {
       <div className="px-4 pb-6 space-y-3">
         {/* Quick Stats - Doctor Experience */}
         {'specialization' in profileData && (
-          <div className="bg-white rounded-2xl p-4 shadow-sm">
-            <div className="grid grid-cols-2 divide-x divide-gray-100">
+          <div className="bg-surface-paper rounded-2xl p-4 shadow-sm">
+            <div className="grid grid-cols-2 divide-x divide-border">
               <div className="text-center">
-                <Award className="w-5 h-5 text-blue-500 mx-auto mb-1" />
-                <p className="text-lg font-bold text-gray-900">{profileData.experience || 'N/A'}</p>
-                <p className="text-xs text-gray-500">Experience</p>
+                <Award className="w-5 h-5 text-brand-violet mx-auto mb-1" />
+                <p className="text-lg font-bold text-ink-900">{profileData.experience || 'N/A'}</p>
+                <p className="text-xs text-ink-500">Experience</p>
               </div>
               <div className="text-center">
-                <Check className="w-5 h-5 text-green-500 mx-auto mb-1" />
-                <p className="text-lg font-bold text-gray-900">500+</p>
-                <p className="text-xs text-gray-500">Patients</p>
+                <Check className="w-5 h-5 text-status-open mx-auto mb-1" />
+                <p className="text-lg font-bold text-ink-900">500+</p>
+                <p className="text-xs text-ink-500">Patients</p>
               </div>
             </div>
           </div>
         )}
 
         {/* Account Section */}
-        <div className="bg-white rounded-2xl overflow-hidden shadow-sm">
-          <div className="px-4 py-3 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
-            <h3 className="text-sm font-bold text-gray-900">Account</h3>
+        <div className="bg-surface-paper rounded-2xl overflow-hidden shadow-sm">
+          <div className="px-4 py-3 bg-surface-canvas border-b border-border flex items-center justify-between">
+            <h3 className="text-sm font-bold text-ink-900">Account</h3>
             <button
               onClick={() => router.push(`/mobile/hospital/${hospitalId}/profile/edit`)}
-              className="p-1.5 hover:bg-gray-200 rounded-lg transition-colors active:scale-95"
+              className="p-1.5 hover:bg-border rounded-lg transition-colors active:scale-95"
               aria-label="Edit account"
             >
-              <Edit2 size={16} className="text-gray-600" />
+              <Edit2 size={16} className="text-ink-700" />
             </button>
           </div>
           
-          <button className="w-full flex items-center justify-between px-4 py-3.5 border-b border-gray-100 active:bg-gray-50 transition-colors">
+          <button className="w-full flex items-center justify-between px-4 py-3.5 border-b border-border active:bg-surface-canvas transition-colors">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full bg-blue-50 flex items-center justify-center">
-                <Mail size={18} className="text-blue-600" />
+              <div className="w-9 h-9 rounded-full bg-brand-violet-soft flex items-center justify-center">
+                <Mail size={18} className="text-brand-violet" />
               </div>
               <div className="text-left">
-                <p className="text-xs text-gray-500">Email Address</p>
-                <p className="text-sm font-semibold text-gray-900">{profileData.email}</p>
+                <p className="text-xs text-ink-500">Email Address</p>
+                <p className="text-sm font-semibold text-ink-900">{profileData.email}</p>
               </div>
             </div>
-            <ChevronRight size={18} className="text-gray-400" />
+            <ChevronRight size={18} className="text-ink-500" />
           </button>
 
           {profileData.phone && (
-            <button className="w-full flex items-center justify-between px-4 py-3.5 border-b border-gray-100 active:bg-gray-50 transition-colors">
+            <button className="w-full flex items-center justify-between px-4 py-3.5 border-b border-border active:bg-surface-canvas transition-colors">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-full bg-green-50 flex items-center justify-center">
-                  <Phone size={18} className="text-green-600" />
+                <div className="w-9 h-9 rounded-full bg-status-open-soft flex items-center justify-center">
+                  <Phone size={18} className="text-status-open" />
                 </div>
                 <div className="text-left">
-                  <p className="text-xs text-gray-500">Phone Number</p>
-                  <p className="text-sm font-semibold text-gray-900">{profileData.phone}</p>
+                  <p className="text-xs text-ink-500">Phone Number</p>
+                  <p className="text-sm font-semibold text-ink-900">{profileData.phone}</p>
                 </div>
               </div>
-              <ChevronRight size={18} className="text-gray-400" />
+              <ChevronRight size={18} className="text-ink-500" />
             </button>
           )}
 
           {currentHospital && (
             <button 
               onClick={() => isAdmin ? router.push('/mobile/hospital/edit') : null}
-              className={`w-full flex items-center justify-between px-4 py-3.5 transition-colors ${isAdmin ? 'active:bg-gray-50' : 'cursor-default'}`}
+              className={`w-full flex items-center justify-between px-4 py-3.5 transition-colors ${isAdmin ? 'active:bg-surface-canvas' : 'cursor-default'}`}
             >
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-full bg-purple-50 flex items-center justify-center">
-                  <Building2 size={18} className="text-purple-600" />
+                <div className="w-9 h-9 rounded-full bg-brand-violet-soft flex items-center justify-center">
+                  <Building2 size={18} className="text-brand-violet" />
                 </div>
                 <div className="text-left">
-                  <p className="text-xs text-gray-500">Hospital</p>
-                  <p className="text-sm font-semibold text-gray-900">{currentHospital.name}</p>
+                  <p className="text-xs text-ink-500">Hospital</p>
+                  <p className="text-sm font-semibold text-ink-900">{currentHospital.name}</p>
                 </div>
               </div>
-              {isAdmin && <ChevronRight size={18} className="text-gray-400" />}
+              {isAdmin && <ChevronRight size={18} className="text-ink-500" />}
             </button>
           )}
         </div>
 
         {/* Users Section - Patients Page Link */}
-        <div className="bg-white rounded-2xl overflow-hidden shadow-sm">
-          <div className="px-4 py-3 bg-gray-50 border-b border-gray-100">
-            <h3 className="text-sm font-bold text-gray-900">Users</h3>
+        <div className="bg-surface-paper rounded-2xl overflow-hidden shadow-sm">
+          <div className="px-4 py-3 bg-surface-canvas border-b border-border">
+            <h3 className="text-sm font-bold text-ink-900">Users</h3>
           </div>
           
           <button
             onClick={() => router.push(`/mobile/hospital/${hospitalId}/patients`)}
-            className="w-full flex items-center justify-between px-4 py-3.5 border-b border-gray-100 active:bg-gray-50 transition-colors"
+            className="w-full flex items-center justify-between px-4 py-3.5 border-b border-border active:bg-surface-canvas transition-colors"
           >
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full bg-purple-50 flex items-center justify-center">
-                <Users size={18} className="text-purple-600" />
+              <div className="w-9 h-9 rounded-full bg-brand-violet-soft flex items-center justify-center">
+                <Users size={18} className="text-brand-violet" />
               </div>
               <div className="text-left">
-                <p className="text-sm font-semibold text-gray-900">Patients</p>
+                <p className="text-sm font-semibold text-ink-900">Patients</p>
               </div>
             </div>
-            <ChevronRight size={18} className="text-gray-400" />
+            <ChevronRight size={18} className="text-ink-500" />
           </button>
 
           {/* Doctors Section - Admin Only */}
           {isAdmin && (
             <button
               onClick={() => router.push(`/mobile/hospital/${hospitalId}/doctors`)}
-              className="w-full flex items-center justify-between px-4 py-3.5 active:bg-gray-50 transition-colors"
+              className="w-full flex items-center justify-between px-4 py-3.5 active:bg-surface-canvas transition-colors"
             >
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-full bg-blue-50 flex items-center justify-center">
-                  <Stethoscope size={18} className="text-blue-600" />
+                <div className="w-9 h-9 rounded-full bg-brand-violet-soft flex items-center justify-center">
+                  <Stethoscope size={18} className="text-brand-violet" />
                 </div>
                 <div className="text-left">
-                  <p className="text-sm font-semibold text-gray-900">Doctors</p>
+                  <p className="text-sm font-semibold text-ink-900">Doctors</p>
                 </div>
               </div>
-              <ChevronRight size={18} className="text-gray-400" />
+              <ChevronRight size={18} className="text-ink-500" />
             </button>
           )}
         </div>
 
         {/* Hospital Management Section */}
-        <div className="bg-white rounded-2xl overflow-hidden shadow-sm">
-          <div className="px-4 py-3 bg-gray-50 border-b border-gray-100">
-            <h3 className="text-sm font-bold text-gray-900">Hospital Management</h3>
+        <div className="bg-surface-paper rounded-2xl overflow-hidden shadow-sm">
+          <div className="px-4 py-3 bg-surface-canvas border-b border-border">
+            <h3 className="text-sm font-bold text-ink-900">Hospital Management</h3>
           </div>
           
           <button
             onClick={() => router.push(`/mobile/hospital/${hospitalId}/profile/select-hospital`)}
-            className="w-full flex items-center justify-between px-4 py-3.5 border-b border-gray-100 active:bg-gray-50 transition-colors"
+            className="w-full flex items-center justify-between px-4 py-3.5 border-b border-border active:bg-surface-canvas transition-colors"
           >
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full bg-indigo-50 flex items-center justify-center">
-                <RefreshCw size={18} className="text-indigo-600" />
+              <div className="w-9 h-9 rounded-full bg-brand-violet-soft flex items-center justify-center">
+                <RefreshCw size={18} className="text-brand-violet" />
               </div>
               <div className="text-left">
-                <p className="text-sm font-semibold text-gray-900">Switch Hospital</p>
-                <p className="text-xs text-gray-500">Change to another hospital</p>
+                <p className="text-sm font-semibold text-ink-900">Switch Hospital</p>
+                <p className="text-xs text-ink-500">Change to another hospital</p>
               </div>
             </div>
-            <ChevronRight size={18} className="text-gray-400" />
+            <ChevronRight size={18} className="text-ink-500" />
           </button>
 
           <button
             onClick={() => router.push(`/mobile/hospital/${hospitalId}/profile/request-access`)}
-            className="w-full flex items-center justify-between px-4 py-3.5 active:bg-gray-50 transition-colors"
+            className="w-full flex items-center justify-between px-4 py-3.5 active:bg-surface-canvas transition-colors"
           >
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full bg-green-50 flex items-center justify-center">
-                <UserPlus size={18} className="text-green-600" />
+              <div className="w-9 h-9 rounded-full bg-status-open-soft flex items-center justify-center">
+                <UserPlus size={18} className="text-status-open" />
               </div>
               <div className="text-left">
-                <p className="text-sm font-semibold text-gray-900">Request Access</p>
-                <p className="text-xs text-gray-500">Join another hospital</p>
+                <p className="text-sm font-semibold text-ink-900">Request Access</p>
+                <p className="text-xs text-ink-500">Join another hospital</p>
               </div>
             </div>
-            <ChevronRight size={18} className="text-gray-400" />
+            <ChevronRight size={18} className="text-ink-500" />
           </button>
         </div>
 
         {/* Professional Info - Doctor Only */}
         {'specialization' in profileData && (
           <>
-            <div className="bg-white rounded-2xl overflow-hidden shadow-sm">
-              <div className="px-4 py-3 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
-                <h3 className="text-sm font-bold text-gray-900">Professional Info</h3>
+            <div className="bg-surface-paper rounded-2xl overflow-hidden shadow-sm">
+              <div className="px-4 py-3 bg-surface-canvas border-b border-border flex items-center justify-between">
+                <h3 className="text-sm font-bold text-ink-900">Professional Info</h3>
                 <button
                   onClick={() => router.push(`/mobile/hospital/${hospitalId}/profile/edit`)}
-                  className="p-1.5 hover:bg-gray-200 rounded-lg transition-colors active:scale-95"
+                  className="p-1.5 hover:bg-border rounded-lg transition-colors active:scale-95"
                   aria-label="Edit professional info"
                 >
-                  <Edit2 size={16} className="text-gray-600" />
+                  <Edit2 size={16} className="text-ink-700" />
                 </button>
               </div>
               
               <div className="p-4 space-y-3">
                 <div className="flex items-start justify-between">
-                  <span className="text-sm text-gray-500">Specialization</span>
-                  <span className="text-sm font-semibold text-gray-900 text-right max-w-[60%]">{profileData.specialization}</span>
+                  <span className="text-sm text-ink-500">Specialization</span>
+                  <span className="text-sm font-semibold text-ink-900 text-right max-w-[60%]">{profileData.specialization}</span>
                 </div>
                 <div className="flex items-start justify-between">
-                  <span className="text-sm text-gray-500">Qualification</span>
-                  <span className="text-sm font-semibold text-gray-900 text-right max-w-[60%]">{profileData.qualification}</span>
+                  <span className="text-sm text-ink-500">Qualification</span>
+                  <span className="text-sm font-semibold text-ink-900 text-right max-w-[60%]">{profileData.qualification}</span>
                 </div>
                 {profileData.experience && (
                   <div className="flex items-start justify-between">
-                    <span className="text-sm text-gray-500">Experience</span>
-                    <span className="text-sm font-semibold text-gray-900">{profileData.experience}</span>
+                    <span className="text-sm text-ink-500">Experience</span>
+                    <span className="text-sm font-semibold text-ink-900">{profileData.experience}</span>
                   </div>
                 )}
               </div>
@@ -398,24 +398,24 @@ export default function MobileProfilePage() {
 
             {/* Bio Section */}
             {profileData.bio && (
-              <div className="bg-white rounded-2xl overflow-hidden shadow-sm">
-                <div className="px-4 py-3 bg-gray-50 border-b border-gray-100">
-                  <h3 className="text-sm font-bold text-gray-900">About Me</h3>
+              <div className="bg-surface-paper rounded-2xl overflow-hidden shadow-sm">
+                <div className="px-4 py-3 bg-surface-canvas border-b border-border">
+                  <h3 className="text-sm font-bold text-ink-900">About Me</h3>
                 </div>
                 <div className="p-4">
-                  <p className="text-sm text-gray-700 leading-relaxed">{profileData.bio}</p>
+                  <p className="text-sm text-ink-700 leading-relaxed">{profileData.bio}</p>
                 </div>
               </div>
             )}
 
             {/* Schedule */}
-            <div className="bg-white rounded-2xl overflow-hidden shadow-sm">
+            <div className="bg-surface-paper rounded-2xl overflow-hidden shadow-sm">
               <button 
                 onClick={() => router.push(`/hospital/${currentHospital?.id}/doctors/${user?.id}/add/availability`)}
-                className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-100 active:bg-gray-100 transition-colors"
+                className="w-full flex items-center justify-between px-4 py-3 bg-surface-canvas border-b border-border active:bg-surface-canvas transition-colors"
               >
-                <h3 className="text-sm font-bold text-gray-900">Availability</h3>
-                <Edit2 size={16} className="text-gray-600" />
+                <h3 className="text-sm font-bold text-ink-900">Availability</h3>
+                <Edit2 size={16} className="text-ink-700" />
               </button>
               
               <div className="p-4">
@@ -423,8 +423,8 @@ export default function MobileProfilePage() {
                   <MobileLoadingSpinner message="Loading availability..." variant="default" size="sm" fullScreen={false} />
                 ) : !availability || !availability.availability || availability.availability.length === 0 ? (
                   <div className="text-center py-6">
-                    <Clock className="w-10 h-10 text-gray-300 mx-auto mb-2" />
-                    <p className="text-sm text-gray-500">No schedule set</p>
+                    <Clock className="w-10 h-10 text-border mx-auto mb-2" />
+                    <p className="text-sm text-ink-500">No schedule set</p>
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -438,12 +438,12 @@ export default function MobileProfilePage() {
                       return (
                         <div key={day} className="flex items-center justify-between py-2">
                           <div className="flex items-center gap-2">
-                            <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                            <span className="text-sm font-medium text-gray-700 w-20">{day.slice(0, 3)}</span>
+                            <div className="w-2 h-2 rounded-full bg-status-open"></div>
+                            <span className="text-sm font-medium text-ink-700 w-20">{day.slice(0, 3)}</span>
                           </div>
                           <div className="flex flex-wrap gap-1 justify-end">
                             {daySlots.map((slot, idx) => (
-                              <span key={idx} className="px-2 py-1 bg-purple-50 text-purple-700 rounded-lg text-xs font-medium">
+                              <span key={idx} className="px-2 py-1 bg-brand-violet-soft text-brand-violet rounded-lg text-xs font-medium">
                                 {formatTimeForDisplay(slot.startTime)}-{formatTimeForDisplay(slot.endTime)}
                               </span>
                             ))}
@@ -459,56 +459,56 @@ export default function MobileProfilePage() {
         )}
 
         {/* Settings Section */}
-        <div className="bg-white rounded-2xl overflow-hidden shadow-sm">
-          <div className="px-4 py-3 bg-gray-50 border-b border-gray-100">
-            <h3 className="text-sm font-bold text-gray-900">Support</h3>
+        <div className="bg-surface-paper rounded-2xl overflow-hidden shadow-sm">
+          <div className="px-4 py-3 bg-surface-canvas border-b border-border">
+            <h3 className="text-sm font-bold text-ink-900">Support</h3>
           </div>
           
-          {/* <button className="w-full flex items-center justify-between px-4 py-3.5 border-b border-gray-100 active:bg-gray-50 transition-colors">
+          {/* <button className="w-full flex items-center justify-between px-4 py-3.5 border-b border-border active:bg-surface-canvas transition-colors">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center">
-                <User size={18} className="text-gray-600" />
+              <div className="w-9 h-9 rounded-full bg-surface-canvas flex items-center justify-center">
+                <User size={18} className="text-ink-700" />
               </div>
-              <span className="text-sm font-medium text-gray-900">Edit Profile</span>
+              <span className="text-sm font-medium text-ink-900">Edit Profile</span>
             </div>
-            <ChevronRight size={18} className="text-gray-400" />
+            <ChevronRight size={18} className="text-ink-500" />
           </button> */}
 
           <button 
             onClick={() => router.push('/mobile/faq')}
-            className="w-full flex items-center justify-between px-4 py-3.5 border-b border-gray-100 active:bg-gray-50 transition-colors"
+            className="w-full flex items-center justify-between px-4 py-3.5 border-b border-border active:bg-surface-canvas transition-colors"
           >
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center">
-                <ShieldQuestion size={18} className="text-gray-600" />
+              <div className="w-9 h-9 rounded-full bg-surface-canvas flex items-center justify-center">
+                <ShieldQuestion size={18} className="text-ink-700" />
               </div>
-              <span className="text-sm font-medium text-gray-900">FAQ</span>
+              <span className="text-sm font-medium text-ink-900">FAQ</span>
             </div>
-            <ChevronRight size={18} className="text-gray-400" />
+            <ChevronRight size={18} className="text-ink-500" />
           </button>
 
-          <button className="w-full flex items-center justify-between px-4 py-3.5 active:bg-gray-50 transition-colors">
+          <button className="w-full flex items-center justify-between px-4 py-3.5 active:bg-surface-canvas transition-colors">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center">
-                <HelpCircle size={18} className="text-gray-600" />
+              <div className="w-9 h-9 rounded-full bg-surface-canvas flex items-center justify-center">
+                <HelpCircle size={18} className="text-ink-700" />
               </div>
-              <span className="text-sm font-medium text-gray-900">Help & Support</span>
+              <span className="text-sm font-medium text-ink-900">Help & Support</span>
             </div>
-            <ChevronRight size={18} className="text-gray-400" />
+            <ChevronRight size={18} className="text-ink-500" />
           </button>
         </div>
 
         {/* Logout Button - Zepto Style */}
         <button
           onClick={handleLogout}
-          className="w-full flex items-center justify-center gap-2 px-4 py-3.5 bg-white rounded-2xl shadow-sm active:bg-gray-50 transition-colors border border-red-100"
+          className="w-full flex items-center justify-center gap-2 px-4 py-3.5 bg-surface-paper rounded-2xl shadow-sm active:bg-surface-canvas transition-colors border border-status-danger/20"
         >
-          <LogOut size={18} className="text-red-600" />
-          <span className="text-sm font-semibold text-red-600">Sign Out</span>
+          <LogOut size={18} className="text-status-danger" />
+          <span className="text-sm font-semibold text-status-danger">Sign Out</span>
         </button>
 
         {/* Version */}
-        <p className="text-center text-xs text-gray-400 py-2">Version 1.0.0</p>
+        <p className="text-center text-xs text-ink-500 py-2">Version 1.0.0</p>
       </div>
       </>
       )}

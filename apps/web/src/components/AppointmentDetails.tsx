@@ -296,7 +296,7 @@ export default function AppointmentDetails({
   const actionConfig: Record<ActiveAction, ActionConfig> = {
     changeDoctor: {
       title: "Change Doctor",
-      icon: <Stethoscope className="w-5 h-5 text-blue-600" />,
+      icon: <Stethoscope className="w-5 h-5 text-brand-violet" />,
       description: "Assign a different doctor to this appointment",
       action: updateScope === "selected" ? updateSelectedAppointment : updateAllFutureAppointments,
       buttonText: updateScope === "selected" ? "Update Doctor" : "Update All Appointments",
@@ -305,7 +305,7 @@ export default function AppointmentDetails({
     },
     cancel: {
       title: "Cancel Appointment",
-      icon: <Ban className="w-5 h-5 text-red-600" />,
+      icon: <Ban className="w-5 h-5 text-status-danger" />,
       description: "Cancel this appointment",
       action: cancelAppointment,
       buttonText: "Cancel Appointment",
@@ -314,7 +314,7 @@ export default function AppointmentDetails({
     },
     reschedule: {
       title: "Reschedule Appointment",
-      icon: <CalendarPlus className="w-5 h-5 text-green-600" />,
+      icon: <CalendarPlus className="w-5 h-5 text-status-open" />,
       description: "Change the date and time of this appointment",
       action: rescheduleAppointment,
       buttonText: "Reschedule",
@@ -323,7 +323,7 @@ export default function AppointmentDetails({
     },
     reopen: {
       title: "Reopen Appointment",
-      icon: <RotateCcw className="w-5 h-5 text-orange-600" />,
+      icon: <RotateCcw className="w-5 h-5 text-status-warning" />,
       description: "Reopen this appointment and change status back to scheduled",
       action: reopenAppointment,
       buttonText: "Reopen Appointment",
@@ -332,7 +332,7 @@ export default function AppointmentDetails({
     },
     viewNotes: {
       title: "Session Notes",
-      icon: <FileText className="w-5 h-5 text-purple-600" />,
+      icon: <FileText className="w-5 h-5 text-brand-violet" />,
       description: "View and edit session notes for this completed appointment",
       action: updateSessionNotes,
       buttonText: "Update Notes",
@@ -356,15 +356,15 @@ export default function AppointmentDetails({
   const getStatusBadgeClass = (status: string) => {
     switch (status) {
       case "completed":
-        return "bg-green-100 text-green-800 border-green-200";
+        return "bg-status-open-soft text-status-open border-status-open/20";
       case "cancelled":
-        return "bg-red-100 text-red-800 border-red-200";
+        return "bg-status-danger-soft text-status-danger border-status-danger/20";
       case "no-show":
-        return "bg-gray-100 text-gray-800 border-gray-200";
+        return "bg-surface-canvas text-ink-900 border-border";
       case "scheduled":
-        return "bg-blue-100 text-blue-800 border-blue-200";
+        return "bg-brand-violet-soft text-brand-violet border-brand-violet/20";
       default:
-        return "bg-gray-100 text-gray-800 border-gray-200";
+        return "bg-surface-canvas text-ink-900 border-border";
     }
   };
 
@@ -378,27 +378,27 @@ export default function AppointmentDetails({
       onClick={() => setUpdateAppointmentsMode(false)}
     >
       <div 
-        className="bg-white rounded-t-2xl rounded-b-none sm:rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden animate-slide-up"
+        className="bg-surface-paper rounded-t-2xl rounded-b-none sm:rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden animate-slide-up"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex justify-between items-center p-4 border-b border-gray-200">
+        <div className="flex justify-between items-center p-4 border-b border-border">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              {currentAction?.icon || <Stethoscope className="w-5 h-5 text-blue-600" />}
+            <div className="p-2 bg-brand-violet-soft rounded-lg">
+              {currentAction?.icon || <Stethoscope className="w-5 h-5 text-brand-violet" />}
             </div>
             <div>
-              <h3 className="text-lg font-bold text-gray-800">
+              <h3 className="text-lg font-bold text-ink-900">
                 {currentAction?.title || "Appointment Details"}
               </h3>
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-ink-500">
                 For {selectedPatient?.name || "Patient"}
               </p>
             </div>
           </div>
           <button
             onClick={() => setUpdateAppointmentsMode(false)}
-            className="p-2 rounded-lg hover:bg-gray-100 text-gray-500"
+            className="p-2 rounded-lg hover:bg-surface-canvas text-ink-500"
           >
             <X className="w-5 h-5" />
           </button>
@@ -414,15 +414,15 @@ export default function AppointmentDetails({
 
           {/* Action Selection */}
           {availableActions.length > 1 && (
-            <div className="flex gap-2 mb-6 bg-gray-100 p-1 rounded-lg">
+            <div className="flex gap-2 mb-6 bg-surface-canvas p-1 rounded-lg">
               {availableActions.map((action) => (
                 <button
                   key={action}
                   onClick={() => setActiveAction(action)}
                   className={`flex-1 py-2 px-3 text-sm font-medium rounded-md transition-colors flex items-center justify-center gap-1 ${
                     activeAction === action
-                      ? "bg-white text-blue-600 shadow-sm"
-                      : "text-gray-500 hover:text-gray-700"
+                      ? "bg-surface-paper text-brand-violet shadow-sm"
+                      : "text-ink-500 hover:text-ink-700"
                   }`}
                 >
                   <span className="text-xs">{actionConfig[action]?.icon}</span>
@@ -434,11 +434,11 @@ export default function AppointmentDetails({
 
           {currentAction && (
             <>
-              <p className="text-sm text-gray-600 mb-4">{currentAction.description}</p>
+              <p className="text-sm text-ink-700 mb-4">{currentAction.description}</p>
 
               {/* Selected Appointment Preview */}
-              <div className="mb-6 p-4 bg-blue-50 rounded-xl border border-blue-200">
-                <h4 className="font-medium text-blue-800 mb-2 flex items-center gap-2">
+              <div className="mb-6 p-4 bg-brand-violet-soft rounded-xl border border-brand-violet/20">
+                <h4 className="font-medium text-brand-violet mb-2 flex items-center gap-2">
                   <Calendar className="w-4 h-4" />
                   Appointment Details
                 </h4>
@@ -453,18 +453,18 @@ export default function AppointmentDetails({
                           year: 'numeric'
                         })}
                       </p>
-                      <p className="text-sm text-blue-600">
+                      <p className="text-sm text-brand-violet">
                         {timeDisplay(selectedAppointment.time)}
                       </p>
                     </div>
                   </div>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-ink-500">
                     Doctor: {selectedAppointment.doctorName || "Not assigned"}
                   </p>
                   {selectedAppointment.status === "completed" && selectedAppointment.sessionNotes && (
-                    <div className="mt-2 p-2 bg-white rounded-lg">
-                      <p className="text-xs font-medium text-gray-700">Session Notes:</p>
-                      <p className="text-xs text-gray-600 mt-1">{selectedAppointment.sessionNotes}</p>
+                    <div className="mt-2 p-2 bg-surface-paper rounded-lg">
+                      <p className="text-xs font-medium text-ink-700">Session Notes:</p>
+                      <p className="text-xs text-ink-700 mt-1">{selectedAppointment.sessionNotes}</p>
                     </div>
                   )}
                 </div>
@@ -474,7 +474,7 @@ export default function AppointmentDetails({
               {activeAction === "changeDoctor" && (
                 <>
                   <div className="mb-6">
-                    <div className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-3">
+                    <div className="flex items-center gap-2 text-sm font-medium text-ink-700 mb-3">
                       <Stethoscope className="w-4 h-4" />
                       Select a new doctor
                     </div>
@@ -494,21 +494,21 @@ export default function AppointmentDetails({
                                 onClick={() => setSelectedDoctorForAppointments(doctor)}
                                 className={`flex-shrink-0 w-28 p-3 rounded-xl border transition-all cursor-pointer ${
                                   isSelected
-                                    ? "bg-blue-50 border-blue-400 shadow-sm ring-2 ring-blue-100"
-                                    : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                                    ? "bg-brand-violet-soft border-brand-violet shadow-sm ring-2 ring-brand-violet/20"
+                                    : "border-border hover:border-border hover:bg-surface-canvas"
                                 }`}
                               >
                                 <div className="flex flex-col items-center text-center">
                                   <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold mb-2 ${
-                                    isSelected ? "bg-blue-500 text-white" : "bg-blue-100 text-blue-600"
+                                    isSelected ? "bg-brand-violet text-white" : "bg-brand-violet-soft text-brand-violet"
                                   }`}>
                                     {getInitials(firstName)}
                                   </div>
-                                  <p className="text-xs font-medium text-gray-800 truncate w-full">
+                                  <p className="text-xs font-medium text-ink-900 truncate w-full">
                                     Dr. {doctor.name}
                                   </p>
                                   {isSelected && (
-                                    <CheckCircle className="w-3 h-3 text-blue-500 mt-1" />
+                                    <CheckCircle className="w-3 h-3 text-brand-violet mt-1" />
                                   )}
                                 </div>
                               </div>
@@ -529,25 +529,25 @@ export default function AppointmentDetails({
                               onClick={() => setSelectedDoctorForAppointments(doctor)}
                               className={`flex flex-col items-center p-3 rounded-xl border transition-all cursor-pointer ${
                                 isSelected
-                                  ? "bg-blue-50 border-blue-400 shadow-sm ring-2 ring-blue-100"
-                                  : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                                  ? "bg-brand-violet-soft border-brand-violet shadow-sm ring-2 ring-brand-violet/20"
+                                  : "border-border hover:border-border hover:bg-surface-canvas"
                               }`}
                             >
                               <div className={`w-12 h-12 rounded-full flex items-center justify-center text-sm font-bold mb-2 ${
-                                isSelected ? "bg-blue-500 text-white" : "bg-blue-100 text-blue-600"
+                                isSelected ? "bg-brand-violet text-white" : "bg-brand-violet-soft text-brand-violet"
                               }`}>
                                 {getInitials(firstName)}
                               </div>
-                              <p className="text-sm font-medium text-gray-800 text-center truncate w-full">
+                              <p className="text-sm font-medium text-ink-900 text-center truncate w-full">
                                 Dr. {firstName}
                               </p>
                               {doctor.specialization && (
-                                <p className="text-xs text-gray-500 text-center mt-1 truncate w-full">
+                                <p className="text-xs text-ink-500 text-center mt-1 truncate w-full">
                                   {doctor.specialization}
                                 </p>
                               )}
                               {isSelected && (
-                                <CheckCircle className="w-4 h-4 text-blue-500 mt-2" />
+                                <CheckCircle className="w-4 h-4 text-brand-violet mt-2" />
                               )}
                             </div>
                           );
@@ -557,30 +557,30 @@ export default function AppointmentDetails({
                     
                     {/* No doctors available state */}
                     {updatedDoctors.length === 0 && (
-                      <div className="text-center py-8 bg-gray-50 rounded-xl border border-gray-200">
-                        <Stethoscope className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                        <p className="text-sm text-gray-600">No other doctors available</p>
+                      <div className="text-center py-8 bg-surface-canvas rounded-xl border border-border">
+                        <Stethoscope className="w-8 h-8 text-ink-500 mx-auto mb-2" />
+                        <p className="text-sm text-ink-700">No other doctors available</p>
                       </div>
                     )}
                     
                     {/* Selected doctor info */}
                     {selectedDoctorForAppointments && (
-                      <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                      <div className="mt-4 p-3 bg-brand-violet-soft rounded-lg border border-brand-violet/20">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold">
+                          <div className="w-8 h-8 rounded-full bg-brand-violet flex items-center justify-center text-white text-xs font-bold">
                             {getInitials(selectedDoctorForAppointments.name)}
                           </div>
                           <div className="flex-1">
-                            <p className="text-sm font-medium text-blue-800">
+                            <p className="text-sm font-medium text-brand-violet">
                               Dr. {selectedDoctorForAppointments.name}
                             </p>
                             {selectedDoctorForAppointments.specialization && (
-                              <p className="text-xs text-blue-600">
+                              <p className="text-xs text-brand-violet">
                                 {selectedDoctorForAppointments.specialization}
                               </p>
                             )}
                           </div>
-                          <CheckCircle className="w-5 h-5 text-blue-500" />
+                          <CheckCircle className="w-5 h-5 text-brand-violet" />
                         </div>
                       </div>
                     )}
@@ -589,7 +589,7 @@ export default function AppointmentDetails({
                   {/* Update Scope Selection (only for changeDoctor action) */}
                   {selectedApp.status === "scheduled" && (
                     <div className="mb-6">
-                      <div className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-3">
+                      <div className="flex items-center gap-2 text-sm font-medium text-ink-700 mb-3">
                         <User className="w-4 h-4" />
                         Update scope
                       </div>
@@ -600,15 +600,15 @@ export default function AppointmentDetails({
                           onClick={() => setUpdateScope("selected")}
                           className={`p-4 rounded-xl border cursor-pointer transition-colors ${
                             updateScope === "selected"
-                              ? "bg-blue-50 border-blue-400 ring-2 ring-blue-100"
-                              : "border-gray-200 hover:bg-gray-50"
+                              ? "bg-brand-violet-soft border-brand-violet ring-2 ring-brand-violet/20"
+                              : "border-border hover:bg-surface-canvas"
                           }`}
                         >
                           <div className="flex items-start gap-3">
                             <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5 ${
                               updateScope === "selected" 
-                                ? "bg-blue-600 border-blue-600" 
-                                : "border-gray-300"
+                                ? "bg-brand-violet border-brand-violet" 
+                                : "border-border"
                             }`}>
                               {updateScope === "selected" && (
                                 <CheckCircle className="w-3 h-3 text-white" />
@@ -616,7 +616,7 @@ export default function AppointmentDetails({
                             </div>
                             <div className="flex-1 min-w-0">
                               <span className="font-medium text-sm block">This appointment only</span>
-                              <p className="text-xs text-gray-500 mt-1">
+                              <p className="text-xs text-ink-500 mt-1">
                                 Change doctor for just this appointment
                               </p>
                             </div>
@@ -627,15 +627,15 @@ export default function AppointmentDetails({
                           onClick={() => setUpdateScope("all")}
                           className={`p-4 rounded-xl border cursor-pointer transition-colors ${
                             updateScope === "all"
-                              ? "bg-blue-50 border-blue-400 ring-2 ring-blue-100"
-                              : "border-gray-200 hover:bg-gray-50"
+                              ? "bg-brand-violet-soft border-brand-violet ring-2 ring-brand-violet/20"
+                              : "border-border hover:bg-surface-canvas"
                           }`}
                         >
                           <div className="flex items-start gap-3">
                             <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5 ${
                               updateScope === "all" 
-                                ? "bg-blue-600 border-blue-600" 
-                                : "border-gray-300"
+                                ? "bg-brand-violet border-brand-violet" 
+                                : "border-border"
                             }`}>
                               {updateScope === "all" && (
                                 <CheckCircle className="w-3 h-3 text-white" />
@@ -643,7 +643,7 @@ export default function AppointmentDetails({
                             </div>
                             <div className="flex-1 min-w-0">
                               <span className="font-medium text-sm block">All future appointments</span>
-                              <p className="text-xs text-gray-500 mt-1">
+                              <p className="text-xs text-ink-500 mt-1">
                                 Change doctor for all future appointments
                               </p>
                             </div>
@@ -657,15 +657,15 @@ export default function AppointmentDetails({
                           onClick={() => setUpdateScope("selected")}
                           className={`p-4 rounded-xl border cursor-pointer transition-colors ${
                             updateScope === "selected"
-                              ? "bg-blue-50 border-blue-400 ring-2 ring-blue-100"
-                              : "border-gray-200 hover:bg-gray-50"
+                              ? "bg-brand-violet-soft border-brand-violet ring-2 ring-brand-violet/20"
+                              : "border-border hover:bg-surface-canvas"
                           }`}
                         >
                           <div className="flex items-center gap-3 mb-2">
                             <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
                               updateScope === "selected" 
-                                ? "bg-blue-600 border-blue-600" 
-                                : "border-gray-300"
+                                ? "bg-brand-violet border-brand-violet" 
+                                : "border-border"
                             }`}>
                               {updateScope === "selected" && (
                                 <CheckCircle className="w-3 h-3 text-white" />
@@ -673,7 +673,7 @@ export default function AppointmentDetails({
                             </div>
                             <span className="font-medium text-sm">This appointment only</span>
                           </div>
-                          <p className="text-xs text-gray-500 ml-8">
+                          <p className="text-xs text-ink-500 ml-8">
                             Change doctor for just this appointment
                           </p>
                         </div>
@@ -682,15 +682,15 @@ export default function AppointmentDetails({
                           onClick={() => setUpdateScope("all")}
                           className={`p-4 rounded-xl border cursor-pointer transition-colors ${
                             updateScope === "all"
-                              ? "bg-blue-50 border-blue-400 ring-2 ring-blue-100"
-                              : "border-gray-200 hover:bg-gray-50"
+                              ? "bg-brand-violet-soft border-brand-violet ring-2 ring-brand-violet/20"
+                              : "border-border hover:bg-surface-canvas"
                           }`}
                         >
                           <div className="flex items-center gap-3 mb-2">
                             <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
                               updateScope === "all" 
-                                ? "bg-blue-600 border-blue-600" 
-                                : "border-gray-300"
+                                ? "bg-brand-violet border-brand-violet" 
+                                : "border-border"
                             }`}>
                               {updateScope === "all" && (
                                 <CheckCircle className="w-3 h-3 text-white" />
@@ -698,7 +698,7 @@ export default function AppointmentDetails({
                             </div>
                             <span className="font-medium text-sm">All future appointments</span>
                           </div>
-                          <p className="text-xs text-gray-500 ml-8">
+                          <p className="text-xs text-ink-500 ml-8">
                             Change doctor for all future appointments
                           </p>
                         </div>
@@ -709,7 +709,7 @@ export default function AppointmentDetails({
                   {/* Future Appointments List (for reference) */}
                   {updateScope === "all" && selectedApp.status === "scheduled" && (
                     <div className="mb-4">
-                      <div className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-3">
+                      <div className="flex items-center gap-2 text-sm font-medium text-ink-700 mb-3">
                         <Calendar className="w-4 h-4" />
                         Future appointments that will be updated ({patientAppointments.length})
                       </div>
@@ -717,15 +717,15 @@ export default function AppointmentDetails({
                         {patientAppointments.map((appt) => (
                           <div
                             key={appt.id}
-                            className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 bg-white"
+                            className="flex items-center gap-3 p-3 rounded-lg border border-border bg-surface-paper"
                           >
-                            <Clock className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                            <Clock className="w-4 h-4 text-ink-500 flex-shrink-0" />
                             <div className="flex-1 min-w-0">
                               <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
-                                <span className="text-sm font-medium text-gray-800">
+                                <span className="text-sm font-medium text-ink-900">
                                   {timeDisplay(appt.time)}
                                 </span>
-                                <span className="text-xs text-gray-500">
+                                <span className="text-xs text-ink-500">
                                   {new Date(appt.date).toLocaleDateString([], {
                                     weekday: "short",
                                     month: "short",
@@ -734,7 +734,7 @@ export default function AppointmentDetails({
                                 </span>
                               </div>
                               {appt.doctorName && (
-                                <p className="text-xs text-gray-500 mt-1">
+                                <p className="text-xs text-ink-500 mt-1">
                                   With: {appt.doctorName}
                                 </p>
                               )}
@@ -749,15 +749,15 @@ export default function AppointmentDetails({
 
               {/* Reschedule Form (only for reschedule action) */}
               {activeAction === "reschedule" && (
-                <div className="mb-6 p-4 bg-green-50 rounded-xl border border-green-200">
-                  <h4 className="font-medium text-green-800 mb-3 flex items-center gap-2">
+                <div className="mb-6 p-4 bg-status-open-soft rounded-xl border border-status-open/20">
+                  <h4 className="font-medium text-status-open mb-3 flex items-center gap-2">
                     <CalendarPlus className="w-4 h-4" />
                     Select new date and time
                   </h4>
                   
                   <div className="grid grid-cols-1 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label className="block text-sm font-medium text-ink-700 mb-1">
                         Date
                       </label>
                       <input
@@ -765,22 +765,22 @@ export default function AppointmentDetails({
                         value={rescheduleDate}
                         onChange={(e) => setRescheduleDate(e.target.value)}
                         min={new Date().toISOString().split('T')[0]}
-                        className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                        className="w-full p-2 border border-border rounded-lg focus:ring-2 focus:ring-status-open focus:border-status-open"
                       />
                     </div>
                     
                     {rescheduleDate && (
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                        <label className="block text-sm font-medium text-ink-700 mb-1">
                           Available Time Slots
                         </label>
                         {slotsLoading ? (
-                          <div className="p-4 text-center text-gray-500 flex items-center justify-center gap-2">
+                          <div className="p-4 text-center text-ink-500 flex items-center justify-center gap-2">
                             <Loader2 className="w-4 h-4 animate-spin" />
                             Loading available slots...
                           </div>
                         ) : slotsError ? (
-                          <div className="p-3 bg-red-50 rounded-lg text-red-600 text-sm">
+                          <div className="p-3 bg-status-danger-soft rounded-lg text-status-danger text-sm">
                             Error loading slots: {slotsErrorData?.message}
                           </div>
                         ) : availableSlots.length > 0 ? (
@@ -792,8 +792,8 @@ export default function AppointmentDetails({
                                 onClick={() => setRescheduleTime(slot)}
                                 className={`p-2 text-sm rounded-lg border transition-all ${
                                   rescheduleTime === slot
-                                    ? "bg-green-500 text-white border-green-600 shadow-sm"
-                                    : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                                    ? "bg-status-open text-white border-status-open-hover shadow-sm"
+                                    : "bg-surface-paper text-ink-700 border-border hover:bg-surface-canvas"
                                 }`}
                               >
                                 {timeDisplay(slot)}
@@ -801,10 +801,10 @@ export default function AppointmentDetails({
                             ))}
                           </div>
                         ) : (
-                          <div className="p-3 bg-gray-100 rounded-lg text-gray-500 text-sm">
+                          <div className="p-3 bg-surface-canvas rounded-lg text-ink-500 text-sm">
                             <p>No available slots for this date.</p>
                             {nextAvailableSlot && !nextAvailableLoading && (
-                              <p className="mt-2 text-green-600 font-medium">
+                              <p className="mt-2 text-status-open font-medium">
                                 Next available: {new Date(nextAvailableSlot.date).toLocaleDateString()} at {timeDisplay(nextAvailableSlot.time)}
                               </p>
                             )}
@@ -815,8 +815,8 @@ export default function AppointmentDetails({
                   </div>
                   
                   {rescheduleDate && rescheduleTime && (
-                    <div className="mt-4 p-3 bg-white rounded-lg border border-green-200">
-                      <p className="text-sm font-medium text-green-800">
+                    <div className="mt-4 p-3 bg-surface-paper rounded-lg border border-status-open/20">
+                      <p className="text-sm font-medium text-status-open">
                         New appointment time:
                       </p>
                       <p className="text-sm">
@@ -836,8 +836,8 @@ export default function AppointmentDetails({
 
               {/* Session Notes Editor (only for viewNotes action) */}
               {activeAction === "viewNotes" && (
-                <div className="mb-6 p-4 bg-purple-50 rounded-xl border border-purple-200">
-                  <h4 className="font-medium text-purple-800 mb-3 flex items-center gap-2">
+                <div className="mb-6 p-4 bg-brand-violet-soft rounded-xl border border-brand-violet/20">
+                  <h4 className="font-medium text-brand-violet mb-3 flex items-center gap-2">
                     <FileText className="w-4 h-4" />
                     Session Notes
                   </h4>
@@ -847,10 +847,10 @@ export default function AppointmentDetails({
                     onChange={(e) => setSessionNotes(e.target.value)}
                     placeholder="Enter session notes here..."
                     rows={4}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-none"
+                    className="w-full p-3 border border-border rounded-lg focus:ring-2 focus:ring-brand-violet focus:border-brand-violet resize-none"
                   />
                   
-                  <p className="text-xs text-gray-500 mt-2">
+                  <p className="text-xs text-ink-500 mt-2">
                     These notes will be visible to the patient and other healthcare providers.
                   </p>
                 </div>
@@ -858,12 +858,12 @@ export default function AppointmentDetails({
 
               {/* Cancel Warning (only for cancel action) */}
               {activeAction === "cancel" && (
-                <div className="mb-6 p-4 bg-red-50 rounded-xl border border-red-200">
-                  <h4 className="font-medium text-red-800 mb-2 flex items-center gap-2">
+                <div className="mb-6 p-4 bg-status-danger-soft rounded-xl border border-status-danger/20">
+                  <h4 className="font-medium text-status-danger mb-2 flex items-center gap-2">
                     <Ban className="w-4 h-4" />
                     Confirm Cancellation
                   </h4>
-                  <p className="text-sm text-red-700">
+                  <p className="text-sm text-status-danger">
                     Are you sure you want to cancel this appointment? This action cannot be undone.
                   </p>
                 </div>
@@ -871,12 +871,12 @@ export default function AppointmentDetails({
 
               {/* Reopen Warning (only for reopen action) */}
               {activeAction === "reopen" && (
-                <div className="mb-6 p-4 bg-orange-50 rounded-xl border border-orange-200">
-                  <h4 className="font-medium text-orange-800 mb-2 flex items-center gap-2">
+                <div className="mb-6 p-4 bg-status-warning-soft rounded-xl border border-status-warning/20">
+                  <h4 className="font-medium text-status-warning mb-2 flex items-center gap-2">
                     <Undo className="w-4 h-4" />
                     Confirm Reopening
                   </h4>
-                  <p className="text-sm text-orange-700">
+                  <p className="text-sm text-status-warning">
                     Are you sure you want to reopen this appointment? The status will be changed back to scheduled.
                   </p>
                 </div>
@@ -886,10 +886,10 @@ export default function AppointmentDetails({
         </div>
 
         {/* Footer with action buttons */}
-        <div className="flex justify-between p-4 border-t border-gray-200 bg-gray-50 rounded-b-xl">
+        <div className="flex justify-between p-4 border-t border-border bg-surface-canvas rounded-b-xl">
           <button
             onClick={() => setUpdateAppointmentsMode(false)}
-            className="px-4 py-2 rounded-lg border border-gray-300 hover:bg-gray-100 text-gray-700"
+            className="px-4 py-2 rounded-lg border border-border hover:bg-surface-canvas text-ink-700"
           >
             Cancel
           </button>
@@ -900,14 +900,14 @@ export default function AppointmentDetails({
               disabled={!currentAction.enabled}
               className={`px-6 py-2 rounded-lg text-white flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${
                 activeAction === "changeDoctor" 
-                  ? "bg-blue-600 hover:bg-blue-700" 
+                  ? "bg-brand-violet hover:bg-brand-violet-hover" 
                   : activeAction === "cancel"
-                  ? "bg-red-600 hover:bg-red-700"
+                  ? "bg-status-danger hover:bg-status-danger-hover"
                   : activeAction === "reschedule"
-                  ? "bg-green-600 hover:bg-green-700"
+                  ? "bg-brand-violet hover:bg-brand-violet-hover"
                   : activeAction === "reopen"
-                  ? "bg-orange-600 hover:bg-orange-700"
-                  : "bg-purple-600 hover:bg-purple-700"
+                  ? "bg-status-warning hover:bg-status-warning-hover"
+                  : "bg-brand-violet hover:bg-brand-violet-hover"
               }`}
             >
               <CheckCircle className="w-4 h-4" />

@@ -159,9 +159,9 @@ export default function MobileFAQPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
+    <div className="min-h-screen bg-surface-canvas pb-20">
       {/* Header */}
-      <div className="bg-gradient-to-r from-purple-600 to-purple-700 px-4 pt-6 pb-8 sticky top-0 z-10 shadow-lg">
+      <div className="bg-gradient-to-r from-brand-violet to-brand-violet px-4 pt-6 pb-8 sticky top-0 z-10 shadow-lg">
         <div className="flex items-center gap-3 mb-4">
           <button
             onClick={() => router.back()}
@@ -172,19 +172,19 @@ export default function MobileFAQPage() {
           </button>
           <div>
             <h1 className="text-xl font-bold text-white">FAQ</h1>
-            <p className="text-purple-100 text-xs">Find answers to common questions</p>
+            <p className="text-brand-violet-soft text-xs">Find answers to common questions</p>
           </div>
         </div>
 
         {/* Search Bar */}
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-ink-500" size={18} />
           <input
             type="text"
             placeholder="Search..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 border-0 rounded-xl focus:ring-2 focus:ring-purple-300 outline-none text-sm"
+            className="w-full pl-10 pr-4 py-2.5 border-0 rounded-xl focus:ring-2 focus:ring-brand-violet outline-none text-sm"
           />
         </div>
       </div>
@@ -198,8 +198,8 @@ export default function MobileFAQPage() {
               onClick={() => setSelectedCategory(category)}
               className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all ${
                 selectedCategory === category
-                  ? 'bg-purple-600 text-white shadow-md'
-                  : 'bg-white text-gray-700 border border-gray-200'
+                  ? 'bg-brand-violet text-white shadow-md'
+                  : 'bg-surface-paper text-ink-700 border border-border'
               }`}
             >
               {category}
@@ -210,46 +210,46 @@ export default function MobileFAQPage() {
         {/* FAQ List */}
         {filteredFAQs.length === 0 ? (
           <div className="text-center py-12">
-            <HelpCircle className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-            <h3 className="text-base font-semibold text-gray-900 mb-1">No results found</h3>
-            <p className="text-sm text-gray-600">Try adjusting your search or filter</p>
+            <HelpCircle className="w-12 h-12 text-ink-500 mx-auto mb-3" />
+            <h3 className="text-base font-semibold text-ink-900 mb-1">No results found</h3>
+            <p className="text-sm text-ink-700">Try adjusting your search or filter</p>
           </div>
         ) : (
           <div className="space-y-3">
             {filteredFAQs.map((faq, index) => (
               <div
                 key={index}
-                className="bg-white rounded-2xl shadow-sm overflow-hidden"
+                className="bg-surface-paper rounded-2xl shadow-sm overflow-hidden"
               >
                 <button
                   onClick={() => toggleExpand(index)}
-                  className="w-full px-4 py-3 flex items-start justify-between gap-3 text-left active:bg-gray-50 transition-colors"
+                  className="w-full px-4 py-3 flex items-start justify-between gap-3 text-left active:bg-surface-canvas transition-colors"
                 >
                   <div className="flex items-start gap-2.5 flex-1">
-                    <div className="mt-0.5 text-purple-600">
+                    <div className="mt-0.5 text-brand-violet">
                       {getCategoryIcon(faq.category)}
                     </div>
                     <div className="flex-1">
-                      <span className="text-xs font-semibold text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full inline-block mb-1.5">
+                      <span className="text-xs font-semibold text-brand-violet bg-brand-violet-soft px-2 py-0.5 rounded-full inline-block mb-1.5">
                         {faq.category}
                       </span>
-                      <h3 className="text-sm font-semibold text-gray-900 leading-snug">
+                      <h3 className="text-sm font-semibold text-ink-900 leading-snug">
                         {faq.question}
                       </h3>
                     </div>
                   </div>
                   <div className="flex-shrink-0 mt-1">
                     {expandedIndex === index ? (
-                      <ChevronUp className="w-4 h-4 text-gray-400" />
+                      <ChevronUp className="w-4 h-4 text-ink-500" />
                     ) : (
-                      <ChevronDown className="w-4 h-4 text-gray-400" />
+                      <ChevronDown className="w-4 h-4 text-ink-500" />
                     )}
                   </div>
                 </button>
-                
+
                 {expandedIndex === index && (
                   <div className="px-4 pb-4">
-                    <div className="pl-6 text-sm text-gray-700 leading-relaxed">
+                    <div className="pl-6 text-sm text-ink-700 leading-relaxed">
                       {faq.answer}
                     </div>
                   </div>
@@ -260,17 +260,17 @@ export default function MobileFAQPage() {
         )}
 
         {/* Contact Support */}
-        <div className="mt-8 bg-gradient-to-r from-purple-600 to-purple-700 rounded-2xl p-6 text-center text-white shadow-lg">
+        <div className="mt-8 bg-gradient-to-r from-brand-violet to-brand-violet rounded-2xl p-6 text-center text-white shadow-lg">
           <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center mx-auto mb-3">
             <HelpCircle className="w-6 h-6" />
           </div>
           <h2 className="text-lg font-bold mb-2">Still have questions?</h2>
-          <p className="text-purple-100 text-sm mb-4">
+          <p className="text-brand-violet-soft text-sm mb-4">
             Can't find the answer you're looking for?
           </p>
           <button
             onClick={() => {/* Add contact support logic */}}
-            className="px-5 py-2.5 bg-white text-purple-600 font-semibold rounded-xl hover:bg-purple-50 transition-colors shadow-md text-sm active:scale-95"
+            className="px-5 py-2.5 bg-surface-paper text-brand-violet font-semibold rounded-xl hover:bg-brand-violet-soft transition-colors shadow-md text-sm active:scale-95"
           >
             Contact Support
           </button>

@@ -158,27 +158,27 @@ export default function MobileProfileEditPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-surface-canvas">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-4 py-3 sticky top-0 z-10">
+      <div className="bg-surface-paper border-b border-border px-4 py-3 sticky top-0 z-10">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
               onClick={() => router.push(`/mobile/hospital/${hospitalId}/profile`)}
-              className="p-2 -ml-2 hover:bg-gray-100 rounded-lg transition-colors active:scale-95"
+              className="p-2 -ml-2 hover:bg-surface-canvas rounded-lg transition-colors active:scale-95"
               aria-label="Go back"
             >
-              <ArrowLeft size={20} className="text-gray-700" />
+              <ArrowLeft size={20} className="text-ink-700" />
             </button>
             <div>
-              <h1 className="text-lg font-bold text-gray-900">Edit Profile</h1>
-              <p className="text-xs text-gray-500">Update your information</p>
+              <h1 className="text-lg font-bold text-ink-900">Edit Profile</h1>
+              <p className="text-xs text-ink-500">Update your information</p>
             </div>
           </div>
           <button
             onClick={handleSave}
             disabled={saving || loading}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold text-sm hover:bg-blue-700 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 px-4 py-2 bg-brand-violet text-white rounded-lg font-semibold text-sm hover:bg-brand-violet-hover active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {saving ? (
               <>
@@ -202,59 +202,59 @@ export default function MobileProfileEditPage() {
         /* Form Content */
         <div className="px-4 py-4 space-y-4">
           {/* Basic Information */}
-          <div className="bg-white rounded-2xl overflow-hidden shadow-sm">
-            <div className="px-4 py-3 bg-gray-50 border-b border-gray-100">
-              <h3 className="text-sm font-bold text-gray-900">Basic Information</h3>
+          <div className="bg-surface-paper rounded-2xl overflow-hidden shadow-sm">
+            <div className="px-4 py-3 bg-surface-canvas border-b border-border">
+              <h3 className="text-sm font-bold text-ink-900">Basic Information</h3>
             </div>
             
             <div className="p-4 space-y-4">
               {/* Name */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                <label className="block text-sm font-semibold text-ink-700 mb-2">
                   Full Name *
                 </label>
                 <div className="relative">
-                  <User size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <User size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-500" />
                   <input
                     type="text"
                     value={formData.name}
                     onChange={(e) => handleInputChange('name', e.target.value)}
                     placeholder="John Doe"
-                    className="w-full pl-10 pr-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full pl-10 pr-3 py-2.5 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-violet focus:border-transparent"
                   />
                 </div>
               </div>
 
               {/* Email (Read-only) */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                <label className="block text-sm font-semibold text-ink-700 mb-2">
                   Email Address
                 </label>
                 <div className="relative">
-                  <Mail size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <Mail size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-500" />
                   <input
                     type="email"
                     value={formData.email}
                     disabled
-                    className="w-full pl-10 pr-3 py-2.5 border border-gray-200 rounded-lg text-sm bg-gray-50 text-gray-500 cursor-not-allowed"
+                    className="w-full pl-10 pr-3 py-2.5 border border-border rounded-lg text-sm bg-surface-canvas text-ink-500 cursor-not-allowed"
                   />
                 </div>
-                <p className="mt-1 text-xs text-gray-500">Email cannot be changed</p>
+                <p className="mt-1 text-xs text-ink-500">Email cannot be changed</p>
               </div>
 
               {/* Phone */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                <label className="block text-sm font-semibold text-ink-700 mb-2">
                   Phone Number *
                 </label>
                 <div className="relative">
-                  <Phone size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <Phone size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-500" />
                   <input
                     type="tel"
                     value={formData.phone}
                     onChange={(e) => handleInputChange('phone', e.target.value)}
                     placeholder="+1 (555) 000-0000"
-                    className="w-full pl-10 pr-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full pl-10 pr-3 py-2.5 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-violet focus:border-transparent"
                   />
                 </div>
               </div>
@@ -263,49 +263,49 @@ export default function MobileProfileEditPage() {
 
           {/* Professional Information (Doctors Only) */}
           {isDoctor && (
-            <div className="bg-white rounded-2xl overflow-hidden shadow-sm">
-              <div className="px-4 py-3 bg-gray-50 border-b border-gray-100">
-                <h3 className="text-sm font-bold text-gray-900">Professional Information</h3>
+            <div className="bg-surface-paper rounded-2xl overflow-hidden shadow-sm">
+              <div className="px-4 py-3 bg-surface-canvas border-b border-border">
+                <h3 className="text-sm font-bold text-ink-900">Professional Information</h3>
               </div>
               
               <div className="p-4 space-y-4">
                 {/* Specialization */}
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <label className="block text-sm font-semibold text-ink-700 mb-2">
                     Specialization *
                   </label>
                   <div className="relative">
-                    <Briefcase size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <Briefcase size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-500" />
                     <input
                       type="text"
                       value={formData.specialization}
                       onChange={(e) => handleInputChange('specialization', e.target.value)}
                       placeholder="Cardiology"
-                      className="w-full pl-10 pr-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full pl-10 pr-3 py-2.5 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-violet focus:border-transparent"
                     />
                   </div>
                 </div>
 
                 {/* Qualification */}
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <label className="block text-sm font-semibold text-ink-700 mb-2">
                     Qualification *
                   </label>
                   <div className="relative">
-                    <FileText size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <FileText size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-500" />
                     <input
                       type="text"
                       value={formData.qualification}
                       onChange={(e) => handleInputChange('qualification', e.target.value)}
                       placeholder="MBBS, MD"
-                      className="w-full pl-10 pr-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full pl-10 pr-3 py-2.5 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-violet focus:border-transparent"
                     />
                   </div>
                 </div>
 
                 {/* Experience */}
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <label className="block text-sm font-semibold text-ink-700 mb-2">
                     Experience
                   </label>
                   <input
@@ -313,13 +313,13 @@ export default function MobileProfileEditPage() {
                     value={formData.experience}
                     onChange={(e) => handleInputChange('experience', e.target.value)}
                     placeholder="10 years"
-                    className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2.5 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-violet focus:border-transparent"
                   />
                 </div>
 
                 {/* Bio */}
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <label className="block text-sm font-semibold text-ink-700 mb-2">
                     Bio
                   </label>
                   <textarea
@@ -327,7 +327,7 @@ export default function MobileProfileEditPage() {
                     onChange={(e) => handleInputChange('bio', e.target.value)}
                     placeholder="Brief description about yourself..."
                     rows={4}
-                    className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                    className="w-full px-3 py-2.5 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-violet focus:border-transparent resize-none"
                   />
                 </div>
               </div>
@@ -339,7 +339,7 @@ export default function MobileProfileEditPage() {
             <button
               onClick={handleSave}
               disabled={saving}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3.5 bg-blue-600 text-white rounded-xl font-semibold text-sm hover:bg-blue-700 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+              className="w-full flex items-center justify-center gap-2 px-4 py-3.5 bg-brand-violet text-white rounded-xl font-semibold text-sm hover:bg-brand-violet-hover active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
             >
               {saving ? (
                 <>

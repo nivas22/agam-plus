@@ -121,13 +121,13 @@ export default function ProfileProfessional() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+      <div className="flex items-center justify-center min-h-screen bg-surface-canvas">
         <div className="text-center">
           <div className="relative w-16 h-16 mx-auto mb-4">
-            <div className="absolute inset-0 border-4 border-blue-100 rounded-full"></div>
-            <div className="absolute inset-0 border-4 border-t-blue-600 rounded-full animate-spin"></div>
+            <div className="absolute inset-0 border-4 border-brand-violet-soft rounded-full"></div>
+            <div className="absolute inset-0 border-4 border-t-brand-violet rounded-full animate-spin"></div>
           </div>
-          <p className="text-gray-600 font-medium">Loading profile...</p>
+          <p className="text-ink-700 font-medium">Loading profile...</p>
         </div>
       </div>
     );
@@ -135,30 +135,30 @@ export default function ProfileProfessional() {
 
   if (!profileData) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
-        <div className="text-center bg-white rounded-lg shadow-sm p-8 max-w-md border border-gray-200">
-          <div className="w-12 h-12 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
-            <X className="text-red-500" size={24} />
+      <div className="flex items-center justify-center min-h-screen bg-surface-canvas">
+        <div className="text-center bg-surface-paper rounded-lg shadow-sm p-8 max-w-md border border-border">
+          <div className="w-12 h-12 bg-status-danger-soft rounded-full flex items-center justify-center mx-auto mb-4">
+            <X className="text-status-danger" size={24} />
           </div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">Failed to Load Profile</h3>
-          <p className="text-sm text-gray-500">Please try refreshing the page</p>
+          <h3 className="text-lg font-semibold text-ink-900 mb-2">Failed to Load Profile</h3>
+          <p className="text-sm text-ink-500">Please try refreshing the page</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 overflow-x-hidden">
+    <div className="min-h-screen bg-surface-canvas overflow-x-hidden">
       <div className="max-w-7xl mx-auto">
         {/* Professional Header Bar */}
-        <div className="bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-8 py-4">
+        <div className="bg-surface-paper border-b border-border px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Profile</h1>
-              <p className="text-sm text-gray-500 mt-0.5">Manage your professional information</p>
+              <h1 className="text-xl sm:text-2xl font-bold text-ink-900">Profile</h1>
+              <p className="text-sm text-ink-500 mt-0.5">Manage your professional information</p>
             </div>
             <div className="flex items-center gap-2">
-              <span className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 bg-green-50 text-green-700 text-xs font-semibold rounded-full border border-green-200">
+              <span className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 bg-status-open-soft text-status-open text-xs font-semibold rounded-full border border-status-open/20">
                 <CheckCircle2 size={14} />
                 Verified
               </span>
@@ -170,9 +170,9 @@ export default function ProfileProfessional() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Left Sidebar - Profile Card */}
             <div className="lg:col-span-1">
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden sticky top-6">
+              <div className="bg-surface-paper rounded-xl shadow-sm border border-border overflow-hidden sticky top-6">
                 {/* Profile Header with Gradient */}
-                <div className="relative h-24 sm:h-32 bg-gradient-to-br from-blue-600 to-indigo-600">
+                <div className="relative h-24 sm:h-32 bg-brand-violet">
                   <div className="absolute inset-0 bg-black/10"></div>
                 </div>
                 
@@ -180,7 +180,7 @@ export default function ProfileProfessional() {
                 <div className="relative px-6 pb-6">
                   <div className="flex flex-col items-center -mt-16 sm:-mt-20">
                     <div className="relative">
-                      <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-2xl bg-white border-4 border-white shadow-xl flex items-center justify-center text-4xl sm:text-5xl font-bold text-gray-700 overflow-hidden">
+                      <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-2xl bg-surface-paper border-4 border-white shadow-xl flex items-center justify-center text-4xl sm:text-5xl font-bold text-ink-700 overflow-hidden">
                         {profileData.profileImage ? (
                           <Image 
                             src={profileData.profileImage} 
@@ -194,56 +194,56 @@ export default function ProfileProfessional() {
                           <span>{profileData.name.charAt(0).toUpperCase()}</span>
                         )}
                       </div>
-                      <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-green-500 rounded-full border-4 border-white shadow-lg flex items-center justify-center">
+                      <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-status-open rounded-full border-4 border-white shadow-lg flex items-center justify-center">
                         <Check size={14} className="text-white" />
                       </div>
                     </div>
-                    
-                    <h2 className="mt-4 text-xl sm:text-2xl font-bold text-gray-900 text-center">{profileData.name}</h2>
-                    
+
+                    <h2 className="mt-4 text-xl sm:text-2xl font-bold text-ink-900 text-center">{profileData.name}</h2>
+
                     <div className="mt-2 flex items-center gap-2">
                       {isDoctor ? (
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 text-blue-700 text-xs font-semibold rounded-full border border-blue-200">
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-brand-violet-soft text-brand-violet text-xs font-semibold rounded-full border border-brand-violet/20">
                           <Stethoscope size={12} />
                           Doctor
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-purple-50 text-purple-700 text-xs font-semibold rounded-full border border-purple-200">
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-brand-violet-soft text-brand-violet text-xs font-semibold rounded-full border border-brand-violet/20">
                           <Shield size={12} />
                           {profileData.role}
                         </span>
                       )}
                     </div>
-                    
+
                     {'specialization' in profileData && (
-                      <p className="mt-2 text-sm font-medium text-gray-600 text-center">{profileData.specialization}</p>
+                      <p className="mt-2 text-sm font-medium text-ink-700 text-center">{profileData.specialization}</p>
                     )}
                   </div>
                   
                   {/* Quick Contact Info */}
-                  <div className="mt-6 space-y-3 pt-6 border-t border-gray-100">
+                  <div className="mt-6 space-y-3 pt-6 border-t border-border">
                     <div className="flex items-center gap-3 text-sm">
-                      <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
-                        <Mail size={14} className="text-gray-600" />
+                      <div className="w-8 h-8 rounded-lg bg-surface-canvas flex items-center justify-center flex-shrink-0">
+                        <Mail size={14} className="text-ink-700" />
                       </div>
-                      <span className="text-gray-700 truncate">{profileData.email}</span>
+                      <span className="text-ink-700 truncate">{profileData.email}</span>
                     </div>
-                    
+
                     {profileData.phone && (
                       <div className="flex items-center gap-3 text-sm">
-                        <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
-                          <Phone size={14} className="text-gray-600" />
+                        <div className="w-8 h-8 rounded-lg bg-surface-canvas flex items-center justify-center flex-shrink-0">
+                          <Phone size={14} className="text-ink-700" />
                         </div>
-                        <span className="text-gray-700">{profileData.phone}</span>
+                        <span className="text-ink-700">{profileData.phone}</span>
                       </div>
                     )}
-                    
+
                     {currentHospital && (
                       <div className="flex items-center gap-3 text-sm">
-                        <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
-                          <Building2 size={14} className="text-gray-600" />
+                        <div className="w-8 h-8 rounded-lg bg-surface-canvas flex items-center justify-center flex-shrink-0">
+                          <Building2 size={14} className="text-ink-700" />
                         </div>
-                        <span className="text-gray-700 truncate">{currentHospital.name}</span>
+                        <span className="text-ink-700 truncate">{currentHospital.name}</span>
                       </div>
                     )}
                   </div>
@@ -257,15 +257,15 @@ export default function ProfileProfessional() {
               {'specialization' in profileData && (
                 <>
                   {/* Credentials Card */}
-                  <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                    <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                  <div className="bg-surface-paper rounded-xl shadow-sm border border-border overflow-hidden">
+                    <div className="px-6 py-4 border-b border-border flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <Award className="text-blue-600" size={20} />
-                        <h3 className="text-lg font-bold text-gray-900">Professional Credentials</h3>
+                        <Award className="text-brand-violet" size={20} />
+                        <h3 className="text-lg font-bold text-ink-900">Professional Credentials</h3>
                       </div>
                       <button
                         onClick={() => console.log('Edit Credentials')}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-brand-violet hover:bg-brand-violet-soft rounded-lg transition-colors"
                       >
                         <Edit2 size={14} />
                         <span className="hidden sm:inline">Edit</span>
@@ -274,17 +274,17 @@ export default function ProfileProfessional() {
                     <div className="p-6">
                       <dl className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                         <div>
-                          <dt className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Specialization</dt>
-                          <dd className="text-base font-semibold text-gray-900">{profileData.specialization}</dd>
+                          <dt className="text-xs font-semibold text-ink-500 uppercase tracking-wider mb-2">Specialization</dt>
+                          <dd className="text-base font-semibold text-ink-900">{profileData.specialization}</dd>
                         </div>
                         <div>
-                          <dt className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Qualification</dt>
-                          <dd className="text-base font-semibold text-gray-900">{profileData.qualification}</dd>
+                          <dt className="text-xs font-semibold text-ink-500 uppercase tracking-wider mb-2">Qualification</dt>
+                          <dd className="text-base font-semibold text-ink-900">{profileData.qualification}</dd>
                         </div>
                         {profileData.experience && (
                           <div>
-                            <dt className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Experience</dt>
-                            <dd className="text-base font-semibold text-gray-900">{profileData.experience}</dd>
+                            <dt className="text-xs font-semibold text-ink-500 uppercase tracking-wider mb-2">Experience</dt>
+                            <dd className="text-base font-semibold text-ink-900">{profileData.experience}</dd>
                           </div>
                         )}
                       </dl>
@@ -292,24 +292,24 @@ export default function ProfileProfessional() {
                   </div>
 
                   {/* Bio Card */}
-                  <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                    <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                  <div className="bg-surface-paper rounded-xl shadow-sm border border-border overflow-hidden">
+                    <div className="px-6 py-4 border-b border-border flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <FileText className="text-blue-600" size={20} />
-                        <h3 className="text-lg font-bold text-gray-900">About</h3>
+                        <FileText className="text-brand-violet" size={20} />
+                        <h3 className="text-lg font-bold text-ink-900">About</h3>
                       </div>
                       <button
                         onClick={() => console.log('Edit Bio')}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-brand-violet hover:bg-brand-violet-soft rounded-lg transition-colors"
                       >
                         <Edit2 size={14} />
                         <span className="hidden sm:inline">Edit</span>
                       </button>
                     </div>
                     <div className="p-6">
-                      <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+                      <p className="text-sm text-ink-700 leading-relaxed whitespace-pre-wrap">
                         {profileData.bio || (
-                          <span className="text-gray-400 italic">
+                          <span className="text-ink-500 italic">
                             No bio provided. Add information about your medical background and expertise.
                           </span>
                         )}
@@ -318,15 +318,15 @@ export default function ProfileProfessional() {
                   </div>
 
                   {/* Availability Card */}
-                  <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                    <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                  <div className="bg-surface-paper rounded-xl shadow-sm border border-border overflow-hidden">
+                    <div className="px-6 py-4 border-b border-border flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <Calendar className="text-blue-600" size={20} />
-                        <h3 className="text-lg font-bold text-gray-900">Weekly Schedule</h3>
+                        <Calendar className="text-brand-violet" size={20} />
+                        <h3 className="text-lg font-bold text-ink-900">Weekly Schedule</h3>
                       </div>
                       <button
                         onClick={() => router.push(`/hospital/${currentHospital?.id}/doctors/${user?.id}/add/availability`)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-brand-violet hover:bg-brand-violet-soft rounded-lg transition-colors"
                       >
                         <Edit2 size={14} />
                         <span className="hidden sm:inline">Edit</span>
@@ -335,34 +335,34 @@ export default function ProfileProfessional() {
                     <div className="p-6">
                       {isLoadingAvailability ? (
                         <div className="text-center py-8">
-                          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto mb-3"></div>
-                          <p className="text-sm text-gray-600">Loading schedule...</p>
+                          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-violet mx-auto mb-3"></div>
+                          <p className="text-sm text-ink-700">Loading schedule...</p>
                         </div>
                       ) : !availability || !availability.availability || availability.availability.length === 0 ? (
                         <div className="text-center py-8">
-                          <Clock className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                          <p className="text-sm text-gray-600 font-medium mb-1">No schedule configured</p>
-                          <p className="text-xs text-gray-500">Click Edit to set your availability</p>
+                          <Clock className="w-12 h-12 text-border mx-auto mb-3" />
+                          <p className="text-sm text-ink-700 font-medium mb-1">No schedule configured</p>
+                          <p className="text-xs text-ink-500">Click Edit to set your availability</p>
                         </div>
                       ) : (
                         <div className="space-y-2">
                           {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => {
                             const daySlots = getDayAvailability(day);
                             const hasSlots = daySlots.length > 0;
-                            
+
                             return (
-                              <div key={day} className="flex items-center justify-between py-3 px-4 rounded-lg hover:bg-gray-50 transition-colors">
+                              <div key={day} className="flex items-center justify-between py-3 px-4 rounded-lg hover:bg-surface-canvas transition-colors">
                                 <div className="flex items-center gap-3">
-                                  <div className={`w-2 h-2 rounded-full ${hasSlots ? 'bg-green-500' : 'bg-gray-300'}`}></div>
-                                  <span className="text-sm font-semibold text-gray-900 min-w-[80px]">{day}</span>
+                                  <div className={`w-2 h-2 rounded-full ${hasSlots ? 'bg-status-open' : 'bg-border'}`}></div>
+                                  <span className="text-sm font-semibold text-ink-900 min-w-[80px]">{day}</span>
                                 </div>
                                 <div className="text-sm font-medium text-right">
                                   {!hasSlots ? (
-                                    <span className="text-gray-400">Unavailable</span>
+                                    <span className="text-ink-500">Unavailable</span>
                                   ) : (
                                     <div className="flex flex-wrap justify-end gap-2">
                                       {daySlots.map((slot, idx) => (
-                                        <span key={idx} className="inline-block px-2.5 py-1 bg-blue-50 text-blue-700 text-xs font-medium rounded-md border border-blue-200">
+                                        <span key={idx} className="inline-block px-2.5 py-1 bg-brand-violet-soft text-brand-violet text-xs font-medium rounded-md border border-brand-violet/20">
                                           {formatTimeForDisplay(slot.startTime)} - {formatTimeForDisplay(slot.endTime)}
                                         </span>
                                       ))}
@@ -380,21 +380,21 @@ export default function ProfileProfessional() {
               )}
 
               {/* Account Settings Card */}
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                <div className="px-6 py-4 border-b border-gray-100">
+              <div className="bg-surface-paper rounded-xl shadow-sm border border-border overflow-hidden">
+                <div className="px-6 py-4 border-b border-border">
                   <div className="flex items-center gap-2">
-                    <Shield className="text-blue-600" size={20} />
-                    <h3 className="text-lg font-bold text-gray-900">Account Settings</h3>
+                    <Shield className="text-brand-violet" size={20} />
+                    <h3 className="text-lg font-bold text-ink-900">Account Settings</h3>
                   </div>
                 </div>
                 <div className="p-6">
                   <div className="space-y-4">
-                    <div className="flex items-center justify-between py-3 px-4 bg-gray-50 rounded-lg">
+                    <div className="flex items-center justify-between py-3 px-4 bg-surface-canvas rounded-lg">
                       <div>
-                        <p className="text-sm font-semibold text-gray-900">Security</p>
-                        <p className="text-xs text-gray-500 mt-0.5">Your account is protected</p>
+                        <p className="text-sm font-semibold text-ink-900">Security</p>
+                        <p className="text-xs text-ink-500 mt-0.5">Your account is protected</p>
                       </div>
-                      <button className="text-sm font-medium text-blue-600 hover:text-blue-700">
+                      <button className="text-sm font-medium text-brand-violet hover:text-brand-violet-hover">
                         Contact Admin
                       </button>
                     </div>
@@ -403,24 +403,24 @@ export default function ProfileProfessional() {
               </div>
 
               {/* Danger Zone */}
-              <div className="bg-white rounded-xl shadow-sm border border-red-200 overflow-hidden">
-                <div className="px-6 py-4 border-b border-red-100 bg-red-50">
+              <div className="bg-surface-paper rounded-xl shadow-sm border border-status-danger/20 overflow-hidden">
+                <div className="px-6 py-4 border-b border-status-danger/20 bg-status-danger-soft">
                   <div className="flex items-center gap-2">
-                    <AlertTriangle className="text-red-600" size={20} />
-                    <h3 className="text-lg font-bold text-gray-900">Danger Zone</h3>
+                    <AlertTriangle className="text-status-danger" size={20} />
+                    <h3 className="text-lg font-bold text-ink-900">Danger Zone</h3>
                   </div>
                 </div>
                 <div className="p-6">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div>
-                      <h4 className="text-sm font-semibold text-gray-900 mb-1">Delete Account</h4>
-                      <p className="text-xs text-gray-600">
+                      <h4 className="text-sm font-semibold text-ink-900 mb-1">Delete Account</h4>
+                      <p className="text-xs text-ink-700">
                         Permanently delete your account and all associated data.
                       </p>
                     </div>
                     <button
                       onClick={() => console.log('Delete Account')}
-                      className="flex items-center justify-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-lg transition-colors shadow-sm"
+                      className="flex items-center justify-center gap-2 px-4 py-2 bg-status-danger hover:bg-status-danger-hover text-white text-sm font-semibold rounded-lg transition-colors shadow-sm"
                     >
                       <Trash2 size={16} />
                       Delete

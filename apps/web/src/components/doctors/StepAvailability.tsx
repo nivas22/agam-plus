@@ -151,28 +151,28 @@ export function StepAvailability({
   return (
     <div className="space-y-4 md:space-y-6">
       <div className="text-center mb-4 md:mb-6">
-        <h3 className="text-xl md:text-2xl font-bold text-gray-800 flex items-center justify-center gap-2">
-          <Clock className="w-5 h-5 md:w-7 md:h-7 text-blue-600" /> 
+        <h3 className="text-xl md:text-2xl font-bold text-ink-900 flex items-center justify-center gap-2">
+          <Clock className="w-5 h-5 md:w-7 md:h-7 text-brand-violet" />
           Set Your Availability
         </h3>
-        <p className="text-sm md:text-base text-gray-600 mt-1 md:mt-2">Configure your appointment schedule - Add multiple time slots per day</p>
+        <p className="text-sm md:text-base text-ink-700 mt-1 md:mt-2">Configure your appointment schedule - Add multiple time slots per day</p>
       </div>
 
       {/* Appointment Duration Section */}
-      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 md:p-6 rounded-lg md:rounded-xl border border-blue-100">
+      <div className="bg-gradient-to-r from-brand-violet-soft to-brand-violet-soft p-4 md:p-6 rounded-lg md:rounded-xl border border-brand-violet/20">
         <div className="flex items-center gap-2 md:gap-3 mb-3 md:mb-4">
-          <Watch className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
-          <h4 className="font-semibold text-base md:text-lg text-gray-800">Appointment Duration</h4>
+          <Watch className="w-4 h-4 md:w-5 md:h-5 text-brand-violet" />
+          <h4 className="font-semibold text-base md:text-lg text-ink-900">Appointment Duration</h4>
         </div>
-        <p className="text-xs md:text-sm text-gray-600 mb-3 md:mb-4">Select appointment length</p>
+        <p className="text-xs md:text-sm text-ink-700 mb-3 md:mb-4">Select appointment length</p>
         <div className="flex flex-wrap gap-2">
           {durationOptions.map((d: number) => (
             <button
               key={d}
               className={`px-3 py-2 md:px-4 md:py-2 text-sm rounded-lg border transition-all duration-200 ${
-                formData.appointmentDuration === d 
-                  ? "bg-blue-500 text-white border-blue-500 shadow-lg" 
-                  : "bg-white text-gray-700 border-gray-200 hover:border-blue-300"
+                formData.appointmentDuration === d
+                  ? "bg-brand-violet text-white border-brand-violet shadow-lg"
+                  : "bg-surface-paper text-ink-700 border-border hover:border-brand-violet"
               }`}
               onClick={() => setFormData((prev) => ({ ...prev, appointmentDuration: d }))}
             >
@@ -184,12 +184,12 @@ export function StepAvailability({
 
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6">
         {/* Day Selection Panel */}
-        <div className="bg-gradient-to-br from-gray-50 to-white p-4 md:p-6 rounded-lg md:rounded-xl border border-gray-200 lg:col-span-1">
+        <div className="bg-gradient-to-br from-surface-canvas to-white p-4 md:p-6 rounded-lg md:rounded-xl border border-border lg:col-span-1">
           <div className="flex items-center gap-2 md:gap-3 mb-4 md:mb-6">
-            <Calendar className="w-4 h-4 md:w-5 md:h-5 text-green-600" />
-            <h5 className="font-semibold text-base md:text-lg text-gray-800">Select Days</h5>
+            <Calendar className="w-4 h-4 md:w-5 md:h-5 text-status-open" />
+            <h5 className="font-semibold text-base md:text-lg text-ink-900">Select Days</h5>
           </div>
-          <p className="text-xs md:text-sm text-gray-600 mb-3 md:mb-4">Choose available days</p>
+          <p className="text-xs md:text-sm text-ink-700 mb-3 md:mb-4">Choose available days</p>
           <div className="grid grid-cols-3 gap-2">
             {daysOfWeek.map((day) => {
               const daySlots = formData.availability?.filter((s: any) => s.day === day) || [];
@@ -202,17 +202,17 @@ export function StepAvailability({
                     setNewTimeSlot({ day, startTime: '', endTime: '' });
                   }}
                   className={`p-2 md:p-3 rounded-lg border-2 transition-all duration-200 flex flex-col items-center justify-center ${
-                    activeDay === day 
-                      ? "bg-blue-500 text-white border-blue-500 shadow-lg" 
-                      : hasAvailability 
-                        ? "bg-green-50 text-green-700 border-green-300 shadow-sm" 
-                        : "bg-white text-gray-700 border-gray-200 hover:border-blue-300"
+                    activeDay === day
+                      ? "bg-brand-violet text-white border-brand-violet shadow-lg"
+                      : hasAvailability
+                        ? "bg-status-open-soft text-status-open border-status-open shadow-sm"
+                        : "bg-surface-paper text-ink-700 border-border hover:border-brand-violet"
                   }`}
                 >
                   <span className="font-semibold text-xs md:text-sm">{day.substring(0, 3)}</span>
                   {hasAvailability && (
                     <div className="flex items-center gap-1 mt-1">
-                      <CheckCircle className="w-3 h-3 md:w-4 md:h-4 text-green-600" />
+                      <CheckCircle className="w-3 h-3 md:w-4 md:h-4 text-status-open" />
                       <span className="text-xs font-medium">{daySlots.length}</span>
                     </div>
                   )}
@@ -223,33 +223,33 @@ export function StepAvailability({
         </div>
 
         {/* Time Selection Panel */}
-        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-4 md:p-6 rounded-lg md:rounded-xl border border-blue-200 lg:col-span-1">
+        <div className="bg-gradient-to-br from-brand-violet-soft to-brand-violet-soft p-4 md:p-6 rounded-lg md:rounded-xl border border-brand-violet/20 lg:col-span-1">
           <div className="flex items-center gap-2 md:gap-3 mb-4 md:mb-6">
-            <Clock className="w-4 h-4 md:w-5 md:h-5 text-orange-600" />
-            <h5 className="font-semibold text-base md:text-lg text-gray-800">
-              Time Slots for <span className="text-blue-600 capitalize">{getFullDayName(activeDay)}</span>
+            <Clock className="w-4 h-4 md:w-5 md:h-5 text-status-warning" />
+            <h5 className="font-semibold text-base md:text-lg text-ink-900">
+              Time Slots for <span className="text-brand-violet capitalize">{getFullDayName(activeDay)}</span>
             </h5>
           </div>
 
           <div className="space-y-3 md:space-y-4">
             {/* Current Slots Display */}
             {activeDaySlots.length > 0 && (
-              <div className="bg-white p-3 md:p-4 rounded-lg border border-blue-200">
-                <div className="text-xs md:text-sm font-medium text-gray-700 mb-2">
+              <div className="bg-surface-paper p-3 md:p-4 rounded-lg border border-brand-violet/20">
+                <div className="text-xs md:text-sm font-medium text-ink-700 mb-2">
                   Current Slots ({activeDaySlots.length}):
                 </div>
                 <div className="space-y-2">
                   {activeDaySlots.map((slot, index) => (
-                    <div key={index} className="flex items-center justify-between p-2 bg-blue-50 rounded-lg border border-blue-200">
+                    <div key={index} className="flex items-center justify-between p-2 bg-brand-violet-soft rounded-lg border border-brand-violet/20">
                       <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                        <span className="text-xs md:text-sm font-medium text-gray-800">
+                        <div className="w-2 h-2 bg-brand-violet rounded-full"></div>
+                        <span className="text-xs md:text-sm font-medium text-ink-900">
                           {formatTimeForDisplay(slot.startTime)} - {formatTimeForDisplay(slot.endTime)}
                         </span>
                       </div>
                       <button
                         onClick={() => removeTimeSlot(activeDay, index)}
-                        className="p-1 text-red-600 hover:bg-red-100 rounded transition-colors"
+                        className="p-1 text-status-danger hover:bg-status-danger-soft rounded transition-colors"
                         title="Remove time slot"
                       >
                         <Trash2 className="w-3 h-3 md:w-4 md:h-4" />
@@ -261,16 +261,16 @@ export function StepAvailability({
             )}
 
             {/* Add New Slot */}
-            <div className="bg-white p-3 md:p-4 rounded-lg border border-blue-200">
-              <div className="text-xs md:text-sm font-medium text-gray-700 mb-3">Add New Time Slot:</div>
-              
+            <div className="bg-surface-paper p-3 md:p-4 rounded-lg border border-brand-violet/20">
+              <div className="text-xs md:text-sm font-medium text-ink-700 mb-3">Add New Time Slot:</div>
+
               <div className="grid grid-cols-2 gap-3 md:gap-4">
                 <div className="space-y-1 md:space-y-2">
-                  <label className="block text-xs md:text-sm font-medium text-gray-700">Start Time</label>
+                  <label className="block text-xs md:text-sm font-medium text-ink-700">Start Time</label>
                   <select
                     value={newTimeSlot.startTime}
                     onChange={(e) => setNewTimeSlot({ ...newTimeSlot, startTime: e.target.value, endTime: '' })}
-                    className="w-full p-2 md:p-3 text-sm border border-gray-300 rounded-lg bg-white focus:ring-1 md:focus:ring-2 focus:ring-blue-500"
+                    className="w-full p-2 md:p-3 text-sm border border-border rounded-lg bg-surface-paper focus:ring-1 md:focus:ring-2 focus:ring-brand-violet"
                   >
                     <option value="">Select start time</option>
                     {availableStartTimes.map((t) => (
@@ -278,16 +278,16 @@ export function StepAvailability({
                     ))}
                   </select>
                   {availableStartTimes.length === 0 && (
-                    <p className="text-xs text-red-500 mt-1">No available start times (all times are booked)</p>
+                    <p className="text-xs text-status-danger mt-1">No available start times (all times are booked)</p>
                   )}
                 </div>
                 <div className="space-y-1 md:space-y-2">
-                  <label className="block text-xs md:text-sm font-medium text-gray-700">End Time</label>
+                  <label className="block text-xs md:text-sm font-medium text-ink-700">End Time</label>
                   <select
                     value={newTimeSlot.endTime}
                     onChange={(e) => setNewTimeSlot({ ...newTimeSlot, endTime: e.target.value })}
                     disabled={!newTimeSlot.startTime}
-                    className="w-full p-2 md:p-3 text-sm border border-gray-300 rounded-lg bg-white focus:ring-1 md:focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    className="w-full p-2 md:p-3 text-sm border border-border rounded-lg bg-surface-paper focus:ring-1 md:focus:ring-2 focus:ring-brand-violet disabled:bg-surface-canvas disabled:cursor-not-allowed"
                   >
                     <option value="">Select end time</option>
                     {availableEndTimes.map((t) => (
@@ -295,15 +295,15 @@ export function StepAvailability({
                     ))}
                   </select>
                   {newTimeSlot.startTime && availableEndTimes.length === 0 && (
-                    <p className="text-xs text-red-500 mt-1">No available end times for selected start time</p>
+                    <p className="text-xs text-status-danger mt-1">No available end times for selected start time</p>
                   )}
                 </div>
               </div>
 
               {/* Validation Messages */}
               {newTimeSlot.startTime && newTimeSlot.endTime && !isValidSlot && (
-                <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded-lg">
-                  <div className="flex items-center gap-2 text-red-600 text-xs md:text-sm">
+                <div className="mt-3 p-2 bg-status-danger-soft border border-status-danger/20 rounded-lg">
+                  <div className="flex items-center gap-2 text-status-danger text-xs md:text-sm">
                     <XCircle className="w-3 h-3 md:w-4 md:h-4 flex-shrink-0" />
                     <div>
                       {newTimeSlot.startTime >= newTimeSlot.endTime ? (
@@ -322,19 +322,19 @@ export function StepAvailability({
                   onClick={handleAddTimeSlot}
                   disabled={!isValidSlot}
                   className={`flex items-center justify-center gap-1 md:gap-2 flex-1 px-3 py-2 md:px-4 md:py-3 text-sm rounded-lg transition-all duration-200 ${
-                    isValidSlot 
-                      ? "bg-blue-600 hover:bg-blue-700 text-white shadow-md" 
-                      : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                    isValidSlot
+                      ? "bg-brand-violet hover:bg-brand-violet-hover text-white shadow-md"
+                      : "bg-border text-ink-500 cursor-not-allowed"
                   }`}
                 >
                   <Plus className="w-3 h-3 md:w-4 md:h-4" />
                   <span>Add Time Slot</span>
                 </button>
-                
+
                 <button
                   onClick={clearTimeSlot}
                   disabled={!newTimeSlot.startTime && !newTimeSlot.endTime}
-                  className="flex items-center justify-center px-3 py-2 md:px-4 md:py-3 bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-lg transition-colors text-sm disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
+                  className="flex items-center justify-center px-3 py-2 md:px-4 md:py-3 bg-surface-canvas text-ink-700 hover:bg-surface-canvas rounded-lg transition-colors text-sm disabled:bg-surface-canvas disabled:text-ink-500 disabled:cursor-not-allowed"
                 >
                   Clear
                 </button>
@@ -342,32 +342,32 @@ export function StepAvailability({
             </div>
 
             {/* Help Text */}
-            <div className="text-xs text-gray-500 bg-white p-3 rounded-lg border border-gray-200">
+            <div className="text-xs text-ink-500 bg-surface-paper p-3 rounded-lg border border-border">
               <p>💡 <strong>Tip:</strong> You can add multiple time slots per day. For example:</p>
               <ul className="mt-1 space-y-1">
                 <li>• Morning: 9:00 AM - 12:00 PM</li>
                 <li>• Afternoon: 2:00 PM - 5:00 PM</li>
                 <li>• Evening: 6:00 PM - 8:00 PM</li>
               </ul>
-              <p className="mt-2 text-green-600 font-medium">Available times are automatically filtered to prevent overlaps!</p>
+              <p className="mt-2 text-status-open font-medium">Available times are automatically filtered to prevent overlaps!</p>
             </div>
           </div>
         </div>
 
         {/* Preview Panel */}
-        <div className="bg-gradient-to-br from-green-50 to-emerald-50 p-4 md:p-6 rounded-lg md:rounded-xl border border-green-200 lg:col-span-1 lg:col-start-1 xl:col-start-3">
+        <div className="bg-gradient-to-br from-status-open-soft to-status-open-soft p-4 md:p-6 rounded-lg md:rounded-xl border border-status-open/20 lg:col-span-1 lg:col-start-1 xl:col-start-3">
           <div className="flex items-center gap-2 md:gap-3 mb-4 md:mb-6">
-            <CheckCircle className="w-4 h-4 md:w-5 md:h-5 text-green-600" />
-            <h5 className="font-semibold text-base md:text-lg text-gray-800">Availability Preview</h5>
+            <CheckCircle className="w-4 h-4 md:w-5 md:h-5 text-status-open" />
+            <h5 className="font-semibold text-base md:text-lg text-ink-900">Availability Preview</h5>
           </div>
 
           <div className="space-y-3 md:space-y-4">
             {/* Active Day Summary */}
-            <div className="text-center p-3 md:p-4 bg-white rounded-lg border border-green-200">
-              <div className="text-lg md:text-xl font-bold text-green-600 capitalize">
+            <div className="text-center p-3 md:p-4 bg-surface-paper rounded-lg border border-status-open/20">
+              <div className="text-lg md:text-xl font-bold text-status-open capitalize">
                 {getFullDayName(activeDay)}
               </div>
-              <div className="text-xs md:text-sm text-gray-500">
+              <div className="text-xs md:text-sm text-ink-500">
                 {activeDaySlots.length} time slot{activeDaySlots.length !== 1 ? 's' : ''} configured
               </div>
             </div>
@@ -375,21 +375,21 @@ export function StepAvailability({
             {/* Time Slots Preview */}
             {activeDaySlots.length > 0 ? (
               <div className="space-y-2 md:space-y-3">
-                <div className="text-xs md:text-sm font-medium text-gray-700">Time Slots:</div>
+                <div className="text-xs md:text-sm font-medium text-ink-700">Time Slots:</div>
                 {activeDaySlots.map((slot, index) => (
-                  <div key={index} className="bg-white p-3 rounded-lg border border-green-200 shadow-sm">
+                  <div key={index} className="bg-surface-paper p-3 rounded-lg border border-status-open/20 shadow-sm">
                     <div className="flex justify-between items-center">
                       <div className="flex items-center gap-3">
                         <div className={`w-3 h-3 rounded-full ${
-                          index === 0 ? 'bg-green-400' : 
-                          index === 1 ? 'bg-blue-400' : 
-                          index === 2 ? 'bg-orange-400' : 'bg-purple-400'
+                          index === 0 ? 'bg-status-open' :
+                          index === 1 ? 'bg-brand-violet' :
+                          index === 2 ? 'bg-status-warning' : 'bg-brand-violet'
                         }`}></div>
-                        <span className="font-medium text-sm text-gray-800">
+                        <span className="font-medium text-sm text-ink-900">
                           {formatTimeForDisplay(slot.startTime)} - {formatTimeForDisplay(slot.endTime)}
                         </span>
                       </div>
-                      <div className="text-xs text-gray-500">
+                      <div className="text-xs text-ink-500">
                         Slot {index + 1}
                       </div>
                     </div>
@@ -397,16 +397,16 @@ export function StepAvailability({
                 ))}
               </div>
             ) : (
-              <div className="text-center py-6 md:py-8 bg-white rounded-lg border border-dashed border-gray-300">
-                <Clock className="w-8 h-8 md:w-12 md:h-12 text-gray-300 mx-auto mb-2" />
-                <div className="text-sm text-gray-500 font-medium">No time slots added</div>
-                <div className="text-xs text-gray-400 mt-1">Add time slots for {getFullDayName(activeDay)}</div>
+              <div className="text-center py-6 md:py-8 bg-surface-paper rounded-lg border border-dashed border-border">
+                <Clock className="w-8 h-8 md:w-12 md:h-12 text-ink-500 mx-auto mb-2" />
+                <div className="text-sm text-ink-500 font-medium">No time slots added</div>
+                <div className="text-xs text-ink-500 mt-1">Add time slots for {getFullDayName(activeDay)}</div>
               </div>
             )}
 
             {/* Weekly Summary */}
-            <div className="mt-4 md:mt-6 pt-3 md:pt-4 border-t border-green-200">
-              <div className="text-xs md:text-sm font-medium text-gray-700 mb-2 md:mb-3">Weekly Summary</div>
+            <div className="mt-4 md:mt-6 pt-3 md:pt-4 border-t border-status-open/20">
+              <div className="text-xs md:text-sm font-medium text-ink-700 mb-2 md:mb-3">Weekly Summary</div>
               <div className="grid grid-cols-7 gap-1">
                 {daysOfWeek.map(day => {
                   const daySlots = formData.availability?.filter((s: any) => s.day === day) || [];
@@ -414,16 +414,16 @@ export function StepAvailability({
                   return (
                     <div key={day} className="text-center">
                       <div className={`text-xs font-medium ${
-                        hasSlots ? 'text-green-600' : 'text-gray-400'
+                        hasSlots ? 'text-status-open' : 'text-ink-500'
                       }`}>
                         {day.substring(0, 1)}
                       </div>
                       <div className={`w-6 h-6 md:w-8 md:h-8 rounded-full text-xs flex items-center justify-center mx-auto border ${
-                        hasSlots 
+                        hasSlots
                           ? day === activeDay
-                            ? 'bg-green-500 text-white border-green-600' 
-                            : 'bg-green-100 text-green-700 border-green-300'
-                          : 'bg-gray-100 text-gray-400 border-gray-300'
+                            ? 'bg-status-open text-white border-status-open-hover'
+                            : 'bg-status-open-soft text-status-open border-status-open'
+                          : 'bg-surface-canvas text-ink-500 border-border'
                       }`}>
                         {daySlots.length}
                       </div>
@@ -431,7 +431,7 @@ export function StepAvailability({
                   );
                 })}
               </div>
-              <div className="text-xs text-gray-500 text-center mt-2">
+              <div className="text-xs text-ink-500 text-center mt-2">
                 Numbers show total slots per day
               </div>
             </div>

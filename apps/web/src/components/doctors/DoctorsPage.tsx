@@ -8,11 +8,9 @@ import DoctorDetailSidebar from "@/components/doctors/DoctorDetailSidebar";
 import ConfirmDeleteModal from "@/components/ConfirmDeleteModal";
 import NoDataFound from "@/components/NoDataFound";
 import FiltersPanel, { DateRange } from "@/components/FiltersPanel";
-import Pagination from "@/components/Pagination";
 import { DOCTOR_STATUS_OPTIONS, DOCTOR_SORT_OPTIONS, DoctorListFilters } from "@/types/doctorNew";
 import {
   Plus,
-  Stethoscope,
   Search,
   Filter,
   RefreshCw,
@@ -21,6 +19,8 @@ import {
   UserX,
   X,
   Download,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { Doctor } from "@/types/doctorNew";
 import { useNewDoctorApi, useUpdateDoctorMembership } from "@/hooks/useNewDoctorApi";
@@ -55,10 +55,19 @@ export default function DoctorsPage({
   hospitalId,
   pagination,
   onPageChange,
+  onLimitChange,
   onFiltersChange,
 }: DoctorsPageProps) {
   const { deleteDoctor, isDeleting } = useNewDoctorApi();
   const { mutate: updateDoctorMembership, mutateAsync: updateDoctorMembershipAsync } = useUpdateDoctorMembership(hospitalId);
+  // Roster counts are independent of the current search/status filter, so they're
+  // fetched separately (limit:1, we only need each query's total).
+  const { pagination: allStats } = useNewDoctorApi(hospitalId, { limit: 1 });
+  const { pagination: approvedStats } = useNewDoctorApi(hospitalId, { status: 'approved', limit: 1 });
+  const { pagination: pendingStats } = useNewDoctorApi(hospitalId, { status: 'pending', limit: 1 });
+  const rosterTotal = allStats?.total ?? pagination?.total ?? 0;
+  const approvedCount = approvedStats?.total ?? 0;
+  const pendingCount = pendingStats?.total ?? 0;
   const [activeDoctor, setActiveDoctor] = useState<Doctor | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Doctor | null>(null);
   const [search, setSearch] = useState("");
@@ -271,72 +280,124 @@ export default function DoctorsPage({
   if (isLoading && doctors.length === 0) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-violet"></div>
       </div>
     );
   }
 
   return (
     <div className="sm:px-6 lg:px-8 relative">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-11 h-11 rounded-xl bg-purple-100 flex items-center justify-center">
-            <Stethoscope className="w-5 h-5 text-purple-600" />
+      {/* Header */}
+      <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-ink-900">Doctors</h1>
+          <p className="text-sm text-ink-500 mt-1">Everyone who can be booked, and everyone waiting to be.</p>
+        </div>
+
+        {/* Roster card */}
+        <div className="bg-surface-paper border border-border rounded-xl px-4 py-3 w-full lg:w-72 flex-shrink-0">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[10px] font-semibold text-ink-500 uppercase tracking-wider">Roster</span>
+            <span className="text-sm font-bold text-ink-900">{rosterTotal} total</span>
           </div>
-          <div>
-            <h1 className="text-xl font-bold text-slate-900">Doctors</h1>
-            <p className="text-sm text-slate-500">
-              {pagination?.total ?? filteredDoctors.length} doctors found
-            </p>
+          <div className="flex h-1.5 rounded-full overflow-hidden bg-surface-canvas">
+            {rosterTotal > 0 && (
+              <>
+                <div className="bg-status-open" style={{ width: `${(approvedCount / rosterTotal) * 100}%` }} />
+                <div className="bg-status-warning" style={{ width: `${(pendingCount / rosterTotal) * 100}%` }} />
+              </>
+            )}
+          </div>
+          <div className="flex items-center gap-4 mt-2 text-xs text-ink-500">
+            <span className="flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-status-open" /> {approvedCount} approved
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-status-warning" /> {pendingCount} awaiting approval
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Toolbar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-6">
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="relative">
+            <Search className="w-4 h-4 text-ink-500 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by name, email or registration no."
+              className="pl-9 pr-4 py-2.5 rounded-xl border border-border bg-surface-paper text-sm w-72 focus:outline-none focus:ring-2 focus:ring-brand-violet/30 focus:border-brand-violet"
+            />
+          </div>
+          <div className="flex items-center bg-surface-paper border border-border rounded-xl p-1 gap-1">
+            <button
+              onClick={() => setFilter('all')}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                filter === 'all' ? 'bg-ink-900 text-white' : 'text-ink-700 hover:bg-surface-canvas'
+              }`}
+              type="button"
+            >
+              All {rosterTotal}
+            </button>
+            <button
+              onClick={() => setFilter('pending')}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                filter === 'pending' ? 'bg-ink-900 text-white' : 'text-ink-700 hover:bg-surface-canvas'
+              }`}
+              type="button"
+            >
+              Pending {pendingCount}
+            </button>
+            <button
+              onClick={() => setFilter('approved')}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                filter === 'approved' ? 'bg-ink-900 text-white' : 'text-ink-700 hover:bg-surface-canvas'
+              }`}
+              type="button"
+            >
+              Approved {approvedCount}
+            </button>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
-          <div className="relative">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search doctor..."
-              className="pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm w-56 focus:outline-none focus:ring-2 focus:ring-purple-300 focus:border-purple-400"
-            />
-          </div>
-          <div className="flex items-center bg-white border border-slate-200 rounded-xl p-1 gap-1">
+          <div className="flex items-center bg-surface-paper border border-border rounded-xl p-1 gap-1">
             <button
               onClick={() => setShowFilters(!showFilters)}
               className={`p-2 rounded-lg transition-colors ${
-                showFilters ? 'bg-purple-100 text-purple-600' : 'hover:bg-slate-100 text-slate-500'
+                showFilters ? 'bg-brand-violet-soft text-brand-violet' : 'hover:bg-surface-canvas text-ink-500'
               }`}
-              title="Filter"
+              title="More filters"
               type="button"
             >
               <Filter className="w-4 h-4" />
             </button>
             <button
               onClick={() => refetchDoctors()}
-              className="p-2 rounded-lg hover:bg-slate-100 text-slate-500 transition-colors"
+              className="p-2 rounded-lg hover:bg-surface-canvas text-ink-500 transition-colors"
               title="Refresh"
               type="button"
             >
               <RefreshCw className="w-4 h-4" />
             </button>
-            <button
-              onClick={handleExportCsv}
-              disabled={exporting}
-              className="p-2 rounded-lg hover:bg-slate-100 text-slate-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              title="Export to CSV"
-              type="button"
-            >
-              <Download className={`w-4 h-4 ${exporting ? 'animate-pulse' : ''}`} />
-            </button>
           </div>
+          <button
+            onClick={handleExportCsv}
+            disabled={exporting}
+            className="flex items-center gap-2 border border-border bg-surface-paper hover:bg-surface-canvas text-ink-700 text-sm font-medium px-3.5 py-2.5 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            type="button"
+          >
+            <Download className={`w-4 h-4 ${exporting ? 'animate-pulse' : ''}`} /> Export
+          </button>
           {canEdit && (
             <button
               onClick={() => router.push(`/hospital/${hospitalId}/doctors/add`)}
-              className="hidden sm:flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium px-4 py-2.5 rounded-xl transition-colors shadow-sm shadow-purple-200"
+              className="flex items-center gap-2 bg-status-open hover:bg-status-open-hover text-white text-sm font-medium px-4 py-2.5 rounded-xl transition-colors shadow-sm"
               type="button"
             >
-              <Plus className="w-4 h-4" /> Add Doctor
+              <Plus className="w-4 h-4" /> Add doctor
             </button>
           )}
         </div>
@@ -364,14 +425,14 @@ export default function DoctorsPage({
 
       {/* Bulk approve/reject bar */}
       {canEdit && selectedIds.size > 0 && (
-        <div className="mt-4 flex items-center justify-between bg-purple-50 border border-purple-200 rounded-xl px-4 py-3">
-          <span className="text-sm font-medium text-purple-700">{selectedIds.size} selected</span>
+        <div className="mt-4 flex items-center justify-between bg-brand-violet-soft border border-brand-violet/20 rounded-xl px-4 py-3">
+          <span className="text-sm font-medium text-brand-violet">{selectedIds.size} selected</span>
           <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={() => handleBulkStatusChange('approved')}
               disabled={bulkUpdating}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-violet hover:bg-brand-violet-hover text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <UserCheck className="w-4 h-4" /> Approve
             </button>
@@ -379,7 +440,7 @@ export default function DoctorsPage({
               type="button"
               onClick={() => handleBulkStatusChange('rejected')}
               disabled={bulkUpdating}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-status-danger hover:bg-status-danger-hover text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <UserX className="w-4 h-4" /> Reject
             </button>
@@ -387,7 +448,7 @@ export default function DoctorsPage({
               type="button"
               onClick={() => setSelectedIds(new Set())}
               disabled={bulkUpdating}
-              className="p-1.5 text-purple-400 hover:text-purple-600 rounded-lg hover:bg-purple-100 transition-colors disabled:opacity-50"
+              className="p-1.5 text-brand-violet hover:text-brand-violet-hover rounded-lg hover:bg-brand-violet-soft transition-colors disabled:opacity-50"
               aria-label="Clear selection"
             >
               <X className="w-4 h-4" />
@@ -398,55 +459,60 @@ export default function DoctorsPage({
 
       {/* Doctors Table or No Data Found */}
       {filteredDoctors && filteredDoctors.length > 0 ? (
-        <div className="mt-4 bg-white rounded-2xl border border-slate-100 shadow-sm shadow-slate-200/50 overflow-hidden overflow-x-auto">
-          <table className="w-full border-collapse table-fixed min-w-[860px]">
+        <div className="mt-4 bg-surface-paper rounded-2xl border border-border shadow-sm shadow-border/50 overflow-hidden overflow-x-auto">
+          <table className="w-full border-collapse table-fixed min-w-[960px]">
             <colgroup>
+              <col style={{ width: "4px" }} />
               {showSelectionColumn && <col style={{ width: "40px" }} />}
-              <col style={{ width: showSelectionColumn ? "28%" : "30%" }} />
-              <col style={{ width: showSelectionColumn ? "24%" : "26%" }} />
+              <col style={{ width: "20%" }} />
+              <col style={{ width: "12%" }} />
+              <col style={{ width: "20%" }} />
+              <col style={{ width: "12%" }} />
+              <col style={{ width: "8%" }} />
               <col style={{ width: "14%" }} />
-              <col style={{ width: "16%" }} />
-              <col style={{ width: showSelectionColumn ? "12%" : "14%" }} />
+              <col style={{ width: "14%" }} />
             </colgroup>
             <thead>
-              <tr style={{ background: "linear-gradient(135deg, #6D28D9 0%, #7C3AED 100%)" }}>
+              <tr className="bg-surface-canvas border-b border-border">
+                <th className="p-0" />
                 {showSelectionColumn && (
-                  <th scope="col" className="w-10 px-0 py-4 rounded-tl-2xl">
+                  <th scope="col" className="w-10 px-0 py-3">
                     <div className="flex items-center justify-center">
                       <input
                         type="checkbox"
                         checked={allPendingSelected}
                         onChange={toggleSelectAll}
-                        className="w-4 h-4 rounded border-white/50 text-purple-600 focus:ring-purple-300 cursor-pointer"
+                        className="w-4 h-4 rounded border-border text-brand-violet focus:ring-brand-violet/30 cursor-pointer"
                         aria-label="Select all pending doctors"
                       />
                     </div>
                   </th>
                 )}
-                <th
-                  scope="col"
-                  className={`px-6 py-4 text-xs font-bold uppercase tracking-wider text-white text-left ${
-                    showSelectionColumn ? '' : 'rounded-tl-2xl'
-                  }`}
-                >
-                  <button type="button" onClick={() => toggleSort('name')} className="flex items-center gap-1.5">
+                <th scope="col" className="px-6 py-3 text-xs font-bold uppercase tracking-wider text-ink-500 text-left">
+                  <button type="button" onClick={() => toggleSort('name')} className="flex items-center gap-1.5 hover:text-ink-900 transition-colors">
                     Doctor
-                    <ArrowUpDown className="w-3.5 h-3.5 text-purple-200" />
+                    <ArrowUpDown className="w-3.5 h-3.5" />
                   </button>
                 </th>
-                <th scope="col" className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-white text-left hidden md:table-cell">
+                <th scope="col" className="px-6 py-3 text-xs font-bold uppercase tracking-wider text-ink-500 text-left hidden sm:table-cell">
+                  Specialty
+                </th>
+                <th scope="col" className="px-6 py-3 text-xs font-bold uppercase tracking-wider text-ink-500 text-left hidden md:table-cell">
                   Contact
                 </th>
-                <th scope="col" className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-white text-left">
+                <th scope="col" className="px-6 py-3 text-xs font-bold uppercase tracking-wider text-ink-500 text-left">
                   Status
                 </th>
-                <th scope="col" className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-white text-left hidden lg:table-cell">
-                  <button type="button" onClick={() => toggleSort('joinedAt')} className="flex items-center gap-1.5">
+                <th scope="col" className="px-6 py-3 text-xs font-bold uppercase tracking-wider text-ink-500 text-left hidden lg:table-cell">
+                  Patients
+                </th>
+                <th scope="col" className="px-6 py-3 text-xs font-bold uppercase tracking-wider text-ink-500 text-left hidden lg:table-cell">
+                  <button type="button" onClick={() => toggleSort('joinedAt')} className="flex items-center gap-1.5 hover:text-ink-900 transition-colors">
                     Joined
-                    <ArrowUpDown className="w-3.5 h-3.5 text-purple-200" />
+                    <ArrowUpDown className="w-3.5 h-3.5" />
                   </button>
                 </th>
-                <th scope="col" className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-white text-right rounded-tr-2xl">
+                <th scope="col" className="px-6 py-3 text-xs font-bold uppercase tracking-wider text-ink-500 text-right">
                   Actions
                 </th>
               </tr>
@@ -460,6 +526,7 @@ export default function DoctorsPage({
                   onView={() => setActiveDoctor(doctor)}
                   onEdit={canEdit ? () => handleEditDoctor(doctor) : undefined}
                   onDelete={canEdit ? () => handleDelete(doctor) : undefined}
+                  onApprove={canEdit && doctor.membershipStatus === 'pending' ? () => handleUpdateStatus(doctor.id, 'approved') : undefined}
                   isUpdatingStatus={bulkUpdating && doctor.membershipId ? selectedIds.has(doctor.membershipId) : false}
                   showSelectionColumn={showSelectionColumn}
                   selectable={canEdit && doctor.membershipStatus === 'pending' && !!doctor.membershipId}
@@ -481,16 +548,64 @@ export default function DoctorsPage({
 
       {/* Pagination */}
       {pagination && onPageChange && filteredDoctors.length > 0 && (
-        <Pagination
-          currentPage={pagination.page}
-          totalPages={pagination.totalPages}
-          onPageChange={onPageChange}
-          hasNextPage={pagination.hasNextPage}
-          hasPreviousPage={pagination.hasPreviousPage}
-          total={pagination.total}
-          limit={pagination.limit}
-          transparent
-        />
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-4 px-1">
+          <div className="flex items-center gap-3 text-sm text-ink-500">
+            <span>
+              Showing <span className="font-semibold text-ink-900">{(pagination.page - 1) * pagination.limit + 1}-{Math.min(pagination.page * pagination.limit, pagination.total)}</span> of{' '}
+              <span className="font-semibold text-ink-900">{pagination.total}</span>
+            </span>
+            {onLimitChange && (
+              <label className="flex items-center gap-1.5">
+                <span>Rows</span>
+                <select
+                  value={pagination.limit}
+                  onChange={(e) => onLimitChange(Number(e.target.value))}
+                  className="border border-border rounded-lg px-2 py-1 bg-surface-paper text-ink-900 focus:outline-none focus:ring-2 focus:ring-brand-violet/30"
+                >
+                  {[10, 20, 50].map((n) => (
+                    <option key={n} value={n}>{n}</option>
+                  ))}
+                </select>
+              </label>
+            )}
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => onPageChange(pagination.page - 1)}
+              disabled={!pagination.hasPreviousPage}
+              className="p-1.5 rounded-lg border border-border bg-surface-paper text-ink-700 hover:bg-surface-canvas disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              aria-label="Previous page"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            {Array.from({ length: pagination.totalPages }, (_, i) => i + 1)
+              .filter((p) => p === 1 || p === pagination.totalPages || Math.abs(p - pagination.page) <= 1)
+              .map((p, i, arr) => (
+                <span key={p} className="flex items-center gap-1.5">
+                  {i > 0 && arr[i - 1] !== p - 1 && <span className="text-ink-500 px-1">…</span>}
+                  <button
+                    onClick={() => onPageChange(p)}
+                    className={`min-w-[2rem] h-8 px-2 rounded-lg text-sm font-medium transition-colors ${
+                      p === pagination.page
+                        ? 'bg-ink-900 text-white'
+                        : 'border border-border bg-surface-paper text-ink-700 hover:bg-surface-canvas'
+                    }`}
+                  >
+                    {p}
+                  </button>
+                </span>
+              ))}
+            <button
+              onClick={() => onPageChange(pagination.page + 1)}
+              disabled={!pagination.hasNextPage}
+              className="p-1.5 rounded-lg border border-border bg-surface-paper text-ink-700 hover:bg-surface-canvas disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              aria-label="Next page"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
       )}
 
       {/* Doctor detail sidebar */}
@@ -516,7 +631,7 @@ export default function DoctorsPage({
 
       {/* Toast Notification */}
       {toast && (
-        <div className="fixed bottom-5 right-5 bg-gray-900 text-white px-4 py-3 rounded-lg shadow-lg animate-fadeIn z-50">
+        <div className="fixed bottom-5 right-5 bg-trace-background text-white px-4 py-3 rounded-lg shadow-lg animate-fadeIn z-50">
           {toast}
         </div>
       )}
