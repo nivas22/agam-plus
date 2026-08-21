@@ -319,7 +319,10 @@ export class PaymentsService {
           doctorSpecialization: existingData.doctorSpecialization,
           patientId: existingData.patientId,
           patientName: existingData.patientName,
-          date: followUpDate.toISOString().split('T')[0],
+          // Local date components, not `.toISOString()` — that converts to
+          // UTC first and shifts the date back a day in timezones ahead of
+          // UTC (e.g. IST).
+          date: `${followUpDate.getFullYear()}-${String(followUpDate.getMonth() + 1).padStart(2, '0')}-${String(followUpDate.getDate()).padStart(2, '0')}`,
           time: existingData.time,
           status: APPOINTMENT_STATUS.PENDING,
           notes: 'Follow-up scheduled at visit completion',

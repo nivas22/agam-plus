@@ -9,6 +9,7 @@ import { AppointmentRepository } from './appointment.repository';
 import { DashboardRepository } from './dashboard.repository';
 import { PaymentRepository } from './payment.repository';
 import { PaymentDayCloseRepository } from './payment-day-close.repository';
+import { PackageRepository } from './package.repository';
 import { User, UserSchema } from '../schemas/user.schema';
 import { Hospital, HospitalSchema } from '../schemas/hospital.schema';
 import {
@@ -26,6 +27,7 @@ import {
   PaymentDayClose,
   PaymentDayCloseSchema,
 } from '../schemas/payment-day-close.schema';
+import { Package, PackageSchema } from '../schemas/package.schema';
 
 const repositories = [
   UserRepository,
@@ -37,6 +39,7 @@ const repositories = [
   DashboardRepository,
   PaymentRepository,
   PaymentDayCloseRepository,
+  PackageRepository,
 ];
 
 @Global()
@@ -51,6 +54,7 @@ const repositories = [
       { name: Appointment.name, schema: AppointmentSchema },
       { name: Payment.name, schema: PaymentSchema },
       { name: PaymentDayClose.name, schema: PaymentDayCloseSchema },
+      { name: Package.name, schema: PackageSchema },
     ]),
   ],
   providers: repositories,

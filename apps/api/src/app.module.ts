@@ -12,6 +12,7 @@ import { DoctorsModule } from './doctors/doctors.module';
 import { PatientsModule } from './patients/patients.module';
 import { AppointmentsModule } from './appointments/appointments.module';
 import { PaymentsModule } from './payments/payments.module';
+import { PackagesModule } from './packages/packages.module';
 import { PlatformAdminModule } from './platform-admin/platform-admin.module';
 
 @Module({
@@ -27,6 +28,7 @@ import { PlatformAdminModule } from './platform-admin/platform-admin.module';
     PatientsModule,
     AppointmentsModule,
     PaymentsModule,
+    PackagesModule,
     PlatformAdminModule,
   ],
   controllers: [AppController],

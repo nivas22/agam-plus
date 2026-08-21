@@ -9,6 +9,7 @@ export enum DB_COLLECTIONS {
   DOCTOR_ACTIVIES = 'doctor_activities',
   PAYMENTS = 'payments',
   PAYMENT_DAY_CLOSES = 'payment_day_closes',
+  PACKAGES = 'packages',
 }
 
 export enum ROLE {
@@ -120,6 +121,45 @@ export function isValidAppointmentTransition(
   const current = normalizeAppointmentStatus(from);
   if (current === to) return true;
   return APPOINTMENT_STATUS_TRANSITIONS[current]?.includes(to) ?? false;
+}
+
+// Marks whether an appointment was booked ad-hoc or drawn from a prepaid
+// package. PACKAGE appointments carry packageId/packageVisitNumber.
+export enum APPOINTMENT_TYPE {
+  REGULAR = 'regular',
+  PACKAGE = 'package',
+}
+
+export const APPOINTMENT_TYPE_VALUES = Object.values(APPOINTMENT_TYPE);
+
+export enum PACKAGE_STATUS {
+  ACTIVE = 'active',
+  EXPIRED = 'expired',
+  CANCELLED = 'cancelled',
+}
+
+export const PACKAGE_STATUS_VALUES = Object.values(PACKAGE_STATUS);
+
+export enum PACKAGE_PAYMENT_METHOD {
+  CASH = 'cash',
+  UPI = 'upi',
+  CARD = 'card',
+}
+
+export const PACKAGE_PAYMENT_METHOD_VALUES = Object.values(
+  PACKAGE_PAYMENT_METHOD,
+);
+
+// Fixed bundle sizes offered for a prepaid package.
+export const PACKAGE_VISIT_TIERS = [5, 10, 20];
+
+// A package stays redeemable for 6 months from the date it's sold.
+export const PACKAGE_VALIDITY_MONTHS = 6;
+
+// Per-visit price for a prepaid package — roughly 5/6 of the doctor's normal
+// consultation fee, rounded to the nearest ₹5 so bulk pricing reads clean.
+export function computePackagePricePerVisit(consultationFee: number): number {
+  return Math.round((consultationFee * 0.8333) / 5) * 5;
 }
 
 // How a completed visit was settled. SPLIT covers cash+UPI combined; DUE

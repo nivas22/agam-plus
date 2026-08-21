@@ -5,6 +5,7 @@ import {
   PAYMENT_METHOD_VALUES,
   PAYMENT_METHOD,
   PAYMENT_STATUS,
+  PACKAGE_PAYMENT_METHOD_VALUES,
 } from '../../constants';
 
 /* -------------------------------------------------------------------------- */
@@ -106,6 +107,38 @@ export const closeDaySchema = z.object({
   openingFloat: z.number().min(0).default(0),
   countedAmount: z.number().min(0, 'Counted amount is required'),
   note: z.string().optional(),
+});
+
+/* -------------------------------------------------------------------------- */
+/*                             PACKAGE SCHEMAS                                 */
+/* -------------------------------------------------------------------------- */
+
+export const previewPackageScheduleSchema = z.object({
+  doctorProfileId: z.string().min(1, 'Doctor is required'),
+  startDate: z.string().min(1, 'Start date is required'),
+  preferredTime: z.string().min(1, 'Preferred time is required'),
+  frequency: z.enum(['weekly', 'every-3-days']),
+  daysOfWeek: z.array(z.number().int().min(0).max(6)).default([]),
+  count: z.number().int().positive().max(60),
+});
+
+export const sellPackageVisitSchema = z.object({
+  date: z.string().min(1, 'Visit date is required'),
+  time: z.string().min(1, 'Visit time is required'),
+});
+
+export const sellPackageSchema = z.object({
+  patientId: z.string().min(1, 'Patient is required'),
+  doctorProfileId: z.string().min(1, 'Doctor is required'),
+  totalVisits: z.number().int().positive(),
+  pricePerVisit: z.number().min(0),
+  paymentMethod: z.enum(
+    PACKAGE_PAYMENT_METHOD_VALUES as [string, ...string[]],
+    {
+      message: `Payment method must be one of: ${PACKAGE_PAYMENT_METHOD_VALUES.join(', ')}`,
+    },
+  ),
+  visits: z.array(sellPackageVisitSchema).default([]),
 });
 
 /* -------------------------------------------------------------------------- */
