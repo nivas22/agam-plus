@@ -23,6 +23,8 @@ export interface Doctor {
   location?: string;
   maritalStatus?: string;
   appointmentDuration?: number;
+  bufferMinutes?: number;
+  patientsPerSlot?: number;
   address?: string;
   membershipId?: string | undefined;
   userId?: string;

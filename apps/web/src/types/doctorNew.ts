@@ -32,6 +32,8 @@ export interface Doctor {
   location?: string;
   maritalStatus?: string;
   appointmentDuration?: number;
+  bufferMinutes?: number;
+  patientsPerSlot?: number;
   address?: string;
   membershipId?: string | undefined;
   userId?: string;
@@ -87,6 +89,8 @@ export interface CreateDoctorData {
   gender?: string;
   maritalStatus?: string;
   appointmentDuration?: number;
+  bufferMinutes?: number;
+  patientsPerSlot?: number;
   hospitalId: string;
   specialization?: string;
   qualification?: string;

@@ -54,6 +54,12 @@ export class HospitalMember {
 
   @Prop()
   appointmentDuration?: number;
+
+  @Prop()
+  bufferMinutes?: number;
+
+  @Prop()
+  patientsPerSlot?: number;
 }
 
 export const HospitalMemberSchema = SchemaFactory.createForClass(HospitalMember);

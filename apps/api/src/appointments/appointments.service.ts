@@ -286,15 +286,19 @@ export class AppointmentsService {
     }
 
     // Try to find preferred time first
-    if (preferredTime && slots.includes(preferredTime)) {
+    if (preferredTime && slots.some((s) => s.time === preferredTime)) {
       return { date, time: preferredTime };
     }
 
     // Otherwise return first available slot
-    return { date, time: slots[0] };
+    return { date, time: slots[0].time };
   }
 
-  private async getAvailableSlots(doctor: any, membership: any, date: string): Promise<string[]> {
+  private async getAvailableSlots(
+    doctor: any,
+    membership: any,
+    date: string,
+  ): Promise<{ time: string; remaining: number; capacity: number }[]> {
     try {
       const doctorAvailability = membership?.availability || [];
 
@@ -302,9 +306,10 @@ export class AppointmentsService {
       const dateObj = new Date(date);
       const dayOfWeek = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
 
-      // Check if doctor is available on this day
-      const dayAvailability = doctorAvailability.find((a: any) => a.day === dayOfWeek);
-      if (!dayAvailability) return [];
+      // Check if doctor is available on this day — a day can have more than one
+      // working window (e.g. a morning and an evening shift), so collect all of them.
+      const dayWindows = doctorAvailability.filter((a: any) => a.day === dayOfWeek);
+      if (dayWindows.length === 0) return [];
 
       // Check for existing appointments on this date
       // Include legacy 'scheduled' for appointments created before this status migration.
@@ -313,36 +318,52 @@ export class AppointmentsService {
         'scheduled',
       ]);
 
-      const bookedSlots = existingAppointments.map((appt: any) => appt.time);
+      // Count how many patients are already booked into each slot, so a slot
+      // stays available until it reaches the doctor's patientsPerSlot capacity.
+      const bookedCounts: Record<string, number> = {};
+      for (const appt of existingAppointments as any[]) {
+        bookedCounts[appt.time] = (bookedCounts[appt.time] || 0) + 1;
+      }
 
       // Check if the date is today
       const today = new Date();
       const isToday = dateObj.toDateString() === today.toDateString();
       const currentTime = isToday ? today : null;
 
-      // Generate all possible slots
-      const slots: string[] = [];
-      const startTime = new Date(`${date}T${dayAvailability.startTime}`);
-      const endTime = new Date(`${date}T${dayAvailability.endTime}`);
-      const duration = doctor.appointmentDuration || 30;
-      const current = new Date(startTime);
+      // Generate all possible slots across every window for this day
+      // Booking-rule fields (appointmentDuration/bufferMinutes/patientsPerSlot) are
+      // hospital-scoped and persisted on the membership, not the doctor profile.
+      const slots: { time: string; remaining: number; capacity: number }[] = [];
+      const duration = membership?.appointmentDuration || doctor.appointmentDuration || 30;
+      const gap = Math.max(0, membership?.bufferMinutes || 0);
+      const capacity = Math.max(1, membership?.patientsPerSlot || 1);
+      const step = duration + gap;
 
-      while (current < endTime) {
-        const timeString = current.toTimeString().substring(0, 5);
+      for (const dayAvailability of dayWindows) {
+        const startTime = new Date(`${date}T${dayAvailability.startTime}`);
+        const endTime = new Date(`${date}T${dayAvailability.endTime}`);
+        const current = new Date(startTime);
 
-        // Skip past time slots if the date is today
-        if (isToday && currentTime && current <= currentTime) {
-          current.setMinutes(current.getMinutes() + duration);
-          continue;
+        // A slot only counts as bookable if the appointment fits before closing time.
+        while (current.getTime() + duration * 60000 <= endTime.getTime()) {
+          const timeString = current.toTimeString().substring(0, 5);
+
+          // Skip past time slots if the date is today
+          if (isToday && currentTime && current <= currentTime) {
+            current.setMinutes(current.getMinutes() + step);
+            continue;
+          }
+
+          // Only include slot if it hasn't reached capacity
+          const booked = bookedCounts[timeString] || 0;
+          if (booked < capacity) {
+            slots.push({ time: timeString, remaining: capacity - booked, capacity });
+          }
+          current.setMinutes(current.getMinutes() + step);
         }
-
-        // Only include slot if it's not already booked
-        if (!bookedSlots.includes(timeString)) {
-          slots.push(timeString);
-        }
-        current.setMinutes(current.getMinutes() + duration);
       }
 
+      slots.sort((a, b) => a.time.localeCompare(b.time));
       return slots;
     } catch (err) {
       console.error('getAvailableSlots error:', err);

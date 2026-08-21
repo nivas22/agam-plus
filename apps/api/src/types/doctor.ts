@@ -19,6 +19,8 @@ export interface Doctor {
   location?: string;
   availability?: TimeSlot[];
   appointmentDuration?: number;
+  bufferMinutes?: number;
+  patientsPerSlot?: number;
 }
 
 export interface DoctorProfile {
@@ -40,6 +42,8 @@ export interface DoctorProfile {
   gender?: string;
   maritalStatus?: string;
   appointmentDuration?: number;
+  bufferMinutes?: number;
+  patientsPerSlot?: number;
   membershipId?: string | null;
   membershipStatus?: string;
   joinedAt?: Date | string | null;

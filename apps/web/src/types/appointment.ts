@@ -64,8 +64,14 @@ export interface AppointmentFormData {
   recurringDates?: number[];
 }
 
+export interface AvailableSlot {
+  time: string;
+  remaining: number;
+  capacity: number;
+}
+
 export interface SlotsResponse {
-  availableSlots: string[];
+  availableSlots: AvailableSlot[];
   doctor: {
     id: string;
     name: string;

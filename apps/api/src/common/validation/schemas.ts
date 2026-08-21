@@ -61,6 +61,8 @@ export const availabilitySlotSchema = z.object({
 export const doctorAvailabilitySchema = z.object({
   availability: z.array(availabilitySlotSchema).min(1, 'At least one availability slot is required'),
   appointmentDuration: z.number().int().positive().default(30),
+  bufferMinutes: z.number().int().min(0).default(0),
+  patientsPerSlot: z.number().int().positive().default(1),
 });
 
 /* -------------------------------------------------------------------------- */
@@ -83,6 +85,8 @@ export const createDoctorSchema = z.object({
   // Hospital-scoped scheduling fields — persisted on HospitalMember, not DoctorProfile.
   availability: z.array(availabilitySlotSchema).optional(),
   appointmentDuration: z.number().int().positive().optional(),
+  bufferMinutes: z.number().int().min(0).optional(),
+  patientsPerSlot: z.number().int().positive().optional(),
 });
 
 export const updateDoctorAvailabilitySchema = z.object({
@@ -94,6 +98,8 @@ export const updateDoctorAvailabilitySchema = z.object({
     }),
   ),
   appointmentDuration: z.number().int().positive().optional(),
+  bufferMinutes: z.number().int().min(0).optional(),
+  patientsPerSlot: z.number().int().positive().optional(),
 });
 
 /* -------------------------------------------------------------------------- */

@@ -24,6 +24,8 @@ interface AddEditDoctorProps {
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 const DURATIONS = [15, 20, 30, 45, 60];
+const GAPS = [0, 5, 10, 15, 20, 30];
+const PATIENTS_PER_SLOT = [1, 2, 3, 4, 5];
 const GENDERS = [GENDER.MALE, GENDER.FEMALE, GENDER.OTHER];
 const MARITAL_STATUSES = ["Single", "Married"];
 const SPECIALIZATIONS = [
@@ -65,6 +67,8 @@ type FormState = {
   address: string;
   availability: TimeSlot[];
   appointmentDuration: number;
+  bufferMinutes: number;
+  patientsPerSlot: number;
 };
 
 const EMPTY_FORM: FormState = {
@@ -81,6 +85,8 @@ const EMPTY_FORM: FormState = {
   address: "",
   availability: [],
   appointmentDuration: 30,
+  bufferMinutes: 0,
+  patientsPerSlot: 1,
 };
 
 function minutesSinceMidnight(time: string): number {
@@ -104,13 +110,16 @@ function formatTime(time: string): string {
   return `${displayHour}:${minutes} ${period}`;
 }
 
-function slotCapacity(slot: TimeSlot, duration: number): number {
+function slotCapacity(slot: TimeSlot, duration: number, gap: number = 0): number {
   if (!duration) return 0;
-  return Math.max(0, Math.round((minutesSinceMidnight(slot.endTime) - minutesSinceMidnight(slot.startTime)) / duration));
+  const span = Math.max(0, minutesSinceMidnight(slot.endTime) - minutesSinceMidnight(slot.startTime));
+  if (span < duration) return 0;
+  return Math.floor((span - duration) / (duration + gap)) + 1;
 }
 
-function weekCapacity(availability: TimeSlot[], duration: number): number {
-  return availability.reduce((sum, slot) => sum + slotCapacity(slot, duration), 0);
+function weekCapacity(availability: TimeSlot[], duration: number, gap: number = 0, patientsPerSlot: number = 1): number {
+  const slots = availability.reduce((sum, slot) => sum + slotCapacity(slot, duration, gap), 0);
+  return slots * Math.max(1, patientsPerSlot);
 }
 
 function weekHours(availability: TimeSlot[]): number {
@@ -204,6 +213,8 @@ export default function AddEditDoctor({ isNew = false, id, hospitalId, canEdit =
         address: d.address || "",
         availability: d.availability || [],
         appointmentDuration: d.appointmentDuration || 30,
+        bufferMinutes: d.bufferMinutes ?? 0,
+        patientsPerSlot: d.patientsPerSlot || 1,
       };
       setFormData(next);
       setInitialData(next);
@@ -246,7 +257,12 @@ export default function AddEditDoctor({ isNew = false, id, hospitalId, canEdit =
     formData.qualification,
     formData.consultationFee != null ? String(formData.consultationFee) : "",
   ].filter(Boolean).length;
-  const weeklyCapacity = weekCapacity(formData.availability, formData.appointmentDuration);
+  const weeklyCapacity = weekCapacity(
+    formData.availability,
+    formData.appointmentDuration,
+    formData.bufferMinutes,
+    formData.patientsPerSlot
+  );
   const workingDays = new Set(formData.availability.map((s) => s.day)).size;
 
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
@@ -362,6 +378,8 @@ export default function AddEditDoctor({ isNew = false, id, hospitalId, canEdit =
         address: formData.address,
         availability: formData.availability,
         appointmentDuration: formData.appointmentDuration,
+        bufferMinutes: formData.bufferMinutes,
+        patientsPerSlot: formData.patientsPerSlot,
       };
 
       if (isNew) {
@@ -691,29 +709,56 @@ export default function AddEditDoctor({ isNew = false, id, hospitalId, canEdit =
             </div>
 
             <div className="bg-surface-canvas rounded-xl p-4 mb-5">
-              <div className="flex items-center justify-between gap-3 flex-wrap">
-                <span className="text-sm font-semibold text-ink-900">Appointment length</span>
-                <div className="flex flex-wrap gap-2">
-                  {DURATIONS.map((d) => (
-                    <button
-                      key={d}
-                      type="button"
-                      disabled={!canEdit}
-                      onClick={() => update("appointmentDuration", d)}
-                      className={`px-3 py-1.5 text-sm rounded-lg border transition-colors disabled:opacity-50 ${
-                        formData.appointmentDuration === d
-                          ? "bg-brand-violet text-white border-brand-violet"
-                          : "bg-surface-paper text-ink-700 border-border hover:border-brand-violet"
-                      }`}
-                    >
-                      {d} min
-                    </button>
-                  ))}
-                </div>
+              <div className="mb-4">
+                <h3 className="text-sm font-bold text-ink-900">Booking rules</h3>
+                <p className="text-xs text-ink-500">
+                  These turn working hours into bookable slots. Changing one re-resolves every future day.
+                </p>
               </div>
-              <p className="text-xs text-ink-500 text-right mt-2">
-                Each hour of availability fits {Math.max(1, Math.round(60 / formData.appointmentDuration))} appointments
-              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <Field label="Appointment length" hint="minutes per patient">
+                  <select
+                    value={formData.appointmentDuration}
+                    disabled={!canEdit}
+                    onChange={(e) => update("appointmentDuration", Number(e.target.value))}
+                    className={inputClass}
+                  >
+                    {DURATIONS.map((d) => (
+                      <option key={d} value={d}>
+                        {d}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Gap after each" hint="minutes to reset the room">
+                  <select
+                    value={formData.bufferMinutes}
+                    disabled={!canEdit}
+                    onChange={(e) => update("bufferMinutes", Number(e.target.value))}
+                    className={inputClass}
+                  >
+                    {GAPS.map((g) => (
+                      <option key={g} value={g}>
+                        {g}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Patients per slot" hint="above 1 allows overlap">
+                  <select
+                    value={formData.patientsPerSlot}
+                    disabled={!canEdit}
+                    onChange={(e) => update("patientsPerSlot", Number(e.target.value))}
+                    className={inputClass}
+                  >
+                    {PATIENTS_PER_SLOT.map((p) => (
+                      <option key={p} value={p}>
+                        {p}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              </div>
             </div>
 
             {canEdit && (
@@ -772,7 +817,7 @@ export default function AddEditDoctor({ isNew = false, id, hospitalId, canEdit =
                               >
                                 {formatTime(slot.startTime)} – {formatTime(slot.endTime)}
                                 <span className="text-ink-500 font-normal">
-                                  {slotCapacity(slot, formData.appointmentDuration)} appts
+                                  {slotCapacity(slot, formData.appointmentDuration, formData.bufferMinutes) * formData.patientsPerSlot} appts
                                 </span>
                                 {canEdit && (
                                   <button

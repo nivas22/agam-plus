@@ -378,7 +378,7 @@ export function RescheduleDialog({ appointment, doctor, hospitalId, patientCode,
       while (cur < end) {
         const t = hmLabel(cur);
         const isCurrent = date === appointment.date && t === appointment.time;
-        slots.push({ time: t, busy: !available.includes(t) && !isCurrent, isCurrent });
+        slots.push({ time: t, busy: !available.some((s) => s.time === t) && !isCurrent, isCurrent });
         cur += duration;
       }
     });

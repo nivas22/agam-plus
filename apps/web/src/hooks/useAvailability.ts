@@ -8,6 +8,8 @@ import { apiUrl, fetchWithAuth } from '@/lib/api';
 interface AvailabilityData {
   availability: TimeSlot[];
   appointmentDuration: number;
+  bufferMinutes: number;
+  patientsPerSlot: number;
 }
 
 interface SaveAvailabilityParams {
@@ -15,6 +17,8 @@ interface SaveAvailabilityParams {
   doctorId: string;
   availability: TimeSlot[];
   appointmentDuration: number;
+  bufferMinutes: number;
+  patientsPerSlot: number;
 }
 
 interface GetAvailabilityParams {
@@ -29,24 +33,26 @@ interface GetAvailableSlotsParams {
 }
 
 interface AvailableSlotsResponse {
-  availableSlots: string[];
+  availableSlots: { time: string; remaining: number; capacity: number }[];
   doctor: {
     id: string;
     name: string;
     specialization: string;
     appointmentDuration: number;
+    bufferMinutes: number;
+    patientsPerSlot: number;
   };
 }
 
 // Base API functions
 const availabilityApiFunctions = {
   saveAvailability: async (params: SaveAvailabilityParams): Promise<{ success: boolean; message: string }> => {
-    const { hospitalId, doctorId, availability, appointmentDuration } = params;
-    
+    const { hospitalId, doctorId, availability, appointmentDuration, bufferMinutes, patientsPerSlot } = params;
+
     const response = await fetchWithAuth(apiUrl(`/hospitals/${hospitalId}/doctors/${doctorId}/availability`), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ availability, appointmentDuration }),
+      body: JSON.stringify({ availability, appointmentDuration, bufferMinutes, patientsPerSlot }),
     });
 
     if (!response.ok) {
@@ -143,13 +149,17 @@ export const useAvailabilityApi = (hospitalId: string, doctorId: string) => {
   // Wrapper function for easier usage
   const saveAvailability = async (
     availabilityData: TimeSlot[],
-    appointmentDuration: number
+    appointmentDuration: number,
+    bufferMinutes: number = 0,
+    patientsPerSlot: number = 1
   ) => {
     return saveMutation.mutateAsync({
       hospitalId,
       doctorId,
       availability: availabilityData,
       appointmentDuration,
+      bufferMinutes,
+      patientsPerSlot,
     });
   };
 

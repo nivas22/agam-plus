@@ -833,16 +833,21 @@ export default function AppointmentDetails({
                           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                             {availableSlots.map((slot) => (
                               <button
-                                key={slot}
+                                key={slot.time}
                                 type="button"
-                                onClick={() => setRescheduleTime(slot)}
+                                onClick={() => setRescheduleTime(slot.time)}
                                 className={`p-2 text-sm rounded-lg border transition-all ${
-                                  rescheduleTime === slot
+                                  rescheduleTime === slot.time
                                     ? "bg-status-open text-white border-status-open-hover shadow-sm"
                                     : "bg-surface-paper text-ink-700 border-border hover:bg-surface-canvas"
                                 }`}
                               >
-                                {timeDisplay(slot)}
+                                {timeDisplay(slot.time)}
+                                {slot.capacity > 1 && (
+                                  <span className={`block text-[10px] ${rescheduleTime === slot.time ? "text-white/80" : "text-ink-500"}`}>
+                                    {slot.remaining} of {slot.capacity} left
+                                  </span>
+                                )}
                               </button>
                             ))}
                           </div>

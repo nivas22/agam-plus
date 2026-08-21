@@ -454,10 +454,10 @@ export default function CreateAppointment({ userRole, hospitalId }: CreateAppoin
       );
     }
 
-    const groups: Record<"Morning" | "Afternoon" | "Evening", string[]> = { Morning: [], Afternoon: [], Evening: [] };
-    availableSlots.forEach((t) => {
-      const h = parseInt(t.slice(0, 2), 10);
-      (h < 12 ? groups.Morning : h < 16 ? groups.Afternoon : groups.Evening).push(t);
+    const groups: Record<"Morning" | "Afternoon" | "Evening", typeof availableSlots> = { Morning: [], Afternoon: [], Evening: [] };
+    availableSlots.forEach((slot) => {
+      const h = parseInt(slot.time.slice(0, 2), 10);
+      (h < 12 ? groups.Morning : h < 16 ? groups.Afternoon : groups.Evening).push(slot);
     });
 
     return (
@@ -473,16 +473,23 @@ export default function CreateAppointment({ userRole, hospitalId }: CreateAppoin
               <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
                 {groups[k].map((slot) => (
                   <button
-                    key={slot}
+                    key={slot.time}
                     type="button"
-                    onClick={() => setAppointmentTime(slot)}
-                    className={`h-9 rounded-lg border text-sm font-mono transition-colors ${
-                      appointmentTime === slot
+                    onClick={() => setAppointmentTime(slot.time)}
+                    className={`rounded-lg border text-sm font-mono transition-colors ${
+                      slot.capacity > 1 ? "h-11 leading-tight" : "h-9"
+                    } ${
+                      appointmentTime === slot.time
                         ? "bg-brand-violet border-brand-violet text-white"
                         : "bg-surface-paper border-border text-ink-700 hover:border-brand-violet hover:text-brand-violet"
                     }`}
                   >
-                    {formatTimeForDisplay(slot)}
+                    {formatTimeForDisplay(slot.time)}
+                    {slot.capacity > 1 && (
+                      <span className={`block text-[10px] font-sans ${appointmentTime === slot.time ? "text-white/80" : "text-ink-500"}`}>
+                        {slot.remaining} of {slot.capacity} left
+                      </span>
+                    )}
                   </button>
                 ))}
               </div>

@@ -603,21 +603,26 @@ export default function MobileCreateAppointment({ userRole, hospitalId }: Mobile
               <div className="grid grid-cols-3 gap-2">
                 {availableSlots.map((slot) => (
                   <button
-                    key={slot}
+                    key={slot.time}
                     onClick={() => {
-                      setAppointmentTime(slot);
+                      setAppointmentTime(slot.time);
                       setShowTimeSlots(false);
                     }}
                     className={`p-4 rounded-xl border-2 font-semibold transition-all ${
-                      appointmentTime === slot
+                      appointmentTime === slot.time
                         ? 'bg-gradient-to-br from-brand-violet to-brand-violet text-white border-brand-violet'
                         : 'bg-surface-paper text-ink-700 border-border hover:border-brand-violet'
                     }`}
                   >
                     <Clock className={`w-4 h-4 mx-auto mb-1 ${
-                      appointmentTime === slot ? 'text-white' : 'text-brand-violet'
+                      appointmentTime === slot.time ? 'text-white' : 'text-brand-violet'
                     }`} />
-                    <span className="text-sm">{slot}</span>
+                    <span className="text-sm">{slot.time}</span>
+                    {slot.capacity > 1 && (
+                      <span className={`block text-[10px] mt-0.5 ${appointmentTime === slot.time ? 'text-white/80' : 'text-ink-500'}`}>
+                        {slot.remaining} of {slot.capacity} left
+                      </span>
+                    )}
                   </button>
                 ))}
               </div>
