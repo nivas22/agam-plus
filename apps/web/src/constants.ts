@@ -7,6 +7,8 @@ export enum DB_COLLECTIONS {
   HOSPITAL_MEMBERS = 'hospitalMembers_new_1',
   REVIEWS = 'reviews',
   DOCTOR_ACTIVIES = 'doctor_activities',
+  PAYMENTS = 'payments',
+  PAYMENT_DAY_CLOSES = 'payment_day_closes',
 }
 
 export enum ROLE {
@@ -58,7 +60,9 @@ export const ACTIVE_APPOINTMENT_STATUSES: APPOINTMENT_STATUS[] = [
 // Legacy documents predate this state machine and were all written as
 // 'scheduled'. Normalize them to CONFIRMED for transition checks only —
 // the stored value is left untouched until the appointment's next update.
-export function normalizeAppointmentStatus(status: string | undefined | null): APPOINTMENT_STATUS {
+export function normalizeAppointmentStatus(
+  status: string | undefined | null,
+): APPOINTMENT_STATUS {
   if (status === 'scheduled' || !status) return APPOINTMENT_STATUS.CONFIRMED;
   return status as APPOINTMENT_STATUS;
 }
@@ -66,8 +70,14 @@ export function normalizeAppointmentStatus(status: string | undefined | null): A
 // Allowed next statuses for each current status. Same-status "transitions"
 // (e.g. re-saving session notes on a completed appointment) are always
 // permitted and validated separately.
-export const APPOINTMENT_STATUS_TRANSITIONS: Record<APPOINTMENT_STATUS, APPOINTMENT_STATUS[]> = {
-  [APPOINTMENT_STATUS.PENDING]: [APPOINTMENT_STATUS.CONFIRMED, APPOINTMENT_STATUS.CANCELLED],
+export const APPOINTMENT_STATUS_TRANSITIONS: Record<
+  APPOINTMENT_STATUS,
+  APPOINTMENT_STATUS[]
+> = {
+  [APPOINTMENT_STATUS.PENDING]: [
+    APPOINTMENT_STATUS.CONFIRMED,
+    APPOINTMENT_STATUS.CANCELLED,
+  ],
   [APPOINTMENT_STATUS.CONFIRMED]: [
     APPOINTMENT_STATUS.CHECKED_IN,
     APPOINTMENT_STATUS.IN_CONSULTATION, // doctor-direct fast path when front-desk check-in isn't used
@@ -75,20 +85,93 @@ export const APPOINTMENT_STATUS_TRANSITIONS: Record<APPOINTMENT_STATUS, APPOINTM
     APPOINTMENT_STATUS.NO_SHOW,
     APPOINTMENT_STATUS.RESCHEDULED,
   ],
-  [APPOINTMENT_STATUS.CHECKED_IN]: [APPOINTMENT_STATUS.WAITING, APPOINTMENT_STATUS.IN_CONSULTATION, APPOINTMENT_STATUS.CANCELLED],
-  [APPOINTMENT_STATUS.WAITING]: [APPOINTMENT_STATUS.IN_CONSULTATION, APPOINTMENT_STATUS.CANCELLED],
-  [APPOINTMENT_STATUS.IN_CONSULTATION]: [APPOINTMENT_STATUS.COMPLETED, APPOINTMENT_STATUS.CANCELLED],
+  [APPOINTMENT_STATUS.CHECKED_IN]: [
+    APPOINTMENT_STATUS.WAITING,
+    APPOINTMENT_STATUS.IN_CONSULTATION,
+    APPOINTMENT_STATUS.CANCELLED,
+  ],
+  [APPOINTMENT_STATUS.WAITING]: [
+    APPOINTMENT_STATUS.IN_CONSULTATION,
+    APPOINTMENT_STATUS.CANCELLED,
+  ],
+  [APPOINTMENT_STATUS.IN_CONSULTATION]: [
+    APPOINTMENT_STATUS.COMPLETED,
+    APPOINTMENT_STATUS.CANCELLED,
+  ],
   [APPOINTMENT_STATUS.COMPLETED]: [APPOINTMENT_STATUS.CONFIRMED], // reopen
-  [APPOINTMENT_STATUS.CANCELLED]: [APPOINTMENT_STATUS.CONFIRMED, APPOINTMENT_STATUS.RESCHEDULED], // reopen / rebook
-  [APPOINTMENT_STATUS.NO_SHOW]: [APPOINTMENT_STATUS.CONFIRMED, APPOINTMENT_STATUS.RESCHEDULED], // reopen / rebook
-  [APPOINTMENT_STATUS.RESCHEDULED]: [APPOINTMENT_STATUS.CONFIRMED, APPOINTMENT_STATUS.CANCELLED],
+  [APPOINTMENT_STATUS.CANCELLED]: [
+    APPOINTMENT_STATUS.CONFIRMED,
+    APPOINTMENT_STATUS.RESCHEDULED,
+  ], // reopen / rebook
+  [APPOINTMENT_STATUS.NO_SHOW]: [
+    APPOINTMENT_STATUS.CONFIRMED,
+    APPOINTMENT_STATUS.RESCHEDULED,
+  ], // reopen / rebook
+  [APPOINTMENT_STATUS.RESCHEDULED]: [
+    APPOINTMENT_STATUS.CONFIRMED,
+    APPOINTMENT_STATUS.CANCELLED,
+  ],
 };
 
-export function isValidAppointmentTransition(from: string | undefined | null, to: APPOINTMENT_STATUS): boolean {
+export function isValidAppointmentTransition(
+  from: string | undefined | null,
+  to: APPOINTMENT_STATUS,
+): boolean {
   const current = normalizeAppointmentStatus(from);
   if (current === to) return true;
   return APPOINTMENT_STATUS_TRANSITIONS[current]?.includes(to) ?? false;
 }
+
+// How a completed visit was settled. SPLIT covers cash+UPI combined; DUE
+// records the visit as unpaid rather than blocking completion on collection.
+export enum PAYMENT_METHOD {
+  CASH = 'cash',
+  UPI = 'upi',
+  SPLIT = 'split',
+  DUE = 'due',
+}
+
+export const PAYMENT_METHOD_VALUES = Object.values(PAYMENT_METHOD);
+
+export enum PAYMENT_STATUS {
+  PAID = 'paid',
+  DUE = 'due',
+  REFUNDED = 'refunded',
+}
+
+export const PAYMENT_STATUS_VALUES = Object.values(PAYMENT_STATUS);
+
+// Offsets for the optional draft follow-up appointment created alongside a
+// completed visit. 'none' skips it — value keys double as the select's option value.
+export const FOLLOW_UP_OPTIONS = [
+  { value: 'none', label: 'No follow-up needed' },
+  { value: '3-days', label: 'In 3 days' },
+  { value: '1-week', label: 'In 1 week' },
+  { value: '2-weeks', label: 'In 2 weeks' },
+  { value: '1-month', label: 'In 1 month' },
+] as const;
+
+export const FOLLOW_UP_DAY_OFFSETS: Record<string, number> = {
+  '3-days': 3,
+  '1-week': 7,
+  '2-weeks': 14,
+  '1-month': 30,
+};
+
+export const PAYMENT_DUE_REASONS = [
+  'Patient will pay at pharmacy counter',
+  'Insurance / TPA claim',
+  'Hospital staff — waived',
+  'Other',
+] as const;
+
+// Quick-add suggestions on the bill line-item picker. Not a catalog entity —
+// just a fixed shortlist of the most common non-consultation charges.
+export const COMMON_BILL_ITEMS: { name: string; price: number }[] = [
+  { name: 'Dressing', price: 150 },
+  { name: 'Injection — Tetanus toxoid', price: 250 },
+  { name: 'ECG', price: 300 },
+];
 
 export const MEDICAL_SPECIALIZATIONS = [
   'Cardiology',

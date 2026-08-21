@@ -1,0 +1,514 @@
+import { Injectable } from '@nestjs/common';
+import { PaymentRepository } from '../repositories/payment.repository';
+import { AppointmentRepository } from '../repositories/appointment.repository';
+import { PaymentDayCloseRepository } from '../repositories/payment-day-close.repository';
+import { PatientRepository } from '../repositories/patient.repository';
+import { DoctorRepository } from '../repositories/doctor.repository';
+import { UserRepository } from '../repositories/user.repository';
+import { ApiError } from '../common/errors/api-error';
+import {
+  JwtUser,
+  HospitalUserProfile,
+} from '../auth/decorators/current-user.decorator';
+import {
+  CompleteVisitBody,
+  UpdatePaymentBody,
+  PaymentListQuery,
+  CloseDayBody,
+} from './payments.types';
+import {
+  APPOINTMENT_STATUS,
+  isValidAppointmentTransition,
+  PAYMENT_METHOD,
+  PAYMENT_STATUS,
+  FOLLOW_UP_DAY_OFFSETS,
+} from '../constants';
+
+interface DayTotals {
+  cashCollected: number;
+  upiCollected: number;
+  unpaid: number;
+  refundsPaidOut: number;
+}
+
+@Injectable()
+export class PaymentsService {
+  constructor(
+    private readonly paymentRepository: PaymentRepository,
+    private readonly appointmentRepository: AppointmentRepository,
+    private readonly paymentDayCloseRepository: PaymentDayCloseRepository,
+    private readonly patientRepository: PatientRepository,
+    private readonly doctorRepository: DoctorRepository,
+    private readonly userRepository: UserRepository,
+  ) {}
+
+  // Legacy `closedBy` values stamped before this was fixed to store a display
+  // name are raw Mongo ids — recognizable as 24 hex chars.
+  private looksLikeUserId(value: string): boolean {
+    return /^[0-9a-f]{24}$/i.test(value);
+  }
+
+  // Half-open [start, end) range for a calendar day, keyed off createdAt (UTC,
+  // matching how the rest of the app stamps timestamps with `new Date()`).
+  private dateRangeForDay(date: string): { start: Date; end: Date } {
+    const start = new Date(`${date}T00:00:00.000Z`);
+    const end = new Date(start);
+    end.setUTCDate(end.getUTCDate() + 1);
+    return { start, end };
+  }
+
+  // Splits a day's payments into what actually moved through the physical
+  // cash drawer vs UPI vs what's still outstanding — the numbers "Close the
+  // day" reconciles against. Only the cash leg of a refund/split affects the drawer.
+  private aggregateDayTotals(payments: any[]): DayTotals {
+    const totals: DayTotals = {
+      cashCollected: 0,
+      upiCollected: 0,
+      unpaid: 0,
+      refundsPaidOut: 0,
+    };
+    for (const p of payments) {
+      if (p.status === PAYMENT_STATUS.PAID) {
+        if (p.method === PAYMENT_METHOD.CASH) totals.cashCollected += p.total;
+        else if (p.method === PAYMENT_METHOD.UPI)
+          totals.upiCollected += p.total;
+        else if (p.method === PAYMENT_METHOD.SPLIT) {
+          totals.cashCollected += p.splitCashAmount || 0;
+          totals.upiCollected += p.splitUpiAmount || 0;
+        }
+      } else if (p.status === PAYMENT_STATUS.DUE) {
+        totals.unpaid += p.total;
+      } else if (p.status === PAYMENT_STATUS.REFUNDED) {
+        if (p.method === PAYMENT_METHOD.CASH) totals.refundsPaidOut += p.total;
+        else if (p.method === PAYMENT_METHOD.SPLIT)
+          totals.refundsPaidOut += p.splitCashAmount || 0;
+      }
+    }
+    return totals;
+  }
+
+  async getPayments(hospitalId: string, query: PaymentListQuery) {
+    if (query.appointmentId) {
+      const payment = await this.paymentRepository.getPaymentByAppointmentId(
+        hospitalId,
+        query.appointmentId,
+      );
+      const payments = payment ? await this.enrichPayments([payment]) : [];
+      return { payments, total: payments.length };
+    }
+
+    const rawPayments = await this.paymentRepository.getPaymentsWithFilters({
+      hospitalId,
+      status: query.status,
+      method: query.method,
+      startDate: query.startDate,
+      endDate: query.endDate,
+      limit: query.limit ? parseInt(query.limit) : undefined,
+    });
+    const payments = await this.enrichPayments(rawPayments);
+
+    return { payments, total: payments.length };
+  }
+
+  // Fills in patientName/patientPhone/doctorName for any payment missing its
+  // snapshot (e.g. records created before that snapshot was added, or a
+  // lookup that failed at completion time) — same $in-lookup shape as
+  // AppointmentsService.getAppointments, but only for what's actually missing.
+  private async enrichPayments(payments: any[]): Promise<any[]> {
+    const missingPatientIds = Array.from(
+      new Set(payments.filter((p) => !p.patientName).map((p) => p.patientId)),
+    ).filter(Boolean);
+    const missingDoctorIds = Array.from(
+      new Set(
+        payments
+          .filter((p) => !p.doctorName && p.doctorProfileId)
+          .map((p) => p.doctorProfileId),
+      ),
+    ).filter(Boolean);
+
+    if (missingPatientIds.length === 0 && missingDoctorIds.length === 0) {
+      return payments;
+    }
+
+    const [patients, doctors] = await Promise.all([
+      missingPatientIds.length
+        ? this.patientRepository.getPatientsByIds(missingPatientIds)
+        : Promise.resolve([]),
+      missingDoctorIds.length
+        ? this.doctorRepository.getDoctorProfilesByIds(missingDoctorIds)
+        : Promise.resolve([]),
+    ]);
+    const patientMap = new Map(patients.map((p: any) => [p.id, p]));
+    const doctorMap = new Map(doctors.map((d: any) => [d.id, d]));
+
+    return payments.map((p) => ({
+      ...p,
+      patientName: p.patientName || patientMap.get(p.patientId)?.name,
+      patientPhone: p.patientPhone || patientMap.get(p.patientId)?.phone,
+      doctorName: p.doctorName || doctorMap.get(p.doctorProfileId)?.name,
+    }));
+  }
+
+  async completeVisit(
+    hospitalId: string,
+    user: JwtUser,
+    userProfile: HospitalUserProfile,
+    body: CompleteVisitBody,
+  ) {
+    const userRole = userProfile?.role;
+
+    if (userRole !== 'admin' && userProfile?.hospitalId !== hospitalId) {
+      throw ApiError.forbidden('Unauthorized - Access denied to this hospital');
+    }
+
+    const { appointmentId, sessionNotes, followUp, items, discount, method } =
+      body;
+
+    const appointment =
+      await this.appointmentRepository.getAppointmentById(appointmentId);
+    if (!appointment) {
+      throw ApiError.notFound('Appointment not found');
+    }
+
+    const existingData = appointment as any;
+
+    if (existingData.hospitalId !== hospitalId) {
+      throw ApiError.notFound('Appointment not found in this hospital');
+    }
+
+    if (
+      userRole === 'doctor' &&
+      existingData.doctorProfileId !== userProfile?.userId
+    ) {
+      throw ApiError.forbidden(
+        'Unauthorized - Can only complete your own appointments',
+      );
+    }
+
+    if (
+      !isValidAppointmentTransition(
+        existingData.status,
+        APPOINTMENT_STATUS.COMPLETED,
+      )
+    ) {
+      throw ApiError.badRequest(
+        `Cannot complete an appointment from status '${existingData.status}'`,
+      );
+    }
+
+    const existingPayment =
+      await this.paymentRepository.getPaymentByAppointmentId(
+        hospitalId,
+        appointmentId,
+      );
+    if (existingPayment) {
+      throw ApiError.conflict(
+        'A bill has already been recorded for this visit',
+      );
+    }
+
+    const subtotal = items.reduce(
+      (sum, item) => sum + item.quantity * item.unitPrice,
+      0,
+    );
+    const total = Math.max(subtotal - discount, 0);
+
+    // patientName/doctorName on the appointment doc itself are only ever
+    // stamped on creation (or never, for patientName) — the appointments
+    // list gets its display names from a read-time $in lookup instead. Do
+    // the same lookup here so the payment's own denormalized snapshot is accurate.
+    const [patient, doctor] = await Promise.all([
+      this.patientRepository.getPatientById(existingData.patientId),
+      existingData.doctorProfileId
+        ? this.doctorRepository.getDoctorProfileById(
+            existingData.doctorProfileId,
+          )
+        : Promise.resolve(null),
+    ]);
+
+    const paymentData: Record<string, any> = {
+      hospitalId,
+      appointmentId,
+      patientId: existingData.patientId,
+      patientName: (patient as any)?.name || existingData.patientName,
+      patientPhone: (patient as any)?.phone || existingData.patientPhone,
+      doctorProfileId: existingData.doctorProfileId,
+      doctorName: (doctor as any)?.name || existingData.doctorName,
+      items,
+      subtotal,
+      discount,
+      total,
+      method,
+      sendReceiptWhatsApp: body.sendReceiptWhatsApp,
+      createdBy: user.uid,
+    };
+
+    if (method === PAYMENT_METHOD.CASH) {
+      if (body.amountTendered == null || body.amountTendered < total) {
+        throw ApiError.badRequest(
+          'Amount received must cover the total payable',
+        );
+      }
+      paymentData.amountTendered = body.amountTendered;
+      paymentData.changeDue = body.amountTendered - total;
+      paymentData.collectedBy = body.collectedBy;
+      paymentData.status = PAYMENT_STATUS.PAID;
+    } else if (method === PAYMENT_METHOD.UPI) {
+      paymentData.upiReference = body.upiReference;
+      paymentData.status = PAYMENT_STATUS.PAID;
+    } else if (method === PAYMENT_METHOD.SPLIT) {
+      const cash = body.splitCashAmount ?? 0;
+      const upi = body.splitUpiAmount ?? 0;
+      if (cash + upi !== total) {
+        throw ApiError.badRequest(
+          'Split amounts must add up to the total payable',
+        );
+      }
+      paymentData.splitCashAmount = cash;
+      paymentData.splitUpiAmount = upi;
+      paymentData.status = PAYMENT_STATUS.PAID;
+    } else if (method === PAYMENT_METHOD.DUE) {
+      if (!body.dueReason) {
+        throw ApiError.badRequest(
+          'A reason is required to record this visit as unpaid',
+        );
+      }
+      paymentData.dueReason = body.dueReason;
+      paymentData.status = PAYMENT_STATUS.DUE;
+    }
+
+    const invoiceYear = new Date().getFullYear();
+    const sequence =
+      (await this.paymentRepository.countPaymentsForYear(
+        hospitalId,
+        invoiceYear,
+      )) + 1;
+    paymentData.invoiceYear = invoiceYear;
+    paymentData.invoiceNumber = `INV-${invoiceYear}-${String(sequence).padStart(4, '0')}`;
+
+    const payment = await this.paymentRepository.createPayment(paymentData);
+
+    const updateData: Record<string, any> = {
+      status: APPOINTMENT_STATUS.COMPLETED,
+      completedAt: new Date().toISOString(),
+      updatedBy: user.uid,
+      updatedByRole: userRole,
+    };
+    if (sessionNotes) {
+      updateData.sessionNotes = sessionNotes;
+    }
+
+    await this.appointmentRepository.updateAppointment(
+      appointmentId,
+      updateData,
+    );
+
+    let followUpAppointmentId: string | null = null;
+    const followUpDays = followUp ? FOLLOW_UP_DAY_OFFSETS[followUp] : undefined;
+    if (followUpDays) {
+      const followUpDate = new Date();
+      followUpDate.setDate(followUpDate.getDate() + followUpDays);
+
+      // Drafted as PENDING — the front desk still has to confirm it, matching
+      // the state machine's reserved "not yet confirmed" status.
+      followUpAppointmentId =
+        await this.appointmentRepository.createAppointment({
+          hospitalId,
+          doctorProfileId: existingData.doctorProfileId,
+          doctorName: existingData.doctorName,
+          doctorSpecialization: existingData.doctorSpecialization,
+          patientId: existingData.patientId,
+          patientName: existingData.patientName,
+          date: followUpDate.toISOString().split('T')[0],
+          time: existingData.time,
+          status: APPOINTMENT_STATUS.PENDING,
+          notes: 'Follow-up scheduled at visit completion',
+          createdBy: user.uid,
+          userRole,
+        });
+    }
+
+    return {
+      success: true,
+      message:
+        method === PAYMENT_METHOD.DUE
+          ? `Visit completed with ${total} due`
+          : 'Visit completed and payment recorded',
+      payment,
+      followUpAppointmentId,
+    };
+  }
+
+  async updatePayment(
+    hospitalId: string,
+    userProfile: HospitalUserProfile,
+    paymentId: string,
+    body: UpdatePaymentBody,
+  ) {
+    if (
+      userProfile?.role !== 'admin' &&
+      userProfile?.hospitalId !== hospitalId
+    ) {
+      throw ApiError.forbidden('Unauthorized - Access denied to this hospital');
+    }
+
+    const payment = await this.paymentRepository.getPaymentById(
+      hospitalId,
+      paymentId,
+    );
+    if (!payment) {
+      throw ApiError.notFound('Payment not found');
+    }
+
+    const existingData = payment as any;
+
+    const paymentDate = new Date(existingData.createdAt)
+      .toISOString()
+      .split('T')[0];
+    const dayClose = await this.paymentDayCloseRepository.getByDate(
+      hospitalId,
+      paymentDate,
+    );
+    if (dayClose && body.status !== PAYMENT_STATUS.REFUNDED) {
+      throw ApiError.badRequest(
+        'This day is closed — only refunds are allowed',
+      );
+    }
+
+    const updates: Record<string, any> = {};
+
+    if (body.status === PAYMENT_STATUS.REFUNDED) {
+      updates.status = PAYMENT_STATUS.REFUNDED;
+      updates.refundedAt = new Date();
+      updates.refundReason = body.refundReason;
+    } else if (
+      body.status === PAYMENT_STATUS.PAID &&
+      existingData.status === PAYMENT_STATUS.DUE
+    ) {
+      if (!body.method) {
+        throw ApiError.badRequest(
+          'A collection method is required to settle this due',
+        );
+      }
+      updates.method = body.method;
+      updates.status = PAYMENT_STATUS.PAID;
+      updates.settledAt = new Date();
+      if (body.method === PAYMENT_METHOD.CASH) {
+        if (
+          body.amountTendered == null ||
+          body.amountTendered < existingData.total
+        ) {
+          throw ApiError.badRequest(
+            'Amount received must cover the total payable',
+          );
+        }
+        updates.amountTendered = body.amountTendered;
+        updates.changeDue = body.amountTendered - existingData.total;
+        updates.collectedBy = body.collectedBy;
+      } else if (body.method === PAYMENT_METHOD.UPI) {
+        updates.upiReference = body.upiReference;
+      }
+    } else if (body.upiReference !== undefined) {
+      updates.upiReference = body.upiReference;
+    }
+
+    if (Object.keys(updates).length === 0) {
+      throw ApiError.badRequest('No valid updates provided');
+    }
+
+    await this.paymentRepository.updatePayment(hospitalId, paymentId, updates);
+
+    return { success: true, message: 'Payment updated' };
+  }
+
+  async getDayClose(hospitalId: string, date: string) {
+    const { start, end } = this.dateRangeForDay(date);
+    const payments = await this.paymentRepository.getPaymentsForDateRange(
+      hospitalId,
+      start,
+      end,
+    );
+    const totals = this.aggregateDayTotals(payments);
+
+    const existing = await this.paymentDayCloseRepository.getByDate(
+      hospitalId,
+      date,
+    );
+    const openingFloat = existing?.openingFloat ?? 0;
+    const expectedDrawer =
+      openingFloat + totals.cashCollected - totals.refundsPaidOut;
+
+    let closedBy = existing?.closedBy;
+    if (closedBy && this.looksLikeUserId(closedBy)) {
+      const closedByUser = await this.userRepository.getUserById(closedBy);
+      closedBy = (closedByUser as any)?.name || closedBy;
+    }
+
+    return {
+      date,
+      openingFloat,
+      cashCollected: totals.cashCollected,
+      upiCollected: totals.upiCollected,
+      unpaid: totals.unpaid,
+      refundsPaidOut: totals.refundsPaidOut,
+      expectedDrawer,
+      closed: !!existing,
+      countedAmount: existing?.countedAmount,
+      variance: existing ? existing.countedAmount - expectedDrawer : undefined,
+      note: existing?.note,
+      closedBy,
+      closedAt: existing?.closedAt,
+    };
+  }
+
+  async closeDay(
+    hospitalId: string,
+    userProfile: HospitalUserProfile,
+    body: CloseDayBody,
+  ) {
+    if (userProfile?.role !== 'admin') {
+      throw ApiError.forbidden('Only an admin can close the day');
+    }
+
+    const existing = await this.paymentDayCloseRepository.getByDate(
+      hospitalId,
+      body.date,
+    );
+    if (existing) {
+      throw ApiError.conflict('This day has already been closed');
+    }
+
+    const { start, end } = this.dateRangeForDay(body.date);
+    const payments = await this.paymentRepository.getPaymentsForDateRange(
+      hospitalId,
+      start,
+      end,
+    );
+    const totals = this.aggregateDayTotals(payments);
+    const expectedDrawer =
+      body.openingFloat + totals.cashCollected - totals.refundsPaidOut;
+    const variance = body.countedAmount - expectedDrawer;
+
+    if (variance !== 0 && !body.note) {
+      throw ApiError.badRequest(
+        "A note is required when the counted amount doesn't match",
+      );
+    }
+
+    const dayClose = await this.paymentDayCloseRepository.create({
+      hospitalId,
+      date: body.date,
+      openingFloat: body.openingFloat,
+      cashCollected: totals.cashCollected,
+      upiCollected: totals.upiCollected,
+      refundsPaidOut: totals.refundsPaidOut,
+      expectedDrawer,
+      countedAmount: body.countedAmount,
+      variance,
+      note: body.note,
+      closedBy: userProfile.name || userProfile.userId,
+    });
+
+    return { success: true, message: 'Day closed', dayClose };
+  }
+}

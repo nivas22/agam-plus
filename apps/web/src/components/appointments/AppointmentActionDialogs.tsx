@@ -59,13 +59,14 @@ function dateLabel(dateStr: string): string {
 /*                              shared shell                              */
 /* ---------------------------------------------------------------------- */
 
-function DialogShell({
+export function DialogShell({
   icon,
   iconTone,
   title,
   subtitle,
   onClose,
   wide,
+  size,
   children,
   footer,
 }: {
@@ -75,6 +76,7 @@ function DialogShell({
   subtitle?: string;
   onClose: () => void;
   wide?: boolean;
+  size?: "lg";
   children: React.ReactNode;
   footer: React.ReactNode;
 }) {
@@ -93,7 +95,7 @@ function DialogShell({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={onClose}>
       <div
-        className={`bg-surface-paper rounded-2xl shadow-2xl w-full ${wide ? "max-w-xl" : "max-w-md"} max-h-[calc(100vh-48px)] flex flex-col`}
+        className={`bg-surface-paper rounded-2xl shadow-2xl w-full ${size === "lg" ? "max-w-3xl" : wide ? "max-w-xl" : "max-w-md"} max-h-[calc(100vh-48px)] flex flex-col`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start gap-3 p-5 pb-4">
@@ -118,7 +120,7 @@ function DialogShell({
   );
 }
 
-function ContextStrip({ appointment, doctor, patientCode }: { appointment: AppointmentWithDetails; doctor?: Doctor | null; patientCode?: string }) {
+export function ContextStrip({ appointment, doctor, patientCode }: { appointment: AppointmentWithDetails; doctor?: Doctor | null; patientCode?: string }) {
   return (
     <div className="mx-5 flex items-center gap-3 px-3.5 py-2.5 rounded-xl border border-border bg-surface-canvas/60">
       <div className="font-mono leading-tight">
@@ -147,10 +149,10 @@ function ContextStrip({ appointment, doctor, patientCode }: { appointment: Appoi
   );
 }
 
-const secondaryBtn = "h-10 px-4 rounded-lg border border-border text-sm font-medium text-ink-700 hover:bg-surface-canvas transition-colors";
-const primaryBtn = "ml-auto h-10 px-4 rounded-lg text-white text-sm font-semibold transition-colors disabled:cursor-not-allowed";
+export const secondaryBtn = "h-10 px-4 rounded-lg border border-border text-sm font-medium text-ink-700 hover:bg-surface-canvas transition-colors";
+export const primaryBtn = "ml-auto h-10 px-4 rounded-lg text-white text-sm font-semibold transition-colors disabled:cursor-not-allowed";
 
-function CheckboxOption({
+export function CheckboxOption({
   id,
   label,
   hint,

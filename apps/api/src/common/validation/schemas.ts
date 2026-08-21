@@ -1,5 +1,11 @@
 import { z } from 'zod';
-import { GENDER, APPOINTMENT_STATUS_VALUES } from '../../constants';
+import {
+  GENDER,
+  APPOINTMENT_STATUS_VALUES,
+  PAYMENT_METHOD_VALUES,
+  PAYMENT_METHOD,
+  PAYMENT_STATUS,
+} from '../../constants';
 
 /* -------------------------------------------------------------------------- */
 /*                              AUTH SCHEMAS                                  */
@@ -49,17 +55,85 @@ export const updateAppointmentSchema = z.object({
 });
 
 /* -------------------------------------------------------------------------- */
+/*                             PAYMENT SCHEMAS                                 */
+/* -------------------------------------------------------------------------- */
+
+export const paymentItemSchema = z.object({
+  name: z.string().min(1, 'Item name is required'),
+  quantity: z.number().int().positive().default(1),
+  unitPrice: z.number().min(0, 'Price cannot be negative'),
+  isAuto: z.boolean().optional(),
+});
+
+export const completeVisitSchema = z.object({
+  appointmentId: z.string().min(1, 'Appointment ID is required'),
+  sessionNotes: z.string().optional(),
+  followUp: z
+    .enum(['none', '3-days', '1-week', '2-weeks', '1-month'])
+    .default('none'),
+  items: z
+    .array(paymentItemSchema)
+    .min(1, 'At least one billable item is required'),
+  discount: z.number().min(0).default(0),
+  method: z.enum(PAYMENT_METHOD_VALUES as [string, ...string[]], {
+    message: `Method must be one of: ${PAYMENT_METHOD_VALUES.join(', ')}`,
+  }),
+  // cash
+  amountTendered: z.number().min(0).optional(),
+  collectedBy: z.string().optional(),
+  // upi
+  upiReference: z.string().optional(),
+  // split
+  splitCashAmount: z.number().min(0).optional(),
+  splitUpiAmount: z.number().min(0).optional(),
+  // due
+  dueReason: z.string().optional(),
+  sendReceiptWhatsApp: z.boolean().default(true),
+});
+
+export const updatePaymentSchema = z.object({
+  upiReference: z.string().optional(),
+  status: z.enum([PAYMENT_STATUS.PAID, PAYMENT_STATUS.REFUNDED]).optional(),
+  refundReason: z.string().optional(),
+  // Settling a due payment (status: PAID moving off an existing DUE record)
+  method: z.enum([PAYMENT_METHOD.CASH, PAYMENT_METHOD.UPI]).optional(),
+  amountTendered: z.number().min(0).optional(),
+  collectedBy: z.string().optional(),
+});
+
+export const closeDaySchema = z.object({
+  date: z.string().min(1, 'Date is required'),
+  openingFloat: z.number().min(0).default(0),
+  countedAmount: z.number().min(0, 'Counted amount is required'),
+  note: z.string().optional(),
+});
+
+/* -------------------------------------------------------------------------- */
 /*                          AVAILABILITY SCHEMAS                              */
 /* -------------------------------------------------------------------------- */
 
 export const availabilitySlotSchema = z.object({
-  day: z.enum(['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']),
-  startTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format (HH:MM)'),
-  endTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format (HH:MM)'),
+  day: z.enum([
+    'Monday',
+    'Tuesday',
+    'Wednesday',
+    'Thursday',
+    'Friday',
+    'Saturday',
+    'Sunday',
+  ]),
+  startTime: z
+    .string()
+    .regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format (HH:MM)'),
+  endTime: z
+    .string()
+    .regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format (HH:MM)'),
 });
 
 export const doctorAvailabilitySchema = z.object({
-  availability: z.array(availabilitySlotSchema).min(1, 'At least one availability slot is required'),
+  availability: z
+    .array(availabilitySlotSchema)
+    .min(1, 'At least one availability slot is required'),
   appointmentDuration: z.number().int().positive().default(30),
   bufferMinutes: z.number().int().min(0).default(0),
   patientsPerSlot: z.number().int().positive().default(1),
@@ -135,7 +209,9 @@ export const createHospitalSchema = z.object({
   email: z.string().email('Invalid email format').optional(),
   website: z.string().url('Invalid URL').optional(),
   description: z.string().optional(),
-  adminEmails: z.array(z.string().email('Invalid email format')).min(1, 'At least one admin email is required'),
+  adminEmails: z
+    .array(z.string().email('Invalid email format'))
+    .min(1, 'At least one admin email is required'),
 });
 
 export const updateHospitalSchema = createHospitalSchema.partial();
