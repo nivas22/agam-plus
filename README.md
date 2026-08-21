@@ -43,9 +43,11 @@ Each app is deployed as its **own Vercel project** pointing at the same repo, wi
 
 1. Import the repo into a second Vercel project.
 2. Project Settings → General → Root Directory: `apps/api`.
-3. Framework Preset: Other. Build/Install commands come from `apps/api/vercel.json` (they `cd` back to the repo root so `pnpm`/`turbo` can see the workspace).
+3. Framework Preset: **Other** (not the NestJS zero-config preset — see note below). Build/Install commands come from `apps/api/vercel.json` (they `cd` back to the repo root so `pnpm`/`turbo` can see the workspace).
 
 The NestJS app itself (`apps/api/src`) is a standard, portable Nest app — `pnpm start:prod` runs it anywhere (AWS, GCP, a container, etc.) via `node dist/main`. The only Vercel-specific code is `apps/api/api/index.ts`, a thin adapter that wraps the same `AppModule` in a single serverless function, plus `apps/api/vercel.json`. Both can be deleted with no changes to `src/` when moving off Vercel.
+
+> **Why not Vercel's zero-config NestJS support?** Vercel added a "zero-config" NestJS Function that auto-wraps `src/main.ts` — but as of writing it expects the entrypoint to export a handler, and fails at runtime (`No exports found in module`) against a standard `bootstrap()` + `app.listen()` file like ours. The custom adapter avoids that. If Vercel's NestJS support matures, this file can be dropped in favor of it.
 
 ## Environment variables
 

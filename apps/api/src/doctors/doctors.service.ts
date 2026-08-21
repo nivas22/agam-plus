@@ -259,7 +259,7 @@ export class DoctorsService {
 
     // Send welcome email notification to the doctor
     try {
-      const hospitalName = this.config.get<string>('HOSPITAL_NAME') || 'Hospital';
+      const hospitalName = 'Hospital';
 
       await this.emailService.sendDoctorWelcomeEmail(doctorData.email, doctorData.name, hospitalName);
     } catch (emailError) {
