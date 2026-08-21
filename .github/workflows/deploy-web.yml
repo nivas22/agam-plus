@@ -2,6 +2,9 @@ name: Deploy Web
 
 on:
   push:
+    branches:
+      - main
+      - preview
     paths:
       - "apps/web/**"
       - ".github/workflows/deploy-web.yml"
