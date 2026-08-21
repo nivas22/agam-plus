@@ -36,10 +36,9 @@ interface AttendancePageProps {
   patients: any[];
   hospitalId: string;
   userId?: string;
-  isMobile?: boolean;
 }
 
-export default function AttendancePage({ canEdit = false, userRole, doctors, patients, hospitalId, userId, isMobile }: AttendancePageProps) {
+export default function AttendancePage({ canEdit = false, userRole, doctors, patients, hospitalId, userId }: AttendancePageProps) {
   const [dateFilter, setDateFilter] = useState("today");
   const [statusFilter, setStatusFilter] = useState("all");
   const [patientFilter, setPatientFilter] = useState("all");
@@ -175,7 +174,6 @@ export default function AttendancePage({ canEdit = false, userRole, doctors, pat
         filter={statusFilter}
         setFilter={setStatusFilter}
         refreshData={refetchAppointments}
-        isMobile={isMobile}
       />
       {/* Search and Filter Toggle */}
         {/* <div className="flex gap-2 mb-4">

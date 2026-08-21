@@ -28,7 +28,6 @@ interface AppointmentsPageProps {
   canEdit: boolean;
   hospitalId: string;
   userId?: string;
-  isMobile?: boolean;
 }
 
 const RANGE_OPTIONS = [
@@ -216,10 +215,10 @@ function SpecDot({ specialization }: { specialization?: string }) {
   return <span className="w-1.5 h-1.5 rounded-sm shrink-0" style={{ background: c1 }} />;
 }
 
-export default function AppointmentsPage({ userRole, canEdit, hospitalId, userId, isMobile }: AppointmentsPageProps) {
+export default function AppointmentsPage({ userRole, canEdit, hospitalId, userId }: AppointmentsPageProps) {
   const router = useRouter();
 
-  const ADD_APPOINTMENT_PATH = isMobile ? `/mobile/hospital/${hospitalId}/appointments/add` : `/hospital/${hospitalId}/appointments/add`;
+  const ADD_APPOINTMENT_PATH = `/hospital/${hospitalId}/appointments/add`;
 
   const [view, setView] = useState<"agenda" | "week">("agenda");
   const [range, setRange] = useState("week");

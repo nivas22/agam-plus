@@ -218,7 +218,7 @@ export default function AdminHospitalLayout({
       <div className="flex min-h-screen bg-surface-canvas">
         {/* Desktop Sidebar */}
         <aside
-          className="hidden md:flex md:flex-col bg-night-bg text-white fixed h-full transition-all duration-300 ease-in-out shadow-2xl border-r border-night-border z-50"
+          className="hidden md:flex md:flex-col md:flex-shrink-0 bg-night-bg text-white sticky top-0 self-start h-screen transition-all duration-300 ease-in-out shadow-2xl border-r border-night-border z-50"
           style={{ width: sidebarExpanded ? '240px' : '72px' }}
         >
           {/* Logo/Brand Section */}
@@ -605,10 +605,7 @@ export default function AdminHospitalLayout({
         </div>
 
         {/* Main Content */}
-        <main
-          className="flex-1 min-h-screen md:mt-0 mt-16 transition-all duration-300"
-          style={{ marginLeft: typeof window !== 'undefined' && window.innerWidth >= 768 ? (sidebarExpanded ? '240px' : '72px') : '0' }}
-        >
+        <main className="flex-1 min-w-0 min-h-screen mt-16 md:mt-0 transition-all duration-300">
           {/* Desktop Top Bar */}
           <header className="hidden md:flex items-center justify-between gap-4 px-6 py-3 bg-surface-paper border-b border-border sticky top-0 z-30">
             {/* Breadcrumb */}

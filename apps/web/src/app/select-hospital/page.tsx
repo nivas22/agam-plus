@@ -5,11 +5,9 @@ import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
 import { Hospital } from '@/types/auth';
 import { HospitalMember } from '@/types/doctorNew';
-import { useDeviceDetect } from '@/hooks/useDeviceDetect';
 import { ArrowRight, Building2, Check, Clock, LogOut, MapPin, Plus, Settings, Shield, Sparkles } from 'lucide-react';
 
 export default function SelectHospitalPage() {
-  const { isMobile } = useDeviceDetect();
   const { user, approvedHospitals, pendingHospitals, switchHospital, logout, getRoleBasedRedirect } = useAuth();
   const router = useRouter();
   const [isSwitching, setIsSwitching] = useState(false);
@@ -22,7 +20,7 @@ export default function SelectHospitalPage() {
       setSelectedHospitalId(hospital.id);
       await switchHospital(hospital.id);
       
-      const redirectPath = getRoleBasedRedirect(hospital.id, isMobile);
+      const redirectPath = getRoleBasedRedirect(hospital.id);
       router.push(redirectPath);
     } catch (error) {
       console.error('Failed to switch hospital:', error);

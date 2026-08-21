@@ -232,14 +232,13 @@ export function useAuth() {
   };
 
   // Dynamic route helpers
-  const getHospitalRoute = (path: string, hospitalId?: string, isMobile?: boolean) => {
+  const getHospitalRoute = (path: string, hospitalId?: string) => {
   const targetHospitalId = hospitalId || currentHospital?.id;
   if (!targetHospitalId) return '/select-hospital';
-  
+
   // Remove any leading/trailing slashes and ensure proper formatting
   const cleanPath = path.replace(/^\/+|\/+$/g, '');
-  return isMobile ? `/mobile/hospital/${targetHospitalId}/${cleanPath}` : 
-  `/hospital/${targetHospitalId}/${cleanPath}`;
+  return `/hospital/${targetHospitalId}/${cleanPath}`;
 };
 
 const navigateToHospitalRoute = (path: string, hospitalId?: string) => {
@@ -248,15 +247,15 @@ const navigateToHospitalRoute = (path: string, hospitalId?: string) => {
 };
 
   // Role-based redirect paths
-  const getRoleBasedRedirect = (hospitalId?: string, isMobile?: boolean) => {
+  const getRoleBasedRedirect = (hospitalId?: string) => {
     const targetHospitalId = hospitalId || currentHospital?.id;
-    
+
     if (!targetHospitalId) {
       return '/select-hospital';
     }
 
     const membership = hospitals.find(h => h.hospitalId === targetHospitalId);
-    
+
     if (!membership) {
       return '/select-hospital';
     }
@@ -265,7 +264,7 @@ const navigateToHospitalRoute = (path: string, hospitalId?: string) => {
 
     switch (role) {
       case ROLE.ADMIN:
-        return getHospitalRoute('/dashboard', targetHospitalId, isMobile);
+        return getHospitalRoute('/dashboard', targetHospitalId);
       case ROLE.DOCTOR:
 
         if (status === MEMBERSHIP_STATUS.PENDING) {
@@ -276,7 +275,7 @@ const navigateToHospitalRoute = (path: string, hospitalId?: string) => {
          return '/setup'
         }
 
-        return getHospitalRoute('/dashboard', targetHospitalId, isMobile);
+        return getHospitalRoute('/dashboard', targetHospitalId);
       case ROLE.STAFF:
         return status === MEMBERSHIP_STATUS.APPROVED
           ? getHospitalRoute('/dashboard', targetHospitalId)

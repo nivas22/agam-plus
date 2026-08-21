@@ -2,13 +2,6 @@
 
 import { Suspense } from "react";
 import LoginPage from "@/components/LoginPage";
-import MobileLoginPage from "@/components/mobile/MobileLoginPage";
-import { useDeviceDetect } from "@/hooks/useDeviceDetect";
-
-function LoginPageWrapper() {
-  const { isMobile } = useDeviceDetect();
-  return isMobile ? <MobileLoginPage /> : <LoginPage />;
-}
 
 export default function Login() {
   return (
@@ -17,7 +10,7 @@ export default function Login() {
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-violet"></div>
       </div>
     }>
-      <LoginPageWrapper />
+      <LoginPage />
     </Suspense>
   );
 }
