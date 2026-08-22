@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { AuditLogRepository, AuditLogFilters } from '../repositories/audit-log.repository';
+import { toCsv } from '../common/csv.util';
 
 export interface LogAuditEntryParams {
   hospitalId: string;
@@ -58,22 +59,15 @@ export class AuditService {
   }
 
   toCsv(entries: any[]): string {
-    const header = ['Date', 'Time', 'Actor', 'Role', 'Action', 'Area', 'Summary', 'Amount'];
-    const rows = entries.map((e) => {
-      const at = new Date(e.at);
-      return [
-        at.toLocaleDateString(),
-        at.toLocaleTimeString(),
-        e.actorName,
-        e.actorRole,
-        e.action,
-        e.area,
-        e.summary,
-        e.amount ?? '',
-      ]
-        .map((v) => `"${String(v).replace(/"/g, '""')}"`)
-        .join(',');
-    });
-    return [header.join(','), ...rows].join('\n');
+    return toCsv(entries, [
+      { label: 'Date', value: (e) => new Date(e.at).toLocaleDateString() },
+      { label: 'Time', value: (e) => new Date(e.at).toLocaleTimeString() },
+      { label: 'Actor', value: (e) => e.actorName },
+      { label: 'Role', value: (e) => e.actorRole },
+      { label: 'Action', value: (e) => e.action },
+      { label: 'Area', value: (e) => e.area },
+      { label: 'Summary', value: (e) => e.summary },
+      { label: 'Amount', value: (e) => e.amount ?? '' },
+    ]);
   }
 }

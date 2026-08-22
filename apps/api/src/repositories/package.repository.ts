@@ -53,4 +53,21 @@ export class PackageRepository {
       .lean();
     return toPlain(doc);
   }
+
+  // Powers the Daily collection report's "package sales" chart segment and
+  // the sold-this-period insight — grouped by the calendar day the package
+  // was sold (not when its visits get used).
+  async aggregateSalesByDay(hospitalId: string, start: Date, end: Date) {
+    const rows = await this.packageModel.aggregate([
+      { $match: { hospitalId, createdAt: { $gte: start, $lt: end } } },
+      {
+        $group: {
+          _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+          amount: { $sum: '$amountPaid' },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]);
+    return rows.map((r) => ({ date: r._id as string, amount: r.amount as number }));
+  }
 }

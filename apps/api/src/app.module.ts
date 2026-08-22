@@ -20,6 +20,7 @@ import { TeamModule } from './team/team.module';
 import { ApprovalsModule } from './approvals/approvals.module';
 import { ChargeCatalogModule } from './charge-catalog/charge-catalog.module';
 import { HospitalHolidaysModule } from './hospital-holidays/hospital-holidays.module';
+import { ReportsModule } from './reports/reports.module';
 
 @Module({
   imports: [
@@ -41,6 +42,7 @@ import { HospitalHolidaysModule } from './hospital-holidays/hospital-holidays.mo
     ApprovalsModule,
     ChargeCatalogModule,
     HospitalHolidaysModule,
+    ReportsModule,
     PlatformAdminModule,
   ],
   controllers: [AppController],

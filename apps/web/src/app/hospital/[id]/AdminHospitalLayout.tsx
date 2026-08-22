@@ -22,11 +22,11 @@ import {
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { FaHospital, FaUserMd } from "react-icons/fa";
+import ApprovalModal from "@/components/approvals/ApprovalModal";
 import GlobalSearch from "@/components/GlobalSearch";
 import ProtectedRoute from "@/components/ProtectedRoute";
-import ApprovalModal from "@/components/approvals/ApprovalModal";
-import { useAuth } from "@/hooks/useAuth";
 import { usePendingApprovals } from "@/hooks/useApprovalsApi";
+import { useAuth } from "@/hooks/useAuth";
 import { apiUrl, fetchWithAuth } from "@/lib/api";
 import type { ApprovalRequest } from "@/types/audit";
 
@@ -72,8 +72,12 @@ export default function AdminHospitalLayout({
   const actualHospitalId = hospitalId || (params.id as string);
   const displayName = userData?.name || userData?.email;
 
-  const [activeApproval, setActiveApproval] = useState<ApprovalRequest | null>(null);
-  const { data: pendingApprovals = [] } = usePendingApprovals(isAdmin ? actualHospitalId : undefined);
+  const [activeApproval, setActiveApproval] = useState<ApprovalRequest | null>(
+    null,
+  );
+  const { data: pendingApprovals = [] } = usePendingApprovals(
+    isAdmin ? actualHospitalId : undefined,
+  );
 
   const getInitials = (name?: string | null) => {
     if (!name) return "U";
@@ -119,6 +123,11 @@ export default function AdminHospitalLayout({
     ...(isAdmin
       ? [
           {
+            to: "/reports",
+            label: "Reports",
+            icon: <TrendingUp size={18} />,
+          },
+          {
             to: "/settings",
             label: "Settings",
             icon: <Settings size={18} />,
@@ -130,7 +139,6 @@ export default function AdminHospitalLayout({
   // Desktop sidebar groups
   const careItems = navItems.slice(0, 4);
   const operationsItems = navItems.slice(4);
-  const comingSoonItems = [{ label: "Reports", icon: <TrendingUp size={18} /> }];
 
   const toggleMenu = () => setIsOpen(!isOpen);
 
@@ -383,28 +391,6 @@ export default function AdminHospitalLayout({
                   </button>
                 );
               })}
-              {comingSoonItems.map((item) => (
-                <div
-                  key={item.label}
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg w-full text-night-muted/50 cursor-not-allowed border-l-2 border-transparent"
-                  title={sidebarExpanded ? undefined : item.label}
-                  aria-disabled="true"
-                >
-                  <div className="flex-shrink-0 w-5 h-5 flex items-center justify-center">
-                    {item.icon}
-                  </div>
-                  {sidebarExpanded && (
-                    <span className="text-sm font-medium truncate">
-                      {item.label}
-                    </span>
-                  )}
-                  {sidebarExpanded && (
-                    <span className="ml-auto text-[9px] font-semibold uppercase tracking-wide text-night-muted/60">
-                      Soon
-                    </span>
-                  )}
-                </div>
-              ))}
             </div>
           </nav>
 
@@ -746,7 +732,9 @@ export default function AdminHospitalLayout({
                 {showNotifications && (
                   <div className="absolute right-0 top-full mt-2 w-72 bg-surface-paper rounded-xl shadow-2xl border border-border overflow-hidden z-50">
                     <div className="px-4 py-3 border-b border-border text-sm font-semibold text-ink-900">
-                      {pendingApprovals.length > 0 ? "Waiting on you" : "Notifications"}
+                      {pendingApprovals.length > 0
+                        ? "Waiting on you"
+                        : "Notifications"}
                     </div>
                     {pendingApprovals.length === 0 ? (
                       <div className="px-4 py-6 text-sm text-ink-500 text-center">
