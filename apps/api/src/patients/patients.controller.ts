@@ -1,9 +1,25 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Put,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { PatientsService } from './patients.service';
 import { HospitalContextGuard } from '../auth/guards/hospital-context.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
-import { CurrentUser, CurrentHospitalUser } from '../auth/decorators/current-user.decorator';
-import type { JwtUser, HospitalUserProfile } from '../auth/decorators/current-user.decorator';
+import {
+  CurrentUser,
+  CurrentHospitalUser,
+} from '../auth/decorators/current-user.decorator';
+import type {
+  JwtUser,
+  HospitalUserProfile,
+} from '../auth/decorators/current-user.decorator';
 
 @Controller('hospitals/:id/patients')
 @UseGuards(HospitalContextGuard)
@@ -30,13 +46,26 @@ export class PatientsController {
 
   @Post()
   @Roles('admin')
-  create(@Param('id') hospitalId: string, @CurrentUser() user: JwtUser, @Body() body: Record<string, any>) {
+  create(
+    @Param('id') hospitalId: string,
+    @CurrentUser() user: JwtUser,
+    @Body() body: Record<string, any>,
+  ) {
     return this.patientsService.createPatient(hospitalId, user, body);
+  }
+
+  @Get('search')
+  @Roles('admin', 'doctor')
+  search(@Param('id') hospitalId: string, @Query('q') q?: string) {
+    return this.patientsService.searchPatients(hospitalId, q || '');
   }
 
   @Get(':patientId')
   @Roles('admin', 'doctor')
-  getOne(@Param('id') hospitalId: string, @Param('patientId') patientId: string) {
+  getOne(
+    @Param('id') hospitalId: string,
+    @Param('patientId') patientId: string,
+  ) {
     return this.patientsService.getPatient(hospitalId, patientId);
   }
 
@@ -57,6 +86,10 @@ export class PatientsController {
     @Param('patientId') patientId: string,
     @CurrentHospitalUser() userProfile: HospitalUserProfile,
   ) {
-    return this.patientsService.deletePatient(hospitalId, patientId, userProfile.userId);
+    return this.patientsService.deletePatient(
+      hospitalId,
+      patientId,
+      userProfile.userId,
+    );
   }
 }

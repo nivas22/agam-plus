@@ -1,6 +1,13 @@
 // types/package.ts
 export type PackagePaymentMethod = "cash" | "upi" | "card";
-export type PackageStatus = "active" | "expired" | "cancelled";
+export type PackageStatus = "active" | "expired" | "cancelled" | "refunded";
+export type PackageDisplayStatus =
+  | "active"
+  | "lapsing"
+  | "used_up"
+  | "lapsed"
+  | "refunded"
+  | "cancelled";
 export type PackageFrequency = "weekly" | "every-3-days";
 
 export interface PackageVisitAlternate {
@@ -70,7 +77,15 @@ export interface PackageRecord {
   paymentMethod: PackagePaymentMethod;
   amountPaid: number;
   collectedBy?: string;
+  refundedAmount?: number;
+  refundedAt?: string;
+  refundedBy?: string;
   createdAt: string;
+  // Derived server-side, on every read — never stored.
+  remainingVisits: number;
+  valueLeft: number;
+  daysUntilExpiry: number;
+  displayStatus: PackageDisplayStatus;
 }
 
 export interface SellPackageResponse {
@@ -78,4 +93,41 @@ export interface SellPackageResponse {
   message: string;
   package: PackageRecord;
   appointmentIds: string[];
+}
+
+export interface PackagesListResponse {
+  packages: PackageRecord[];
+  total: number;
+}
+
+export interface PackageStats {
+  soldThisMonth: { amount: number; count: number; patients: number };
+  unredeemed: { value: number; patients: number; visits: number };
+  lapsingSoon: { value: number; patients: number; visits: number };
+  redeemedToday: { visits: number; cashCollected: number };
+}
+
+export interface PackageLedgerVisit {
+  id: string;
+  date: string;
+  time: string;
+  status: string;
+  packageVisitNumber?: number;
+}
+
+export interface PackageLedgerResponse {
+  package: PackageRecord;
+  visits: PackageLedgerVisit[];
+}
+
+export interface ExtendPackagePayload {
+  months: number;
+}
+
+export interface ExtendPackageResponse {
+  package: PackageRecord;
+}
+
+export interface RefundPackageResponse {
+  package: PackageRecord;
 }

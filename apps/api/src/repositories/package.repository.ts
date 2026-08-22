@@ -37,4 +37,15 @@ export class PackageRepository {
       .lean();
     return toPlainList(docs);
   }
+
+  async updatePackage(hospitalId: string, packageId: string, updates: any) {
+    const doc = await this.packageModel
+      .findOneAndUpdate(
+        { _id: packageId, hospitalId },
+        { $set: { ...updates, updatedAt: new Date() } },
+        { new: true },
+      )
+      .lean();
+    return toPlain(doc);
+  }
 }

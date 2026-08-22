@@ -25,10 +25,13 @@ export class PatientsService {
     page: number,
     limit: number,
   ) {
-    const members = await this.membershipRepository.getHospitalMembers(hospitalId, {
-      role: ROLE.PATIENT,
-      status: status || undefined,
-    });
+    const members = await this.membershipRepository.getHospitalMembers(
+      hospitalId,
+      {
+        role: ROLE.PATIENT,
+        status: status || undefined,
+      },
+    );
 
     const memberUserIds = members
       .map((m: any) => m.userId)
@@ -50,7 +53,10 @@ export class PatientsService {
       };
     }
 
-    const patientProfiles = await this.patientRepository.getPatientsByUserIds(memberUserIds, hospitalId);
+    const patientProfiles = await this.patientRepository.getPatientsByUserIds(
+      memberUserIds,
+      hospitalId,
+    );
 
     const patients: any[] = [];
 
@@ -110,11 +116,30 @@ export class PatientsService {
     };
   }
 
-  async createPatient(hospitalId: string, user: JwtUser, patientData: Record<string, any>) {
+  async searchPatients(hospitalId: string, searchTerm: string) {
+    const q = (searchTerm || '').trim();
+    if (q.length < 2) {
+      return { patients: [], total: 0 };
+    }
+
+    const patients = await this.patientRepository.searchPatientsByHospital(
+      hospitalId,
+      q,
+    );
+    return { patients, total: patients.length };
+  }
+
+  async createPatient(
+    hospitalId: string,
+    user: JwtUser,
+    patientData: Record<string, any>,
+  ) {
     const requiredFields = ['name', 'email', 'phone'];
     const missingFields = requiredFields.filter((f) => !patientData[f]);
     if (missingFields.length > 0) {
-      throw ApiError.badRequest(`Missing required fields: ${missingFields.join(', ')}`);
+      throw ApiError.badRequest(
+        `Missing required fields: ${missingFields.join(', ')}`,
+      );
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -122,7 +147,9 @@ export class PatientsService {
       throw ApiError.badRequest('Invalid email format');
     }
 
-    const existingUser = await this.userRepository.getUserByEmail(patientData.email);
+    const existingUser = await this.userRepository.getUserByEmail(
+      patientData.email,
+    );
 
     let patientUserId: string;
     if (!existingUser) {
@@ -134,7 +161,11 @@ export class PatientsService {
       patientUserId = (existingUser as any).id;
     }
 
-    const existingMembership = await this.membershipRepository.getHospitalMembershipData(patientUserId, hospitalId);
+    const existingMembership =
+      await this.membershipRepository.getHospitalMembershipData(
+        patientUserId,
+        hospitalId,
+      );
 
     if (!existingMembership) {
       await this.membershipRepository.createHospitalMembership({
@@ -167,7 +198,8 @@ export class PatientsService {
       createdBy: user.uid,
     };
 
-    const patientId = await this.patientRepository.createPatient(patientProfileData);
+    const patientId =
+      await this.patientRepository.createPatient(patientProfileData);
 
     return {
       success: true,
@@ -195,7 +227,11 @@ export class PatientsService {
     return { patient };
   }
 
-  async updatePatient(hospitalId: string, patientId: string, updates: Record<string, any>) {
+  async updatePatient(
+    hospitalId: string,
+    patientId: string,
+    updates: Record<string, any>,
+  ) {
     const patient = await this.patientRepository.getPatientById(patientId);
 
     if (!patient || (patient as any).hospitalId !== hospitalId) {
@@ -203,10 +239,15 @@ export class PatientsService {
     }
 
     if (updates.email && updates.email !== (patient as any).email) {
-      const emailExists = await this.patientRepository.patientExistsByEmail(hospitalId, updates.email);
+      const emailExists = await this.patientRepository.patientExistsByEmail(
+        hospitalId,
+        updates.email,
+      );
 
       if (emailExists) {
-        throw ApiError.conflict('Another patient with this email already exists in this hospital');
+        throw ApiError.conflict(
+          'Another patient with this email already exists in this hospital',
+        );
       }
 
       // listPatients reads email from the linked User doc first, falling back to
@@ -220,12 +261,17 @@ export class PatientsService {
     const updateData = { ...updates, updatedAt: new Date().toISOString() };
     await this.patientRepository.updatePatient(patientId, updateData);
 
-    const updatedPatient = await this.patientRepository.getPatientById(patientId);
+    const updatedPatient =
+      await this.patientRepository.getPatientById(patientId);
 
     return { success: true, patient: updatedPatient };
   }
 
-  async deletePatient(hospitalId: string, patientId: string, deletedBy: string) {
+  async deletePatient(
+    hospitalId: string,
+    patientId: string,
+    deletedBy: string,
+  ) {
     const patient = await this.patientRepository.getPatientById(patientId);
 
     if (!patient || (patient as any).hospitalId !== hospitalId) {

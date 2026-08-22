@@ -5,6 +5,7 @@ import {
   AlertCircle,
   Clock,
   Loader2,
+  Package as PackageIcon,
   ReceiptText,
   Smartphone,
   SplitSquareHorizontal,
@@ -12,6 +13,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { useMemo, useState } from "react";
+import { usePackageLedger } from "@/hooks/useNewPackageApi";
 import { useCompleteVisit } from "@/hooks/useNewPaymentApi";
 import type { AppointmentWithDetails } from "@/types/appointment";
 import type {
@@ -20,6 +22,7 @@ import type {
   PaymentMethod,
 } from "@/types/payment";
 import {
+  APPOINTMENT_TYPE,
   COMMON_BILL_ITEMS,
   FOLLOW_UP_OPTIONS,
   PAYMENT_DUE_REASONS,
@@ -53,6 +56,15 @@ interface CompleteVisitDialogProps {
 
 function money(v: number): string {
   return `₹${Math.round(v).toLocaleString("en-IN")}`;
+}
+
+function dateLabel(dateStr: string): string {
+  const d = new Date(`${dateStr}T00:00:00`);
+  return d.toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
 }
 
 // Deterministic placeholder QR pattern — not a real scan target. A production
@@ -103,7 +115,13 @@ function PlaceholderQr({ seed }: { seed: number }) {
       className="text-ink-900"
     >
       {cells.map((c) => (
-        <rect key={`${c.x}-${c.y}`} x={c.x * 5.4} y={c.y * 5.4} width={5.4} height={5.4} />
+        <rect
+          key={`${c.x}-${c.y}`}
+          x={c.x * 5.4}
+          y={c.y * 5.4}
+          width={5.4}
+          height={5.4}
+        />
       ))}
     </svg>
   );
@@ -144,14 +162,34 @@ export default function CompleteVisitDialog({
   const [dueReason, setDueReason] = useState<string>(PAYMENT_DUE_REASONS[0]);
   const [sendReceipt, setSendReceipt] = useState(true);
   const [savingNotes, setSavingNotes] = useState(false);
+  const [optOutPackage, setOptOutPackage] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const completeVisit = useCompleteVisit(hospitalId);
 
-  const subtotal = items.reduce(
+  const isPackageAppointment =
+    appointment.type === APPOINTMENT_TYPE.PACKAGE && !!appointment.packageId;
+  const { data: packageLedger } = usePackageLedger(
+    hospitalId,
+    appointment.packageId,
+  );
+  const pkg = isPackageAppointment ? packageLedger?.package : undefined;
+  const canUsePackage =
+    !!pkg &&
+    (pkg.displayStatus === "active" || pkg.displayStatus === "lapsing") &&
+    pkg.remainingVisits > 0;
+  const usingPackage = canUsePackage && !optOutPackage;
+
+  const rawSubtotal = items.reduce(
     (sum, item) => sum + item.quantity * item.unitPrice,
     0,
   );
+  const coveredAmount = usingPackage
+    ? items
+        .filter((item) => item.isAuto)
+        .reduce((sum, item) => sum + item.quantity * item.unitPrice, 0)
+    : 0;
+  const subtotal = rawSubtotal - coveredAmount;
   const total = Math.max(subtotal - discount, 0);
   const tendered = amountTendered === "" ? 0 : amountTendered;
   const change = Math.max(tendered - total, 0);
@@ -251,6 +289,7 @@ export default function CompleteVisitDialog({
           method === PAYMENT_METHOD.SPLIT ? splitUpiAmount : undefined,
         dueReason: method === PAYMENT_METHOD.DUE ? dueReason : undefined,
         sendReceiptWhatsApp: sendReceipt,
+        usePackageVisit: isPackageAppointment ? !optOutPackage : undefined,
       });
       onSuccess(result.message);
       onClose();
@@ -264,7 +303,11 @@ export default function CompleteVisitDialog({
   const ctaLabel =
     method === PAYMENT_METHOD.DUE
       ? `Complete with ${money(total)} due`
-      : `Collect ${money(total)} & complete`;
+      : usingPackage
+        ? total > 0
+          ? `Redeem visit & collect ${money(total)}`
+          : "Redeem visit & complete"
+        : `Collect ${money(total)} & complete`;
 
   return (
     <DialogShell
@@ -359,55 +402,121 @@ export default function CompleteVisitDialog({
 
         {/* billing */}
         <div className="p-5 pt-4 border-t md:border-t-0 md:border-l border-border bg-surface-canvas/30">
+          {isPackageAppointment && pkg && (
+            <div className="flex items-start gap-2.5 mb-3.5 px-3.5 py-3 rounded-xl bg-brand-violet-soft border border-brand-violet/20">
+              <span className="w-7 h-7 rounded-lg bg-brand-violet text-white flex items-center justify-center shrink-0">
+                <PackageIcon className="w-3.5 h-3.5" />
+              </span>
+              <div className="min-w-0">
+                <div className="text-[13px] font-semibold text-ink-900">
+                  {pkg.totalVisits}-visit plan · Dr.{" "}
+                  {pkg.doctorName || doctorName}
+                </div>
+                <div className="text-[11.5px] text-brand-violet mt-0.5">
+                  Visit {Math.min(pkg.usedVisits + 1, pkg.totalVisits)} of{" "}
+                  {pkg.totalVisits} · expires {dateLabel(pkg.validUntil)}
+                </div>
+                <div className="h-1.5 rounded-full bg-brand-violet/20 overflow-hidden mt-1.5">
+                  <div
+                    className="h-full rounded-full bg-brand-violet"
+                    style={{
+                      width: `${Math.min(100, (pkg.usedVisits / pkg.totalVisits) * 100)}%`,
+                    }}
+                  />
+                </div>
+                {!canUsePackage && (
+                  <div className="text-[11.5px] text-status-warning mt-1.5">
+                    {pkg.remainingVisits === 0
+                      ? "No visits left on this package — charged in full."
+                      : "This package has lapsed — charged in full. Extend it from Payments → Package."}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           <div className="flex items-baseline gap-2">
             <h4 className="text-sm font-semibold text-ink-900">Bill</h4>
           </div>
           <p className="text-[11.5px] text-ink-500 mb-2.5">
-            Consultation is pulled from the doctor's profile. Add anything given
-            during the visit.
+            {usingPackage
+              ? "Consultation is drawn from the package. Anything else is payable today."
+              : "Consultation is pulled from the doctor's profile. Add anything given during the visit."}
           </p>
 
           <div className="border border-border rounded-xl bg-surface-paper overflow-hidden">
-            {items.map((item, index) => (
-              <div
-                key={`${item.name}-${index}`}
-                className={`grid grid-cols-[1fr_50px_76px_20px] gap-2 items-center px-3 py-2 text-[13px] ${index > 0 ? "border-t border-border" : ""} ${item.isAuto ? "bg-surface-canvas/40" : ""}`}
-              >
-                <div className="min-w-0 truncate">
-                  {item.name}
-                  {item.isAuto && (
-                    <span className="ml-1.5 text-[10px] font-semibold bg-brand-violet-soft text-brand-violet rounded px-1 py-0.5 align-middle">
-                      AUTO
-                    </span>
+            {items.map((item, index) => {
+              const covered = usingPackage && item.isAuto;
+              return (
+                <div
+                  key={`${item.name}-${index}`}
+                  className={`grid grid-cols-[1fr_50px_76px_20px] gap-2 items-center px-3 py-2 text-[13px] ${index > 0 ? "border-t border-border" : ""} ${covered ? "bg-brand-violet-soft" : item.isAuto ? "bg-surface-canvas/40" : ""}`}
+                >
+                  <div className="min-w-0 truncate">
+                    {item.name}
+                    {covered ? (
+                      <span className="ml-1.5 text-[10px] font-semibold bg-brand-violet text-white rounded px-1 py-0.5 align-middle">
+                        PACKAGE
+                      </span>
+                    ) : (
+                      item.isAuto && (
+                        <span className="ml-1.5 text-[10px] font-semibold bg-brand-violet-soft text-brand-violet rounded px-1 py-0.5 align-middle">
+                          AUTO
+                        </span>
+                      )
+                    )}
+                  </div>
+                  <input
+                    type="number"
+                    min={1}
+                    value={item.quantity}
+                    onChange={(e) =>
+                      updateQuantity(index, Number(e.target.value) || 1)
+                    }
+                    className="w-full text-center border border-border rounded-md py-1 text-xs bg-surface-canvas"
+                  />
+                  <div className="text-right font-mono">
+                    {covered ? (
+                      <>
+                        <div className="text-[11px] text-ink-500 line-through">
+                          {money(item.quantity * item.unitPrice)}
+                        </div>
+                        <div className="font-semibold text-brand-violet">
+                          ₹0
+                        </div>
+                      </>
+                    ) : (
+                      money(item.quantity * item.unitPrice)
+                    )}
+                  </div>
+                  {!item.isAuto ? (
+                    <button
+                      type="button"
+                      onClick={() => removeItem(index)}
+                      className="text-ink-500 hover:text-status-danger"
+                      aria-label={`Remove ${item.name}`}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  ) : (
+                    <span />
                   )}
                 </div>
-                <input
-                  type="number"
-                  min={1}
-                  value={item.quantity}
-                  onChange={(e) =>
-                    updateQuantity(index, Number(e.target.value) || 1)
-                  }
-                  className="w-full text-center border border-border rounded-md py-1 text-xs bg-surface-canvas"
-                />
-                <div className="text-right font-mono">
-                  {money(item.quantity * item.unitPrice)}
-                </div>
-                {!item.isAuto ? (
-                  <button
-                    type="button"
-                    onClick={() => removeItem(index)}
-                    className="text-ink-500 hover:text-status-danger"
-                    aria-label={`Remove ${item.name}`}
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                ) : (
-                  <span />
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
+
+          {canUsePackage && (
+            <label className="flex items-start gap-2 mt-2.5 text-[11.5px] text-ink-500 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={optOutPackage}
+                onChange={(e) => setOptOutPackage(e.target.checked)}
+                className="mt-0.5 w-3.5 h-3.5 rounded border-border text-brand-violet focus:ring-2 focus:ring-brand-violet/30"
+              />
+              Don't use a package visit — charge the consultation in full
+            </label>
+          )}
 
           <div className="grid grid-cols-[1fr_78px_auto] gap-1.5 mt-2.5">
             <input
@@ -449,6 +558,12 @@ export default function CompleteVisitDialog({
           </div>
 
           <div className="mt-3 pt-2.5 border-t border-dashed border-border">
+            {usingPackage && coveredAmount > 0 && (
+              <div className="flex justify-between text-[13px] text-brand-violet py-0.5">
+                <span>Covered by package</span>
+                <span className="font-mono">− {money(coveredAmount)}</span>
+              </div>
+            )}
             <div className="flex justify-between text-[13px] text-ink-700 py-0.5">
               <span>Subtotal</span>
               <span className="font-mono">{money(subtotal)}</span>
@@ -470,13 +585,29 @@ export default function CompleteVisitDialog({
             </div>
             <div className="flex justify-between items-baseline mt-1.5 pt-2 border-t border-border">
               <span className="text-sm font-semibold text-ink-900">
-                Total payable
+                {usingPackage ? "Payable today" : "Total payable"}
               </span>
               <span className="font-mono text-2xl font-bold text-ink-900">
                 {money(total)}
               </span>
             </div>
           </div>
+
+          {usingPackage && pkg && (
+            <div className="mt-2.5 text-[11.5px] text-ink-500 bg-surface-paper border border-border rounded-lg px-3 py-2">
+              After this visit:{" "}
+              <b className="text-ink-900">
+                {Math.max(0, pkg.remainingVisits - 1)} visits left
+              </b>{" "}
+              · package value remaining{" "}
+              <b className="font-mono text-ink-900">
+                {money(
+                  Math.max(0, pkg.remainingVisits - 1) * pkg.pricePerVisit,
+                )}
+              </b>{" "}
+              · lapses {dateLabel(pkg.validUntil)}
+            </div>
+          )}
 
           <div className="mt-4">
             <label className="text-xs font-semibold text-ink-700 mb-2 block">

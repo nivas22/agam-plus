@@ -136,9 +136,26 @@ export enum PACKAGE_STATUS {
   ACTIVE = 'active',
   EXPIRED = 'expired',
   CANCELLED = 'cancelled',
+  REFUNDED = 'refunded',
 }
 
 export const PACKAGE_STATUS_VALUES = Object.values(PACKAGE_STATUS);
+
+// Derived, display-only classification for a package — never stored. Active
+// packages become LAPSING inside the expiry window, USED_UP once every visit
+// is consumed, or LAPSED once past validUntil with visits still unused.
+export enum PACKAGE_DISPLAY_STATUS {
+  ACTIVE = 'active',
+  LAPSING = 'lapsing',
+  USED_UP = 'used_up',
+  LAPSED = 'lapsed',
+  REFUNDED = 'refunded',
+  CANCELLED = 'cancelled',
+}
+
+// A package still holding unused visits gets flagged once it's this many
+// days (or fewer) from validUntil.
+export const PACKAGE_LAPSING_WINDOW_DAYS = 30;
 
 export enum PACKAGE_PAYMENT_METHOD {
   CASH = 'cash',

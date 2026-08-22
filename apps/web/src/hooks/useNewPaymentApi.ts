@@ -12,6 +12,7 @@ import type {
   PaymentListResponse,
 } from "@/types/payment";
 import { appointmentsKeys } from "./useNewAppointmentsApi";
+import { packagesKeys } from "./useNewPackageApi";
 
 // Base API functions with hospital context
 const paymentsApiFunctions = {
@@ -177,6 +178,11 @@ export const useCompleteVisit = (hospitalId?: string) => {
       });
       queryClient.invalidateQueries({
         queryKey: appointmentsKeys.hospital(actualHospitalId),
+      });
+      // A completed visit may be a package redemption, which moves that
+      // package's usedVisits — refresh the Packages tab's data too.
+      queryClient.invalidateQueries({
+        queryKey: packagesKeys.hospital(actualHospitalId),
       });
     },
   });

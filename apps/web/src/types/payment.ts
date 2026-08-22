@@ -4,6 +4,7 @@ export interface PaymentItem {
   quantity: number;
   unitPrice: number;
   isAuto?: boolean;
+  isPackageCovered?: boolean;
 }
 
 export type PaymentMethod = "cash" | "upi" | "split" | "due";
@@ -43,6 +44,8 @@ export interface Payment {
   refundedAt?: string;
   refundReason?: string;
   sendReceiptWhatsApp?: boolean;
+  packageId?: string;
+  packageCoveredAmount?: number;
   createdBy?: string;
   createdAt: string;
   updatedAt: string;
@@ -62,6 +65,7 @@ export interface CompleteVisitPayload {
   splitUpiAmount?: number;
   dueReason?: string;
   sendReceiptWhatsApp?: boolean;
+  usePackageVisit?: boolean;
 }
 
 export interface CompleteVisitResponse {

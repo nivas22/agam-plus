@@ -4,6 +4,7 @@ import { AppointmentRepository } from '../repositories/appointment.repository';
 import { DoctorRepository } from '../repositories/doctor.repository';
 import { PatientRepository } from '../repositories/patient.repository';
 import { MembershipRepository } from '../repositories/membership.repository';
+import { PaymentRepository } from '../repositories/payment.repository';
 import { ApiError } from '../common/errors/api-error';
 import {
   JwtUser,
@@ -12,6 +13,7 @@ import {
 import {
   PreviewPackageScheduleBody,
   SellPackageBody,
+  ExtendPackageBody,
   PackageListQuery,
 } from './packages.types';
 import {
@@ -19,7 +21,10 @@ import {
   APPOINTMENT_STATUS,
   APPOINTMENT_TYPE,
   PACKAGE_STATUS,
+  PACKAGE_DISPLAY_STATUS,
+  PACKAGE_LAPSING_WINDOW_DAYS,
   PACKAGE_VALIDITY_MONTHS,
+  PAYMENT_STATUS,
 } from '../constants';
 
 interface DoctorScheduleContext {
@@ -51,6 +56,7 @@ export class PackagesService {
     private readonly doctorRepository: DoctorRepository,
     private readonly patientRepository: PatientRepository,
     private readonly membershipRepository: MembershipRepository,
+    private readonly paymentRepository: PaymentRepository,
   ) {}
 
   // -- date/time helpers, mirroring AppointmentsService's own plain-Date style --
@@ -330,12 +336,234 @@ export class PackagesService {
     };
   }
 
+  // Whole calendar days from `fromIso` to `toIso` (both YYYY-MM-DD), positive
+  // when `toIso` is in the future. Parsed as local midnight on both sides so
+  // this isn't subject to the UTC-shift bug `toISODate` exists to avoid.
+  private daysBetween(fromIso: string, toIso: string): number {
+    const from = new Date(`${fromIso}T00:00:00`);
+    const to = new Date(`${toIso}T00:00:00`);
+    return Math.round((to.getTime() - from.getTime()) / 86_400_000);
+  }
+
+  // Attaches display-only fields derived from stored data — remaining
+  // visits/value and a lapsing/used-up/lapsed classification — none of
+  // which are persisted, so they always reflect "today".
+  private enrichPackage(pkg: any, todayIso: string) {
+    const remainingVisits = Math.max(0, pkg.totalVisits - pkg.usedVisits);
+    const valueLeft = remainingVisits * pkg.pricePerVisit;
+    const daysUntilExpiry = this.daysBetween(todayIso, pkg.validUntil);
+
+    let displayStatus: PACKAGE_DISPLAY_STATUS;
+    if (pkg.status === PACKAGE_STATUS.REFUNDED) {
+      displayStatus = PACKAGE_DISPLAY_STATUS.REFUNDED;
+    } else if (pkg.status === PACKAGE_STATUS.CANCELLED) {
+      displayStatus = PACKAGE_DISPLAY_STATUS.CANCELLED;
+    } else if (remainingVisits === 0) {
+      displayStatus = PACKAGE_DISPLAY_STATUS.USED_UP;
+    } else if (daysUntilExpiry < 0) {
+      displayStatus = PACKAGE_DISPLAY_STATUS.LAPSED;
+    } else if (daysUntilExpiry <= PACKAGE_LAPSING_WINDOW_DAYS) {
+      displayStatus = PACKAGE_DISPLAY_STATUS.LAPSING;
+    } else {
+      displayStatus = PACKAGE_DISPLAY_STATUS.ACTIVE;
+    }
+
+    return {
+      ...pkg,
+      remainingVisits,
+      valueLeft,
+      daysUntilExpiry,
+      displayStatus,
+    };
+  }
+
   async getPackages(hospitalId: string, query: PackageListQuery) {
-    const packages = await this.packageRepository.getPackagesByHospital(
+    const raw = await this.packageRepository.getPackagesByHospital(
       hospitalId,
       query.patientId,
     );
+    const todayIso = this.toISODate(new Date());
+    const packages = raw.map((p: any) => this.enrichPackage(p, todayIso));
     return { packages, total: packages.length };
+  }
+
+  async getPackageLedger(hospitalId: string, packageId: string) {
+    const pkg = await this.packageRepository.getPackageById(
+      hospitalId,
+      packageId,
+    );
+    if (!pkg) {
+      throw ApiError.notFound('Package not found');
+    }
+    const visits = await this.appointmentRepository.getAppointmentsByPackageId(
+      hospitalId,
+      packageId,
+    );
+    const todayIso = this.toISODate(new Date());
+    return { package: this.enrichPackage(pkg, todayIso), visits };
+  }
+
+  async extendPackage(
+    hospitalId: string,
+    packageId: string,
+    body: ExtendPackageBody,
+  ) {
+    const pkg = await this.packageRepository.getPackageById(
+      hospitalId,
+      packageId,
+    );
+    if (!pkg) {
+      throw ApiError.notFound('Package not found');
+    }
+    if (
+      (pkg as any).status === PACKAGE_STATUS.REFUNDED ||
+      (pkg as any).status === PACKAGE_STATUS.CANCELLED
+    ) {
+      throw ApiError.badRequest(
+        'This package has already been refunded or cancelled',
+      );
+    }
+
+    const todayIso = this.toISODate(new Date());
+    const base =
+      (pkg as any).validUntil > todayIso ? (pkg as any).validUntil : todayIso;
+    const newValidUntil = new Date(`${base}T00:00:00`);
+    newValidUntil.setMonth(newValidUntil.getMonth() + body.months);
+
+    const updated = await this.packageRepository.updatePackage(
+      hospitalId,
+      packageId,
+      { validUntil: this.toISODate(newValidUntil) },
+    );
+    return { package: this.enrichPackage(updated, todayIso) };
+  }
+
+  async refundPackage(
+    hospitalId: string,
+    packageId: string,
+    user: JwtUser,
+    userProfile: HospitalUserProfile,
+  ) {
+    const pkg = await this.packageRepository.getPackageById(
+      hospitalId,
+      packageId,
+    );
+    if (!pkg) {
+      throw ApiError.notFound('Package not found');
+    }
+    if (
+      (pkg as any).status === PACKAGE_STATUS.REFUNDED ||
+      (pkg as any).status === PACKAGE_STATUS.CANCELLED
+    ) {
+      throw ApiError.badRequest('This package has already been settled');
+    }
+
+    const remainingVisits = Math.max(
+      0,
+      (pkg as any).totalVisits - (pkg as any).usedVisits,
+    );
+    const refundedAmount = remainingVisits * (pkg as any).pricePerVisit;
+
+    const updated = await this.packageRepository.updatePackage(
+      hospitalId,
+      packageId,
+      {
+        status: PACKAGE_STATUS.REFUNDED,
+        refundedAmount,
+        refundedAt: new Date(),
+        refundedBy: userProfile?.name || user.name,
+      },
+    );
+    const todayIso = this.toISODate(new Date());
+    return { package: this.enrichPackage(updated, todayIso) };
+  }
+
+  async getPackageStats(hospitalId: string) {
+    const todayIso = this.toISODate(new Date());
+    const now = new Date();
+    const monthStartIso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+
+    const raw = await this.packageRepository.getPackagesByHospital(hospitalId);
+    const packages = raw.map((p: any) => this.enrichPackage(p, todayIso));
+
+    const soldThisMonth = packages.filter(
+      (p: any) => this.toISODate(new Date(p.createdAt)) >= monthStartIso,
+    );
+    const soldTotal = soldThisMonth.reduce(
+      (sum: number, p: any) => sum + p.totalPrice,
+      0,
+    );
+    const soldPatients = new Set(soldThisMonth.map((p: any) => p.patientId));
+
+    const unredeemed = packages.filter(
+      (p: any) =>
+        p.displayStatus === PACKAGE_DISPLAY_STATUS.ACTIVE ||
+        p.displayStatus === PACKAGE_DISPLAY_STATUS.LAPSING,
+    );
+    const unredeemedValue = unredeemed.reduce(
+      (sum: number, p: any) => sum + p.valueLeft,
+      0,
+    );
+    const unredeemedVisits = unredeemed.reduce(
+      (sum: number, p: any) => sum + p.remainingVisits,
+      0,
+    );
+    const unredeemedPatients = new Set(unredeemed.map((p: any) => p.patientId));
+
+    const lapsingSoon = packages.filter(
+      (p: any) => p.displayStatus === PACKAGE_DISPLAY_STATUS.LAPSING,
+    );
+    const lapsingValue = lapsingSoon.reduce(
+      (sum: number, p: any) => sum + p.valueLeft,
+      0,
+    );
+    const lapsingVisits = lapsingSoon.reduce(
+      (sum: number, p: any) => sum + p.remainingVisits,
+      0,
+    );
+    const lapsingPatients = new Set(lapsingSoon.map((p: any) => p.patientId));
+
+    const redeemedTodayAppointments =
+      await this.appointmentRepository.getAppointmentsWithFilters({
+        hospitalId,
+        type: APPOINTMENT_TYPE.PACKAGE,
+        status: APPOINTMENT_STATUS.COMPLETED,
+        startDate: todayIso,
+        endDate: todayIso,
+      });
+    const redeemedTodayAppointmentIds = redeemedTodayAppointments.map(
+      (a: any) => a.id,
+    );
+    const redeemedTodayPayments =
+      await this.paymentRepository.getPaymentsByAppointmentIds(
+        hospitalId,
+        redeemedTodayAppointmentIds,
+      );
+    const cashCollectedToday = redeemedTodayPayments
+      .filter((p: any) => p.status === PAYMENT_STATUS.PAID)
+      .reduce((sum: number, p: any) => sum + p.total, 0);
+
+    return {
+      soldThisMonth: {
+        amount: soldTotal,
+        count: soldThisMonth.length,
+        patients: soldPatients.size,
+      },
+      unredeemed: {
+        value: unredeemedValue,
+        patients: unredeemedPatients.size,
+        visits: unredeemedVisits,
+      },
+      lapsingSoon: {
+        value: lapsingValue,
+        patients: lapsingPatients.size,
+        visits: lapsingVisits,
+      },
+      redeemedToday: {
+        visits: redeemedTodayAppointments.length,
+        cashCollected: cashCollectedToday,
+      },
+    };
   }
 
   async sellPackage(
@@ -395,7 +623,9 @@ export class PackagesService {
       doctorProfileId: body.doctorProfileId,
       doctorName: (doctor as any).name,
       totalVisits: body.totalVisits,
-      usedVisits: body.visits.length,
+      // Booking a visit reserves a slot, not a spent credit — usedVisits
+      // only advances when a package visit is actually completed.
+      usedVisits: 0,
       pricePerVisit: body.pricePerVisit,
       totalPrice,
       status: PACKAGE_STATUS.ACTIVE,

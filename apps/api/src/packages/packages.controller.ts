@@ -5,6 +5,7 @@ import {
   HttpCode,
   HttpStatus,
   Param,
+  Patch,
   Post,
   Query,
   UseGuards,
@@ -22,12 +23,14 @@ import type {
 } from '../auth/decorators/current-user.decorator';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import {
+  extendPackageSchema,
   previewPackageScheduleSchema,
   sellPackageSchema,
 } from '../common/validation/schemas';
 import type {
   PreviewPackageScheduleBody,
   SellPackageBody,
+  ExtendPackageBody,
 } from './packages.types';
 
 @Controller('hospitals/:id/packages')
@@ -42,6 +45,43 @@ export class PackagesController {
     @Query('patientId') patientId?: string,
   ) {
     return this.packagesService.getPackages(hospitalId, { patientId });
+  }
+
+  @Get('stats')
+  getPackageStats(@Param('id') hospitalId: string) {
+    return this.packagesService.getPackageStats(hospitalId);
+  }
+
+  @Get(':packageId')
+  getPackageLedger(
+    @Param('id') hospitalId: string,
+    @Param('packageId') packageId: string,
+  ) {
+    return this.packagesService.getPackageLedger(hospitalId, packageId);
+  }
+
+  @Patch(':packageId/extend')
+  extendPackage(
+    @Param('id') hospitalId: string,
+    @Param('packageId') packageId: string,
+    @Body(new ZodValidationPipe(extendPackageSchema)) body: ExtendPackageBody,
+  ) {
+    return this.packagesService.extendPackage(hospitalId, packageId, body);
+  }
+
+  @Patch(':packageId/refund')
+  refundPackage(
+    @Param('id') hospitalId: string,
+    @Param('packageId') packageId: string,
+    @CurrentUser() user: JwtUser,
+    @CurrentHospitalUser() userProfile: HospitalUserProfile,
+  ) {
+    return this.packagesService.refundPackage(
+      hospitalId,
+      packageId,
+      user,
+      userProfile,
+    );
   }
 
   @Post('preview-schedule')

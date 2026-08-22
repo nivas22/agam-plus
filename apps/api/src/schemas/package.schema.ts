@@ -64,6 +64,16 @@ export class Package {
   @Prop()
   collectedBy?: string;
 
+  // Set when a lapsed/unused package is refunded instead of extended.
+  @Prop()
+  refundedAmount?: number;
+
+  @Prop()
+  refundedAt?: Date;
+
+  @Prop()
+  refundedBy?: string;
+
   @Prop()
   createdBy?: string;
 

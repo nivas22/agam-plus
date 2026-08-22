@@ -5,6 +5,7 @@ import { PaymentDayCloseRepository } from '../repositories/payment-day-close.rep
 import { PatientRepository } from '../repositories/patient.repository';
 import { DoctorRepository } from '../repositories/doctor.repository';
 import { UserRepository } from '../repositories/user.repository';
+import { PackageRepository } from '../repositories/package.repository';
 import { ApiError } from '../common/errors/api-error';
 import {
   JwtUser,
@@ -18,7 +19,9 @@ import {
 } from './payments.types';
 import {
   APPOINTMENT_STATUS,
+  APPOINTMENT_TYPE,
   isValidAppointmentTransition,
+  PACKAGE_STATUS,
   PAYMENT_METHOD,
   PAYMENT_STATUS,
   FOLLOW_UP_DAY_OFFSETS,
@@ -40,12 +43,22 @@ export class PaymentsService {
     private readonly patientRepository: PatientRepository,
     private readonly doctorRepository: DoctorRepository,
     private readonly userRepository: UserRepository,
+    private readonly packageRepository: PackageRepository,
   ) {}
 
   // Legacy `closedBy` values stamped before this was fixed to store a display
   // name are raw Mongo ids — recognizable as 24 hex chars.
   private looksLikeUserId(value: string): boolean {
     return /^[0-9a-f]{24}$/i.test(value);
+  }
+
+  // Formats the LOCAL calendar date directly — `.toISOString()` converts to
+  // UTC first, which shifts the date a day back in timezones ahead of UTC.
+  private toISODate(d: Date): string {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
   }
 
   // Half-open [start, end) range for a calendar day, keyed off createdAt (UTC,
@@ -207,10 +220,44 @@ export class PaymentsService {
       );
     }
 
-    const subtotal = items.reduce(
+    // The client's `usePackageVisit` choice is only ever a request — capacity
+    // is re-checked here against the package itself so a stale client can't
+    // force coverage that isn't actually available.
+    const isPackageAppointment =
+      existingData.type === APPOINTMENT_TYPE.PACKAGE &&
+      !!existingData.packageId;
+    const pkg = isPackageAppointment
+      ? await this.packageRepository.getPackageById(
+          hospitalId,
+          existingData.packageId,
+        )
+      : null;
+    const todayIso = this.toISODate(new Date());
+    const packageHasCapacity =
+      !!pkg &&
+      (pkg as any).status === PACKAGE_STATUS.ACTIVE &&
+      (pkg as any).usedVisits < (pkg as any).totalVisits &&
+      (pkg as any).validUntil >= todayIso;
+    const useCoverage = body.usePackageVisit !== false && packageHasCapacity;
+
+    // Auto-added items (the doctor's consultation) are what a package credit
+    // draws on — anything the desk adds during the visit is always billed.
+    const coveredAmount = useCoverage
+      ? items
+          .filter((item) => item.isAuto)
+          .reduce((sum, item) => sum + item.quantity * item.unitPrice, 0)
+      : 0;
+    const billedItems = items.map((item) =>
+      useCoverage && item.isAuto
+        ? { ...item, isPackageCovered: true }
+        : { ...item, isPackageCovered: false },
+    );
+
+    const rawSubtotal = items.reduce(
       (sum, item) => sum + item.quantity * item.unitPrice,
       0,
     );
+    const subtotal = rawSubtotal - coveredAmount;
     const total = Math.max(subtotal - discount, 0);
 
     // patientName/doctorName on the appointment doc itself are only ever
@@ -234,7 +281,7 @@ export class PaymentsService {
       patientPhone: (patient as any)?.phone || existingData.patientPhone,
       doctorProfileId: existingData.doctorProfileId,
       doctorName: (doctor as any)?.name || existingData.doctorName,
-      items,
+      items: billedItems,
       subtotal,
       discount,
       total,
@@ -242,6 +289,10 @@ export class PaymentsService {
       sendReceiptWhatsApp: body.sendReceiptWhatsApp,
       createdBy: user.uid,
     };
+    if (useCoverage) {
+      paymentData.packageId = existingData.packageId;
+      paymentData.packageCoveredAmount = coveredAmount;
+    }
 
     if (method === PAYMENT_METHOD.CASH) {
       if (body.amountTendered == null || body.amountTendered < total) {
@@ -302,6 +353,21 @@ export class PaymentsService {
       appointmentId,
       updateData,
     );
+
+    // Booking a package visit only reserves the slot — the credit is spent
+    // only once coverage was actually applied above (the patient may have
+    // opted out, or the package may have run out of capacity by now).
+    if (useCoverage && pkg) {
+      const newUsedVisits = Math.min(
+        (pkg as any).totalVisits,
+        (pkg as any).usedVisits + 1,
+      );
+      await this.packageRepository.updatePackage(
+        hospitalId,
+        existingData.packageId,
+        { usedVisits: newUsedVisits },
+      );
+    }
 
     let followUpAppointmentId: string | null = null;
     const followUpDays = followUp ? FOLLOW_UP_DAY_OFFSETS[followUp] : undefined;

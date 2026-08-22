@@ -61,6 +61,17 @@ export class PaymentRepository {
     return toPlainList(docs);
   }
 
+  async getPaymentsByAppointmentIds(
+    hospitalId: string,
+    appointmentIds: string[],
+  ) {
+    if (appointmentIds.length === 0) return [];
+    const docs = await this.paymentModel
+      .find({ hospitalId, appointmentId: { $in: appointmentIds } })
+      .lean();
+    return toPlainList(docs);
+  }
+
   async createPayment(paymentData: any) {
     const doc = await this.paymentModel.create({
       ...paymentData,

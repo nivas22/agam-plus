@@ -17,6 +17,11 @@ export class PaymentItem {
   // anything added during the visit so the bill UI can lock it from editing.
   @Prop({ default: false })
   isAuto?: boolean;
+
+  // Set server-side when this item's amount was drawn from a package credit
+  // instead of charged — excluded from the payment's payable total.
+  @Prop({ default: false })
+  isPackageCovered?: boolean;
 }
 
 export const PaymentItemSchema = SchemaFactory.createForClass(PaymentItem);
@@ -118,6 +123,13 @@ export class Payment {
 
   @Prop()
   sendReceiptWhatsApp?: boolean;
+
+  // Set when this visit drew its consultation from a prepaid package credit.
+  @Prop({ index: true })
+  packageId?: string;
+
+  @Prop()
+  packageCoveredAmount?: number;
 
   @Prop()
   createdBy?: string;

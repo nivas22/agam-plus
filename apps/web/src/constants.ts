@@ -1,34 +1,34 @@
 export enum DB_COLLECTIONS {
-  USERS = 'users_new',
-  DOCTOR_PROFILES = 'doctorProfiles_new_1',
-  PATIENTS = 'patients_new_1',
-  APPOINTMENTS = 'appointments_new',
-  HOSPITALS = 'hospitals_new',
-  HOSPITAL_MEMBERS = 'hospitalMembers_new_1',
-  REVIEWS = 'reviews',
-  DOCTOR_ACTIVIES = 'doctor_activities',
-  PAYMENTS = 'payments',
-  PAYMENT_DAY_CLOSES = 'payment_day_closes',
-  PACKAGES = 'packages',
+  USERS = "users_new",
+  DOCTOR_PROFILES = "doctorProfiles_new_1",
+  PATIENTS = "patients_new_1",
+  APPOINTMENTS = "appointments_new",
+  HOSPITALS = "hospitals_new",
+  HOSPITAL_MEMBERS = "hospitalMembers_new_1",
+  REVIEWS = "reviews",
+  DOCTOR_ACTIVIES = "doctor_activities",
+  PAYMENTS = "payments",
+  PAYMENT_DAY_CLOSES = "payment_day_closes",
+  PACKAGES = "packages",
 }
 
 export enum ROLE {
-  ADMIN = 'admin',
-  DOCTOR = 'doctor',
-  PATIENT = 'patient',
-  STAFF = 'staff',
+  ADMIN = "admin",
+  DOCTOR = "doctor",
+  PATIENT = "patient",
+  STAFF = "staff",
 }
 
 export enum MEMBERSHIP_STATUS {
-  PENDING = 'pending',
-  APPROVED = 'approved',
-  REJECTED = 'rejected',
+  PENDING = "pending",
+  APPROVED = "approved",
+  REJECTED = "rejected",
 }
 
 export enum GENDER {
-  MALE = 'Male',
-  FEMALE = 'Female',
-  OTHER = 'Other',
+  MALE = "Male",
+  FEMALE = "Female",
+  OTHER = "Other",
 }
 
 // Appointment lifecycle. PENDING is reserved for a future patient
@@ -36,15 +36,15 @@ export enum GENDER {
 // appointments start at CONFIRMED). This also lays the groundwork for a
 // hospital queue: CHECKED_IN -> WAITING -> IN_CONSULTATION.
 export enum APPOINTMENT_STATUS {
-  PENDING = 'pending',
-  CONFIRMED = 'confirmed',
-  CHECKED_IN = 'checked-in',
-  WAITING = 'waiting',
-  IN_CONSULTATION = 'in-consultation',
-  COMPLETED = 'completed',
-  CANCELLED = 'cancelled',
-  NO_SHOW = 'no-show',
-  RESCHEDULED = 'rescheduled',
+  PENDING = "pending",
+  CONFIRMED = "confirmed",
+  CHECKED_IN = "checked-in",
+  WAITING = "waiting",
+  IN_CONSULTATION = "in-consultation",
+  COMPLETED = "completed",
+  CANCELLED = "cancelled",
+  NO_SHOW = "no-show",
+  RESCHEDULED = "rescheduled",
 }
 
 export const APPOINTMENT_STATUS_VALUES = Object.values(APPOINTMENT_STATUS);
@@ -64,7 +64,7 @@ export const ACTIVE_APPOINTMENT_STATUSES: APPOINTMENT_STATUS[] = [
 export function normalizeAppointmentStatus(
   status: string | undefined | null,
 ): APPOINTMENT_STATUS {
-  if (status === 'scheduled' || !status) return APPOINTMENT_STATUS.CONFIRMED;
+  if (status === "scheduled" || !status) return APPOINTMENT_STATUS.CONFIRMED;
   return status as APPOINTMENT_STATUS;
 }
 
@@ -126,24 +126,41 @@ export function isValidAppointmentTransition(
 // Marks whether an appointment was booked ad-hoc or drawn from a prepaid
 // package. PACKAGE appointments carry packageId/packageVisitNumber.
 export enum APPOINTMENT_TYPE {
-  REGULAR = 'regular',
-  PACKAGE = 'package',
+  REGULAR = "regular",
+  PACKAGE = "package",
 }
 
 export const APPOINTMENT_TYPE_VALUES = Object.values(APPOINTMENT_TYPE);
 
 export enum PACKAGE_STATUS {
-  ACTIVE = 'active',
-  EXPIRED = 'expired',
-  CANCELLED = 'cancelled',
+  ACTIVE = "active",
+  EXPIRED = "expired",
+  CANCELLED = "cancelled",
+  REFUNDED = "refunded",
 }
 
 export const PACKAGE_STATUS_VALUES = Object.values(PACKAGE_STATUS);
 
+// Derived, display-only classification for a package — never stored. Active
+// packages become LAPSING inside the expiry window, USED_UP once every visit
+// is consumed, or LAPSED once past validUntil with visits still unused.
+export enum PACKAGE_DISPLAY_STATUS {
+  ACTIVE = "active",
+  LAPSING = "lapsing",
+  USED_UP = "used_up",
+  LAPSED = "lapsed",
+  REFUNDED = "refunded",
+  CANCELLED = "cancelled",
+}
+
+// A package still holding unused visits gets flagged once it's this many
+// days (or fewer) from validUntil.
+export const PACKAGE_LAPSING_WINDOW_DAYS = 30;
+
 export enum PACKAGE_PAYMENT_METHOD {
-  CASH = 'cash',
-  UPI = 'upi',
-  CARD = 'card',
+  CASH = "cash",
+  UPI = "upi",
+  CARD = "card",
 }
 
 export const PACKAGE_PAYMENT_METHOD_VALUES = Object.values(
@@ -165,18 +182,18 @@ export function computePackagePricePerVisit(consultationFee: number): number {
 // How a completed visit was settled. SPLIT covers cash+UPI combined; DUE
 // records the visit as unpaid rather than blocking completion on collection.
 export enum PAYMENT_METHOD {
-  CASH = 'cash',
-  UPI = 'upi',
-  SPLIT = 'split',
-  DUE = 'due',
+  CASH = "cash",
+  UPI = "upi",
+  SPLIT = "split",
+  DUE = "due",
 }
 
 export const PAYMENT_METHOD_VALUES = Object.values(PAYMENT_METHOD);
 
 export enum PAYMENT_STATUS {
-  PAID = 'paid',
-  DUE = 'due',
-  REFUNDED = 'refunded',
+  PAID = "paid",
+  DUE = "due",
+  REFUNDED = "refunded",
 }
 
 export const PAYMENT_STATUS_VALUES = Object.values(PAYMENT_STATUS);
@@ -184,58 +201,58 @@ export const PAYMENT_STATUS_VALUES = Object.values(PAYMENT_STATUS);
 // Offsets for the optional draft follow-up appointment created alongside a
 // completed visit. 'none' skips it — value keys double as the select's option value.
 export const FOLLOW_UP_OPTIONS = [
-  { value: 'none', label: 'No follow-up needed' },
-  { value: '3-days', label: 'In 3 days' },
-  { value: '1-week', label: 'In 1 week' },
-  { value: '2-weeks', label: 'In 2 weeks' },
-  { value: '1-month', label: 'In 1 month' },
+  { value: "none", label: "No follow-up needed" },
+  { value: "3-days", label: "In 3 days" },
+  { value: "1-week", label: "In 1 week" },
+  { value: "2-weeks", label: "In 2 weeks" },
+  { value: "1-month", label: "In 1 month" },
 ] as const;
 
 export const FOLLOW_UP_DAY_OFFSETS: Record<string, number> = {
-  '3-days': 3,
-  '1-week': 7,
-  '2-weeks': 14,
-  '1-month': 30,
+  "3-days": 3,
+  "1-week": 7,
+  "2-weeks": 14,
+  "1-month": 30,
 };
 
 export const PAYMENT_DUE_REASONS = [
-  'Patient will pay at pharmacy counter',
-  'Insurance / TPA claim',
-  'Hospital staff — waived',
-  'Other',
+  "Patient will pay at pharmacy counter",
+  "Insurance / TPA claim",
+  "Hospital staff — waived",
+  "Other",
 ] as const;
 
 // Quick-add suggestions on the bill line-item picker. Not a catalog entity —
 // just a fixed shortlist of the most common non-consultation charges.
 export const COMMON_BILL_ITEMS: { name: string; price: number }[] = [
-  { name: 'Dressing', price: 150 },
-  { name: 'Injection — Tetanus toxoid', price: 250 },
-  { name: 'ECG', price: 300 },
+  { name: "Dressing", price: 150 },
+  { name: "Injection — Tetanus toxoid", price: 250 },
+  { name: "ECG", price: 300 },
 ];
 
 export const MEDICAL_SPECIALIZATIONS = [
-  'Cardiology',
-  'Dermatology',
-  'Endocrinology',
-  'Gastroenterology',
-  'General Medicine',
-  'General Surgery',
-  'Gynecology',
-  'Neurology',
-  'Oncology',
-  'Ophthalmology',
-  'Orthopedics',
-  'Otolaryngology (ENT)',
-  'Pediatrics',
-  'Psychiatry',
-  'Pulmonology',
-  'Radiology',
-  'Rheumatology',
-  'Urology',
-  'Anesthesiology',
-  'Emergency Medicine',
-  'Nephrology',
-  'Pathology',
-  'Physical Medicine',
-  'Plastic Surgery',
+  "Cardiology",
+  "Dermatology",
+  "Endocrinology",
+  "Gastroenterology",
+  "General Medicine",
+  "General Surgery",
+  "Gynecology",
+  "Neurology",
+  "Oncology",
+  "Ophthalmology",
+  "Orthopedics",
+  "Otolaryngology (ENT)",
+  "Pediatrics",
+  "Psychiatry",
+  "Pulmonology",
+  "Radiology",
+  "Rheumatology",
+  "Urology",
+  "Anesthesiology",
+  "Emergency Medicine",
+  "Nephrology",
+  "Pathology",
+  "Physical Medicine",
+  "Plastic Surgery",
 ] as const;

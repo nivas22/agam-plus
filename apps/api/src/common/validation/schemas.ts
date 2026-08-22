@@ -64,6 +64,7 @@ export const paymentItemSchema = z.object({
   quantity: z.number().int().positive().default(1),
   unitPrice: z.number().min(0, 'Price cannot be negative'),
   isAuto: z.boolean().optional(),
+  isPackageCovered: z.boolean().optional(),
 });
 
 export const completeVisitSchema = z.object({
@@ -90,6 +91,11 @@ export const completeVisitSchema = z.object({
   // due
   dueReason: z.string().optional(),
   sendReceiptWhatsApp: z.boolean().default(true),
+  // Whether to draw this visit's consultation from a linked package's unused
+  // credits. Only meaningful when the appointment is a package visit — the
+  // server independently checks the package actually has capacity before
+  // honoring this either way, so a client can't force coverage it shouldn't get.
+  usePackageVisit: z.boolean().default(true),
 });
 
 export const updatePaymentSchema = z.object({
@@ -139,6 +145,10 @@ export const sellPackageSchema = z.object({
     },
   ),
   visits: z.array(sellPackageVisitSchema).default([]),
+});
+
+export const extendPackageSchema = z.object({
+  months: z.number().int().positive().max(24),
 });
 
 /* -------------------------------------------------------------------------- */
