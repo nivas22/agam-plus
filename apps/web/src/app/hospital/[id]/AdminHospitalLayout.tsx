@@ -10,6 +10,7 @@ import {
   ClipboardList,
   IndianRupee,
   LayoutDashboard,
+  ListChecks,
   LogOut,
   Menu,
   Plus,
@@ -110,6 +111,11 @@ export default function AdminHospitalLayout({
       icon: <Calendar size={18} />,
     },
     {
+      to: "/queue",
+      label: "Today's queue",
+      icon: <ListChecks size={18} />,
+    },
+    {
       to: "/payments",
       label: "Payments",
       icon: <IndianRupee size={18} />,
@@ -137,8 +143,8 @@ export default function AdminHospitalLayout({
   ];
 
   // Desktop sidebar groups
-  const careItems = navItems.slice(0, 4);
-  const operationsItems = navItems.slice(4);
+  const careItems = navItems.slice(0, 5);
+  const operationsItems = navItems.slice(5);
 
   const toggleMenu = () => setIsOpen(!isOpen);
 
