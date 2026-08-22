@@ -11,6 +11,8 @@ import {
 } from '@nestjs/common';
 import { PatientsService } from './patients.service';
 import { HospitalContextGuard } from '../auth/guards/hospital-context.guard';
+import { PermissionGuard } from '../permissions/guards/permission.guard';
+import { RequirePermission } from '../permissions/decorators/require-permission.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import {
   CurrentUser,
@@ -22,12 +24,12 @@ import type {
 } from '../auth/decorators/current-user.decorator';
 
 @Controller('hospitals/:id/patients')
-@UseGuards(HospitalContextGuard)
+@UseGuards(HospitalContextGuard, PermissionGuard)
 export class PatientsController {
   constructor(private readonly patientsService: PatientsService) {}
 
   @Get()
-  @Roles('admin', 'doctor')
+  @Roles('admin', 'doctor', 'front_desk', 'nurse', 'accountant')
   list(
     @Param('id') hospitalId: string,
     @CurrentHospitalUser() userProfile: HospitalUserProfile,
@@ -45,7 +47,8 @@ export class PatientsController {
   }
 
   @Post()
-  @Roles('admin')
+  @Roles('admin', 'front_desk', 'nurse')
+  @RequirePermission('add_edit_patients')
   create(
     @Param('id') hospitalId: string,
     @CurrentUser() user: JwtUser,
@@ -55,13 +58,13 @@ export class PatientsController {
   }
 
   @Get('search')
-  @Roles('admin', 'doctor')
+  @Roles('admin', 'doctor', 'front_desk', 'nurse', 'accountant')
   search(@Param('id') hospitalId: string, @Query('q') q?: string) {
     return this.patientsService.searchPatients(hospitalId, q || '');
   }
 
   @Get(':patientId')
-  @Roles('admin', 'doctor')
+  @Roles('admin', 'doctor', 'front_desk', 'nurse', 'accountant')
   getOne(
     @Param('id') hospitalId: string,
     @Param('patientId') patientId: string,
@@ -70,7 +73,8 @@ export class PatientsController {
   }
 
   @Put(':patientId')
-  @Roles('admin')
+  @Roles('admin', 'front_desk', 'nurse')
+  @RequirePermission('add_edit_patients')
   update(
     @Param('id') hospitalId: string,
     @Param('patientId') patientId: string,

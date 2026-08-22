@@ -23,4 +23,13 @@ export class PaymentDayCloseRepository {
     const doc = await this.model.create({ ...data, closedAt: new Date() });
     return toPlain(doc.toObject());
   }
+
+  // Powers the Team member profile's "Drawer variance" stat.
+  async sumVarianceByUser(hospitalId: string, userId: string): Promise<{ total: number; days: number }> {
+    const result = await this.model.aggregate([
+      { $match: { hospitalId, closedByUserId: userId } },
+      { $group: { _id: null, total: { $sum: '$variance' }, days: { $sum: 1 } } },
+    ]);
+    return { total: result[0]?.total ?? 0, days: result[0]?.days ?? 0 };
+  }
 }

@@ -11,7 +11,7 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { AuthData, AuthError, Hospital, LoginSuccess } from '@/types/auth';
 import { HospitalMember } from '@/types/doctorNew';
-import { MEMBERSHIP_STATUS, ROLE } from '../constants';
+import { MEMBERSHIP_STATUS, ROLE, STAFF_CONSOLE_ROLES } from '../constants';
 
 
 // Query keys
@@ -276,7 +276,9 @@ const navigateToHospitalRoute = (path: string, hospitalId?: string) => {
         }
 
         return getHospitalRoute('/dashboard', targetHospitalId);
-      case ROLE.STAFF:
+      case ROLE.FRONT_DESK:
+      case ROLE.NURSE:
+      case ROLE.ACCOUNTANT:
         return status === MEMBERSHIP_STATUS.APPROVED
           ? getHospitalRoute('/dashboard', targetHospitalId)
           : '/select-hospital';
@@ -293,6 +295,14 @@ const navigateToHospitalRoute = (path: string, hospitalId?: string) => {
     
     if (!membership || membership.status !== MEMBERSHIP_STATUS.APPROVED) {
       return false;
+    }
+
+    if (requiredRole === 'admin') {
+      // The admin console shell is shared by front desk/nurse/accountant too —
+      // each endpoint enforces its own finer-grained permission server-side
+      // (see Roles & permissions), so the frontend only needs to admit them
+      // to the same layout, not gate them out at the role level.
+      return STAFF_CONSOLE_ROLES.includes(membership.role);
     }
 
     if (requiredRole && membership.role !== requiredRole) {
@@ -345,7 +355,7 @@ const navigateToHospitalRoute = (path: string, hospitalId?: string) => {
     // Current context
     isAdmin: getCurrentHospitalRole() === ROLE.ADMIN,
     isDoctor: getCurrentHospitalRole() === ROLE.DOCTOR,
-    isStaff: getCurrentHospitalRole() === ROLE.STAFF,
+    isStaff: [ROLE.FRONT_DESK, ROLE.NURSE, ROLE.ACCOUNTANT].includes(getCurrentHospitalRole() as ROLE),
     isPatient: getCurrentHospitalRole() === ROLE.PATIENT,
     isApproved: getCurrentHospitalStatus() === MEMBERSHIP_STATUS.APPROVED,
     isPending: getCurrentHospitalStatus() === MEMBERSHIP_STATUS.PENDING,

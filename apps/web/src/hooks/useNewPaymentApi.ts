@@ -75,6 +75,36 @@ const paymentsApiFunctions = {
     }
   },
 
+  // A front-desk-style role whose 'issue_refund' permission is set to "needs
+  // approval" gets a 202 back instead of the refund actually happening — the
+  // request is queued for an admin instead (see the Roles & permissions /
+  // approvals feature). requiresApproval lets the caller show a different message.
+  refundPayment: async (
+    hospitalId: string,
+    paymentId: string,
+    refundReason?: string,
+  ): Promise<{ requiresApproval: boolean }> => {
+    const response = await fetchWithAuth(
+      apiUrl(`/hospitals/${hospitalId}/payments/${paymentId}/refund`),
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refundReason }),
+      },
+    );
+
+    if (response.status === 202) {
+      return { requiresApproval: true };
+    }
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || "Failed to refund this payment");
+    }
+
+    return { requiresApproval: false };
+  },
+
   fetchDayClose: async (
     hospitalId: string,
     date: string,
@@ -202,6 +232,32 @@ export const useUpdatePayment = (hospitalId?: string) => {
       updates: Record<string, unknown>;
     }) =>
       paymentsApiFunctions.updatePayment(actualHospitalId, paymentId, updates),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: paymentsKeys.hospital(actualHospitalId),
+      });
+    },
+  });
+};
+
+export const useRefundPayment = (hospitalId?: string) => {
+  const queryClient = useQueryClient();
+  const queryParams = useParams();
+  const actualHospitalId = hospitalId || (queryParams.id as string);
+
+  return useMutation({
+    mutationFn: ({
+      paymentId,
+      refundReason,
+    }: {
+      paymentId: string;
+      refundReason?: string;
+    }) =>
+      paymentsApiFunctions.refundPayment(
+        actualHospitalId,
+        paymentId,
+        refundReason,
+      ),
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: paymentsKeys.hospital(actualHospitalId),

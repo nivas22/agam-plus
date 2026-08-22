@@ -16,13 +16,21 @@ export enum ROLE {
   ADMIN = "admin",
   DOCTOR = "doctor",
   PATIENT = "patient",
-  STAFF = "staff",
+  FRONT_DESK = "front_desk",
+  NURSE = "nurse",
+  ACCOUNTANT = "accountant",
 }
+
+// Roles that share the admin console shell (AdminHospitalLayout) — narrower
+// nav/permissions are enforced server-side, not by a separate frontend shell.
+export const STAFF_CONSOLE_ROLES: string[] = [ROLE.ADMIN, ROLE.FRONT_DESK, ROLE.NURSE, ROLE.ACCOUNTANT];
 
 export enum MEMBERSHIP_STATUS {
   PENDING = "pending",
   APPROVED = "approved",
   REJECTED = "rejected",
+  SUSPENDED = "suspended",
+  DEACTIVATED = "deactivated",
 }
 
 export enum GENDER {

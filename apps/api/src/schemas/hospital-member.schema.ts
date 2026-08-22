@@ -30,6 +30,13 @@ export class HospitalMember {
   @Prop()
   invitedBy?: string;
 
+  // One admin membership per hospital can be flagged the owner — always full
+  // permissions (not editable in the Roles & permissions matrix), and the
+  // last remaining owner can't be demoted/removed. Distinct from `role`
+  // itself: an owner's role is still 'admin'.
+  @Prop({ default: false })
+  isOwner?: boolean;
+
   @Prop()
   isDoctor?: boolean;
 

@@ -6,6 +6,8 @@ import { PatientRepository } from '../repositories/patient.repository';
 import { DoctorRepository } from '../repositories/doctor.repository';
 import { UserRepository } from '../repositories/user.repository';
 import { PackageRepository } from '../repositories/package.repository';
+import { PermissionsService } from '../permissions/permissions.service';
+import { AuditService } from '../audit/audit.service';
 import { ApiError } from '../common/errors/api-error';
 import {
   JwtUser,
@@ -14,6 +16,7 @@ import {
 import {
   CompleteVisitBody,
   UpdatePaymentBody,
+  RefundPaymentBody,
   PaymentListQuery,
   CloseDayBody,
 } from './payments.types';
@@ -24,6 +27,7 @@ import {
   PACKAGE_STATUS,
   PAYMENT_METHOD,
   PAYMENT_STATUS,
+  PERMISSION_STATE,
   FOLLOW_UP_DAY_OFFSETS,
 } from '../constants';
 
@@ -44,6 +48,8 @@ export class PaymentsService {
     private readonly doctorRepository: DoctorRepository,
     private readonly userRepository: UserRepository,
     private readonly packageRepository: PackageRepository,
+    private readonly permissionsService: PermissionsService,
+    private readonly auditService: AuditService,
   ) {}
 
   // Legacy `closedBy` values stamped before this was fixed to store a display
@@ -262,6 +268,18 @@ export class PaymentsService {
     const subtotal = rawSubtotal - coveredAmount;
     const total = Math.max(subtotal - discount, 0);
 
+    // apply_discount's "needs approval" state is simplified to a hard cap
+    // here rather than a queued approval — completeVisit is a single
+    // synchronous checkout with no natural pause point mid-transaction.
+    if (discount > 0) {
+      const cap = await this.permissionsService.getDiscountCap(hospitalId, userRole, {
+        isOwner: userProfile?.isOwner,
+      });
+      if (cap !== undefined && discount > cap) {
+        throw ApiError.forbidden(`A discount above ₹${cap} needs an admin to apply it`);
+      }
+    }
+
     // patientName/doctorName on the appointment doc itself are only ever
     // stamped on creation (or never, for patientName) — the appointments
     // list gets its display names from a read-time $in lookup instead. Do
@@ -290,6 +308,7 @@ export class PaymentsService {
       method,
       sendReceiptWhatsApp: body.sendReceiptWhatsApp,
       createdBy: user.uid,
+      collectedByUserId: userProfile?.userId,
     };
     if (useCoverage) {
       paymentData.packageId = existingData.packageId;
@@ -340,6 +359,17 @@ export class PaymentsService {
     paymentData.invoiceNumber = `INV-${invoiceYear}-${String(sequence).padStart(4, '0')}`;
 
     const payment = await this.paymentRepository.createPayment(paymentData);
+
+    if (paymentData.status === PAYMENT_STATUS.PAID) {
+      await this.auditService.log({
+        hospitalId,
+        actor: { userId: userProfile.userId, name: userProfile.name, role: userRole },
+        action: 'payment.collected',
+        area: 'money',
+        summary: `Collected ₹${total} ${method} on ${paymentData.invoiceNumber ?? 'this visit'} · ${paymentData.patientName ?? ''}`.trim(),
+        amount: total,
+      });
+    }
 
     const updateData: Record<string, any> = {
       status: APPOINTMENT_STATUS.COMPLETED,
@@ -440,19 +470,26 @@ export class PaymentsService {
       hospitalId,
       paymentDate,
     );
-    if (dayClose && body.status !== PAYMENT_STATUS.REFUNDED) {
-      throw ApiError.badRequest(
-        'This day is closed — only refunds are allowed',
+    if (dayClose) {
+      // A role granted 'edit_closed_invoice' can bypass this lock; everyone
+      // else (including admin's own default, which is BLOCKED — see
+      // permission-catalog.ts) hits the original hard rule.
+      const editState = await this.permissionsService.getActionState(
+        hospitalId,
+        userProfile.role,
+        'edit_closed_invoice',
+        { isOwner: userProfile?.isOwner },
       );
+      if (editState !== PERMISSION_STATE.ALLOWED) {
+        throw ApiError.badRequest(
+          'This day is closed — only refunds are allowed',
+        );
+      }
     }
 
     const updates: Record<string, any> = {};
 
-    if (body.status === PAYMENT_STATUS.REFUNDED) {
-      updates.status = PAYMENT_STATUS.REFUNDED;
-      updates.refundedAt = new Date();
-      updates.refundReason = body.refundReason;
-    } else if (
+    if (
       body.status === PAYMENT_STATUS.PAID &&
       existingData.status === PAYMENT_STATUS.DUE
     ) {
@@ -479,6 +516,7 @@ export class PaymentsService {
       } else if (body.method === PAYMENT_METHOD.UPI) {
         updates.upiReference = body.upiReference;
       }
+      updates.collectedByUserId = userProfile.userId;
     } else if (body.upiReference !== undefined) {
       updates.upiReference = body.upiReference;
     }
@@ -490,6 +528,52 @@ export class PaymentsService {
     await this.paymentRepository.updatePayment(hospitalId, paymentId, updates);
 
     return { success: true, message: 'Payment updated' };
+  }
+
+  // Extracted out of updatePayment so 'issue_refund' can be permission-gated
+  // independently of due-settlement edits (see PermissionGuard + the
+  // POST .../payments/:paymentId/refund route). Refunds are intentionally
+  // exempt from the day-close lock, same as before this extraction.
+  async refundPayment(
+    hospitalId: string,
+    userProfile: HospitalUserProfile,
+    paymentId: string,
+    body: RefundPaymentBody,
+  ) {
+    if (
+      userProfile?.role !== 'admin' &&
+      userProfile?.hospitalId !== hospitalId
+    ) {
+      throw ApiError.forbidden('Unauthorized - Access denied to this hospital');
+    }
+
+    const payment = await this.paymentRepository.getPaymentById(hospitalId, paymentId);
+    if (!payment) {
+      throw ApiError.notFound('Payment not found');
+    }
+
+    const existingData = payment as any;
+    if (existingData.status === PAYMENT_STATUS.REFUNDED) {
+      throw ApiError.conflict('This payment has already been refunded');
+    }
+
+    await this.paymentRepository.updatePayment(hospitalId, paymentId, {
+      status: PAYMENT_STATUS.REFUNDED,
+      refundedAt: new Date(),
+      refundReason: body.refundReason,
+      refundedByUserId: userProfile.userId,
+    });
+
+    await this.auditService.log({
+      hospitalId,
+      actor: { userId: userProfile.userId, name: userProfile.name, role: userProfile.role },
+      action: 'payment.refunded',
+      area: 'money',
+      summary: `Refunded ₹${existingData.total} on ${existingData.invoiceNumber ?? paymentId}${existingData.patientName ? ` · ${existingData.patientName}` : ''}${body.refundReason ? ` · reason "${body.refundReason}"` : ''}`,
+      amount: -existingData.total,
+    });
+
+    return { success: true, message: 'Payment refunded' };
   }
 
   async getDayClose(hospitalId: string, date: string) {
@@ -537,8 +621,14 @@ export class PaymentsService {
     userProfile: HospitalUserProfile,
     body: CloseDayBody,
   ) {
-    if (userProfile?.role !== 'admin') {
-      throw ApiError.forbidden('Only an admin can close the day');
+    // Admin/owner always pass (see PermissionsService.isAlwaysAllowed); other
+    // roles need 'close_day' allowed — accountant gets it by default (see
+    // permission-catalog.ts), matching "read-only + day close".
+    const closeDayState = await this.permissionsService.getActionState(hospitalId, userProfile?.role, 'close_day', {
+      isOwner: userProfile?.isOwner,
+    });
+    if (closeDayState !== PERMISSION_STATE.ALLOWED) {
+      throw ApiError.forbidden('Only an admin (or a role granted close-day access) can close the day');
     }
 
     const existing = await this.paymentDayCloseRepository.getByDate(
@@ -578,6 +668,16 @@ export class PaymentsService {
       variance,
       note: body.note,
       closedBy: userProfile.name || userProfile.userId,
+      closedByUserId: userProfile.userId,
+    });
+
+    await this.auditService.log({
+      hospitalId,
+      actor: { userId: userProfile.userId, name: userProfile.name, role: userProfile.role },
+      action: 'day_close.closed',
+      area: 'money',
+      summary: `Closed the day for ${body.date}${variance !== 0 ? ` — drawer ${variance > 0 ? 'over' : 'short'} ₹${Math.abs(variance)}` : ''}${body.note ? ` · Note: "${body.note}"` : ''}`,
+      amount: variance,
     });
 
     return { success: true, message: 'Day closed', dayClose };

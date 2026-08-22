@@ -1,4 +1,4 @@
-import { GENDER } from "../constants";
+import type { GENDER } from "../constants";
 
 export interface Patient {
   id: string;
@@ -12,9 +12,9 @@ export interface Patient {
   dateOfBirth: string;
   gender: GENDER;
   bloodGroup?: string;
-  age?:string;
+  age?: string;
   address: string;
-  status: 'active' | 'inactive' | 'archived' | 'approved' | 'pending';
+  status: "active" | "inactive" | "archived" | "approved" | "pending";
   createdAt: any;
   updatedAt?: any;
   createdBy?: string;
@@ -57,6 +57,8 @@ export interface CreatePatientData {
   };
   assignedDoctorId?: string;
   lookingForSpecialization?: string;
+  // Set once staff have seen the phone-duplicate warning and chosen to create anyway.
+  confirmDuplicate?: boolean;
 }
 
 export interface UpdatePatientData {
@@ -81,7 +83,7 @@ export interface UpdatePatientData {
     policyNumber: string;
     groupNumber?: string;
   };
-  status?: 'active' | 'inactive' | 'archived';
+  status?: "active" | "inactive" | "archived";
   assignedDoctorId?: string;
   lookingForSpecialization?: string;
 }

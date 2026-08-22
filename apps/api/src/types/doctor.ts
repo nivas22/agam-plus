@@ -60,7 +60,7 @@ export interface HospitalMember {
   id: string;
   hospitalId: string;
   userId: string;
-  role: 'admin' | 'doctor' | 'staff' | 'patient';
+  role: 'admin' | 'doctor' | 'front_desk' | 'nurse' | 'accountant' | 'patient';
   status: 'pending' | 'approved' | 'rejected';
   joinedAt: any;
   invitedBy?: string;

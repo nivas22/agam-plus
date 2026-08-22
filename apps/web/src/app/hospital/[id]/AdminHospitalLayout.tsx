@@ -24,8 +24,11 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { FaHospital, FaUserMd } from "react-icons/fa";
 import GlobalSearch from "@/components/GlobalSearch";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import ApprovalModal from "@/components/approvals/ApprovalModal";
 import { useAuth } from "@/hooks/useAuth";
+import { usePendingApprovals } from "@/hooks/useApprovalsApi";
 import { apiUrl, fetchWithAuth } from "@/lib/api";
+import type { ApprovalRequest } from "@/types/audit";
 
 interface HospitalLayoutProps {
   children: React.ReactNode;
@@ -62,10 +65,15 @@ export default function AdminHospitalLayout({
     switchHospital,
     isSwitchingHospital,
     getRoleBasedRedirect,
+    getCurrentHospitalRole,
   } = useAuth();
+  const isAdmin = getCurrentHospitalRole() === "admin";
 
   const actualHospitalId = hospitalId || (params.id as string);
   const displayName = userData?.name || userData?.email;
+
+  const [activeApproval, setActiveApproval] = useState<ApprovalRequest | null>(null);
+  const { data: pendingApprovals = [] } = usePendingApprovals(isAdmin ? actualHospitalId : undefined);
 
   const getInitials = (name?: string | null) => {
     if (!name) return "U";
@@ -108,15 +116,21 @@ export default function AdminHospitalLayout({
       label: "Attendance",
       icon: <ClipboardList size={18} />,
     },
+    ...(isAdmin
+      ? [
+          {
+            to: "/settings",
+            label: "Settings",
+            icon: <Settings size={18} />,
+          },
+        ]
+      : []),
   ];
 
   // Desktop sidebar groups
   const careItems = navItems.slice(0, 4);
   const operationsItems = navItems.slice(4);
-  const comingSoonItems = [
-    { label: "Reports", icon: <TrendingUp size={18} /> },
-    { label: "Settings", icon: <Settings size={18} /> },
-  ];
+  const comingSoonItems = [{ label: "Reports", icon: <TrendingUp size={18} /> }];
 
   const toggleMenu = () => setIsOpen(!isOpen);
 
@@ -719,19 +733,46 @@ export default function AdminHospitalLayout({
               <div className="relative" ref={notificationsRef}>
                 <button
                   onClick={() => setShowNotifications((prev) => !prev)}
-                  className="p-2 rounded-lg text-ink-700 hover:bg-surface-canvas transition-colors"
+                  className="relative p-2 rounded-lg text-ink-700 hover:bg-surface-canvas transition-colors"
                   aria-label="Notifications"
                 >
                   <Bell size={18} />
+                  {pendingApprovals.length > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-status-warning text-white text-[9px] font-bold grid place-items-center">
+                      {pendingApprovals.length}
+                    </span>
+                  )}
                 </button>
                 {showNotifications && (
-                  <div className="absolute right-0 top-full mt-2 w-64 bg-surface-paper rounded-xl shadow-2xl border border-border overflow-hidden z-50">
+                  <div className="absolute right-0 top-full mt-2 w-72 bg-surface-paper rounded-xl shadow-2xl border border-border overflow-hidden z-50">
                     <div className="px-4 py-3 border-b border-border text-sm font-semibold text-ink-900">
-                      Notifications
+                      {pendingApprovals.length > 0 ? "Waiting on you" : "Notifications"}
                     </div>
-                    <div className="px-4 py-6 text-sm text-ink-500 text-center">
-                      No new notifications
-                    </div>
+                    {pendingApprovals.length === 0 ? (
+                      <div className="px-4 py-6 text-sm text-ink-500 text-center">
+                        No new notifications
+                      </div>
+                    ) : (
+                      <div className="max-h-72 overflow-y-auto">
+                        {pendingApprovals.map((approval) => (
+                          <button
+                            key={approval.id}
+                            onClick={() => {
+                              setActiveApproval(approval);
+                              setShowNotifications(false);
+                            }}
+                            className="w-full text-left px-4 py-3 border-b border-border last:border-0 hover:bg-surface-canvas transition-colors"
+                          >
+                            <div className="text-sm font-medium text-ink-900">
+                              {approval.action.replace(/_/g, " ")}
+                            </div>
+                            <div className="text-xs text-ink-500 mt-0.5">
+                              Requested by {approval.requestedBy.name}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -977,6 +1018,14 @@ export default function AdminHospitalLayout({
           animation: slide-down 0.2s ease-out;
         }
       `}</style>
+
+      {activeApproval && (
+        <ApprovalModal
+          hospitalId={actualHospitalId}
+          approval={activeApproval}
+          onClose={() => setActiveApproval(null)}
+        />
+      )}
     </ProtectedRoute>
   );
 }

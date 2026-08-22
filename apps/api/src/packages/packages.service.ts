@@ -5,6 +5,8 @@ import { DoctorRepository } from '../repositories/doctor.repository';
 import { PatientRepository } from '../repositories/patient.repository';
 import { MembershipRepository } from '../repositories/membership.repository';
 import { PaymentRepository } from '../repositories/payment.repository';
+import { PermissionsService } from '../permissions/permissions.service';
+import { AuditService } from '../audit/audit.service';
 import { ApiError } from '../common/errors/api-error';
 import {
   JwtUser,
@@ -57,6 +59,8 @@ export class PackagesService {
     private readonly patientRepository: PatientRepository,
     private readonly membershipRepository: MembershipRepository,
     private readonly paymentRepository: PaymentRepository,
+    private readonly permissionsService: PermissionsService,
+    private readonly auditService: AuditService,
   ) {}
 
   // -- date/time helpers, mirroring AppointmentsService's own plain-Date style --
@@ -407,6 +411,7 @@ export class PackagesService {
   async extendPackage(
     hospitalId: string,
     packageId: string,
+    userProfile: HospitalUserProfile,
     body: ExtendPackageBody,
   ) {
     const pkg = await this.packageRepository.getPackageById(
@@ -436,6 +441,17 @@ export class PackagesService {
       packageId,
       { validUntil: this.toISODate(newValidUntil) },
     );
+
+    if (userProfile) {
+      await this.auditService.log({
+        hospitalId,
+        actor: { userId: userProfile.userId, name: userProfile.name, role: userProfile.role },
+        action: 'package.extended',
+        area: 'money',
+        summary: `Extended package for ${(pkg as any).patientName ?? packageId} by ${body.months} month(s)`,
+      });
+    }
+
     return { package: this.enrichPackage(updated, todayIso) };
   }
 
@@ -473,9 +489,20 @@ export class PackagesService {
         refundedAmount,
         refundedAt: new Date(),
         refundedBy: userProfile?.name || user.name,
+        refundedByUserId: userProfile?.userId,
       },
     );
     const todayIso = this.toISODate(new Date());
+
+    await this.auditService.log({
+      hospitalId,
+      actor: { userId: userProfile.userId, name: userProfile.name, role: userProfile.role },
+      action: 'package.refunded',
+      area: 'money',
+      summary: `Refunded package for ${(pkg as any).patientName ?? packageId} — ₹${refundedAmount} (${remainingVisits} unused visits)`,
+      amount: -refundedAmount,
+    });
+
     return { package: this.enrichPackage(updated, todayIso) };
   }
 
@@ -634,7 +661,17 @@ export class PackagesService {
       paymentMethod: body.paymentMethod,
       amountPaid: totalPrice,
       collectedBy: userProfile?.name || user.name,
+      collectedByUserId: userProfile?.userId,
       createdBy: user.uid,
+    });
+
+    await this.auditService.log({
+      hospitalId,
+      actor: { userId: userProfile.userId, name: userProfile.name, role: userRole },
+      action: 'package.sold',
+      area: 'money',
+      summary: `Sold a ${body.totalVisits}-visit package to ${(patient as any)?.name ?? body.patientId} — ₹${totalPrice}`,
+      amount: totalPrice,
     });
 
     let appointmentIds: string[] = [];

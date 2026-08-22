@@ -10,19 +10,40 @@ export enum DB_COLLECTIONS {
   PAYMENTS = 'payments',
   PAYMENT_DAY_CLOSES = 'payment_day_closes',
   PACKAGES = 'packages',
+  TEAM_MEMBER_PROFILES = 'team_member_profiles',
+  ROLE_PERMISSIONS = 'role_permissions',
+  AUDIT_LOG = 'audit_log',
+  APPROVAL_REQUESTS = 'approval_requests',
 }
 
+// FRONT_DESK/NURSE/ACCOUNTANT replace the old unused STAFF value — nothing
+// ever created a 'staff' membership, these are the first real non-admin,
+// non-clinical roles in the system (see the Team/Roles & permissions feature).
 export enum ROLE {
   ADMIN = 'admin',
   DOCTOR = 'doctor',
   PATIENT = 'patient',
-  STAFF = 'staff',
+  FRONT_DESK = 'front_desk',
+  NURSE = 'nurse',
+  ACCOUNTANT = 'accountant',
 }
+
+export const STAFF_ROLES = [ROLE.FRONT_DESK, ROLE.NURSE, ROLE.ACCOUNTANT];
 
 export enum MEMBERSHIP_STATUS {
   PENDING = 'pending',
   APPROVED = 'approved',
   REJECTED = 'rejected',
+  SUSPENDED = 'suspended',
+  DEACTIVATED = 'deactivated',
+}
+
+// The three states a permission action can be in for a given role — see
+// permissions/permission-catalog.ts for the full action catalog.
+export enum PERMISSION_STATE {
+  ALLOWED = 'allowed',
+  NEEDS_APPROVAL = 'needs_approval',
+  BLOCKED = 'blocked',
 }
 
 export enum GENDER {

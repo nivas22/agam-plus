@@ -14,6 +14,10 @@ import { AppointmentsModule } from './appointments/appointments.module';
 import { PaymentsModule } from './payments/payments.module';
 import { PackagesModule } from './packages/packages.module';
 import { PlatformAdminModule } from './platform-admin/platform-admin.module';
+import { PermissionsModule } from './permissions/permissions.module';
+import { AuditModule } from './audit/audit.module';
+import { TeamModule } from './team/team.module';
+import { ApprovalsModule } from './approvals/approvals.module';
 
 @Module({
   imports: [
@@ -23,12 +27,16 @@ import { PlatformAdminModule } from './platform-admin/platform-admin.module';
     RepositoriesModule,
     EmailModule,
     AuthModule,
+    PermissionsModule,
+    AuditModule,
     HospitalsModule,
     DoctorsModule,
     PatientsModule,
     AppointmentsModule,
     PaymentsModule,
     PackagesModule,
+    TeamModule,
+    ApprovalsModule,
     PlatformAdminModule,
   ],
   controllers: [AppController],

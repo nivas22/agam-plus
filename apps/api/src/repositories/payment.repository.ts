@@ -92,4 +92,20 @@ export class PaymentRepository {
       { $set: { ...updates, updatedAt: new Date() } },
     );
   }
+
+  // Powers the Team member profile's "Collected · <month>" stat.
+  async sumCollectedByUser(hospitalId: string, userId: string, start: Date, end: Date): Promise<{ total: number; count: number }> {
+    const result = await this.paymentModel.aggregate([
+      {
+        $match: {
+          hospitalId,
+          collectedByUserId: userId,
+          status: 'paid',
+          createdAt: { $gte: start, $lt: end },
+        },
+      },
+      { $group: { _id: null, total: { $sum: '$total' }, count: { $sum: 1 } } },
+    ]);
+    return { total: result[0]?.total ?? 0, count: result[0]?.count ?? 0 };
+  }
 }

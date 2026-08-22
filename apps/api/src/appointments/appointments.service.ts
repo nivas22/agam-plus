@@ -3,6 +3,8 @@ import { AppointmentRepository } from '../repositories/appointment.repository';
 import { DoctorRepository } from '../repositories/doctor.repository';
 import { PatientRepository } from '../repositories/patient.repository';
 import { MembershipRepository } from '../repositories/membership.repository';
+import { PermissionsService } from '../permissions/permissions.service';
+import { AuditService } from '../audit/audit.service';
 import { ApiError } from '../common/errors/api-error';
 import { AppointmentWithDetails } from '../types/appointment';
 import { JwtUser, HospitalUserProfile } from '../auth/decorators/current-user.decorator';
@@ -12,6 +14,7 @@ import {
   ACTIVE_APPOINTMENT_STATUSES,
   isValidAppointmentTransition,
   normalizeAppointmentStatus,
+  PERMISSION_STATE,
 } from '../constants';
 
 // Timestamp field to stamp when an appointment enters a given status.
@@ -45,6 +48,8 @@ export class AppointmentsService {
     private readonly doctorRepository: DoctorRepository,
     private readonly patientRepository: PatientRepository,
     private readonly membershipRepository: MembershipRepository,
+    private readonly permissionsService: PermissionsService,
+    private readonly auditService: AuditService,
   ) {}
 
   async getAppointments(hospitalId: string, userProfile: HospitalUserProfile, query: AppointmentListQuery) {
@@ -118,9 +123,20 @@ export class AppointmentsService {
       } as AppointmentWithDetails;
     });
 
+    // read_session_notes is a response-shaping check, not a request-blocking
+    // one — there's no natural way to queue a read for approval, so
+    // needs_approval collapses to blocked here (see PermissionsService.getActionState).
+    const notesState = await this.permissionsService.getActionState(hospitalId, userRole, 'read_session_notes', {
+      isOwner: userProfile?.isOwner,
+    });
+    const visibleAppointments =
+      notesState === PERMISSION_STATE.ALLOWED
+        ? appointmentsWithDetails
+        : appointmentsWithDetails.map(({ sessionNotes, ...rest }: any) => rest);
+
     return {
-      appointments: appointmentsWithDetails,
-      total: appointmentsWithDetails.length,
+      appointments: visibleAppointments,
+      total: visibleAppointments.length,
       hospitalId,
       userRole,
     };
@@ -409,6 +425,17 @@ export class AppointmentsService {
 
     const isRescheduling = Boolean(appointmentData?.rescheduleDate && appointmentData?.rescheduleTime);
 
+    // This one route conflates several distinct permission-catalog actions
+    // (book/reschedule vs cancel/no-show vs plain clinical-queue transitions)
+    // depending on what's actually being requested — so the check happens
+    // here per-branch rather than as a single @RequirePermission on the route.
+    const cancelLikeStatus = status === APPOINTMENT_STATUS.CANCELLED || status === APPOINTMENT_STATUS.NO_SHOW;
+    if (isRescheduling) {
+      await this.permissionsService.enforce(hospitalId, userProfile, 'book_reschedule', { body, params: { id: hospitalId } });
+    } else if (cancelLikeStatus) {
+      await this.permissionsService.enforce(hospitalId, userProfile, 'cancel_no_show', { body, params: { id: hospitalId } });
+    }
+
     // Rescheduling is a compound action (new date/time + status reset) validated
     // on its own below; every other status change must follow the queue lifecycle.
     if (!isRescheduling && !isValidAppointmentTransition(existingData.status, status as APPOINTMENT_STATUS)) {
@@ -465,6 +492,24 @@ export class AppointmentsService {
 
     await this.appointmentRepository.updateAppointment(appointmentId, updateData);
 
+    if (isRescheduling) {
+      await this.auditService.log({
+        hospitalId,
+        actor: { userId: userProfile.userId, name: userProfile.name, role: userRole },
+        action: 'appointment.rescheduled',
+        area: 'appointments',
+        summary: `Rescheduled ${appointmentId}${existingData.patientName ? ` · ${existingData.patientName}` : ''} → ${updateData.date} ${updateData.time}`,
+      });
+    } else if (cancelLikeStatus) {
+      await this.auditService.log({
+        hospitalId,
+        actor: { userId: userProfile.userId, name: userProfile.name, role: userRole },
+        action: status === APPOINTMENT_STATUS.NO_SHOW ? 'appointment.no_show' : 'appointment.cancelled',
+        area: 'appointments',
+        summary: `${status === APPOINTMENT_STATUS.NO_SHOW ? 'Marked no-show' : 'Cancelled'} ${appointmentId}${existingData.patientName ? ` · ${existingData.patientName}` : ''}`,
+      });
+    }
+
     return {
       success: true,
       message: 'Appointment updated successfully',
@@ -510,6 +555,14 @@ export class AppointmentsService {
       status: APPOINTMENT_STATUS.CANCELLED,
       deletedBy: userProfile?.userId,
       deletedByRole: userRole,
+    });
+
+    await this.auditService.log({
+      hospitalId,
+      actor: { userId: userProfile.userId, name: userProfile.name, role: userRole },
+      action: 'appointment.deleted',
+      area: 'appointments',
+      summary: `Deleted ${appointmentId}${existingData.patientName ? ` · ${existingData.patientName}` : ''}`,
     });
 
     return {

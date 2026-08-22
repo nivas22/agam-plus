@@ -96,6 +96,12 @@ export class Payment {
   @Prop()
   collectedBy?: string;
 
+  // Real actor id, stamped server-side from the authenticated request —
+  // unlike `collectedBy` (a free-text display name the client supplies),
+  // this is what Team member stats (e.g. "Collected this month") aggregate on.
+  @Prop()
+  collectedByUserId?: string;
+
   // upi
   @Prop()
   upiReference?: string;
@@ -120,6 +126,9 @@ export class Payment {
 
   @Prop()
   refundReason?: string;
+
+  @Prop()
+  refundedByUserId?: string;
 
   @Prop()
   sendReceiptWhatsApp?: boolean;

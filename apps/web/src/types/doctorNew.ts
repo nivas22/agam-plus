@@ -1,11 +1,11 @@
-import { Hospital } from "./auth";
-import { TimeSlot } from "./appointment";
+import type { TimeSlot } from "./appointment";
+import type { Hospital } from "./auth";
 
 export const DOCTOR_STATUS_OPTIONS = [
   { value: "all", label: "All Statuses" },
   { value: "approved", label: "Approved" },
   { value: "pending", label: "Pending" },
-  { value: "rejected", label: "Rejected" }
+  { value: "rejected", label: "Rejected" },
 ];
 
 // types/doctor.ts
@@ -22,8 +22,8 @@ export interface Doctor {
   bio: string;
   experience?: string; // Changed from number to string
   phone?: string;
-  status: 'active' | 'inactive' | 'pending';
-  membershipStatus: 'approved' | 'pending' | 'rejected';
+  status: "active" | "inactive" | "pending";
+  membershipStatus: "approved" | "pending" | "rejected";
   createdAt: any;
   isActive: boolean;
   canEdit: boolean;
@@ -47,22 +47,22 @@ export interface DoctorListFilters {
   specialization?: string;
   joinedFrom?: string;
   joinedTo?: string;
-  sortBy?: 'name' | 'joinedAt';
-  sortOrder?: 'asc' | 'desc';
+  sortBy?: "name" | "joinedAt";
+  sortOrder?: "asc" | "desc";
   page?: number;
   limit?: number;
 }
 
 export const DOCTOR_SORT_OPTIONS = [
-  { value: 'name', label: 'Name' },
-  { value: 'joinedAt', label: 'Joined date' },
+  { value: "name", label: "Name" },
+  { value: "joinedAt", label: "Joined date" },
 ];
 
 export interface HospitalMember {
   id: string;
   hospitalId: string;
   userId: string;
-  role: "admin" | "doctor" | "staff" | "patient";
+  role: "admin" | "doctor" | "front_desk" | "nurse" | "accountant" | "patient";
   status: "pending" | "approved" | "rejected";
   joinedAt: any;
   invitedBy?: string;
@@ -99,8 +99,10 @@ export interface CreateDoctorData {
   bio?: string;
   experience?: string; // Changed from number to string
   phone?: string;
-  status?: 'active' | 'inactive' | 'pending';
+  status?: "active" | "inactive" | "pending";
   address?: string;
+  // Set once staff have seen the phone-duplicate warning and chosen to create anyway.
+  confirmDuplicate?: boolean;
 }
 
 export interface UpdateDoctorData {
@@ -111,13 +113,13 @@ export interface UpdateDoctorData {
   bio?: string;
   experience?: string; // Changed from number to string
   phone?: string;
-  status?: 'active' | 'inactive' | 'pending';
+  status?: "active" | "inactive" | "pending";
   isProfileUpdated?: boolean;
   isExperienceUpdated?: boolean;
 }
 
 export interface UpdateDoctorStatus {
-  status: 'approved' | 'pending' | 'rejected';
+  status: "approved" | "pending" | "rejected";
 }
 
 export type DoctorResponse = {

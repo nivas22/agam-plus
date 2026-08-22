@@ -10,6 +10,10 @@ import { DashboardRepository } from './dashboard.repository';
 import { PaymentRepository } from './payment.repository';
 import { PaymentDayCloseRepository } from './payment-day-close.repository';
 import { PackageRepository } from './package.repository';
+import { TeamMemberRepository } from './team-member.repository';
+import { RolePermissionRepository } from './role-permission.repository';
+import { AuditLogRepository } from './audit-log.repository';
+import { ApprovalRequestRepository } from './approval-request.repository';
 import { User, UserSchema } from '../schemas/user.schema';
 import { Hospital, HospitalSchema } from '../schemas/hospital.schema';
 import {
@@ -28,6 +32,10 @@ import {
   PaymentDayCloseSchema,
 } from '../schemas/payment-day-close.schema';
 import { Package, PackageSchema } from '../schemas/package.schema';
+import { TeamMemberProfile, TeamMemberProfileSchema } from '../schemas/team-member-profile.schema';
+import { RolePermission, RolePermissionSchema } from '../schemas/role-permission.schema';
+import { AuditLogEntry, AuditLogEntrySchema } from '../schemas/audit-log.schema';
+import { ApprovalRequest, ApprovalRequestSchema } from '../schemas/approval-request.schema';
 
 const repositories = [
   UserRepository,
@@ -40,6 +48,10 @@ const repositories = [
   PaymentRepository,
   PaymentDayCloseRepository,
   PackageRepository,
+  TeamMemberRepository,
+  RolePermissionRepository,
+  AuditLogRepository,
+  ApprovalRequestRepository,
 ];
 
 @Global()
@@ -55,6 +67,10 @@ const repositories = [
       { name: Payment.name, schema: PaymentSchema },
       { name: PaymentDayClose.name, schema: PaymentDayCloseSchema },
       { name: Package.name, schema: PackageSchema },
+      { name: TeamMemberProfile.name, schema: TeamMemberProfileSchema },
+      { name: RolePermission.name, schema: RolePermissionSchema },
+      { name: AuditLogEntry.name, schema: AuditLogEntrySchema },
+      { name: ApprovalRequest.name, schema: ApprovalRequestSchema },
     ]),
   ],
   providers: repositories,

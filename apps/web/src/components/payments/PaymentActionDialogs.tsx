@@ -4,7 +4,7 @@
 import { format } from "date-fns";
 import { Loader2, ReceiptText, RotateCcw, StickyNote } from "lucide-react";
 import { useState } from "react";
-import { useUpdatePayment } from "@/hooks/useNewPaymentApi";
+import { useUpdatePayment, useRefundPayment } from "@/hooks/useNewPaymentApi";
 import type { Payment } from "@/types/payment";
 import { PAYMENT_METHOD } from "../../constants";
 import {
@@ -259,7 +259,7 @@ export function RefundDialog({
 }: RefundDialogProps) {
   const [reason, setReason] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const updatePayment = useUpdatePayment(hospitalId);
+  const refundPayment = useRefundPayment(hospitalId);
 
   const submit = async () => {
     if (!reason.trim()) {
@@ -268,11 +268,15 @@ export function RefundDialog({
     }
     setError(null);
     try {
-      await updatePayment.mutateAsync({
+      const result = await refundPayment.mutateAsync({
         paymentId: payment.id,
-        updates: { status: "refunded", refundReason: reason.trim() },
+        refundReason: reason.trim(),
       });
-      onSuccess(`${payment.invoiceNumber} refunded`);
+      onSuccess(
+        result.requiresApproval
+          ? `Refund on ${payment.invoiceNumber} sent to an admin for approval`
+          : `${payment.invoiceNumber} refunded`,
+      );
       onClose();
     } catch (err) {
       setError(
@@ -296,10 +300,10 @@ export function RefundDialog({
           <button
             type="button"
             className={`${primaryBtn} bg-status-danger hover:bg-status-danger-hover disabled:opacity-60`}
-            disabled={!reason.trim() || updatePayment.isPending}
+            disabled={!reason.trim() || refundPayment.isPending}
             onClick={submit}
           >
-            {updatePayment.isPending ? (
+            {refundPayment.isPending ? (
               <Loader2 className="w-4 h-4 animate-spin inline mr-1.5" />
             ) : null}
             Refund

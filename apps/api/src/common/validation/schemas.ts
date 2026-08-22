@@ -100,12 +100,15 @@ export const completeVisitSchema = z.object({
 
 export const updatePaymentSchema = z.object({
   upiReference: z.string().optional(),
-  status: z.enum([PAYMENT_STATUS.PAID, PAYMENT_STATUS.REFUNDED]).optional(),
-  refundReason: z.string().optional(),
+  status: z.enum([PAYMENT_STATUS.PAID]).optional(),
   // Settling a due payment (status: PAID moving off an existing DUE record)
   method: z.enum([PAYMENT_METHOD.CASH, PAYMENT_METHOD.UPI]).optional(),
   amountTendered: z.number().min(0).optional(),
   collectedBy: z.string().optional(),
+});
+
+export const refundPaymentSchema = z.object({
+  refundReason: z.string().optional(),
 });
 
 export const closeDaySchema = z.object({
@@ -204,6 +207,8 @@ export const createDoctorSchema = z.object({
   appointmentDuration: z.number().int().positive().optional(),
   bufferMinutes: z.number().int().min(0).optional(),
   patientsPerSlot: z.number().int().positive().optional(),
+  // Set once staff have seen the phone-duplicate warning and chosen to create anyway.
+  confirmDuplicate: z.boolean().optional().default(false),
 });
 
 export const updateDoctorAvailabilitySchema = z.object({
@@ -269,4 +274,65 @@ export const setPlatformAdminSchema = z.object({
 
 export const addHospitalAdminSchema = z.object({
   email: z.string().email('Invalid email format'),
+});
+
+/* -------------------------------------------------------------------------- */
+/*                               TEAM SCHEMAS                                 */
+/* -------------------------------------------------------------------------- */
+
+export const createTeamMemberSchema = z.object({
+  name: z.string().min(1, 'Name is required'),
+  email: z.string().email('Invalid email format'),
+  phone: z.string().min(1, 'Phone is required'),
+  role: z.enum(['front_desk', 'nurse', 'accountant'], {
+    message: 'Role must be one of: front_desk, nurse, accountant',
+  }),
+  shift: z.string().optional(),
+  startDate: z.string().optional(),
+  handlesCash: z.boolean().default(false),
+  invitedVia: z.enum(['whatsapp', 'sms', 'email']).optional(),
+  confirmDuplicate: z.boolean().optional().default(false),
+});
+
+export const updateTeamMemberSchema = z.object({
+  name: z.string().min(1).optional(),
+  email: z.string().email('Invalid email format').optional(),
+  phone: z.string().optional(),
+  role: z.enum(['front_desk', 'nurse', 'accountant']).optional(),
+  shift: z.string().optional(),
+  handlesCash: z.boolean().optional(),
+});
+
+export const teamMemberStatusSchema = z.object({
+  status: z.enum(['active', 'suspended', 'deactivated']),
+});
+
+export const setPinSchema = z.object({
+  pin: z.string().regex(/^\d{4}$/, 'PIN must be 4 digits'),
+});
+
+export const verifyPinSchema = z.object({
+  pin: z.string().regex(/^\d{4}$/, 'PIN must be 4 digits'),
+});
+
+/* -------------------------------------------------------------------------- */
+/*                          PERMISSIONS SCHEMAS                               */
+/* -------------------------------------------------------------------------- */
+
+export const updateRolePermissionsSchema = z.object({
+  overrides: z.record(z.string(), z.enum(['allowed', 'needs_approval', 'blocked'])),
+  discountCapAmount: z.number().min(0).optional(),
+});
+
+/* -------------------------------------------------------------------------- */
+/*                          APPROVALS SCHEMAS                                 */
+/* -------------------------------------------------------------------------- */
+
+export const approveRequestSchema = z.object({
+  pin: z.string().regex(/^\d{4}$/).optional(),
+  note: z.string().optional(),
+});
+
+export const declineRequestSchema = z.object({
+  note: z.string().optional(),
 });

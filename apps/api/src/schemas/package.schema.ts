@@ -75,6 +75,12 @@ export class Package {
   refundedBy?: string;
 
   @Prop()
+  refundedByUserId?: string;
+
+  @Prop()
+  collectedByUserId?: string;
+
+  @Prop()
   createdBy?: string;
 
   @Prop()

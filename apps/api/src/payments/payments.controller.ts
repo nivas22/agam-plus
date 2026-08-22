@@ -10,6 +10,8 @@ import {
 } from '@nestjs/common';
 import { PaymentsService } from './payments.service';
 import { HospitalContextGuard } from '../auth/guards/hospital-context.guard';
+import { PermissionGuard } from '../permissions/guards/permission.guard';
+import { RequirePermission } from '../permissions/decorators/require-permission.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import {
   CurrentUser,
@@ -23,17 +25,19 @@ import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import {
   completeVisitSchema,
   updatePaymentSchema,
+  refundPaymentSchema,
   closeDaySchema,
 } from '../common/validation/schemas';
 import type {
   CompleteVisitBody,
   UpdatePaymentBody,
+  RefundPaymentBody,
   CloseDayBody,
 } from './payments.types';
 
 @Controller('hospitals/:id/payments')
-@UseGuards(HospitalContextGuard)
-@Roles('admin', 'doctor')
+@UseGuards(HospitalContextGuard, PermissionGuard)
+@Roles('admin', 'doctor', 'front_desk', 'accountant')
 export class PaymentsController {
   constructor(private readonly paymentsService: PaymentsService) {}
 
@@ -62,6 +66,8 @@ export class PaymentsController {
   }
 
   @Post()
+  @Roles('admin', 'doctor', 'front_desk')
+  @RequirePermission('collect_payment')
   completeVisit(
     @Param('id') hospitalId: string,
     @CurrentUser() user: JwtUser,
@@ -77,6 +83,7 @@ export class PaymentsController {
   }
 
   @Patch(':paymentId')
+  @Roles('admin', 'doctor', 'front_desk')
   updatePayment(
     @Param('id') hospitalId: string,
     @Param('paymentId') paymentId: string,
@@ -91,12 +98,26 @@ export class PaymentsController {
     );
   }
 
+  @Post(':paymentId/refund')
+  @Roles('admin', 'doctor', 'front_desk')
+  @RequirePermission('issue_refund')
+  refundPayment(
+    @Param('id') hospitalId: string,
+    @Param('paymentId') paymentId: string,
+    @CurrentHospitalUser() userProfile: HospitalUserProfile,
+    @Body(new ZodValidationPipe(refundPaymentSchema)) body: RefundPaymentBody,
+  ) {
+    return this.paymentsService.refundPayment(hospitalId, userProfile, paymentId, body);
+  }
+
   @Get('day-close')
   getDayClose(@Param('id') hospitalId: string, @Query('date') date: string) {
     return this.paymentsService.getDayClose(hospitalId, date);
   }
 
   @Post('day-close')
+  @Roles('admin', 'doctor', 'front_desk', 'accountant')
+  @RequirePermission('close_day')
   closeDay(
     @Param('id') hospitalId: string,
     @CurrentHospitalUser() userProfile: HospitalUserProfile,

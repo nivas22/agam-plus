@@ -12,6 +12,8 @@ import {
 } from '@nestjs/common';
 import { PackagesService } from './packages.service';
 import { HospitalContextGuard } from '../auth/guards/hospital-context.guard';
+import { PermissionGuard } from '../permissions/guards/permission.guard';
+import { RequirePermission } from '../permissions/decorators/require-permission.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import {
   CurrentUser,
@@ -34,8 +36,8 @@ import type {
 } from './packages.types';
 
 @Controller('hospitals/:id/packages')
-@UseGuards(HospitalContextGuard)
-@Roles('admin', 'doctor')
+@UseGuards(HospitalContextGuard, PermissionGuard)
+@Roles('admin', 'doctor', 'front_desk')
 export class PackagesController {
   constructor(private readonly packagesService: PackagesService) {}
 
@@ -65,12 +67,14 @@ export class PackagesController {
   }
 
   @Patch(':packageId/extend')
+  @RequirePermission('extend_expired_package')
   extendPackage(
     @Param('id') hospitalId: string,
     @Param('packageId') packageId: string,
+    @CurrentHospitalUser() userProfile: HospitalUserProfile,
     @Body(new ZodValidationPipe(extendPackageSchema)) body: ExtendPackageBody,
   ) {
-    return this.packagesService.extendPackage(hospitalId, packageId, body);
+    return this.packagesService.extendPackage(hospitalId, packageId, userProfile, body);
   }
 
   @Patch(':packageId/refund')
@@ -99,6 +103,7 @@ export class PackagesController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
+  @RequirePermission('sell_package')
   sellPackage(
     @Param('id') hospitalId: string,
     @CurrentUser() user: JwtUser,

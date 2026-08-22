@@ -46,6 +46,11 @@ export class PaymentDayClose {
   @Prop({ required: true })
   closedBy: string;
 
+  // Real actor id, stamped server-side — see Payment.collectedByUserId for why
+  // this is kept separate from the free-text `closedBy` display name.
+  @Prop()
+  closedByUserId?: string;
+
   @Prop()
   closedAt?: Date;
 }

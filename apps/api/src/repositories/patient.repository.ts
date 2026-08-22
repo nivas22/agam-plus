@@ -40,6 +40,18 @@ export class PatientRepository {
     return count > 0;
   }
 
+  async findPatientsByPhone(
+    hospitalId: string,
+    phone: string,
+    excludePatientId?: string,
+  ) {
+    const filter: Record<string, any> = { hospitalId, phone };
+    if (excludePatientId) filter._id = { $ne: excludePatientId };
+
+    const docs = await this.patientModel.find(filter).lean();
+    return toPlainList(docs);
+  }
+
   async createPatient(patientData: any) {
     const doc = await this.patientModel.create({
       ...patientData,

@@ -7,7 +7,7 @@ import { AppointmentRepository } from '../repositories/appointment.repository';
 import { EmailService } from '../email/email.service';
 import { ApiError } from '../common/errors/api-error';
 import { DoctorProfile, TimeSlot } from '../types/doctor';
-import { ACTIVE_APPOINTMENT_STATUSES } from '../constants';
+import { ACTIVE_APPOINTMENT_STATUSES, ROLE } from '../constants';
 
 @Injectable()
 export class DoctorsService {
@@ -199,6 +199,16 @@ export class DoctorsService {
   ) {
     // Check if user exists by email
     const existingUser = await this.userRepository.getUserByEmail(doctorData.email);
+    const existingUserId = existingUser ? (existingUser as any).id : undefined;
+
+    if (!(doctorData as any).confirmDuplicate && doctorData.phone) {
+      const duplicates = await this.findDoctorsByPhone(hospitalId, doctorData.phone, existingUserId);
+      if (duplicates.length > 0) {
+        throw ApiError.conflict(`A doctor with phone ${doctorData.phone} already exists in this hospital`, {
+          duplicates,
+        });
+      }
+    }
 
     let doctorUserId: string;
     if (!existingUser) {
@@ -213,6 +223,17 @@ export class DoctorsService {
 
     // Check if membership already exists
     const existingMembership = await this.membershipRepository.getHospitalMembershipData(doctorUserId, hospitalId);
+
+    // A hospital membership is one row per (userId, hospitalId) carrying a single
+    // role — there's no membership-level support for "this person is both a
+    // patient and a doctor here" yet. Rather than silently overwrite a patient's
+    // membership with doctor-only fields (and leave their role stuck as
+    // 'patient', which would then fail every doctor-only route), fail loudly.
+    if (existingMembership && (existingMembership as any).role !== 'doctor') {
+      throw ApiError.conflict(
+        `This person is already a ${(existingMembership as any).role} at this hospital and can't also be added as a doctor yet`,
+      );
+    }
 
     if (!existingMembership) {
       // Create hospital membership with specialization and consultationFee
@@ -610,6 +631,28 @@ export class DoctorsService {
       userId,
       membershipId: membershipDoc.id,
     };
+  }
+
+  // Finds doctors already in this hospital whose profile phone matches, so
+  // createDoctor can warn about a likely duplicate before creating a second
+  // profile under a different email for the same person.
+  private async findDoctorsByPhone(hospitalId: string, phone: string, excludeUserId?: string) {
+    const members = await this.membershipRepository.getHospitalMembers(hospitalId, { role: ROLE.DOCTOR });
+    const memberUserIds = members
+      .map((m: any) => m.userId)
+      .filter((userId: string) => userId && userId !== excludeUserId);
+
+    if (memberUserIds.length === 0) return [];
+
+    const profiles = await this.doctorRepository.getDoctorProfilesByUserIds(memberUserIds);
+    return profiles
+      .filter((p: any) => p.phone === phone)
+      .map((p: any) => ({
+        id: p.userId,
+        name: p.name,
+        phone: p.phone,
+        specialization: p.specialization,
+      }));
   }
 
   // Helper function to find next available slot

@@ -1,18 +1,28 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
-import toast from "react-hot-toast";
 import { format } from "date-fns";
 import { ArrowLeft, Loader2, Plus, X } from "lucide-react";
-import { CreateDoctorData, Doctor } from "@/types/doctorNew";
-import { TimeSlot } from "@/types/appointment";
-import { useNewDoctorApi, useHospitalDoctor } from "@/hooks/useNewDoctorApi";
-import { useAuth } from "@/hooks/useAuth";
-import { GENDER } from "../../constants";
-import DoctorAvatar from "@/components/doctors/DoctorAvatar";
+import { useRouter } from "next/navigation";
+import type React from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import toast from "react-hot-toast";
 import ConfirmDeleteModal from "@/components/ConfirmDeleteModal";
-import { Field, PillGroup, ToggleSwitch, inputClass } from "@/components/common/EditFormControls";
+import DuplicateWarningModal, {
+  type DuplicateMatch,
+} from "@/components/common/DuplicateWarningModal";
+import {
+  Field,
+  inputClass,
+  PillGroup,
+  ToggleSwitch,
+} from "@/components/common/EditFormControls";
+import DoctorAvatar from "@/components/doctors/DoctorAvatar";
+import { useAuth } from "@/hooks/useAuth";
+import { useHospitalDoctor, useNewDoctorApi } from "@/hooks/useNewDoctorApi";
+import { ApiRequestError } from "@/lib/api";
+import type { TimeSlot } from "@/types/appointment";
+import type { CreateDoctorData, Doctor } from "@/types/doctorNew";
+import { GENDER } from "../../constants";
 
 interface AddEditDoctorProps {
   isNew?: boolean;
@@ -22,7 +32,15 @@ interface AddEditDoctorProps {
   hospitalId?: string;
 }
 
-const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+const DAYS = [
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+  "Sunday",
+];
 const DURATIONS = [15, 20, 30, 45, 60];
 const GAPS = [0, 5, 10, 15, 20, 30];
 const PATIENTS_PER_SLOT = [1, 2, 3, 4, 5];
@@ -110,31 +128,58 @@ function formatTime(time: string): string {
   return `${displayHour}:${minutes} ${period}`;
 }
 
-function slotCapacity(slot: TimeSlot, duration: number, gap: number = 0): number {
+function slotCapacity(
+  slot: TimeSlot,
+  duration: number,
+  gap: number = 0,
+): number {
   if (!duration) return 0;
-  const span = Math.max(0, minutesSinceMidnight(slot.endTime) - minutesSinceMidnight(slot.startTime));
+  const span = Math.max(
+    0,
+    minutesSinceMidnight(slot.endTime) - minutesSinceMidnight(slot.startTime),
+  );
   if (span < duration) return 0;
   return Math.floor((span - duration) / (duration + gap)) + 1;
 }
 
-function weekCapacity(availability: TimeSlot[], duration: number, gap: number = 0, patientsPerSlot: number = 1): number {
-  const slots = availability.reduce((sum, slot) => sum + slotCapacity(slot, duration, gap), 0);
+function weekCapacity(
+  availability: TimeSlot[],
+  duration: number,
+  gap: number = 0,
+  patientsPerSlot: number = 1,
+): number {
+  const slots = availability.reduce(
+    (sum, slot) => sum + slotCapacity(slot, duration, gap),
+    0,
+  );
   return slots * Math.max(1, patientsPerSlot);
 }
 
 function weekHours(availability: TimeSlot[]): number {
   const minutes = availability.reduce(
-    (sum, slot) => sum + Math.max(0, minutesSinceMidnight(slot.endTime) - minutesSinceMidnight(slot.startTime)),
-    0
+    (sum, slot) =>
+      sum +
+      Math.max(
+        0,
+        minutesSinceMidnight(slot.endTime) -
+          minutesSinceMidnight(slot.startTime),
+      ),
+    0,
   );
   return Math.round((minutes / 60) * 10) / 10;
 }
 
-function overlaps(a: { startTime: string; endTime: string }, b: { startTime: string; endTime: string }): boolean {
+function overlaps(
+  a: { startTime: string; endTime: string },
+  b: { startTime: string; endTime: string },
+): boolean {
   return a.startTime < b.endTime && b.startTime < a.endTime;
 }
 
-function buildAvailability(days: string[], slots: { startTime: string; endTime: string }[]): TimeSlot[] {
+function buildAvailability(
+  days: string[],
+  slots: { startTime: string; endTime: string }[],
+): TimeSlot[] {
   return days.flatMap((day) => slots.map((s) => ({ day, ...s })));
 }
 
@@ -142,21 +187,29 @@ const PRESETS: { label: string; apply: () => TimeSlot[] }[] = [
   {
     label: "Mon–Fri · 9–1 & 5–8",
     apply: () =>
-      buildAvailability(["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"], [
-        { startTime: "09:00", endTime: "13:00" },
-        { startTime: "17:00", endTime: "20:00" },
-      ]),
+      buildAvailability(
+        ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+        [
+          { startTime: "09:00", endTime: "13:00" },
+          { startTime: "17:00", endTime: "20:00" },
+        ],
+      ),
   },
   {
     label: "Mon–Sat mornings",
     apply: () =>
-      buildAvailability(["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"], [
-        { startTime: "09:00", endTime: "13:00" },
-      ]),
+      buildAvailability(
+        ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
+        [{ startTime: "09:00", endTime: "13:00" }],
+      ),
   },
   {
     label: "Tue · Thu · Sat full day",
-    apply: () => buildAvailability(["Tuesday", "Thursday", "Saturday"], [{ startTime: "09:00", endTime: "19:00" }]),
+    apply: () =>
+      buildAvailability(
+        ["Tuesday", "Thursday", "Saturday"],
+        [{ startTime: "09:00", endTime: "19:00" }],
+      ),
   },
   {
     label: "Clear the week",
@@ -178,19 +231,33 @@ function formatAdded(createdAt: any): string {
   }
 }
 
-export default function AddEditDoctor({ isNew = false, id, hospitalId, canEdit = true }: AddEditDoctorProps) {
+export default function AddEditDoctor({
+  isNew = false,
+  id,
+  hospitalId,
+  canEdit = true,
+}: AddEditDoctorProps) {
   const router = useRouter();
-  const { createDoctor, updateDoctor, deleteDoctor, isDeleting } = useNewDoctorApi(hospitalId, undefined, true);
-  const { data: doctorData, isLoading: isDoctorLoading } = useHospitalDoctor(id || "", hospitalId);
+  const { createDoctor, updateDoctor, deleteDoctor, isDeleting } =
+    useNewDoctorApi(hospitalId, undefined, true);
+  const { data: doctorData, isLoading: isDoctorLoading } = useHospitalDoctor(
+    id || "",
+    hospitalId,
+  );
   const { hospitals } = useAuth();
 
   const [formData, setFormData] = useState<FormState>(EMPTY_FORM);
   const [initialData, setInitialData] = useState<FormState>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [duplicateMatches, setDuplicateMatches] = useState<
+    DuplicateMatch[] | null
+  >(null);
   const [addingDay, setAddingDay] = useState<string | null>(null);
   const [slotDraft, setSlotDraft] = useState({ start: "09:00", end: "10:00" });
-  const [activeSection, setActiveSection] = useState<"personal" | "professional" | "availability">("personal");
+  const [activeSection, setActiveSection] = useState<
+    "personal" | "professional" | "availability"
+  >("personal");
 
   const personalRef = useRef<HTMLDivElement>(null);
   const professionalRef = useRef<HTMLDivElement>(null);
@@ -237,20 +304,29 @@ export default function AddEditDoctor({ isNew = false, id, hospitalId, canEdit =
           if (match) setActiveSection(match[1]);
         }
       },
-      { rootMargin: "-96px 0px -55% 0px", threshold: [0, 0.25, 0.5, 1] }
+      { rootMargin: "-96px 0px -55% 0px", threshold: [0, 0.25, 0.5, 1] },
     );
     sections.forEach(([el]) => el && observer.observe(el));
     return () => observer.disconnect();
   }, []);
 
-  const isDirty = useMemo(() => JSON.stringify(formData) !== JSON.stringify(initialData), [formData, initialData]);
-
-  const hospitalName = useMemo(
-    () => hospitals?.find((h: any) => h.hospitalId === hospitalId)?.hospital?.name,
-    [hospitals, hospitalId]
+  const isDirty = useMemo(
+    () => JSON.stringify(formData) !== JSON.stringify(initialData),
+    [formData, initialData],
   );
 
-  const personalFilled = [formData.name, formData.email, formData.phone, formData.gender].filter(Boolean).length;
+  const hospitalName = useMemo(
+    () =>
+      hospitals?.find((h: any) => h.hospitalId === hospitalId)?.hospital?.name,
+    [hospitals, hospitalId],
+  );
+
+  const personalFilled = [
+    formData.name,
+    formData.email,
+    formData.phone,
+    formData.gender,
+  ].filter(Boolean).length;
   const professionalFilled = [
     formData.specialization,
     formData.experience,
@@ -261,7 +337,7 @@ export default function AddEditDoctor({ isNew = false, id, hospitalId, canEdit =
     formData.availability,
     formData.appointmentDuration,
     formData.bufferMinutes,
-    formData.patientsPerSlot
+    formData.patientsPerSlot,
   );
   const workingDays = new Set(formData.availability.map((s) => s.day)).size;
 
@@ -274,16 +350,27 @@ export default function AddEditDoctor({ isNew = false, id, hospitalId, canEdit =
   }
 
   function daySlots(day: string): TimeSlot[] {
-    return formData.availability.filter((s) => s.day === day).sort((a, b) => a.startTime.localeCompare(b.startTime));
+    return formData.availability
+      .filter((s) => s.day === day)
+      .sort((a, b) => a.startTime.localeCompare(b.startTime));
   }
 
   function toggleDay(day: string, open: boolean) {
     setFormData((prev) => {
       if (open) {
         if (prev.availability.some((s) => s.day === day)) return prev;
-        return { ...prev, availability: [...prev.availability, { day, startTime: "09:00", endTime: "13:00" }] };
+        return {
+          ...prev,
+          availability: [
+            ...prev.availability,
+            { day, startTime: "09:00", endTime: "13:00" },
+          ],
+        };
       }
-      return { ...prev, availability: prev.availability.filter((s) => s.day !== day) };
+      return {
+        ...prev,
+        availability: prev.availability.filter((s) => s.day !== day),
+      };
     });
     setAddingDay((cur) => (cur === day ? null : cur));
   }
@@ -291,7 +378,10 @@ export default function AddEditDoctor({ isNew = false, id, hospitalId, canEdit =
   function removeSlot(day: string, slot: TimeSlot) {
     setFormData((prev) => {
       const idx = prev.availability.findIndex(
-        (s) => s.day === day && s.startTime === slot.startTime && s.endTime === slot.endTime
+        (s) =>
+          s.day === day &&
+          s.startTime === slot.startTime &&
+          s.endTime === slot.endTime,
       );
       if (idx === -1) return prev;
       const next = [...prev.availability];
@@ -304,7 +394,9 @@ export default function AddEditDoctor({ isNew = false, id, hospitalId, canEdit =
     const slots = daySlots(day);
     const last = slots[slots.length - 1];
     const start = last ? last.endTime : "09:00";
-    const end = last ? minutesToTime(minutesSinceMidnight(last.endTime) + 60) : "10:00";
+    const end = last
+      ? minutesToTime(minutesSinceMidnight(last.endTime) + 60)
+      : "10:00";
     setSlotDraft({ start, end });
     setAddingDay(day);
   }
@@ -320,23 +412,41 @@ export default function AddEditDoctor({ isNew = false, id, hospitalId, canEdit =
       toast.error("This overlaps with an existing slot");
       return;
     }
-    setFormData((prev) => ({ ...prev, availability: [...prev.availability, { day, startTime: start, endTime: end }] }));
+    setFormData((prev) => ({
+      ...prev,
+      availability: [
+        ...prev.availability,
+        { day, startTime: start, endTime: end },
+      ],
+    }));
     setAddingDay(null);
   }
 
   function copyToAllOpenDays(sourceDay: string) {
     const source = daySlots(sourceDay);
-    const openDays = DAYS.filter((d) => d !== sourceDay && formData.availability.some((s) => s.day === d));
+    const openDays = DAYS.filter(
+      (d) => d !== sourceDay && formData.availability.some((s) => s.day === d),
+    );
     if (!openDays.length) {
       toast.error("No other open days to copy to");
       return;
     }
     setFormData((prev) => {
-      const kept = prev.availability.filter((s) => s.day === sourceDay || !openDays.includes(s.day));
-      const added = openDays.flatMap((d) => source.map((s) => ({ day: d, startTime: s.startTime, endTime: s.endTime })));
+      const kept = prev.availability.filter(
+        (s) => s.day === sourceDay || !openDays.includes(s.day),
+      );
+      const added = openDays.flatMap((d) =>
+        source.map((s) => ({
+          day: d,
+          startTime: s.startTime,
+          endTime: s.endTime,
+        })),
+      );
       return { ...prev, availability: [...kept, ...added] };
     });
-    toast.success(`Copied to ${openDays.length} open day${openDays.length > 1 ? "s" : ""}`);
+    toast.success(
+      `Copied to ${openDays.length} open day${openDays.length > 1 ? "s" : ""}`,
+    );
   }
 
   function applyPreset(preset: (typeof PRESETS)[number]) {
@@ -344,8 +454,14 @@ export default function AddEditDoctor({ isNew = false, id, hospitalId, canEdit =
   }
 
   function barStyle(slot: TimeSlot) {
-    const start = Math.min(Math.max(minutesSinceMidnight(slot.startTime), DAY_START), DAY_END);
-    const end = Math.min(Math.max(minutesSinceMidnight(slot.endTime), DAY_START), DAY_END);
+    const start = Math.min(
+      Math.max(minutesSinceMidnight(slot.startTime), DAY_START),
+      DAY_END,
+    );
+    const end = Math.min(
+      Math.max(minutesSinceMidnight(slot.endTime), DAY_START),
+      DAY_END,
+    );
     const left = ((start - DAY_START) / DAY_SPAN) * 100;
     const width = Math.max(((end - start) / DAY_SPAN) * 100, 1);
     return { left: `${left}%`, width: `${width}%` };
@@ -356,7 +472,7 @@ export default function AddEditDoctor({ isNew = false, id, hospitalId, canEdit =
     setAddingDay(null);
   }
 
-  async function saveDoctor() {
+  async function saveDoctor(confirmDuplicate = false) {
     if (!formData.name.trim() || !formData.email.trim()) {
       toast.error("Please fill in Name and Email");
       return;
@@ -383,7 +499,11 @@ export default function AddEditDoctor({ isNew = false, id, hospitalId, canEdit =
       };
 
       if (isNew) {
-        await createDoctor({ ...payload, hospitalId: hospitalId || "" } as CreateDoctorData);
+        await createDoctor({
+          ...payload,
+          hospitalId: hospitalId || "",
+          confirmDuplicate,
+        } as CreateDoctorData);
         toast.success("Doctor saved successfully! Welcome email sent.");
       } else if (id) {
         await updateDoctor(id, payload as any);
@@ -391,8 +511,13 @@ export default function AddEditDoctor({ isNew = false, id, hospitalId, canEdit =
         setInitialData(formData);
       }
 
+      setDuplicateMatches(null);
       setTimeout(() => router.push(`/hospital/${hospitalId}/doctors`), 400);
     } catch (err) {
+      if (err instanceof ApiRequestError && err.details?.duplicates?.length) {
+        setDuplicateMatches(err.details.duplicates);
+        return;
+      }
       console.error("Error saving doctor:", err);
       toast.error("Failed to save doctor. Please try again.");
     } finally {
@@ -440,7 +565,9 @@ export default function AddEditDoctor({ isNew = false, id, hospitalId, canEdit =
           </button>
           <span className="text-ink-500">Doctors</span>
           <span className="text-ink-500">/</span>
-          <span className="font-semibold text-ink-900 truncate">{displayName}</span>
+          <span className="font-semibold text-ink-900 truncate">
+            {displayName}
+          </span>
         </div>
         {!isNew && (
           <div className="flex items-center gap-4 text-sm shrink-0">
@@ -467,8 +594,12 @@ export default function AddEditDoctor({ isNew = false, id, hospitalId, canEdit =
             <div className="flex items-center gap-3">
               <DoctorAvatar name={displayName} size="lg" />
               <div className="min-w-0">
-                <div className="font-bold text-ink-900 truncate">{displayName}</div>
-                <div className="text-xs text-ink-500 truncate">{formData.specialization || "No specialization set"}</div>
+                <div className="font-bold text-ink-900 truncate">
+                  {displayName}
+                </div>
+                <div className="text-xs text-ink-500 truncate">
+                  {formData.specialization || "No specialization set"}
+                </div>
               </div>
             </div>
 
@@ -476,27 +607,39 @@ export default function AddEditDoctor({ isNew = false, id, hospitalId, canEdit =
               <div className="mt-4 pt-4 border-t border-border space-y-2 text-sm">
                 <div className="flex items-center justify-between">
                   <span className="text-ink-500">Doctor ID</span>
-                  <span className="font-mono text-xs text-ink-900">DR-{shortId}</span>
+                  <span className="font-mono text-xs text-ink-900">
+                    DR-{shortId}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-ink-500">Hospital</span>
-                  <span className="text-ink-900 truncate ml-2">{hospitalName || "—"}</span>
+                  <span className="text-ink-900 truncate ml-2">
+                    {hospitalName || "—"}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-ink-500">Added</span>
-                  <span className="text-ink-900">{formatAdded(doctorData?.doctor?.createdAt)}</span>
+                  <span className="text-ink-900">
+                    {formatAdded(doctorData?.doctor?.createdAt)}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-ink-500">Weekly capacity</span>
-                  <span className="text-ink-900">{weeklyCapacity} appointments</span>
+                  <span className="text-ink-900">
+                    {weeklyCapacity} appointments
+                  </span>
                 </div>
               </div>
             )}
 
             <div className="mt-4 pt-4 border-t border-border flex items-center justify-between gap-3">
               <div>
-                <div className="text-sm font-medium text-ink-900">Accepting bookings</div>
-                <div className="text-xs text-ink-500">Shown to patients when booking</div>
+                <div className="text-sm font-medium text-ink-900">
+                  Accepting bookings
+                </div>
+                <div className="text-xs text-ink-500">
+                  Shown to patients when booking
+                </div>
               </div>
               <ToggleSwitch
                 checked={formData.status === "active"}
@@ -508,7 +651,13 @@ export default function AddEditDoctor({ isNew = false, id, hospitalId, canEdit =
 
           <div className="bg-surface-paper rounded-xl border border-border shadow-sm p-2">
             {[
-              { key: "personal" as const, ref: personalRef, label: "Personal", value: `${personalFilled}/4`, done: personalFilled > 0 },
+              {
+                key: "personal" as const,
+                ref: personalRef,
+                label: "Personal",
+                value: `${personalFilled}/4`,
+                done: personalFilled > 0,
+              },
               {
                 key: "professional" as const,
                 ref: professionalRef,
@@ -529,11 +678,15 @@ export default function AddEditDoctor({ isNew = false, id, hospitalId, canEdit =
                 type="button"
                 onClick={() => scrollToSection(item.ref)}
                 className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-colors ${
-                  activeSection === item.key ? "bg-brand-violet-soft text-brand-violet font-semibold" : "text-ink-700 hover:bg-surface-canvas"
+                  activeSection === item.key
+                    ? "bg-brand-violet-soft text-brand-violet font-semibold"
+                    : "text-ink-700 hover:bg-surface-canvas"
                 }`}
               >
                 <span className="flex items-center gap-2">
-                  <span className={`w-1.5 h-1.5 rounded-full ${item.done ? "bg-status-open" : "bg-border"}`} />
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full ${item.done ? "bg-status-open" : "bg-border"}`}
+                  />
                   {item.label}
                 </span>
                 <span className="text-xs text-ink-500">{item.value}</span>
@@ -560,13 +713,23 @@ export default function AddEditDoctor({ isNew = false, id, hospitalId, canEdit =
         {/* Main content */}
         <div className="space-y-6 min-w-0">
           {/* Personal */}
-          <section ref={personalRef} id="personal" className="bg-surface-paper rounded-xl border border-border shadow-sm p-5 md:p-6 scroll-mt-24">
+          <section
+            ref={personalRef}
+            id="personal"
+            className="bg-surface-paper rounded-xl border border-border shadow-sm p-5 md:p-6 scroll-mt-24"
+          >
             <div className="mb-5">
               <h2 className="text-lg font-bold text-ink-900">Personal</h2>
-              <p className="text-sm text-ink-500">How patients and staff identify this doctor</p>
+              <p className="text-sm text-ink-500">
+                How patients and staff identify this doctor
+              </p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <Field label="Full name" required hint="Patients see this name on booking and prescriptions.">
+              <Field
+                label="Full name"
+                required
+                hint="Patients see this name on booking and prescriptions."
+              >
                 <input
                   value={formData.name}
                   disabled={!canEdit}
@@ -575,7 +738,11 @@ export default function AddEditDoctor({ isNew = false, id, hospitalId, canEdit =
                   className={inputClass}
                 />
               </Field>
-              <Field label="Email" required hint="Used for login and appointment alerts.">
+              <Field
+                label="Email"
+                required
+                hint="Used for login and appointment alerts."
+              >
                 <input
                   type="email"
                   value={formData.email}
@@ -593,7 +760,12 @@ export default function AddEditDoctor({ isNew = false, id, hospitalId, canEdit =
                   <input
                     value={formData.phone}
                     disabled={!canEdit}
-                    onChange={(e) => update("phone", e.target.value.replace(/\D/g, "").slice(0, 10))}
+                    onChange={(e) =>
+                      update(
+                        "phone",
+                        e.target.value.replace(/\D/g, "").slice(0, 10),
+                      )
+                    }
                     placeholder="98765 43210"
                     className={inputClass}
                   />
@@ -628,10 +800,16 @@ export default function AddEditDoctor({ isNew = false, id, hospitalId, canEdit =
           >
             <div className="mb-5">
               <h2 className="text-lg font-bold text-ink-900">Professional</h2>
-              <p className="text-sm text-ink-500">What this doctor practises and where</p>
+              <p className="text-sm text-ink-500">
+                What this doctor practises and where
+              </p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <Field label="Specialization" required hint="Patients filter by this when booking.">
+              <Field
+                label="Specialization"
+                required
+                hint="Patients filter by this when booking."
+              >
                 <select
                   value={formData.specialization}
                   disabled={!canEdit}
@@ -646,7 +824,11 @@ export default function AddEditDoctor({ isNew = false, id, hospitalId, canEdit =
                   ))}
                 </select>
               </Field>
-              <Field label="Years of experience" optional hint="Shown on the doctor's profile card.">
+              <Field
+                label="Years of experience"
+                optional
+                hint="Shown on the doctor's profile card."
+              >
                 <input
                   type="number"
                   min={0}
@@ -657,7 +839,11 @@ export default function AddEditDoctor({ isNew = false, id, hospitalId, canEdit =
                   className={inputClass}
                 />
               </Field>
-              <Field label="Qualification" optional hint="Degrees and certifications, comma separated.">
+              <Field
+                label="Qualification"
+                optional
+                hint="Degrees and certifications, comma separated."
+              >
                 <input
                   value={formData.qualification}
                   disabled={!canEdit}
@@ -666,7 +852,11 @@ export default function AddEditDoctor({ isNew = false, id, hospitalId, canEdit =
                   className={inputClass}
                 />
               </Field>
-              <Field label="Consultation fee" optional hint="Per appointment, before taxes.">
+              <Field
+                label="Consultation fee"
+                optional
+                hint="Per appointment, before taxes."
+              >
                 <div className="flex gap-2">
                   <span className="flex items-center px-3 rounded-lg border border-border bg-surface-canvas text-sm text-ink-700 shrink-0">
                     ₹
@@ -676,14 +866,23 @@ export default function AddEditDoctor({ isNew = false, id, hospitalId, canEdit =
                     min={0}
                     value={formData.consultationFee ?? ""}
                     disabled={!canEdit}
-                    onChange={(e) => update("consultationFee", e.target.value ? Number(e.target.value) : undefined)}
+                    onChange={(e) =>
+                      update(
+                        "consultationFee",
+                        e.target.value ? Number(e.target.value) : undefined,
+                      )
+                    }
                     placeholder="500"
                     className={inputClass}
                   />
                 </div>
               </Field>
               <div className="md:col-span-2">
-                <Field label="Clinic address" optional hint="Appears in booking confirmations and reminders.">
+                <Field
+                  label="Clinic address"
+                  optional
+                  hint="Appears in booking confirmations and reminders."
+                >
                   <textarea
                     value={formData.address}
                     disabled={!canEdit}
@@ -705,14 +904,19 @@ export default function AddEditDoctor({ isNew = false, id, hospitalId, canEdit =
           >
             <div className="mb-5">
               <h2 className="text-lg font-bold text-ink-900">Availability</h2>
-              <p className="text-sm text-ink-500">The hours patients can book, and how long each visit runs</p>
+              <p className="text-sm text-ink-500">
+                The hours patients can book, and how long each visit runs
+              </p>
             </div>
 
             <div className="bg-surface-canvas rounded-xl p-4 mb-5">
               <div className="mb-4">
-                <h3 className="text-sm font-bold text-ink-900">Booking rules</h3>
+                <h3 className="text-sm font-bold text-ink-900">
+                  Booking rules
+                </h3>
                 <p className="text-xs text-ink-500">
-                  These turn working hours into bookable slots. Changing one re-resolves every future day.
+                  These turn working hours into bookable slots. Changing one
+                  re-resolves every future day.
                 </p>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -720,7 +924,9 @@ export default function AddEditDoctor({ isNew = false, id, hospitalId, canEdit =
                   <select
                     value={formData.appointmentDuration}
                     disabled={!canEdit}
-                    onChange={(e) => update("appointmentDuration", Number(e.target.value))}
+                    onChange={(e) =>
+                      update("appointmentDuration", Number(e.target.value))
+                    }
                     className={inputClass}
                   >
                     {DURATIONS.map((d) => (
@@ -734,7 +940,9 @@ export default function AddEditDoctor({ isNew = false, id, hospitalId, canEdit =
                   <select
                     value={formData.bufferMinutes}
                     disabled={!canEdit}
-                    onChange={(e) => update("bufferMinutes", Number(e.target.value))}
+                    onChange={(e) =>
+                      update("bufferMinutes", Number(e.target.value))
+                    }
                     className={inputClass}
                   >
                     {GAPS.map((g) => (
@@ -748,7 +956,9 @@ export default function AddEditDoctor({ isNew = false, id, hospitalId, canEdit =
                   <select
                     value={formData.patientsPerSlot}
                     disabled={!canEdit}
-                    onChange={(e) => update("patientsPerSlot", Number(e.target.value))}
+                    onChange={(e) =>
+                      update("patientsPerSlot", Number(e.target.value))
+                    }
                     className={inputClass}
                   >
                     {PATIENTS_PER_SLOT.map((p) => (
@@ -790,14 +1000,25 @@ export default function AddEditDoctor({ isNew = false, id, hospitalId, canEdit =
                 const slots = daySlots(day);
                 const open = slots.length > 0;
                 return (
-                  <div key={day} className="grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-2 sm:gap-4 py-4 border-b border-border last:border-b-0">
+                  <div
+                    key={day}
+                    className="grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-2 sm:gap-4 py-4 border-b border-border last:border-b-0"
+                  >
                     <div className="flex items-center gap-3">
-                      <ToggleSwitch checked={open} disabled={!canEdit} onChange={(v) => toggleDay(day, v)} />
-                      <span className="font-medium text-ink-900 text-sm">{day}</span>
+                      <ToggleSwitch
+                        checked={open}
+                        disabled={!canEdit}
+                        onChange={(v) => toggleDay(day, v)}
+                      />
+                      <span className="font-medium text-ink-900 text-sm">
+                        {day}
+                      </span>
                     </div>
                     <div>
                       {!open ? (
-                        <p className="text-sm text-ink-500 sm:pt-1">Closed — patients can&apos;t book {day}.</p>
+                        <p className="text-sm text-ink-500 sm:pt-1">
+                          Closed — patients can&apos;t book {day}.
+                        </p>
                       ) : (
                         <div className="space-y-2">
                           <div className="relative h-6 rounded-md bg-surface-canvas overflow-hidden">
@@ -815,9 +1036,15 @@ export default function AddEditDoctor({ isNew = false, id, hospitalId, canEdit =
                                 key={i}
                                 className="inline-flex items-center gap-2 rounded-lg border border-status-open/30 bg-status-open-soft px-2.5 py-1 text-xs font-medium text-ink-900"
                               >
-                                {formatTime(slot.startTime)} – {formatTime(slot.endTime)}
+                                {formatTime(slot.startTime)} –{" "}
+                                {formatTime(slot.endTime)}
                                 <span className="text-ink-500 font-normal">
-                                  {slotCapacity(slot, formData.appointmentDuration, formData.bufferMinutes) * formData.patientsPerSlot} appts
+                                  {slotCapacity(
+                                    slot,
+                                    formData.appointmentDuration,
+                                    formData.bufferMinutes,
+                                  ) * formData.patientsPerSlot}{" "}
+                                  appts
                                 </span>
                                 {canEdit && (
                                   <button
@@ -837,14 +1064,26 @@ export default function AddEditDoctor({ isNew = false, id, hospitalId, canEdit =
                                   <input
                                     type="time"
                                     value={slotDraft.start}
-                                    onChange={(e) => setSlotDraft((s) => ({ ...s, start: e.target.value }))}
+                                    onChange={(e) =>
+                                      setSlotDraft((s) => ({
+                                        ...s,
+                                        start: e.target.value,
+                                      }))
+                                    }
                                     className="text-xs border border-border rounded px-1 py-0.5"
                                   />
-                                  <span className="text-ink-500 text-xs">to</span>
+                                  <span className="text-ink-500 text-xs">
+                                    to
+                                  </span>
                                   <input
                                     type="time"
                                     value={slotDraft.end}
-                                    onChange={(e) => setSlotDraft((s) => ({ ...s, end: e.target.value }))}
+                                    onChange={(e) =>
+                                      setSlotDraft((s) => ({
+                                        ...s,
+                                        end: e.target.value,
+                                      }))
+                                    }
                                     className="text-xs border border-border rounded px-1 py-0.5"
                                   />
                                   <button
@@ -892,20 +1131,29 @@ export default function AddEditDoctor({ isNew = false, id, hospitalId, canEdit =
             <div className="mt-5 rounded-xl bg-status-open-soft border border-status-open/20 p-4 flex flex-wrap items-center gap-x-8 gap-y-3 justify-between">
               <div className="flex flex-wrap gap-x-8 gap-y-3">
                 <div>
-                  <div className="text-xl font-bold text-status-open">{weekHours(formData.availability)}h</div>
+                  <div className="text-xl font-bold text-status-open">
+                    {weekHours(formData.availability)}h
+                  </div>
                   <div className="text-xs text-ink-500">Open per week</div>
                 </div>
                 <div>
-                  <div className="text-xl font-bold text-status-open">{weeklyCapacity}</div>
-                  <div className="text-xs text-ink-500">Bookable appointments</div>
+                  <div className="text-xl font-bold text-status-open">
+                    {weeklyCapacity}
+                  </div>
+                  <div className="text-xs text-ink-500">
+                    Bookable appointments
+                  </div>
                 </div>
                 <div>
-                  <div className="text-xl font-bold text-status-open">{workingDays}</div>
+                  <div className="text-xl font-bold text-status-open">
+                    {workingDays}
+                  </div>
                   <div className="text-xs text-ink-500">Working days</div>
                 </div>
               </div>
               <p className="text-xs text-ink-500 max-w-xs text-right">
-                At {formData.appointmentDuration} minutes each, that&apos;s about {weeklyCapacity} patients a week.
+                At {formData.appointmentDuration} minutes each, that&apos;s
+                about {weeklyCapacity} patients a week.
               </p>
             </div>
           </section>
@@ -916,7 +1164,11 @@ export default function AddEditDoctor({ isNew = false, id, hospitalId, canEdit =
       <div className="fixed bottom-0 inset-x-0 bg-surface-paper border-t border-border shadow-[0_-2px_8px_rgba(0,0,0,0.04)] z-30">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
           <span className="text-sm text-ink-500">
-            {isDirty ? "Unsaved changes" : isNew ? "Fill in the required fields to add this doctor" : "No changes yet"}
+            {isDirty
+              ? "Unsaved changes"
+              : isNew
+                ? "Fill in the required fields to add this doctor"
+                : "No changes yet"}
           </span>
           <div className="flex items-center gap-3">
             <button
@@ -929,7 +1181,7 @@ export default function AddEditDoctor({ isNew = false, id, hospitalId, canEdit =
             </button>
             <button
               type="button"
-              onClick={saveDoctor}
+              onClick={() => saveDoctor()}
               disabled={!canEdit || !isDirty || saving}
               className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-brand-violet hover:bg-brand-violet-hover text-white text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
@@ -949,6 +1201,20 @@ export default function AddEditDoctor({ isNew = false, id, hospitalId, canEdit =
           title="Remove this doctor?"
           message={`This will remove ${displayName} from the hospital roster. Patients will no longer be able to book with them.`}
           confirmText="Remove doctor"
+        />
+      )}
+
+      {duplicateMatches && (
+        <DuplicateWarningModal
+          entityLabel="doctor"
+          phone={formData.phone}
+          matches={duplicateMatches}
+          onCancel={() => setDuplicateMatches(null)}
+          onConfirm={() => saveDoctor(true)}
+          isSubmitting={saving}
+          viewHrefFor={(doctorId) =>
+            `/hospital/${hospitalId}/doctors/${doctorId}`
+          }
         />
       )}
     </div>

@@ -5,6 +5,7 @@ import { FIREBASE_AUTH } from '../firebase/firebase.constants';
 import { UserRepository } from '../repositories/user.repository';
 import { MembershipRepository } from '../repositories/membership.repository';
 import { HospitalRepository } from '../repositories/hospital.repository';
+import { AuditService } from '../audit/audit.service';
 import { ApiError } from '../common/errors/api-error';
 import { JwtUser } from './decorators/current-user.decorator';
 
@@ -24,6 +25,7 @@ export class AuthService {
     private readonly userRepository: UserRepository,
     private readonly membershipRepository: MembershipRepository,
     private readonly hospitalRepository: HospitalRepository,
+    private readonly auditService: AuditService,
   ) {}
 
   private signToken(payload: JwtUser): string {
@@ -73,6 +75,17 @@ export class AuthService {
 
     if (currentHospital) {
       await this.userRepository.updateUser(userData.id, { lastHospitalId: currentHospital.id });
+
+      const role = approvedHospital ? (approvedHospital as any).role : undefined;
+      if (role) {
+        await this.auditService.log({
+          hospitalId: currentHospital.id,
+          actor: { userId: userData.id, name: userData.name || userData.email, role },
+          action: 'access.signed_in',
+          area: 'access',
+          summary: `Signed in`,
+        });
+      }
     }
 
     const token = this.signToken({
