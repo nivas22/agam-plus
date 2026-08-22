@@ -4,10 +4,16 @@ import { AppointmentRepository } from '../repositories/appointment.repository';
 import { DoctorRepository } from '../repositories/doctor.repository';
 import { PatientRepository } from '../repositories/patient.repository';
 import { MembershipRepository } from '../repositories/membership.repository';
+import { HospitalHolidayRepository } from '../repositories/hospital-holiday.repository';
 import { PaymentRepository } from '../repositories/payment.repository';
 import { PermissionsService } from '../permissions/permissions.service';
 import { AuditService } from '../audit/audit.service';
 import { ApiError } from '../common/errors/api-error';
+import {
+  findHolidayForDate,
+  filterSlotsForHoliday,
+  HolidayLike,
+} from '../hospital-holidays/holiday-availability.util';
 import {
   JwtUser,
   HospitalUserProfile,
@@ -36,6 +42,7 @@ interface DoctorScheduleContext {
   bufferMinutes: number;
   patientsPerSlot: number;
   dateCache: Map<string, Map<string, number>>;
+  holidays: HolidayLike[];
 }
 
 interface PlacedVisit {
@@ -58,6 +65,7 @@ export class PackagesService {
     private readonly doctorRepository: DoctorRepository,
     private readonly patientRepository: PatientRepository,
     private readonly membershipRepository: MembershipRepository,
+    private readonly hospitalHolidayRepository: HospitalHolidayRepository,
     private readonly paymentRepository: PaymentRepository,
     private readonly permissionsService: PermissionsService,
     private readonly auditService: AuditService,
@@ -106,17 +114,20 @@ export class PackagesService {
   private slotsForDate(d: Date, ctx: DoctorScheduleContext): string[] {
     const dayName = this.weekdayName(d);
     const windows = ctx.availability.filter((w) => w.day === dayName);
-    const slots: string[] = [];
+    const slots: { time: string }[] = [];
     const step = ctx.duration + ctx.bufferMinutes;
     for (const w of windows) {
       let cur = this.toMinutes(w.startTime);
       const end = this.toMinutes(w.endTime);
       while (cur + ctx.duration <= end) {
-        slots.push(this.toHHMM(cur));
+        slots.push({ time: this.toHHMM(cur) });
         cur += step;
       }
     }
-    return slots;
+
+    const dateIso = this.toISODate(d);
+    const holiday = findHolidayForDate(ctx.holidays, dateIso);
+    return filterSlotsForHoliday(slots, holiday, ctx.doctorProfileId).map((s) => s.time);
   }
 
   private async bookedCountsForDate(
@@ -267,6 +278,17 @@ export class PackagesService {
     }
     const membership = membershipSnap.docs[0].data() as any;
 
+    // Wide enough to cover every planned visit plus its lookahead window
+    // (previewSchedule/place walk up to 28 days past each planned date) —
+    // fetched once here rather than per date, same as the rest of this context.
+    const today = this.toISODate(new Date());
+    const horizon = this.toISODate(this.addDays(new Date(), 400));
+    const holidays = await this.hospitalHolidayRepository.getActiveInRange(
+      hospitalId,
+      today,
+      horizon,
+    );
+
     const ctx: DoctorScheduleContext = {
       doctorProfileId,
       availability: membership.availability || [],
@@ -274,6 +296,7 @@ export class PackagesService {
       bufferMinutes: Math.max(0, membership.bufferMinutes || 0),
       patientsPerSlot: Math.max(1, membership.patientsPerSlot || 1),
       dateCache: new Map(),
+      holidays,
     };
 
     return { ctx, doctor, consultationFee: membership.consultationFee || 0 };

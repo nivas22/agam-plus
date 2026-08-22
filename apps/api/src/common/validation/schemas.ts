@@ -7,6 +7,7 @@ import {
   PAYMENT_STATUS,
   PACKAGE_PAYMENT_METHOD_VALUES,
   CHARGE_CATALOG_CATEGORY_VALUES,
+  HOLIDAY_CLOSURE_TYPE_VALUES,
 } from '../../constants';
 
 /* -------------------------------------------------------------------------- */
@@ -376,4 +377,55 @@ export const bulkReviseChargeCatalogSchema = z.object({
   roundTo: z.enum(['none', '5', '10']).default('none'),
   effectiveFrom: z.string().min(1, 'Effective date is required'),
   manualPrices: z.record(z.string(), z.number().min(0)).optional(),
+});
+
+/* -------------------------------------------------------------------------- */
+/*                        HOSPITAL HOLIDAY SCHEMAS                            */
+/* -------------------------------------------------------------------------- */
+
+const holidayDraftSchema = z.object({
+  startsOn: z.string().min(1, 'Start date is required'),
+  endsOn: z.string().min(1).optional(),
+  closureType: z.enum(HOLIDAY_CLOSURE_TYPE_VALUES as [string, ...string[]]),
+  halfDayUntil: z.string().optional(),
+  exceptionDoctorIds: z.array(z.string()).default([]),
+});
+
+export const previewHolidayImpactSchema = holidayDraftSchema;
+
+export const holidayResolutionSchema = z.object({
+  appointmentId: z.string().min(1),
+  action: z.enum(['move', 'cancel', 'keep']),
+  newDate: z.string().optional(),
+  newTime: z.string().optional(),
+});
+
+export const createHospitalHolidaySchema = holidayDraftSchema.extend({
+  name: z.string().min(1, 'Name is required'),
+  repeatsAnnually: z.boolean().default(false),
+  resolutions: z.array(holidayResolutionSchema).default([]),
+});
+
+export const applyHolidayResolutionsSchema = z.object({
+  resolutions: z.array(holidayResolutionSchema).default([]),
+});
+
+export const updateHospitalHolidaySchema = z.object({
+  name: z.string().min(1).optional(),
+  closureType: z.enum(HOLIDAY_CLOSURE_TYPE_VALUES as [string, ...string[]]).optional(),
+  halfDayUntil: z.string().optional(),
+  repeatsAnnually: z.boolean().optional(),
+  exceptionDoctorIds: z.array(z.string()).optional(),
+});
+
+export const holidayStatusSchema = z.object({
+  status: z.enum(['active', 'removed']),
+});
+
+export const generateHolidayRepeatsSchema = z.object({
+  year: z.number().int(),
+});
+
+export const importTnHolidayListSchema = z.object({
+  year: z.number().int(),
 });

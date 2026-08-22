@@ -15,6 +15,7 @@ export enum DB_COLLECTIONS {
   AUDIT_LOG = 'audit_log',
   APPROVAL_REQUESTS = 'approval_requests',
   CHARGE_CATALOG_ITEMS = 'charge_catalog_items',
+  HOSPITAL_HOLIDAYS = 'hospital_holidays',
 }
 
 // FRONT_DESK/NURSE/ACCOUNTANT replace the old unused STAFF value — nothing
@@ -300,6 +301,77 @@ export const DEFAULT_CHARGE_CATALOG_ITEMS: {
   { name: 'ECG', category: CHARGE_CATALOG_CATEGORY.LAB_DIAGNOSTICS, price: 300, gstPercent: 0 },
   { name: 'Blood sugar — random', category: CHARGE_CATALOG_CATEGORY.LAB_DIAGNOSTICS, price: 80, gstPercent: 0 },
   { name: 'Paracetamol 650 — strip of 10', category: CHARGE_CATALOG_CATEGORY.CONSUMABLES, price: 40, gstPercent: 12 },
+];
+
+// How a Hospital Holiday closes the day. `full`/`opd_closed` both block every
+// booking for the day (the difference is informational — whether the hospital
+// stays staffed for emergencies) — `half_day` only truncates the window.
+export enum HOLIDAY_CLOSURE_TYPE {
+  FULL = 'full',
+  OPD_CLOSED = 'opd_closed',
+  HALF_DAY = 'half_day',
+}
+
+export const HOLIDAY_CLOSURE_TYPE_VALUES = Object.values(HOLIDAY_CLOSURE_TYPE);
+
+// Seed data for the Settings > Hospital holidays "Import Tamil Nadu list"
+// button — fixed-date holidays only. Deepavali/Ramzan follow lunar calendars
+// and can't be safely hardcoded, so hospitals still add those by hand.
+// `month`/`day` are shifted onto the target year at import/generate time.
+export const TN_HOLIDAY_SEED_LIST: {
+  name: string;
+  startMonth: number;
+  startDay: number;
+  endMonth: number;
+  endDay: number;
+  closureType: HOLIDAY_CLOSURE_TYPE;
+  repeatsAnnually: boolean;
+}[] = [
+  {
+    name: 'Pongal',
+    startMonth: 1,
+    startDay: 14,
+    endMonth: 1,
+    endDay: 16,
+    closureType: HOLIDAY_CLOSURE_TYPE.FULL,
+    repeatsAnnually: false,
+  },
+  {
+    name: 'Republic Day',
+    startMonth: 1,
+    startDay: 26,
+    endMonth: 1,
+    endDay: 26,
+    closureType: HOLIDAY_CLOSURE_TYPE.FULL,
+    repeatsAnnually: true,
+  },
+  {
+    name: 'Independence Day',
+    startMonth: 8,
+    startDay: 15,
+    endMonth: 8,
+    endDay: 15,
+    closureType: HOLIDAY_CLOSURE_TYPE.FULL,
+    repeatsAnnually: true,
+  },
+  {
+    name: 'Gandhi Jayanti',
+    startMonth: 10,
+    startDay: 2,
+    endMonth: 10,
+    endDay: 2,
+    closureType: HOLIDAY_CLOSURE_TYPE.FULL,
+    repeatsAnnually: true,
+  },
+  {
+    name: 'Christmas',
+    startMonth: 12,
+    startDay: 25,
+    endMonth: 12,
+    endDay: 25,
+    closureType: HOLIDAY_CLOSURE_TYPE.FULL,
+    repeatsAnnually: true,
+  },
 ];
 
 export const MEDICAL_SPECIALIZATIONS = [

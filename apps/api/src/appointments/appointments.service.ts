@@ -3,12 +3,14 @@ import { AppointmentRepository } from '../repositories/appointment.repository';
 import { DoctorRepository } from '../repositories/doctor.repository';
 import { PatientRepository } from '../repositories/patient.repository';
 import { MembershipRepository } from '../repositories/membership.repository';
+import { HospitalHolidayRepository } from '../repositories/hospital-holiday.repository';
 import { PermissionsService } from '../permissions/permissions.service';
 import { AuditService } from '../audit/audit.service';
 import { ApiError } from '../common/errors/api-error';
 import { AppointmentWithDetails } from '../types/appointment';
 import { JwtUser, HospitalUserProfile } from '../auth/decorators/current-user.decorator';
 import { CreateAppointmentBody, UpdateAppointmentBody, AppointmentListQuery } from './appointments.types';
+import { findHolidayForDate, filterSlotsForHoliday } from '../hospital-holidays/holiday-availability.util';
 import {
   APPOINTMENT_STATUS,
   ACTIVE_APPOINTMENT_STATUSES,
@@ -48,6 +50,7 @@ export class AppointmentsService {
     private readonly doctorRepository: DoctorRepository,
     private readonly patientRepository: PatientRepository,
     private readonly membershipRepository: MembershipRepository,
+    private readonly hospitalHolidayRepository: HospitalHolidayRepository,
     private readonly permissionsService: PermissionsService,
     private readonly auditService: AuditService,
   ) {}
@@ -380,6 +383,17 @@ export class AppointmentsService {
       }
 
       slots.sort((a, b) => a.time.localeCompare(b.time));
+
+      if (membership?.hospitalId) {
+        const holidays = await this.hospitalHolidayRepository.getActiveInRange(
+          membership.hospitalId,
+          date,
+          date,
+        );
+        const holiday = findHolidayForDate(holidays, date);
+        return filterSlotsForHoliday(slots, holiday, membership.userId);
+      }
+
       return slots;
     } catch (err) {
       console.error('getAvailableSlots error:', err);

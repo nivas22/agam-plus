@@ -113,6 +113,7 @@ export class AppointmentRepository {
     doctorProfileId?: string;
     patientId?: string;
     status?: string;
+    statuses?: string[];
     type?: string;
     startDate?: string;
     endDate?: string;
@@ -122,7 +123,8 @@ export class AppointmentRepository {
     if (options.doctorProfileId)
       filter.doctorProfileId = options.doctorProfileId;
     if (options.patientId) filter.patientId = options.patientId;
-    if (options.status) filter.status = options.status;
+    if (options.statuses?.length) filter.status = { $in: options.statuses };
+    else if (options.status) filter.status = options.status;
     if (options.type) filter.type = options.type;
     if (options.startDate && options.endDate) {
       filter.date = { $gte: options.startDate, $lte: options.endDate };

@@ -4,10 +4,12 @@ import { MembershipRepository } from '../repositories/membership.repository';
 import { DoctorRepository } from '../repositories/doctor.repository';
 import { UserRepository } from '../repositories/user.repository';
 import { AppointmentRepository } from '../repositories/appointment.repository';
+import { HospitalHolidayRepository } from '../repositories/hospital-holiday.repository';
 import { EmailService } from '../email/email.service';
 import { ApiError } from '../common/errors/api-error';
 import { DoctorProfile, TimeSlot } from '../types/doctor';
 import { ACTIVE_APPOINTMENT_STATUSES, ROLE } from '../constants';
+import { findHolidayForDate, filterSlotsForHoliday } from '../hospital-holidays/holiday-availability.util';
 
 @Injectable()
 export class DoctorsService {
@@ -16,6 +18,7 @@ export class DoctorsService {
     private readonly doctorRepository: DoctorRepository,
     private readonly userRepository: UserRepository,
     private readonly appointmentRepository: AppointmentRepository,
+    private readonly hospitalHolidayRepository: HospitalHolidayRepository,
     private readonly emailService: EmailService,
     private readonly config: ConfigService,
   ) {}
@@ -761,6 +764,17 @@ export class DoctorsService {
       }
 
       slots.sort((a, b) => a.time.localeCompare(b.time));
+
+      if (doctor?.hospitalId) {
+        const holidays = await this.hospitalHolidayRepository.getActiveInRange(
+          doctor.hospitalId,
+          date,
+          date,
+        );
+        const holiday = findHolidayForDate(holidays, date);
+        return filterSlotsForHoliday(slots, holiday, doctor.userId);
+      }
+
       return slots;
     } catch (err) {
       console.error('getAvailableSlots error:', err);
