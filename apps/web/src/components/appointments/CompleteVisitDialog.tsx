@@ -15,6 +15,8 @@ import {
 import { useMemo, useState } from "react";
 import { usePackageLedger } from "@/hooks/useNewPackageApi";
 import { useCompleteVisit } from "@/hooks/useNewPaymentApi";
+import { useChargeCatalogItems } from "@/hooks/useChargeCatalogApi";
+import { useAuth } from "@/hooks/useAuth";
 import type { AppointmentWithDetails } from "@/types/appointment";
 import type {
   FollowUpOption,
@@ -23,7 +25,6 @@ import type {
 } from "@/types/payment";
 import {
   APPOINTMENT_TYPE,
-  COMMON_BILL_ITEMS,
   FOLLOW_UP_OPTIONS,
   PAYMENT_DUE_REASONS,
   PAYMENT_METHOD,
@@ -166,6 +167,11 @@ export default function CompleteVisitDialog({
   const [error, setError] = useState<string | null>(null);
 
   const completeVisit = useCompleteVisit(hospitalId);
+  const { isDoctor } = useAuth();
+  const { data: chargeCatalogData } = useChargeCatalogItems(hospitalId, { status: "active" });
+  const quickAddItems = (chargeCatalogData?.items || []).filter(
+    (item) => isDoctor || item.frontDeskCanAdd,
+  );
 
   const isPackageAppointment =
     appointment.type === APPOINTMENT_TYPE.PACKAGE && !!appointment.packageId;
@@ -196,14 +202,14 @@ export default function CompleteVisitDialog({
   const splitCashAmount = splitCash === "" ? 0 : Math.min(splitCash, total);
   const splitUpiAmount = Math.max(total - splitCashAmount, 0);
 
-  const addItem = (name: string, price: number) => {
+  const addItem = (name: string, price: number, chargeCatalogItemId?: string) => {
     setItems((cur) => {
       const existing = cur.find((i) => i.name === name);
       if (existing)
         return cur.map((i) =>
           i.name === name ? { ...i, quantity: i.quantity + 1 } : i,
         );
-      return [...cur, { name, quantity: 1, unitPrice: price }];
+      return [...cur, { name, quantity: 1, unitPrice: price, chargeCatalogItemId }];
     });
   };
 
@@ -542,20 +548,22 @@ export default function CompleteVisitDialog({
             </button>
           </div>
 
-          <div className="flex flex-wrap items-center gap-1.5 mt-2">
-            <span className="text-[11px] text-ink-500">Common:</span>
-            {COMMON_BILL_ITEMS.map((c) => (
-              <button
-                key={c.name}
-                type="button"
-                onClick={() => addItem(c.name, c.price)}
-                className="border border-dashed border-border rounded-md px-2 py-1 text-[11px] text-ink-700 hover:border-status-open hover:text-status-open hover:bg-status-open-soft"
-              >
-                + {c.name.replace("Injection — ", "Inj. ")}{" "}
-                <span className="font-mono text-ink-500">{money(c.price)}</span>
-              </button>
-            ))}
-          </div>
+          {quickAddItems.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5 mt-2">
+              <span className="text-[11px] text-ink-500">Common:</span>
+              {quickAddItems.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => addItem(c.name, c.currentPrice, c.id)}
+                  className="border border-dashed border-border rounded-md px-2 py-1 text-[11px] text-ink-700 hover:border-status-open hover:text-status-open hover:bg-status-open-soft"
+                >
+                  + {c.name.replace("Injection — ", "Inj. ")}{" "}
+                  <span className="font-mono text-ink-500">{money(c.currentPrice)}</span>
+                </button>
+              ))}
+            </div>
+          )}
 
           <div className="mt-3 pt-2.5 border-t border-dashed border-border">
             {usingPackage && coveredAmount > 0 && (

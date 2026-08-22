@@ -10,6 +10,7 @@ export enum DB_COLLECTIONS {
   PAYMENTS = "payments",
   PAYMENT_DAY_CLOSES = "payment_day_closes",
   PACKAGES = "packages",
+  CHARGE_CATALOG_ITEMS = "charge_catalog_items",
 }
 
 export enum ROLE {
@@ -230,13 +231,34 @@ export const PAYMENT_DUE_REASONS = [
   "Other",
 ] as const;
 
-// Quick-add suggestions on the bill line-item picker. Not a catalog entity —
-// just a fixed shortlist of the most common non-consultation charges.
-export const COMMON_BILL_ITEMS: { name: string; price: number }[] = [
-  { name: "Dressing", price: 150 },
-  { name: "Injection — Tetanus toxoid", price: 250 },
-  { name: "ECG", price: 300 },
-];
+// Groups every billable item that isn't a doctor's consultation fee (that
+// stays hospital-member-scoped). Drives the Settings > Charge catalog
+// sidebar and the bill line-item picker.
+export enum CHARGE_CATALOG_CATEGORY {
+  PROCEDURES = "procedures",
+  INJECTIONS = "injections",
+  CONSUMABLES = "consumables",
+  LAB_DIAGNOSTICS = "lab_diagnostics",
+  OTHER = "other",
+}
+
+export const CHARGE_CATALOG_CATEGORY_VALUES = Object.values(
+  CHARGE_CATALOG_CATEGORY,
+);
+
+export const CHARGE_CATALOG_CATEGORY_LABELS: Record<string, string> = {
+  [CHARGE_CATALOG_CATEGORY.PROCEDURES]: "Procedures",
+  [CHARGE_CATALOG_CATEGORY.INJECTIONS]: "Injections",
+  [CHARGE_CATALOG_CATEGORY.CONSUMABLES]: "Consumables",
+  [CHARGE_CATALOG_CATEGORY.LAB_DIAGNOSTICS]: "Lab & diagnostics",
+  [CHARGE_CATALOG_CATEGORY.OTHER]: "Other",
+};
+
+export const CHARGE_CATALOG_CATEGORY_OPTIONS = Object.values(
+  CHARGE_CATALOG_CATEGORY,
+).map((value) => ({ value, label: CHARGE_CATALOG_CATEGORY_LABELS[value] }));
+
+export const GST_RATES = [0, 5, 12, 18];
 
 export const MEDICAL_SPECIALIZATIONS = [
   "Cardiology",

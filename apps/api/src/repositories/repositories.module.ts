@@ -14,6 +14,7 @@ import { TeamMemberRepository } from './team-member.repository';
 import { RolePermissionRepository } from './role-permission.repository';
 import { AuditLogRepository } from './audit-log.repository';
 import { ApprovalRequestRepository } from './approval-request.repository';
+import { ChargeCatalogItemRepository } from './charge-catalog-item.repository';
 import { User, UserSchema } from '../schemas/user.schema';
 import { Hospital, HospitalSchema } from '../schemas/hospital.schema';
 import {
@@ -36,6 +37,10 @@ import { TeamMemberProfile, TeamMemberProfileSchema } from '../schemas/team-memb
 import { RolePermission, RolePermissionSchema } from '../schemas/role-permission.schema';
 import { AuditLogEntry, AuditLogEntrySchema } from '../schemas/audit-log.schema';
 import { ApprovalRequest, ApprovalRequestSchema } from '../schemas/approval-request.schema';
+import {
+  ChargeCatalogItem,
+  ChargeCatalogItemSchema,
+} from '../schemas/charge-catalog-item.schema';
 
 const repositories = [
   UserRepository,
@@ -52,6 +57,7 @@ const repositories = [
   RolePermissionRepository,
   AuditLogRepository,
   ApprovalRequestRepository,
+  ChargeCatalogItemRepository,
 ];
 
 @Global()
@@ -71,6 +77,7 @@ const repositories = [
       { name: RolePermission.name, schema: RolePermissionSchema },
       { name: AuditLogEntry.name, schema: AuditLogEntrySchema },
       { name: ApprovalRequest.name, schema: ApprovalRequestSchema },
+      { name: ChargeCatalogItem.name, schema: ChargeCatalogItemSchema },
     ]),
   ],
   providers: repositories,

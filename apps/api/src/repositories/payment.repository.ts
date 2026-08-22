@@ -108,4 +108,23 @@ export class PaymentRepository {
     ]);
     return { total: result[0]?.total ?? 0, count: result[0]?.count ?? 0 };
   }
+
+  // Powers the Charge Catalog list/detail's "Used · <month>" column — counts
+  // how many bills carried each catalog item in the given window, not the
+  // quantity billed.
+  async countCatalogItemUsageByWindow(
+    hospitalId: string,
+    start: Date,
+    end: Date,
+  ): Promise<Record<string, number>> {
+    const results = await this.paymentModel.aggregate([
+      { $match: { hospitalId, createdAt: { $gte: start, $lt: end } } },
+      { $unwind: '$items' },
+      { $match: { 'items.chargeCatalogItemId': { $exists: true, $ne: null } } },
+      { $group: { _id: '$items.chargeCatalogItemId', count: { $sum: 1 } } },
+    ]);
+    const usage: Record<string, number> = {};
+    for (const row of results) usage[row._id] = row.count;
+    return usage;
+  }
 }

@@ -14,6 +14,7 @@ export enum DB_COLLECTIONS {
   ROLE_PERMISSIONS = 'role_permissions',
   AUDIT_LOG = 'audit_log',
   APPROVAL_REQUESTS = 'approval_requests',
+  CHARGE_CATALOG_ITEMS = 'charge_catalog_items',
 }
 
 // FRONT_DESK/NURSE/ACCOUNTANT replace the old unused STAFF value — nothing
@@ -243,12 +244,62 @@ export const PAYMENT_DUE_REASONS = [
   'Other',
 ] as const;
 
-// Quick-add suggestions on the bill line-item picker. Not a catalog entity —
-// just a fixed shortlist of the most common non-consultation charges.
-export const COMMON_BILL_ITEMS: { name: string; price: number }[] = [
-  { name: 'Dressing', price: 150 },
-  { name: 'Injection — Tetanus toxoid', price: 250 },
-  { name: 'ECG', price: 300 },
+// Groups every billable item that isn't a doctor's consultation fee (that
+// stays hospital-member-scoped — see doctors.service.ts). Drives the
+// Settings > Charge catalog sidebar and the bill line-item picker.
+export enum CHARGE_CATALOG_CATEGORY {
+  PROCEDURES = 'procedures',
+  INJECTIONS = 'injections',
+  CONSUMABLES = 'consumables',
+  LAB_DIAGNOSTICS = 'lab_diagnostics',
+  OTHER = 'other',
+}
+
+export const CHARGE_CATALOG_CATEGORY_VALUES = Object.values(
+  CHARGE_CATALOG_CATEGORY,
+);
+
+export const CHARGE_CATALOG_CATEGORY_LABELS: Record<string, string> = {
+  [CHARGE_CATALOG_CATEGORY.PROCEDURES]: 'Procedures',
+  [CHARGE_CATALOG_CATEGORY.INJECTIONS]: 'Injections',
+  [CHARGE_CATALOG_CATEGORY.CONSUMABLES]: 'Consumables',
+  [CHARGE_CATALOG_CATEGORY.LAB_DIAGNOSTICS]: 'Lab & diagnostics',
+  [CHARGE_CATALOG_CATEGORY.OTHER]: 'Other',
+};
+
+// Two-digit prefix used to build a catalog item's auto code, e.g. CH-1001.
+// Purely cosmetic grouping — not enforced as a real numbering authority.
+export const CHARGE_CATALOG_CODE_PREFIX: Record<string, string> = {
+  [CHARGE_CATALOG_CATEGORY.PROCEDURES]: '10',
+  [CHARGE_CATALOG_CATEGORY.INJECTIONS]: '20',
+  [CHARGE_CATALOG_CATEGORY.LAB_DIAGNOSTICS]: '30',
+  [CHARGE_CATALOG_CATEGORY.CONSUMABLES]: '40',
+  [CHARGE_CATALOG_CATEGORY.OTHER]: '50',
+};
+
+export const GST_RATES = [0, 5, 12, 18];
+
+// Seeded once per hospital the first time its charge catalog is read empty
+// (see ChargeCatalogService) — a reasonable starting point so the bill
+// line-item picker isn't blank on day one. Purely a starting point: every
+// field is editable/archivable afterwards like any other catalog item.
+// Dressing/Injection — Tetanus toxoid/ECG carry over the exact prices the
+// old hardcoded COMMON_BILL_ITEMS shortlist used, so existing hospitals see
+// no change to those three quick-add prices.
+export const DEFAULT_CHARGE_CATALOG_ITEMS: {
+  name: string;
+  category: CHARGE_CATALOG_CATEGORY;
+  price: number;
+  gstPercent: number;
+}[] = [
+  { name: 'Dressing', category: CHARGE_CATALOG_CATEGORY.PROCEDURES, price: 150, gstPercent: 0 },
+  { name: 'Injection — Tetanus toxoid', category: CHARGE_CATALOG_CATEGORY.INJECTIONS, price: 250, gstPercent: 0 },
+  { name: 'Injection — Vitamin B12', category: CHARGE_CATALOG_CATEGORY.INJECTIONS, price: 180, gstPercent: 0 },
+  { name: 'Nebulisation', category: CHARGE_CATALOG_CATEGORY.PROCEDURES, price: 200, gstPercent: 0 },
+  { name: 'Suture removal', category: CHARGE_CATALOG_CATEGORY.PROCEDURES, price: 120, gstPercent: 0 },
+  { name: 'ECG', category: CHARGE_CATALOG_CATEGORY.LAB_DIAGNOSTICS, price: 300, gstPercent: 0 },
+  { name: 'Blood sugar — random', category: CHARGE_CATALOG_CATEGORY.LAB_DIAGNOSTICS, price: 80, gstPercent: 0 },
+  { name: 'Paracetamol 650 — strip of 10', category: CHARGE_CATALOG_CATEGORY.CONSUMABLES, price: 40, gstPercent: 12 },
 ];
 
 export const MEDICAL_SPECIALIZATIONS = [

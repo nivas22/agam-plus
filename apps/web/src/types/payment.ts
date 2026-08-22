@@ -3,6 +3,7 @@ export interface PaymentItem {
   name: string;
   quantity: number;
   unitPrice: number;
+  chargeCatalogItemId?: string;
   isAuto?: boolean;
   isPackageCovered?: boolean;
 }

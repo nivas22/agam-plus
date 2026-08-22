@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, ClipboardList, ShieldCheck, Users } from "lucide-react";
+import { AlertTriangle, ClipboardList, Receipt, ShieldCheck, Users } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 
 export default function SettingsHubPage() {
@@ -27,12 +27,18 @@ export default function SettingsHubPage() {
       title: "Audit trail",
       description: "Every action that changed money, a booking, or a permission.",
     },
+    {
+      href: `/hospital/${hospitalId}/settings/charge-catalog`,
+      icon: <Receipt size={20} />,
+      title: "Charge catalog",
+      description: "Everything the front desk can add to a bill, and what it costs today.",
+    },
   ];
 
   return (
     <div>
       <h1 className="text-xl font-bold text-ink-900 mb-1">Settings</h1>
-      <p className="text-sm text-ink-500 mb-5">Team, roles &amp; permissions, and the audit trail.</p>
+      <p className="text-sm text-ink-500 mb-5">Team, roles &amp; permissions, the audit trail, and the charge catalog.</p>
 
       <div className="grid sm:grid-cols-3 gap-4">
         {tiles.map((tile) => (

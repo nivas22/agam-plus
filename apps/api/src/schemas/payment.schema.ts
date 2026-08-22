@@ -13,6 +13,14 @@ export class PaymentItem {
   @Prop({ required: true })
   unitPrice: number;
 
+  // Set when this item was added from the Charge Catalog rather than typed
+  // freehand — name/unitPrice above stay the source of truth for the bill
+  // (snapshotted, so a later catalog price/name edit never touches this
+  // invoice); this id is only used to aggregate "billed N times" on the
+  // catalog item itself.
+  @Prop()
+  chargeCatalogItemId?: string;
+
   // Auto-added from the doctor's consultation fee — kept distinct from
   // anything added during the visit so the bill UI can lock it from editing.
   @Prop({ default: false })

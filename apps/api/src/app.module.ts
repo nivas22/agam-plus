@@ -18,6 +18,7 @@ import { PermissionsModule } from './permissions/permissions.module';
 import { AuditModule } from './audit/audit.module';
 import { TeamModule } from './team/team.module';
 import { ApprovalsModule } from './approvals/approvals.module';
+import { ChargeCatalogModule } from './charge-catalog/charge-catalog.module';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { ApprovalsModule } from './approvals/approvals.module';
     PackagesModule,
     TeamModule,
     ApprovalsModule,
+    ChargeCatalogModule,
     PlatformAdminModule,
   ],
   controllers: [AppController],

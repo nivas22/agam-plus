@@ -6,6 +6,7 @@ import {
   PAYMENT_METHOD,
   PAYMENT_STATUS,
   PACKAGE_PAYMENT_METHOD_VALUES,
+  CHARGE_CATALOG_CATEGORY_VALUES,
 } from '../../constants';
 
 /* -------------------------------------------------------------------------- */
@@ -63,6 +64,7 @@ export const paymentItemSchema = z.object({
   name: z.string().min(1, 'Item name is required'),
   quantity: z.number().int().positive().default(1),
   unitPrice: z.number().min(0, 'Price cannot be negative'),
+  chargeCatalogItemId: z.string().optional(),
   isAuto: z.boolean().optional(),
   isPackageCovered: z.boolean().optional(),
 });
@@ -335,4 +337,43 @@ export const approveRequestSchema = z.object({
 
 export const declineRequestSchema = z.object({
   note: z.string().optional(),
+});
+
+/* -------------------------------------------------------------------------- */
+/*                          CHARGE CATALOG SCHEMAS                            */
+/* -------------------------------------------------------------------------- */
+
+export const createChargeCatalogItemSchema = z.object({
+  name: z.string().min(1, 'Name is required'),
+  category: z.enum(CHARGE_CATALOG_CATEGORY_VALUES as [string, ...string[]]),
+  price: z.number().min(0, 'Price cannot be negative'),
+  gstPercent: z.number().min(0).default(0),
+  frontDeskCanAdd: z.boolean().default(true),
+  coveredByPackages: z.boolean().default(false),
+});
+
+export const updateChargeCatalogItemSchema = z.object({
+  name: z.string().min(1).optional(),
+  category: z
+    .enum(CHARGE_CATALOG_CATEGORY_VALUES as [string, ...string[]])
+    .optional(),
+  frontDeskCanAdd: z.boolean().optional(),
+  coveredByPackages: z.boolean().optional(),
+  price: z.number().min(0).optional(),
+  gstPercent: z.number().min(0).optional(),
+  // Required by the service when `price` is provided.
+  effectiveFrom: z.string().optional(),
+});
+
+export const chargeCatalogStatusSchema = z.object({
+  status: z.enum(['active', 'archived']),
+});
+
+export const bulkReviseChargeCatalogSchema = z.object({
+  itemIds: z.array(z.string()).min(1, 'Select at least one item'),
+  method: z.enum(['percent', 'fixed', 'manual']),
+  value: z.number().optional(),
+  roundTo: z.enum(['none', '5', '10']).default('none'),
+  effectiveFrom: z.string().min(1, 'Effective date is required'),
+  manualPrices: z.record(z.string(), z.number().min(0)).optional(),
 });
