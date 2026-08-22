@@ -13,4 +13,5 @@ export type ExtendPackageBody = z.infer<typeof extendPackageSchema>;
 
 export interface PackageListQuery {
   patientId?: string;
+  doctorProfileId?: string;
 }

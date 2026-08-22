@@ -42,6 +42,8 @@ export class PaymentsController {
     @Param('id') hospitalId: string,
     @Query('status') status?: string,
     @Query('method') method?: string,
+    @Query('patientId') patientId?: string,
+    @Query('doctorProfileId') doctorProfileId?: string,
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
     @Query('appointmentId') appointmentId?: string,
@@ -50,6 +52,8 @@ export class PaymentsController {
     return this.paymentsService.getPayments(hospitalId, {
       status,
       method,
+      patientId,
+      doctorProfileId,
       startDate,
       endDate,
       appointmentId,

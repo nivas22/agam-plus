@@ -43,8 +43,12 @@ export class PackagesController {
   getPackages(
     @Param('id') hospitalId: string,
     @Query('patientId') patientId?: string,
+    @Query('doctorProfileId') doctorProfileId?: string,
   ) {
-    return this.packagesService.getPackages(hospitalId, { patientId });
+    return this.packagesService.getPackages(hospitalId, {
+      patientId,
+      doctorProfileId,
+    });
   }
 
   @Get('stats')

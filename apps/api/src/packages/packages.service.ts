@@ -381,6 +381,7 @@ export class PackagesService {
     const raw = await this.packageRepository.getPackagesByHospital(
       hospitalId,
       query.patientId,
+      query.doctorProfileId,
     );
     const todayIso = this.toISODate(new Date());
     const packages = raw.map((p: any) => this.enrichPackage(p, todayIso));

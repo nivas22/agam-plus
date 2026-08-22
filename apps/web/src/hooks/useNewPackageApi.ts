@@ -59,9 +59,11 @@ const packagesApiFunctions = {
   getPackages: async (
     hospitalId: string,
     patientId?: string,
+    doctorProfileId?: string,
   ): Promise<PackagesListResponse> => {
     const params = new URLSearchParams();
     if (patientId) params.append("patientId", patientId);
+    if (doctorProfileId) params.append("doctorProfileId", doctorProfileId);
     const qs = params.toString();
     const response = await fetchWithAuth(
       apiUrl(`/hospitals/${hospitalId}/packages${qs ? `?${qs}` : ""}`),
@@ -138,8 +140,12 @@ export const packagesKeys = {
   all: ["packages"] as const,
   hospital: (hospitalId: string) =>
     [...packagesKeys.all, "hospital", hospitalId] as const,
-  list: (hospitalId: string, patientId?: string) =>
-    [...packagesKeys.hospital(hospitalId), "list", { patientId }] as const,
+  list: (hospitalId: string, patientId?: string, doctorProfileId?: string) =>
+    [
+      ...packagesKeys.hospital(hospitalId),
+      "list",
+      { patientId, doctorProfileId },
+    ] as const,
   stats: (hospitalId: string) =>
     [...packagesKeys.hospital(hospitalId), "stats"] as const,
   ledger: (hospitalId: string, packageId: string) =>
@@ -175,11 +181,23 @@ export const useSellPackage = (hospitalId?: string) => {
   });
 };
 
-export const usePackagesList = (hospitalId?: string, patientId?: string) => {
+export const usePackagesList = (
+  hospitalId?: string,
+  patientId?: string,
+  doctorProfileId?: string,
+) => {
   return useQuery({
-    queryKey: packagesKeys.list(hospitalId as string, patientId),
+    queryKey: packagesKeys.list(
+      hospitalId as string,
+      patientId,
+      doctorProfileId,
+    ),
     queryFn: () =>
-      packagesApiFunctions.getPackages(hospitalId as string, patientId),
+      packagesApiFunctions.getPackages(
+        hospitalId as string,
+        patientId,
+        doctorProfileId,
+      ),
     enabled: !!hospitalId,
     staleTime: 30 * 1000,
   });

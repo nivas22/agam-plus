@@ -13,7 +13,6 @@ import {
   LogOut,
   Menu,
   Plus,
-  Search,
   Settings,
   TrendingUp,
   User as UserIcon,
@@ -23,6 +22,7 @@ import {
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { FaHospital, FaUserMd } from "react-icons/fa";
+import GlobalSearch from "@/components/GlobalSearch";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { useAuth } from "@/hooks/useAuth";
 import { apiUrl, fetchWithAuth } from "@/lib/api";
@@ -713,17 +713,7 @@ export default function AdminHospitalLayout({
 
             <div className="flex items-center gap-3 flex-shrink-0">
               {/* Search */}
-              <div className="relative hidden lg:block">
-                <Search className="w-4 h-4 text-ink-500 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  placeholder="Search anything"
-                  className="pl-9 pr-14 py-2 rounded-lg border border-border bg-surface-canvas text-sm w-64 focus:outline-none focus:ring-2 focus:ring-brand-violet/30 focus:border-brand-violet placeholder:text-ink-500"
-                />
-                <kbd className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] font-semibold text-ink-500 bg-surface-paper border border-border rounded px-1.5 py-0.5">
-                  ⌘K
-                </kbd>
-              </div>
+              <GlobalSearch hospitalId={actualHospitalId} />
 
               {/* Notifications */}
               <div className="relative" ref={notificationsRef}>

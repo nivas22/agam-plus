@@ -114,6 +114,8 @@ export class PaymentsService {
       hospitalId,
       status: query.status,
       method: query.method,
+      patientId: query.patientId,
+      doctorProfileId: query.doctorProfileId,
       startDate: query.startDate,
       endDate: query.endDate,
       limit: query.limit ? parseInt(query.limit) : undefined,

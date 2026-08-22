@@ -27,9 +27,14 @@ export class PackageRepository {
     return toPlain(doc);
   }
 
-  async getPackagesByHospital(hospitalId: string, patientId?: string) {
+  async getPackagesByHospital(
+    hospitalId: string,
+    patientId?: string,
+    doctorProfileId?: string,
+  ) {
     const filter: Record<string, any> = { hospitalId };
     if (patientId) filter.patientId = patientId;
+    if (doctorProfileId) filter.doctorProfileId = doctorProfileId;
 
     const docs = await this.packageModel
       .find(filter)

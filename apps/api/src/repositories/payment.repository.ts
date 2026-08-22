@@ -29,6 +29,8 @@ export class PaymentRepository {
     hospitalId: string;
     status?: string;
     method?: string;
+    patientId?: string;
+    doctorProfileId?: string;
     startDate?: string;
     endDate?: string;
     limit?: number;
@@ -36,6 +38,9 @@ export class PaymentRepository {
     const filter: Record<string, any> = { hospitalId: options.hospitalId };
     if (options.status) filter.status = options.status;
     if (options.method) filter.method = options.method;
+    if (options.patientId) filter.patientId = options.patientId;
+    if (options.doctorProfileId)
+      filter.doctorProfileId = options.doctorProfileId;
     if (options.startDate || options.endDate) {
       filter.createdAt = {};
       if (options.startDate)

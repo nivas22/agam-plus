@@ -12,6 +12,8 @@ export type CloseDayBody = z.infer<typeof closeDaySchema>;
 export interface PaymentListQuery {
   status?: string;
   method?: string;
+  patientId?: string;
+  doctorProfileId?: string;
   startDate?: string;
   endDate?: string;
   appointmentId?: string;

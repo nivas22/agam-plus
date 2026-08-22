@@ -316,20 +316,25 @@ export default function CreateAppointment({
   const [selectedDays, setSelectedDays] = useState<string[]>([]);
   const [prefilled, setPrefilled] = useState(false);
 
-  // Prefill from a "Book this slot" deep link (?doctorId=&date=&time=)
+  // Prefill from a "Book this slot" deep link (?doctorId=&date=&time=&patientId=)
   useEffect(() => {
     if (prefilled || !doctorsData.doctors?.length) return;
     const doctorId = searchParams.get("doctorId");
+    const patientId = searchParams.get("patientId");
     const date = searchParams.get("date");
     const time = searchParams.get("time");
     if (doctorId) {
       const match = doctorsData.doctors.find((d) => d.id === doctorId);
       if (match) setSelectedDoctor(match);
     }
+    if (patientId) {
+      const match = patientsData.patients.find((p) => p.id === patientId);
+      if (match) setSelectedPatient(match);
+    }
     if (date) setAppointmentDate(date);
     if (time) setAppointmentTime(time);
     setPrefilled(true);
-  }, [doctorsData.doctors, searchParams, prefilled]);
+  }, [doctorsData.doctors, patientsData.patients, searchParams, prefilled]);
 
   const isoDate = appointmentDate
     ? (DateTime.fromISO(appointmentDate).toISODate() ?? undefined)
