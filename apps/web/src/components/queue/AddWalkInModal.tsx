@@ -146,7 +146,7 @@ export default function AddWalkInModal({
       <div className="w-full max-w-[560px] bg-surface-paper rounded-2xl shadow-2xl overflow-hidden max-h-[calc(100vh-48px)] flex flex-col">
         <div className="px-6 pt-5 pb-4 border-b border-border flex items-start gap-3">
           <div>
-            <h2 className="text-lg font-bold text-ink-900">Add a walk-in</h2>
+            <h2 className="text-lg font-bold text-ink-900 font-display tracking-tight">Add a walk-in</h2>
             <p className="text-xs text-ink-500 mt-1">
               Checked in immediately — the wait timer starts now.
             </p>
@@ -180,7 +180,7 @@ export default function AddWalkInModal({
                   <span className="block text-sm font-semibold text-ink-900 truncate">
                     {selectedPatient.name}
                   </span>
-                  <span className="block text-xs text-ink-500 truncate">
+                  <span className="block text-xs text-ink-500 truncate font-mono tabular">
                     {[selectedPatient.phone, selectedPatient.patientId]
                       .filter(Boolean)
                       .join(" · ")}
@@ -226,7 +226,7 @@ export default function AddWalkInModal({
                           <span className="block text-sm font-medium text-ink-900 truncate">
                             {p.name}
                           </span>
-                          <span className="block text-xs text-ink-500 truncate">
+                          <span className="block text-xs text-ink-500 truncate font-mono tabular">
                             {[p.phone, p.patientId].filter(Boolean).join(" · ")}
                           </span>
                         </span>

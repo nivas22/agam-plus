@@ -135,7 +135,7 @@ export default function NewFiltersPanel({
     <div className="bg-surface-paper p-4 rounded-xl shadow-sm border border-border mb-6">
       {/* Header */}
       <div className="flex justify-between items-center mb-4">
-        <h3 className="font-medium text-ink-700">Filter {title}</h3>
+        <h3 className="font-display tracking-tight font-medium text-ink-700">Filter {title}</h3>
         <button
           onClick={onClose}
           className="text-ink-500 hover:text-ink-700"

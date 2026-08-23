@@ -49,7 +49,7 @@ export default function StackedDayBars({ days }: { days: DayBarDatum[] }) {
                 y={y + 3.5}
                 fontSize={9}
                 fill="#7D849E"
-                fontFamily="monospace"
+                className="font-mono tabular"
               >
                 {Math.round((max * f) / 1000)}k
               </text>
@@ -99,7 +99,7 @@ export default function StackedDayBars({ days }: { days: DayBarDatum[] }) {
                 fontSize={8.5}
                 fill={total === 0 ? "#C3C8DB" : "#7D849E"}
                 textAnchor="middle"
-                fontFamily="monospace"
+                className="font-mono tabular"
               >
                 {total === 0 ? "off" : dayOfMonth(d.date)}
               </text>

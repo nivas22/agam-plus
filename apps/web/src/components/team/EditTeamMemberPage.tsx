@@ -82,7 +82,7 @@ export default function EditTeamMemberPage({ hospitalId, memberId }: EditTeamMem
     <div>
       <div className="flex items-end gap-3.5 mb-4">
         <div>
-          <h1 className="text-xl font-bold text-ink-900">Edit member</h1>
+          <h1 className="text-xl font-bold text-ink-900 font-display tracking-tight">Edit member</h1>
           <p className="text-sm text-ink-500 mt-0.5">
             {member.name} · <span className="font-mono">{member.employeeId}</span>
           </p>
@@ -110,7 +110,7 @@ export default function EditTeamMemberPage({ hospitalId, memberId }: EditTeamMem
 
       <div className="grid md:grid-cols-2 gap-4">
         <div className="bg-surface-paper border border-border rounded-xl p-4 space-y-4 h-fit">
-          <h2 className="text-sm font-bold text-ink-900">Details</h2>
+          <h2 className="text-sm font-bold text-ink-900 font-display tracking-tight">Details</h2>
           <Field label="Full name">
             <input className={inputClass} defaultValue={member.name} onChange={(e) => setName(e.target.value)} />
           </Field>
@@ -134,7 +134,7 @@ export default function EditTeamMemberPage({ hospitalId, memberId }: EditTeamMem
 
         <div className="space-y-4">
           <div className="bg-surface-paper border border-border rounded-xl p-4">
-            <h2 className="text-sm font-bold text-ink-900 mb-3">Role</h2>
+            <h2 className="text-sm font-bold text-ink-900 mb-3 font-display tracking-tight">Role</h2>
             <div className="grid gap-2">
               {TEAM_ROLE_OPTIONS.map((opt) => {
                 const active = effectiveRole === opt.value;
@@ -183,7 +183,7 @@ export default function EditTeamMemberPage({ hospitalId, memberId }: EditTeamMem
           </div>
 
           <div className="bg-surface-paper border border-border rounded-xl p-4">
-            <h2 className="text-sm font-bold text-ink-900 mb-3">Cash handling</h2>
+            <h2 className="text-sm font-bold text-ink-900 mb-3 font-display tracking-tight">Cash handling</h2>
             <div className="border border-border rounded-lg p-3 flex gap-2.5 items-start bg-surface-canvas/40">
               <ToggleSwitch checked={handlesCash ?? member.handlesCash} onChange={setHandlesCash} />
               <div>
@@ -196,7 +196,7 @@ export default function EditTeamMemberPage({ hospitalId, memberId }: EditTeamMem
           </div>
 
           <div className="bg-surface-paper border border-status-danger/30 rounded-xl overflow-hidden">
-            <h2 className="text-sm font-bold text-status-danger px-4 py-3 border-b border-status-danger/20">Careful with these</h2>
+            <h2 className="text-sm font-bold text-status-danger px-4 py-3 border-b border-status-danger/20 font-display tracking-tight">Careful with these</h2>
             <DangerRow
               title="Reset PIN"
               description="They'll set a new one at next sign-in."

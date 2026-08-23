@@ -51,6 +51,25 @@ export class PrescriptionRepository {
     return toPlain(doc);
   }
 
+  // Backs the doctor dashboard's "unsigned prescriptions" and
+  // "prescriptions signed yesterday" lookups.
+  async listByHospitalAndDoctor(
+    hospitalId: string,
+    doctorProfileId: string,
+    options?: { status?: string; fromDate?: string; toDate?: string },
+  ) {
+    const filter: Record<string, any> = { hospitalId, doctorProfileId };
+    if (options?.status) filter.status = options.status;
+    if (options?.fromDate || options?.toDate) {
+      filter.issuedAt = {};
+      if (options.fromDate) filter.issuedAt.$gte = new Date(`${options.fromDate}T00:00:00.000`);
+      if (options.toDate) filter.issuedAt.$lte = new Date(`${options.toDate}T23:59:59.999`);
+    }
+
+    const docs = await this.model.find(filter).sort({ updatedAt: -1 }).lean();
+    return toPlainList(docs);
+  }
+
   async updateFields(hospitalId: string, prescriptionId: string, updates: Record<string, any>) {
     const doc = await this.model
       .findOneAndUpdate(

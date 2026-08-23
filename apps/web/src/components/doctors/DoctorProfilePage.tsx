@@ -391,7 +391,7 @@ export default function DoctorProfilePage({
       <div className="bg-surface-paper border border-border rounded-2xl shadow-sm p-5 flex flex-wrap items-start gap-4">
         <DoctorAvatar name={doctor.name} size="lg" />
         <div className="min-w-0">
-          <h1 className="text-xl font-bold text-ink-900">Dr. {doctor.name}</h1>
+          <h1 className="text-xl font-bold text-ink-900 font-display tracking-tight">Dr. {doctor.name}</h1>
           <div className="flex items-center gap-2 flex-wrap text-[12.5px] text-ink-500 mt-0.5">
             <span>{doctor.specialization || "General Practitioner"}</span>
             {doctor.experience && (
@@ -520,7 +520,7 @@ export default function DoctorProfilePage({
       <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-4 mt-4 items-start">
         <div className="space-y-3.5">
           <div className="bg-surface-paper border border-border rounded-xl shadow-sm overflow-hidden">
-            <h2 className="text-sm font-semibold text-ink-900 px-4 py-3 border-b border-border">
+            <h2 className="text-sm font-semibold text-ink-900 px-4 py-3 border-b border-border font-display tracking-tight">
               Details
             </h2>
             <div className="px-4 py-1">
@@ -554,7 +554,7 @@ export default function DoctorProfilePage({
           </div>
 
           <div className="bg-surface-paper border border-border rounded-xl shadow-sm overflow-hidden">
-            <h2 className="text-sm font-semibold text-ink-900 px-4 py-3 border-b border-border flex items-center gap-2">
+            <h2 className="text-sm font-semibold text-ink-900 px-4 py-3 border-b border-border flex items-center gap-2 font-display tracking-tight">
               <PackageIcon className="w-3.5 h-3.5 text-brand-violet" /> Prepaid
               packages
             </h2>
@@ -578,7 +578,7 @@ export default function DoctorProfilePage({
 
         <div className="space-y-3.5">
           <div className="bg-surface-paper border border-border rounded-xl shadow-sm overflow-hidden">
-            <h2 className="text-sm font-semibold text-ink-900 px-4 py-3 border-b border-border">
+            <h2 className="text-sm font-semibold text-ink-900 px-4 py-3 border-b border-border font-display tracking-tight">
               Today · {format(today, "EEEE d MMMM")}
             </h2>
             <div className="p-4">
@@ -638,7 +638,7 @@ export default function DoctorProfilePage({
           </div>
 
           <div className="bg-surface-paper border border-border rounded-xl shadow-sm overflow-hidden">
-            <h2 className="text-sm font-semibold text-ink-900 px-4 py-3 border-b border-border">
+            <h2 className="text-sm font-semibold text-ink-900 px-4 py-3 border-b border-border font-display tracking-tight">
               This week
             </h2>
             <div className="p-4">
@@ -669,7 +669,7 @@ export default function DoctorProfilePage({
           </div>
 
           <div className="bg-surface-paper border border-border rounded-xl shadow-sm overflow-hidden">
-            <h2 className="text-sm font-semibold text-ink-900 px-4 py-3 border-b border-border">
+            <h2 className="text-sm font-semibold text-ink-900 px-4 py-3 border-b border-border font-display tracking-tight">
               Recent visits
             </h2>
             {recentVisits.length === 0 ? (

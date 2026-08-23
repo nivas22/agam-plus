@@ -118,7 +118,7 @@ export default function MedicineItemDrawer({
       <div className="relative w-full max-w-[520px] h-full bg-surface-paper shadow-2xl flex flex-col">
         <div className="px-6 pt-5 pb-4 border-b border-border flex items-start justify-between">
           <div>
-            <h2 className="text-lg font-bold text-ink-900">
+            <h2 className="text-lg font-bold text-ink-900 font-display tracking-tight">
               {isEdit ? item?.name || "Loading…" : "Add a medicine"}
             </h2>
             <p className="text-xs text-ink-500 mt-1">

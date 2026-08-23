@@ -124,7 +124,7 @@ function Chip({
   }[tone];
   return (
     <span
-      className={`inline-flex items-center rounded-md px-2 py-1 text-[10px] font-bold border ${cls}`}
+      className={`inline-flex items-center rounded-md px-2 py-1 text-[11px] font-bold border ${cls}`}
     >
       {children}
     </span>
@@ -564,14 +564,14 @@ export default function DoctorTodayPage({
             >
               {statCells.map((s) => (
                 <div key={s.label} className="px-5 py-3">
-                  <div className="text-[10.5px] uppercase tracking-wide text-ink-500 font-bold">
+                  <div className="text-[11.5px] uppercase tracking-wide text-ink-500 font-bold">
                     {s.label}
                   </div>
                   <div className="font-mono text-xl font-bold mt-1 text-ink-900">
                     {s.n}
                   </div>
                   {s.sub && (
-                    <div className="text-[11px] text-ink-500 mt-1">{s.sub}</div>
+                    <div className="text-[12px] text-ink-500 mt-1">{s.sub}</div>
                   )}
                 </div>
               ))}
@@ -584,7 +584,7 @@ export default function DoctorTodayPage({
         {/* left: patient list */}
         <div className="bg-surface-paper border border-border rounded-xl overflow-hidden">
           <div className="px-4 py-3 border-b border-border flex items-center gap-2">
-            <h2 className="text-sm font-bold text-ink-900">Today</h2>
+            <h2 className="text-sm font-bold text-ink-900 font-display tracking-tight">Today</h2>
             <span className="ml-auto text-xs text-ink-500">
               {lane.all.length} patients
             </span>
@@ -791,7 +791,7 @@ export default function DoctorTodayPage({
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <div className="px-4 py-2 text-[10px] uppercase tracking-wide font-bold text-ink-500 bg-surface-canvas/40 border-t border-b border-lineSoft first:border-t-0">
+    <div className="px-4 py-2 text-[11px] uppercase tracking-wide font-bold text-ink-500 bg-surface-canvas/40 border-t border-b border-lineSoft first:border-t-0">
       {children}
     </div>
   );
@@ -855,7 +855,7 @@ function PatientRow({
         <span className="block text-[14px] font-semibold text-ink-900 truncate">
           {appt.patientName}
         </span>
-        <span className="block text-[11px] text-ink-500 truncate">
+        <span className="block text-[12px] text-ink-500 truncate">
           {tone === "upcoming"
             ? `${formatTime12h(appt.time)} · not arrived`
             : tone === "done"
@@ -884,7 +884,7 @@ function PatientRow({
           >
             {Math.max(0, elapsed)}m
           </span>
-          <span className="block text-[9px] text-ink-500 uppercase">
+          <span className="block text-[10px] text-ink-500 uppercase">
             {tone === "now" ? "elapsed" : "waiting"}
           </span>
         </span>
@@ -991,7 +991,7 @@ function ConsultationPanel({
       <div className="flex items-start gap-3 px-5 py-4 border-b border-lineSoft">
         <Avatar name={appt.patientName} size="w-11 h-11 text-base" />
         <div className="min-w-0">
-          <h3 className="text-lg font-bold text-ink-900 truncate">
+          <h3 className="text-lg font-bold text-ink-900 truncate font-display tracking-tight">
             {appt.patientName}
           </h3>
           <div className="text-xs text-ink-500 mt-1">
@@ -1010,7 +1010,7 @@ function ConsultationPanel({
             <b className="font-mono text-xl font-semibold text-brand-violet">
               {formatMMSS(elapsedMs)}
             </b>
-            <span className="text-[11px] text-brand-violet">
+            <span className="text-[12px] text-brand-violet">
               of {durationMin} min
             </span>
           </span>
@@ -1039,7 +1039,7 @@ function ConsultationPanel({
       <div className="grid grid-cols-1 md:grid-cols-[1.2fr_0.8fr]">
         <div className="p-5 min-w-0">
           <div className="flex items-center gap-2 mb-2">
-            <div className="text-[11px] uppercase tracking-wide text-ink-500 font-bold">
+            <div className="text-[12px] uppercase tracking-wide text-ink-500 font-bold">
               Session notes
             </div>
             <span className="flex-1" />
@@ -1047,7 +1047,7 @@ function ConsultationPanel({
               <button
                 type="button"
                 onClick={() => setNotesDraft(lastVisit.sessionNotes || "")}
-                className="text-[11.5px] font-semibold text-brand-violet underline"
+                className="text-[12.5px] font-semibold text-brand-violet underline"
               >
                 Copy last visit
               </button>
@@ -1077,7 +1077,7 @@ function ConsultationPanel({
             ))}
           </div>
 
-          <div className="text-[11px] uppercase tracking-wide text-ink-500 font-bold mb-2 mt-4">
+          <div className="text-[12px] uppercase tracking-wide text-ink-500 font-bold mb-2 mt-4">
             Given during the visit
           </div>
           <div className="border border-border rounded-xl bg-surface-paper overflow-hidden">
@@ -1157,7 +1157,7 @@ function ConsultationPanel({
                         addExtraItem(c.name, c.currentPrice, c.id);
                         setShowAddItem(false);
                       }}
-                      className="border border-dashed border-border rounded-md px-2 py-1 text-[11px] text-ink-700 hover:border-status-open hover:text-status-open hover:bg-status-open-soft"
+                      className="border border-dashed border-border rounded-md px-2 py-1 text-[12px] text-ink-700 hover:border-status-open hover:text-status-open hover:bg-status-open-soft"
                     >
                       + {c.name}{" "}
                       <span className="font-mono text-ink-500">
@@ -1170,7 +1170,7 @@ function ConsultationPanel({
             </div>
           )}
 
-          <div className="text-[11px] uppercase tracking-wide text-ink-500 font-bold mb-2 mt-4">
+          <div className="text-[12px] uppercase tracking-wide text-ink-500 font-bold mb-2 mt-4">
             Prescription
           </div>
           <div className="flex gap-3 items-center border border-border rounded-xl bg-surface-paper px-3 py-3">
@@ -1194,7 +1194,7 @@ function ConsultationPanel({
         </div>
 
         <div className="p-5 border-t md:border-t-0 md:border-l border-lineSoft bg-surface-canvas/30 min-w-0">
-          <div className="text-[11px] uppercase tracking-wide text-ink-500 font-bold mb-2">
+          <div className="text-[12px] uppercase tracking-wide text-ink-500 font-bold mb-2">
             Last visit{" "}
             {lastVisit
               ? `· ${format(new Date(`${lastVisit.date}T00:00:00`), "d MMMM")}`
@@ -1202,7 +1202,7 @@ function ConsultationPanel({
           </div>
           <div className="bg-surface-paper border border-border rounded-xl px-3 py-3 text-[13px] text-ink-700 leading-relaxed">
             {lastVisit?.sessionNotes && (
-              <div className="text-[10px] uppercase tracking-wide text-ink-500 font-bold mb-1">
+              <div className="text-[11px] uppercase tracking-wide text-ink-500 font-bold mb-1">
                 You wrote
               </div>
             )}
@@ -1211,7 +1211,7 @@ function ConsultationPanel({
 
           {lastPrescription && lastPrescription.items.length > 0 && (
             <>
-              <div className="text-[11px] uppercase tracking-wide text-ink-500 font-bold mb-2 mt-4">
+              <div className="text-[12px] uppercase tracking-wide text-ink-500 font-bold mb-2 mt-4">
                 Recent prescriptions
               </div>
               <div className="border border-border rounded-xl bg-surface-paper overflow-hidden">
@@ -1242,7 +1242,7 @@ function ConsultationPanel({
             </>
           )}
 
-          <div className="text-[11px] uppercase tracking-wide text-ink-500 font-bold mb-2 mt-4">
+          <div className="text-[12px] uppercase tracking-wide text-ink-500 font-bold mb-2 mt-4">
             Background
           </div>
           <KeyValue
@@ -1261,7 +1261,7 @@ function ConsultationPanel({
             danger={isDue}
           />
 
-          <div className="text-[11px] uppercase tracking-wide text-ink-500 font-bold mb-2 mt-4">
+          <div className="text-[12px] uppercase tracking-wide text-ink-500 font-bold mb-2 mt-4">
             Follow-up
           </div>
           <div className="flex bg-surface-canvas border border-border rounded-lg p-1 gap-1">
@@ -1350,7 +1350,7 @@ function PreCallPanel({
       <div className="flex items-start gap-3 px-5 py-4 border-b border-lineSoft">
         <Avatar name={appt.patientName} size="w-11 h-11 text-base" />
         <div className="min-w-0">
-          <h3 className="text-lg font-bold text-ink-900 truncate">
+          <h3 className="text-lg font-bold text-ink-900 truncate font-display tracking-tight">
             {appt.patientName}
           </h3>
           <div className="text-xs text-ink-500 mt-1">
@@ -1403,19 +1403,19 @@ function PreCallPanel({
 
       <div className="grid grid-cols-1 md:grid-cols-[1.2fr_0.8fr]">
         <div className="p-5 min-w-0">
-          <div className="text-[11px] uppercase tracking-wide text-ink-500 font-bold mb-2">
+          <div className="text-[12px] uppercase tracking-wide text-ink-500 font-bold mb-2">
             Why they're here today
           </div>
           <div className="bg-surface-paper border border-border rounded-xl px-3 py-3 text-[13px] text-ink-700">
             {appt.notes && (
-              <div className="text-[10px] uppercase tracking-wide text-ink-500 font-bold mb-1">
+              <div className="text-[11px] uppercase tracking-wide text-ink-500 font-bold mb-1">
                 Told to the desk at booking
               </div>
             )}
             {appt.notes || "No reason recorded at booking."}
           </div>
 
-          <div className="text-[11px] uppercase tracking-wide text-ink-500 font-bold mb-2 mt-4">
+          <div className="text-[12px] uppercase tracking-wide text-ink-500 font-bold mb-2 mt-4">
             Last visit{" "}
             {lastVisit
               ? `· ${format(new Date(`${lastVisit.date}T00:00:00`), "d MMMM")}${lastVisit.doctorName ? ` · Dr. ${lastVisit.doctorName}` : ""}`
@@ -1423,7 +1423,7 @@ function PreCallPanel({
           </div>
           <div className="bg-surface-paper border border-border rounded-xl px-3 py-3 text-[13px] text-ink-700 leading-relaxed">
             {lastVisit?.sessionNotes && (
-              <div className="text-[10px] uppercase tracking-wide text-ink-500 font-bold mb-1">
+              <div className="text-[11px] uppercase tracking-wide text-ink-500 font-bold mb-1">
                 {lastVisit.doctorName
                   ? `Dr. ${lastVisit.doctorName.split(" ")[0]} wrote`
                   : "You wrote"}
@@ -1434,7 +1434,7 @@ function PreCallPanel({
 
           {lastPrescription && lastPrescription.items.length > 0 && (
             <>
-              <div className="text-[11px] uppercase tracking-wide text-ink-500 font-bold mb-2 mt-4">
+              <div className="text-[12px] uppercase tracking-wide text-ink-500 font-bold mb-2 mt-4">
                 Prescriptions from last visit
               </div>
               <div className="border border-border rounded-xl bg-surface-paper overflow-hidden">
@@ -1452,7 +1452,7 @@ function PreCallPanel({
         </div>
 
         <div className="p-5 border-t md:border-t-0 md:border-l border-lineSoft bg-surface-canvas/30 min-w-0">
-          <div className="text-[11px] uppercase tracking-wide text-ink-500 font-bold mb-2">
+          <div className="text-[12px] uppercase tracking-wide text-ink-500 font-bold mb-2">
             Background
           </div>
           <KeyValue

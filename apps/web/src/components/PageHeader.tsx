@@ -50,7 +50,7 @@ export default function PageHeader({
           <Icon className="w-6 h-6 text-brand-violet" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-ink-900">{title}</h1>
+          <h1 className="font-display tracking-tight text-2xl font-bold text-ink-900">{title}</h1>
           <p className="text-ink-500 text-sm">
             {dataLength} {dataLength === 1 ? `${type.toLowerCase()}` : `${type.toLowerCase()}s`} found
           </p>

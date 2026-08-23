@@ -43,7 +43,7 @@ export default function AuditTrailPage({ hospitalId }: AuditTrailPageProps) {
     <div>
       <div className="flex items-end gap-3.5 mb-4">
         <div>
-          <h1 className="text-xl font-bold text-ink-900">Audit trail</h1>
+          <h1 className="font-display tracking-tight text-xl font-bold text-ink-900">Audit trail</h1>
           <p className="text-sm text-ink-500 mt-0.5">
             Every action that changed money, a booking, or a permission. Written once, never edited.
           </p>

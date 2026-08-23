@@ -43,7 +43,7 @@ export default function PersonalInfoSection({
                 <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-white/20 backdrop-blur-xl flex items-center justify-center">
                   <User className="text-white" size={16} />
                 </div>
-                <h2 className="text-base sm:text-lg font-bold text-white">{title}</h2>
+                <h2 className="font-display tracking-tight text-base sm:text-lg font-bold text-white">{title}</h2>
               </div>
               {onEdit && (
                 <button
@@ -89,7 +89,7 @@ export default function PersonalInfoSection({
                   </svg>
                   <span className="text-xs font-bold uppercase tracking-wider text-ink-500">Phone Number</span>
                 </div>
-                <div className="text-base font-semibold text-ink-900">
+                <div className="font-mono tabular text-base font-semibold text-ink-900">
                   {data.phone || <span className="text-ink-500 italic">Not set</span>}
                 </div>
               </div>
@@ -102,7 +102,7 @@ export default function PersonalInfoSection({
 
   return (
     <div className="space-y-6">
-      <h3 className="text-xl font-semibold flex items-center gap-2">
+      <h3 className="font-display tracking-tight text-xl font-semibold flex items-center gap-2">
         <User className="w-6 h-6 text-brand-violet" /> Personal Info
       </h3>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

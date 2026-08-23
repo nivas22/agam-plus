@@ -134,7 +134,7 @@ export default function HospitalHolidaysPage({
     <div>
       <div className="flex items-end gap-3.5 mb-4 flex-wrap">
         <div>
-          <h1 className="text-xl font-bold text-ink-900">Hospital holidays</h1>
+          <h1 className="text-xl font-bold text-ink-900 font-display tracking-tight">Hospital holidays</h1>
           <p className="text-sm text-ink-500 mt-0.5">
             Set once, applies to every doctor. Individual leave stays on each
             doctor&apos;s own schedule.

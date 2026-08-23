@@ -65,7 +65,7 @@ export default function ChargeCatalogPage({ hospitalId }: ChargeCatalogPageProps
     <div>
       <div className="flex items-end gap-3.5 mb-4">
         <div>
-          <h1 className="text-xl font-bold text-ink-900">Charge catalog</h1>
+          <h1 className="text-xl font-bold text-ink-900 font-display tracking-tight">Charge catalog</h1>
           <p className="text-sm text-ink-500 mt-0.5">
             Everything the front desk can add to a bill, and what it costs today.
           </p>
@@ -213,7 +213,7 @@ export default function ChargeCatalogPage({ hospitalId }: ChargeCatalogPageProps
                         </span>
                       )}
                     </td>
-                    <td className="px-3 py-2.5 text-ink-700 whitespace-nowrap">
+                    <td className="px-3 py-2.5 text-ink-700 whitespace-nowrap font-mono tabular">
                       {item.currentGstPercent ? `${item.currentGstPercent}%` : "Nil"}
                     </td>
                     <td className="px-3 py-2.5">

@@ -49,7 +49,7 @@ export default function NoShowsPage({ hospitalId }: NoShowsPageProps) {
     <ReportsLayout hospitalId={hospitalId}>
       <div className="flex flex-wrap items-end gap-4 mb-4">
         <div>
-          <h1 className="text-xl font-bold text-ink-900">No-shows</h1>
+          <h1 className="text-xl font-bold text-ink-900 font-display tracking-tight">No-shows</h1>
           <p className="text-sm text-ink-500 mt-0.5">
             Booked slots nobody arrived for.
           </p>
@@ -134,7 +134,7 @@ export default function NoShowsPage({ hospitalId }: NoShowsPageProps) {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3.5 mt-3.5">
             <div className="bg-surface-paper border border-border rounded-xl shadow-sm p-4">
-              <h2 className="text-sm font-semibold text-ink-900 mb-3">
+              <h2 className="text-sm font-semibold text-ink-900 mb-3 font-display tracking-tight">
                 By doctor
               </h2>
               {report.byDoctor.length === 0 ? (
@@ -153,7 +153,7 @@ export default function NoShowsPage({ hospitalId }: NoShowsPageProps) {
               )}
             </div>
             <div className="bg-surface-paper border border-border rounded-xl shadow-sm p-4">
-              <h2 className="text-sm font-semibold text-ink-900 mb-3">
+              <h2 className="text-sm font-semibold text-ink-900 mb-3 font-display tracking-tight">
                 By how far ahead it was booked
               </h2>
               <HorizontalBars
@@ -173,7 +173,7 @@ export default function NoShowsPage({ hospitalId }: NoShowsPageProps) {
 
           <div className="bg-surface-paper border border-border rounded-xl shadow-sm p-4 mt-3.5">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-semibold text-ink-900">
+              <h2 className="text-sm font-semibold text-ink-900 font-display tracking-tight">
                 When they happen
               </h2>
               <span className="text-[11.5px] text-ink-500">

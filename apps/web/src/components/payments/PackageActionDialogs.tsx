@@ -357,7 +357,7 @@ export function RefundOrExtendDialog({
           </div>
         ) : (
           <div className="px-3.5 py-3 rounded-lg bg-status-danger-soft border border-status-danger/20 text-sm text-status-danger">
-            <b>{money(pkg.valueLeft)}</b> will be marked refunded and this
+            <b className="font-mono tabular">{money(pkg.valueLeft)}</b> will be marked refunded and this
             package closed. This can't be undone.
           </div>
         )}

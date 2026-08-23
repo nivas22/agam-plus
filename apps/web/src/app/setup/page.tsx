@@ -196,7 +196,7 @@ export default function DoctorProfileStepper() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-status-danger-soft via-status-danger-soft to-status-warning-soft p-4">
         <div className="max-w-md w-full bg-surface-paper border border-status-danger/20 text-status-danger rounded-xl p-6 shadow">
-          <h2 className="text-lg font-semibold mb-2">Unable to load your account</h2>
+          <h2 className="font-display tracking-tight text-lg font-semibold mb-2">Unable to load your account</h2>
           <p className="text-sm mb-4">Please sign in again or try refreshing the page.</p>
           <pre className="text-xs text-status-danger overflow-auto">{String((error as any)?.message || '')}</pre>
         </div>
@@ -208,7 +208,7 @@ export default function DoctorProfileStepper() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-status-warning-soft via-status-warning-soft to-status-warning-soft p-4">
         <div className="max-w-md w-full bg-surface-paper border border-status-warning/20 text-status-warning rounded-xl p-6 shadow">
-          <h2 className="text-lg font-semibold mb-2">No hospital context</h2>
+          <h2 className="font-display tracking-tight text-lg font-semibold mb-2">No hospital context</h2>
           <p className="text-sm">We couldn't find your current hospital membership. Please select a hospital and try again.</p>
         </div>
       </div>
@@ -220,7 +220,7 @@ export default function DoctorProfileStepper() {
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-ink-900 mb-2">Complete Your Profile</h1>
+          <h1 className="font-display tracking-tight text-3xl font-bold text-ink-900 mb-2">Complete Your Profile</h1>
           <p className="text-ink-700">Step {currentStep} of 2</p>
         </div>
 
@@ -289,7 +289,7 @@ export default function DoctorProfileStepper() {
           {currentStep === 1 && (
             <div>
               <div className="mb-8">
-                <h2 className="text-xl font-semibold text-ink-900 mb-6 flex items-center gap-2">
+                <h2 className="font-display tracking-tight text-xl font-semibold text-ink-900 mb-6 flex items-center gap-2">
                   <div className="w-1 h-6 bg-gradient-to-b from-brand-violet to-brand-violet rounded-full"></div>
                   Personal Information
                 </h2>
@@ -381,7 +381,7 @@ export default function DoctorProfileStepper() {
           {currentStep === 2 && (
             <div>
               <div className="mb-8">
-                <h2 className="text-xl font-semibold text-ink-900 mb-6 flex items-center gap-2">
+                <h2 className="font-display tracking-tight text-xl font-semibold text-ink-900 mb-6 flex items-center gap-2">
                   <div className="w-1 h-6 bg-gradient-to-b from-brand-violet to-brand-violet rounded-full"></div>
                   Professional Information
                 </h2>

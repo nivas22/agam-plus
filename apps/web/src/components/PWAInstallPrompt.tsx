@@ -70,7 +70,7 @@ export default function PWAInstallPrompt() {
               />
             </div>
             <div>
-              <h3 className="font-bold text-ink-900">Install Agam Plus</h3>
+              <h3 className="font-display tracking-tight font-bold text-ink-900">Install Agam Plus</h3>
               <p className="text-sm text-ink-700">Add to your home screen</p>
             </div>
           </div>

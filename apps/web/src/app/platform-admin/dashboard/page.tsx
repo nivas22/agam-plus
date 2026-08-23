@@ -31,7 +31,7 @@ export default function PlatformAdminDashboardPage() {
           <LayoutDashboard className="w-7 h-7 text-brand-violet" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-ink-900">Platform Overview</h1>
+          <h1 className="font-display tracking-tight text-2xl font-bold text-ink-900">Platform Overview</h1>
           <p className="text-ink-500 text-sm">Stats across all hospitals</p>
         </div>
       </div>
@@ -76,7 +76,7 @@ function StatCard({ icon, label, value, color }: StatCardProps) {
         <div className={`p-2 ${STAT_CARD_CHIP_BG[color]} rounded-lg`}>{icon}</div>
         <div>
           <p className="text-sm text-ink-500">{label}</p>
-          <h2 className="text-2xl font-bold text-ink-900">{value}</h2>
+          <h2 className="font-display tracking-tight text-2xl font-bold text-ink-900">{value}</h2>
         </div>
       </div>
     </div>

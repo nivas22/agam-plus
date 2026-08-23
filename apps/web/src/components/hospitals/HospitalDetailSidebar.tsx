@@ -76,7 +76,7 @@ export default function HospitalDetailSidebar({ hospital, onClose, onEdit, onDel
                 <Building2 className="w-5 h-5 text-brand-violet" />
               </div>
               <div className="min-w-0">
-                <h2 className="text-base font-bold text-ink-900 truncate">{h.name}</h2>
+                <h2 className="text-base font-bold text-ink-900 truncate font-display tracking-tight">{h.name}</h2>
                 <p className="text-sm text-ink-500 truncate">{h.address}</p>
               </div>
             </div>
@@ -114,7 +114,7 @@ export default function HospitalDetailSidebar({ hospital, onClose, onEdit, onDel
         {/* Content */}
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
           <section className="space-y-3">
-            <h3 className="text-xs font-bold uppercase tracking-wide text-ink-500">Contact</h3>
+            <h3 className="text-xs font-bold uppercase tracking-wide text-ink-500 font-display tracking-tight">Contact</h3>
             <div className="space-y-2.5">
               {h.email && (
                 <div className="flex items-center gap-3 text-sm text-ink-700">
@@ -125,7 +125,7 @@ export default function HospitalDetailSidebar({ hospital, onClose, onEdit, onDel
               {h.phone && (
                 <div className="flex items-center gap-3 text-sm text-ink-700">
                   <Phone className="w-4 h-4 text-ink-500 shrink-0" />
-                  <span>{h.phone}</span>
+                  <span className="font-mono tabular">{h.phone}</span>
                 </div>
               )}
               <div className="flex items-center gap-3 text-sm text-ink-700">
@@ -154,7 +154,7 @@ export default function HospitalDetailSidebar({ hospital, onClose, onEdit, onDel
 
           {h.description && (
             <section className="space-y-3">
-              <h3 className="text-xs font-bold uppercase tracking-wide text-ink-500 flex items-center gap-1.5">
+              <h3 className="text-xs font-bold uppercase tracking-wide text-ink-500 flex items-center gap-1.5 font-display tracking-tight">
                 <FileText className="w-3.5 h-3.5" /> Description
               </h3>
               <p className="text-sm text-ink-700 leading-relaxed">{h.description}</p>
@@ -162,7 +162,7 @@ export default function HospitalDetailSidebar({ hospital, onClose, onEdit, onDel
           )}
 
           <section className="space-y-3">
-            <h3 className="text-xs font-bold uppercase tracking-wide text-ink-500 flex items-center gap-1.5">
+            <h3 className="text-xs font-bold uppercase tracking-wide text-ink-500 flex items-center gap-1.5 font-display tracking-tight">
               <Users className="w-3.5 h-3.5" /> Members
             </h3>
             {membersLoading ? (

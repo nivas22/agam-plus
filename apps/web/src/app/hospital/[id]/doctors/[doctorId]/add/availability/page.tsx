@@ -241,7 +241,7 @@ export default function AvailabilityPage() {
                 <ArrowLeft className="w-5 h-5 text-ink-700" />
               </button>
               <div>
-                <h1 className="text-xl md:text-2xl font-bold text-ink-900 flex items-center gap-2">
+                <h1 className="font-display tracking-tight text-xl md:text-2xl font-bold text-ink-900 flex items-center gap-2">
                   <Clock className="w-6 h-6 text-brand-violet" />
                   Manage Availability
                 </h1>
@@ -475,7 +475,7 @@ export default function AvailabilityPage() {
                       <div key={index} className="flex items-center justify-between p-3 bg-gradient-to-r from-brand-violet-soft to-brand-violet-soft rounded-lg border-2 border-brand-violet/20 hover:shadow-sm transition-shadow">
                         <div className="flex items-center gap-2">
                           <div className="w-2 h-2 bg-brand-violet rounded-full"></div>
-                          <span className="text-sm font-semibold text-ink-900">
+                          <span className="font-mono tabular text-sm font-semibold text-ink-900">
                             {formatTimeForDisplay(slot.startTime)} - {formatTimeForDisplay(slot.endTime)}
                           </span>
                         </div>
@@ -544,7 +544,7 @@ export default function AvailabilityPage() {
                               index === 1 ? 'bg-brand-violet' :
                               index === 2 ? 'bg-status-warning' : 'bg-brand-violet'
                             }`}></div>
-                            <span className="font-medium text-sm text-ink-900">
+                            <span className="font-mono tabular font-medium text-sm text-ink-900">
                               {formatTimeForDisplay(slot.startTime)} - {formatTimeForDisplay(slot.endTime)}
                             </span>
                           </div>
@@ -611,7 +611,7 @@ export default function AvailabilityPage() {
                       <Clock className="w-5 h-5 text-white" />
                     </div>
                     <div>
-                      <h3 className="text-lg font-bold text-white">Add Time Slot</h3>
+                      <h3 className="font-display tracking-tight text-lg font-bold text-white">Add Time Slot</h3>
                       <p className="text-xs text-brand-violet-soft">
                         <span className="capitalize">{getFullDayName(activeDay)}</span>
                       </p>
@@ -775,7 +775,7 @@ export default function AvailabilityPage() {
                   <div className="p-3 bg-status-open-soft border-2 border-status-open/20 rounded-xl">
                     <div className="flex items-center gap-2 text-status-open text-sm font-medium">
                       <CheckCircle className="w-5 h-5 flex-shrink-0" />
-                      <span>
+                      <span className="font-mono tabular">
                         {formatTimeForDisplay(newTimeSlot.startTime)} - {formatTimeForDisplay(newTimeSlot.endTime)}
                       </span>
                     </div>

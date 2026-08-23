@@ -101,7 +101,7 @@ export function DialogShell({
         <div className="flex items-start gap-3 p-5 pb-4">
           <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${iconTone}`}>{icon}</div>
           <div className="flex-1 min-w-0">
-            <h3 className="text-base font-semibold text-ink-900">{title}</h3>
+            <h3 className="font-display tracking-tight text-base font-semibold text-ink-900">{title}</h3>
             {subtitle && <p className="text-sm text-ink-500 mt-0.5">{subtitle}</p>}
           </div>
           <button
@@ -130,7 +130,7 @@ export function ContextStrip({ appointment, doctor, patientCode }: { appointment
       <span className="w-px h-8 bg-border shrink-0" />
       <div className="min-w-0">
         <div className="text-[13px] font-semibold text-ink-900 truncate">{appointment.patientName}</div>
-        <div className="text-xs text-ink-500">
+        <div className="font-mono tabular text-xs text-ink-500">
           {[patientCode, appointment.patientAge != null ? `${appointment.patientAge}y` : null].filter(Boolean).join(" · ")}
         </div>
       </div>

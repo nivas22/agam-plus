@@ -988,8 +988,8 @@ export default function AppointmentsPage({
     <div className="pb-16">
       <div className="flex flex-wrap items-start gap-4 mb-4">
         <div>
-          <h1 className="text-xl font-bold text-ink-900">Appointments</h1>
-          <p className="text-sm text-ink-500 mt-0.5">
+          <h1 className="font-display tracking-tight text-xl font-bold text-ink-900">Appointments</h1>
+          <p className="font-mono tabular text-sm text-ink-500 mt-0.5">
             {format(now, "EEEE, d MMMM yyyy")} · {format(now, "HH:mm")}
           </p>
         </div>
@@ -1103,7 +1103,7 @@ export default function AppointmentsPage({
       ) : Object.keys(byDay).length === 0 ? (
         <div className="bg-surface-paper border border-border rounded-xl py-14 px-6 text-center shadow-sm">
           <CalendarDays className="w-8 h-8 text-border mx-auto mb-3" />
-          <h3 className="text-base font-semibold text-ink-900 mb-1">
+          <h3 className="font-display tracking-tight text-base font-semibold text-ink-900 mb-1">
             Nothing booked in this range
           </h3>
           <p className="text-sm text-ink-500 mb-5">

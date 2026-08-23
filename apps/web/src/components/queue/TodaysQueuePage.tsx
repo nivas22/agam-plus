@@ -321,7 +321,7 @@ export default function TodaysQueuePage({
     <div className="pb-16">
       <div className="flex flex-wrap items-start gap-4 mb-4">
         <div>
-          <h1 className="text-xl font-bold text-ink-900">Today&apos;s queue</h1>
+          <h1 className="text-xl font-bold text-ink-900 font-display tracking-tight">Today&apos;s queue</h1>
           <p className="text-sm text-ink-500 mt-1">
             {format(now, "EEEE, d MMMM yyyy")} · updates every 30s
           </p>
@@ -417,7 +417,7 @@ export default function TodaysQueuePage({
               {lanes.length === 0 ? (
                 <div className="md:col-span-2 xl:col-span-3 bg-surface-paper border border-border rounded-xl py-14 px-6 text-center shadow-sm">
                   <UserPlus className="w-8 h-8 text-border mx-auto mb-3" />
-                  <h3 className="text-base font-semibold text-ink-900 mb-1">
+                  <h3 className="text-base font-semibold text-ink-900 mb-1 font-display tracking-tight">
                     Nothing booked today
                   </h3>
                   <p className="text-sm text-ink-500">
@@ -477,7 +477,7 @@ export default function TodaysQueuePage({
           <div className="space-y-4">
             <div className="bg-surface-paper border border-border rounded-xl overflow-hidden">
               <div className="px-4 py-3 border-b border-border flex items-center gap-2">
-                <h2 className="text-sm font-bold text-ink-900">
+                <h2 className="text-sm font-bold text-ink-900 font-display tracking-tight">
                   Needs a decision
                 </h2>
                 <span className="ml-auto font-mono text-xs text-ink-500">

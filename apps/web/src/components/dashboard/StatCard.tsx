@@ -17,7 +17,7 @@ export default function StatCard({ icon, label, value }: StatCardProps) {
         </div>
         <div className="flex-1">
           <p className="text-sm text-ink-700 font-medium mb-1">{label}</p>
-          <h2 className="text-3xl font-bold text-ink-900">{value}</h2>
+          <h2 className="font-display tracking-tight text-3xl font-bold text-ink-900">{value}</h2>
         </div>
       </div>
     </div>

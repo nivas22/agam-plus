@@ -23,6 +23,8 @@ import { HospitalHolidaysModule } from './hospital-holidays/hospital-holidays.mo
 import { ReportsModule } from './reports/reports.module';
 import { MedicinesModule } from './medicines/medicines.module';
 import { PrescriptionsModule } from './prescriptions/prescriptions.module';
+import { LeaveRequestsModule } from './leave-requests/leave-requests.module';
+import { DoctorDashboardModule } from './doctor-dashboard/doctor-dashboard.module';
 
 @Module({
   imports: [
@@ -47,6 +49,8 @@ import { PrescriptionsModule } from './prescriptions/prescriptions.module';
     ReportsModule,
     MedicinesModule,
     PrescriptionsModule,
+    LeaveRequestsModule,
+    DoctorDashboardModule,
     PlatformAdminModule,
   ],
   controllers: [AppController],

@@ -548,7 +548,7 @@ export default function CompleteVisitDialog({
               value={newItemPrice}
               onChange={(e) => setNewItemPrice(e.target.value)}
               placeholder="₹"
-              className="px-2.5 py-2 border border-border rounded-lg text-xs bg-surface-paper"
+              className="font-mono tabular px-2.5 py-2 border border-border rounded-lg text-xs bg-surface-paper"
             />
             <button
               type="button"
@@ -598,7 +598,7 @@ export default function CompleteVisitDialog({
                   onChange={(e) =>
                     setDiscount(Math.max(0, Number(e.target.value) || 0))
                   }
-                  className="w-[70px] text-right border border-border rounded-md px-1.5 py-0.5 text-xs bg-surface-paper"
+                  className="font-mono tabular w-[70px] text-right border border-border rounded-md px-1.5 py-0.5 text-xs bg-surface-paper"
                 />
               </span>
             </div>
@@ -680,7 +680,7 @@ export default function CompleteVisitDialog({
                             e.target.value === "" ? "" : Number(e.target.value),
                           )
                         }
-                        className="w-full h-9 px-2.5 border border-border rounded-lg text-sm"
+                        className="font-mono tabular w-full h-9 px-2.5 border border-border rounded-lg text-sm"
                       />
                     </div>
                     <div>
@@ -709,7 +709,7 @@ export default function CompleteVisitDialog({
                     <PlaceholderQr seed={total || 1} />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="text-xl font-bold text-ink-900">
+                    <div className="font-mono tabular text-xl font-bold text-ink-900">
                       {money(total)}
                     </div>
                     <div className="text-[10.5px] text-status-open bg-status-open-soft rounded px-1.5 py-0.5 inline-block mt-1 mb-2">
@@ -756,7 +756,7 @@ export default function CompleteVisitDialog({
                           e.target.value === "" ? "" : Number(e.target.value),
                         )
                       }
-                      className="flex-1 h-9 px-2.5 border border-border rounded-lg text-sm"
+                      className="font-mono tabular flex-1 h-9 px-2.5 border border-border rounded-lg text-sm"
                     />
                   </div>
                   <div className="flex items-center gap-2.5 mb-2">
@@ -767,7 +767,7 @@ export default function CompleteVisitDialog({
                       type="number"
                       value={splitUpiAmount}
                       readOnly
-                      className="flex-1 h-9 px-2.5 border border-border rounded-lg text-sm bg-surface-canvas"
+                      className="font-mono tabular flex-1 h-9 px-2.5 border border-border rounded-lg text-sm bg-surface-canvas"
                     />
                   </div>
                   <p className="text-xs text-ink-500">

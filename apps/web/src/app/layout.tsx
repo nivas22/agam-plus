@@ -1,6 +1,7 @@
 import { ReactNode } from "react";
 // import { AuthProvider } from "../contexts/AuthContext";
 import "./globals.css";
+import { fontBody, fontDisplay, fontMono } from "./fonts";
 import Providers from "./providers";
 
 export const metadata = {
@@ -27,7 +28,10 @@ type RootLayoutProps = {
 
 export default function RootLayout({ children }: RootLayoutProps) {
   return (
-    <html lang="en">
+    <html
+      lang="en"
+      className={`${fontDisplay.variable} ${fontBody.variable} ${fontMono.variable}`}
+    >
       <head>
         <link rel="icon" href="/favicon.ico" />
         <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />

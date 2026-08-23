@@ -40,7 +40,7 @@ export default function MedicineCatalogPage({
     <div>
       <div className="flex items-end gap-3.5 mb-4">
         <div>
-          <h1 className="text-xl font-bold text-ink-900">Medicines</h1>
+          <h1 className="text-xl font-bold text-ink-900 font-display tracking-tight">Medicines</h1>
           <p className="text-sm text-ink-500 mt-0.5">
             The catalog doctors search from when writing a prescription —
             including allergy class tags.

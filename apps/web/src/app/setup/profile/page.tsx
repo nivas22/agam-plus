@@ -53,7 +53,7 @@ export default function SetupProfile() {
           <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-brand-violet to-brand-violet rounded-full mb-4 shadow-lg">
             <User className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-3xl font-bold text-ink-900 mb-2">Setup Your Profile</h1>
+          <h1 className="font-display tracking-tight text-3xl font-bold text-ink-900 mb-2">Setup Your Profile</h1>
           <p className="text-ink-700">Complete your professional information</p>
         </div>
 
@@ -69,7 +69,7 @@ export default function SetupProfile() {
         <div className="bg-surface-paper rounded-2xl shadow-xl p-6 md:p-8 border border-border">
           {/* Personal Info Section */}
           <div className="mb-8">
-            <h2 className="text-xl font-semibold text-ink-900 mb-6 flex items-center gap-2">
+            <h2 className="font-display tracking-tight text-xl font-semibold text-ink-900 mb-6 flex items-center gap-2">
               <div className="w-1 h-6 bg-gradient-to-b from-brand-violet to-brand-violet rounded-full"></div>
               Personal Information
             </h2>

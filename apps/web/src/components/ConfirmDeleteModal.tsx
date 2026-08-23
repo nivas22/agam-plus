@@ -57,7 +57,7 @@ export default function ConfirmDeleteModal({
           <div className="flex-1">
             <h2
               id="delete-modal-title"
-              className="text-xl font-semibold text-ink-900"
+              className="font-display tracking-tight text-xl font-semibold text-ink-900"
             >
               {title}
             </h2>

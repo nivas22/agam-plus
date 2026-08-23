@@ -388,7 +388,7 @@ export default function PaymentsPage({ hospitalId }: PaymentsPageProps) {
     <div className="pb-16">
       <div className="flex flex-wrap items-end gap-4 mb-4">
         <div>
-          <h1 className="text-xl font-bold text-ink-900">Payments</h1>
+          <h1 className="font-display tracking-tight text-xl font-bold text-ink-900">Payments</h1>
           <p className="text-sm text-ink-500 mt-0.5">
             Every visit that was billed, and what is still owed.
           </p>
@@ -529,7 +529,7 @@ export default function PaymentsPage({ hospitalId }: PaymentsPageProps) {
           <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-4 items-start">
             <div className="bg-surface-paper border border-border rounded-xl shadow-sm overflow-hidden">
               <div className="flex flex-wrap items-center gap-2.5 px-4 py-3 border-b border-border">
-                <h2 className="text-sm font-semibold text-ink-900">
+                <h2 className="font-display tracking-tight text-sm font-semibold text-ink-900">
                   {range === "today" ? "Today's transactions" : "Transactions"}
                 </h2>
                 <div className="ml-auto relative">
@@ -593,7 +593,7 @@ export default function PaymentsPage({ hospitalId }: PaymentsPageProps) {
                             <div className="font-mono text-xs font-semibold text-ink-900">
                               {p.invoiceNumber}
                             </div>
-                            <div className="text-[11px] text-ink-500">
+                            <div className="font-mono tabular text-[11px] text-ink-500">
                               {format(new Date(p.createdAt), "h:mm a")}
                             </div>
                           </td>
@@ -601,7 +601,7 @@ export default function PaymentsPage({ hospitalId }: PaymentsPageProps) {
                             <div className="font-medium text-ink-900">
                               {p.patientName || "—"}
                             </div>
-                            <div className="text-[11px] text-ink-500">
+                            <div className="font-mono tabular text-[11px] text-ink-500">
                               {p.patientPhone}
                             </div>
                           </td>
@@ -684,7 +684,7 @@ export default function PaymentsPage({ hospitalId }: PaymentsPageProps) {
             </div>
 
             <div className="bg-surface-paper border border-border rounded-xl shadow-sm p-4">
-              <h2 className="text-sm font-semibold text-ink-900 mb-3">
+              <h2 className="font-display tracking-tight text-sm font-semibold text-ink-900 mb-3">
                 Close the day
               </h2>
 

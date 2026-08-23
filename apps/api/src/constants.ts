@@ -18,6 +18,7 @@ export enum DB_COLLECTIONS {
   HOSPITAL_HOLIDAYS = 'hospital_holidays',
   MEDICINES = 'medicines',
   PRESCRIPTIONS = 'prescriptions',
+  LEAVE_REQUESTS = 'leave_requests',
 }
 
 // FRONT_DESK/NURSE/ACCOUNTANT replace the old unused STAFF value — nothing
@@ -148,11 +149,14 @@ export function isValidAppointmentTransition(
   return APPOINTMENT_STATUS_TRANSITIONS[current]?.includes(to) ?? false;
 }
 
-// Marks whether an appointment was booked ad-hoc or drawn from a prepaid
-// package. PACKAGE appointments carry packageId/packageVisitNumber.
+// Marks whether an appointment was booked ad-hoc, drawn from a prepaid
+// package, or auto-created as a doctor-requested follow-up at visit
+// completion (see FOLLOW_UP_DAY_OFFSETS / PaymentsService.completeVisit).
+// PACKAGE appointments carry packageId/packageVisitNumber.
 export enum APPOINTMENT_TYPE {
   REGULAR = 'regular',
   PACKAGE = 'package',
+  FOLLOW_UP = 'follow-up',
 }
 
 export const APPOINTMENT_TYPE_VALUES = Object.values(APPOINTMENT_TYPE);
@@ -408,6 +412,16 @@ export enum PRESCRIPTION_STATUS {
 }
 
 export const PRESCRIPTION_STATUS_VALUES = Object.values(PRESCRIPTION_STATUS);
+
+// A doctor's leave request needs admin sign-off before it's treated as
+// blocking their schedule — mirrors ApprovalRequest's status wording.
+export enum LEAVE_REQUEST_STATUS {
+  PENDING = 'pending',
+  APPROVED = 'approved',
+  DECLINED = 'declined',
+}
+
+export const LEAVE_REQUEST_STATUS_VALUES = Object.values(LEAVE_REQUEST_STATUS);
 
 // Seeded once per hospital the first time its medicine catalog is read empty
 // (see MedicinesService) — same one-time-seed idea as

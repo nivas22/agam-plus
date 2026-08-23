@@ -96,7 +96,7 @@ export default function PlatformAdminLayout({ children }: { children: React.Reac
           <div className="inline-flex items-center justify-center w-16 h-16 bg-status-warning-soft rounded-2xl mb-6">
             <ShieldAlert className="text-status-warning w-8 h-8" />
           </div>
-          <h1 className="text-xl font-bold text-ink-900 mb-2">Platform admin access required</h1>
+          <h1 className="font-display tracking-tight text-xl font-bold text-ink-900 mb-2">Platform admin access required</h1>
           <p className="text-sm text-ink-700 mb-6">You don&apos;t have permission to view this page.</p>
           <button
             onClick={() => router.push('/select-hospital')}
@@ -132,7 +132,7 @@ export default function PlatformAdminLayout({ children }: { children: React.Reac
             </div>
             {sidebarExpanded && (
               <div className="flex-1 min-w-0 text-left">
-                <h1 className="text-base font-bold text-white truncate">Agam Plus</h1>
+                <h1 className="font-display tracking-tight text-base font-bold text-white truncate">Agam Plus</h1>
                 <p className="text-[10px] text-night-muted font-medium tracking-wider uppercase truncate">Platform Admin</p>
               </div>
             )}
@@ -214,7 +214,7 @@ export default function PlatformAdminLayout({ children }: { children: React.Reac
                   <span className="text-sm font-semibold text-brand-violet">{userInitials}</span>
                 </div>
                 <div className="flex-1 min-w-0 text-left">
-                  <h2 className="text-base font-bold text-white truncate">{displayName}</h2>
+                  <h2 className="font-display tracking-tight text-base font-bold text-white truncate">{displayName}</h2>
                   <p className="text-sm text-white/70 truncate">Platform Admin</p>
                 </div>
               </div>

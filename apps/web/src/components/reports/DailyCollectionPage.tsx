@@ -86,7 +86,7 @@ export default function DailyCollectionPage({
     <ReportsLayout hospitalId={hospitalId}>
       <div className="flex flex-wrap items-end gap-4 mb-4">
         <div>
-          <h1 className="text-xl font-bold text-ink-900">Daily collection</h1>
+          <h1 className="text-xl font-bold text-ink-900 font-display tracking-tight">Daily collection</h1>
           <p className="text-sm text-ink-500 mt-0.5">
             Money that came in, how it came in, and who took it.{" "}
             {rangeDates.start} – {rangeDates.end}.
@@ -185,7 +185,7 @@ export default function DailyCollectionPage({
           {collectedEarnedNote && <InsightCallout text={collectedEarnedNote} />}
 
           <div className="bg-surface-paper border border-border rounded-xl shadow-sm p-4 mt-3.5">
-            <h2 className="text-sm font-semibold text-ink-900 mb-3">
+            <h2 className="text-sm font-semibold text-ink-900 mb-3 font-display tracking-tight">
               Every day in range
             </h2>
             <StackedDayBars days={report.chart.days} />
@@ -193,7 +193,7 @@ export default function DailyCollectionPage({
 
           <div className="bg-surface-paper border border-border rounded-xl shadow-sm overflow-hidden mt-3.5">
             <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-              <h2 className="text-sm font-semibold text-ink-900">
+              <h2 className="text-sm font-semibold text-ink-900 font-display tracking-tight">
                 Who collected it
               </h2>
               <span className="text-[11.5px] text-ink-500">

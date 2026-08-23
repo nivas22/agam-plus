@@ -38,7 +38,7 @@ export default function Heatmap({ days, slots, cells }: HeatmapProps) {
         ))}
         {slots.map((slot, slotIdx) => (
           <Fragment key={slot}>
-            <div className="text-[10.5px] text-ink-500 flex items-center justify-end pr-1.5 text-right">
+            <div className="text-[10.5px] text-ink-500 flex items-center justify-end pr-1.5 text-right font-mono tabular">
               {slot}
             </div>
             {days.map((d, dayIdx) => {

@@ -161,7 +161,7 @@ export default function SetupDoctorProfile() {
             <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-brand-violet to-brand-violet rounded-full mb-4 shadow-lg">
               <Award className="w-8 h-8 text-white" />
             </div>
-            <h1 className="text-3xl font-bold text-ink-900 mb-2">Edit Doctor Profile</h1>
+            <h1 className="font-display tracking-tight text-3xl font-bold text-ink-900 mb-2">Edit Doctor Profile</h1>
             <p className="text-ink-700">Update your professional information</p>
           </div>
         </div>
@@ -200,7 +200,7 @@ export default function SetupDoctorProfile() {
 
           {/* Personal Info Section */}
           <div className="mb-8">
-            <h2 className="text-xl font-semibold text-ink-900 mb-6 flex items-center gap-2">
+            <h2 className="font-display tracking-tight text-xl font-semibold text-ink-900 mb-6 flex items-center gap-2">
               <div className="w-1 h-6 bg-gradient-to-b from-brand-violet to-brand-violet rounded-full"></div>
               Personal Information
             </h2>
@@ -300,7 +300,7 @@ export default function SetupDoctorProfile() {
 
           {/* Professional Info Section */}
           <div className="mb-8">
-            <h2 className="text-xl font-semibold text-ink-900 mb-6 flex items-center gap-2">
+            <h2 className="font-display tracking-tight text-xl font-semibold text-ink-900 mb-6 flex items-center gap-2">
               <div className="w-1 h-6 bg-gradient-to-b from-brand-violet to-brand-violet rounded-full"></div>
               Professional Information
             </h2>

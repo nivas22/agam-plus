@@ -299,7 +299,7 @@ export default function AddEditPatient1({
     return (
       <div className="min-h-screen bg-surface-canvas flex items-center justify-center px-4">
         <div className="bg-status-danger-soft border border-status-danger/20 rounded-xl p-6 text-center max-w-md">
-          <h3 className="text-lg font-semibold text-status-danger mb-2">
+          <h3 className="text-lg font-semibold text-status-danger mb-2 font-display tracking-tight">
             Error loading patient
           </h3>
           <p className="text-status-danger text-sm">{patientError.message}</p>
@@ -374,7 +374,7 @@ export default function AddEditPatient1({
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-ink-500">Added</span>
-                  <span className="text-ink-900">
+                  <span className="text-ink-900 font-mono tabular">
                     {formatAdded(patientData?.patient?.createdAt)}
                   </span>
                 </div>
@@ -476,7 +476,7 @@ export default function AddEditPatient1({
             className="bg-surface-paper rounded-xl border border-border shadow-sm p-5 md:p-6 scroll-mt-24"
           >
             <div className="mb-5">
-              <h2 className="text-lg font-bold text-ink-900">Personal</h2>
+              <h2 className="text-lg font-bold text-ink-900 font-display tracking-tight">Personal</h2>
               <p className="text-sm text-ink-500">Who this patient is</p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -525,7 +525,7 @@ export default function AddEditPatient1({
             className="bg-surface-paper rounded-xl border border-border shadow-sm p-5 md:p-6 scroll-mt-24"
           >
             <div className="mb-5">
-              <h2 className="text-lg font-bold text-ink-900">Contact</h2>
+              <h2 className="text-lg font-bold text-ink-900 font-display tracking-tight">Contact</h2>
               <p className="text-sm text-ink-500">How to reach this patient</p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -607,7 +607,7 @@ export default function AddEditPatient1({
             className="bg-surface-paper rounded-xl border border-border shadow-sm p-5 md:p-6 scroll-mt-24"
           >
             <div className="mb-5">
-              <h2 className="text-lg font-bold text-ink-900">Notes</h2>
+              <h2 className="text-lg font-bold text-ink-900 font-display tracking-tight">Notes</h2>
               <p className="text-sm text-ink-500">
                 Internal notes — not shown to the patient
               </p>

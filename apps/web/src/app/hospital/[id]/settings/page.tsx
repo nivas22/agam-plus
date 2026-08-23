@@ -71,7 +71,7 @@ export default function SettingsHubPage() {
 
   return (
     <div>
-      <h1 className="text-xl font-bold text-ink-900 mb-1">Settings</h1>
+      <h1 className="font-display tracking-tight text-xl font-bold text-ink-900 mb-1">Settings</h1>
       <p className="text-sm text-ink-500 mb-5">
         {isDoctor
           ? "Reference material for your day-to-day work."

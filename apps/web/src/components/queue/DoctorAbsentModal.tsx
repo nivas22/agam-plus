@@ -326,7 +326,7 @@ export default function DoctorAbsentModal({
                       <b className="font-semibold text-ink-900">
                         {appt.patientName}
                       </b>
-                      <span className="block text-xs text-ink-500 truncate">
+                      <span className="block text-xs text-ink-500 truncate font-mono tabular">
                         {[
                           code,
                           appt.patientAge != null
