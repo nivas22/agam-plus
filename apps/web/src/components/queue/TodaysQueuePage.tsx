@@ -233,6 +233,21 @@ export default function TodaysQueuePage({
     [user?.name],
   );
 
+  const handleMarkOnBreak = useCallback(
+    (doctorId: string, returnTime: string) => {
+      setPresenceOverrides((cur) => ({
+        ...cur,
+        [doctorId]: {
+          kind: "onBreak",
+          returnTime,
+          setBy: user?.name || "Front desk",
+          setAt: new Date().toISOString(),
+        },
+      }));
+    },
+    [user?.name],
+  );
+
   // "Not coming today" always opens the bulk modal, even with nothing
   // booked, so the desk can still record why and stop the day being blank.
   // "Left for the day" skips the modal when nothing's left to reassign.
@@ -449,6 +464,7 @@ export default function TodaysQueuePage({
                     onMarkRunningLate={(t) =>
                       handleMarkRunningLate(lane.doctor.id, t)
                     }
+                    onMarkOnBreak={(t) => handleMarkOnBreak(lane.doctor.id, t)}
                     onOpenNotComing={() => handleOpenNotComing(lane)}
                     onLeftForDay={() => handleLeftForDay(lane)}
                     getPatientCode={getPatientCode}
@@ -720,6 +736,7 @@ function DoctorLane({
   onAddWalkIn,
   onMarkHere,
   onMarkRunningLate,
+  onMarkOnBreak,
   onOpenNotComing,
   onLeftForDay,
   getPatientCode,
@@ -737,6 +754,7 @@ function DoctorLane({
   onAddWalkIn: (presetDoctorId?: string) => void;
   onMarkHere: () => void;
   onMarkRunningLate: (expectedTime: string) => void;
+  onMarkOnBreak: (returnTime: string) => void;
   onOpenNotComing: () => void;
   onLeftForDay: () => void;
   getPatientCode: (patientId: string) => string | undefined;
@@ -746,6 +764,7 @@ function DoctorLane({
   const minsPastStart = windows.length ? nowMins - windows[0].start : null;
   const showNudge =
     presence.tone === "expected" &&
+    presence.label !== "ON BREAK" &&
     minsPastStart != null &&
     minsPastStart > 0 &&
     lane.waiting.length > 0;
@@ -768,6 +787,7 @@ function DoctorLane({
             now={now}
             onMarkHere={onMarkHere}
             onMarkRunningLate={onMarkRunningLate}
+            onMarkOnBreak={onMarkOnBreak}
             onOpenNotComing={onOpenNotComing}
             onLeftForDay={onLeftForDay}
           />

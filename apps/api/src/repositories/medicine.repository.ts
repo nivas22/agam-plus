@@ -44,6 +44,12 @@ export class MedicineRepository {
     return toPlainList(docs);
   }
 
+  // Used to decide whether a hospital's catalog still needs its one-time
+  // default seed — cheaper than fetching every item just to check length.
+  async countAllByHospital(hospitalId: string): Promise<number> {
+    return this.model.countDocuments({ hospitalId });
+  }
+
   async updateFields(hospitalId: string, medicineId: string, updates: Record<string, any>) {
     const doc = await this.model
       .findOneAndUpdate(

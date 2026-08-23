@@ -409,6 +409,124 @@ export enum PRESCRIPTION_STATUS {
 
 export const PRESCRIPTION_STATUS_VALUES = Object.values(PRESCRIPTION_STATUS);
 
+// Seeded once per hospital the first time its medicine catalog is read empty
+// (see MedicinesService) — same one-time-seed idea as
+// DEFAULT_CHARGE_CATALOG_ITEMS, so a fresh hospital isn't blank on day one.
+// A spread of classes (penicillin/nsaid/cephalosporin/macrolide/tetracycline)
+// is included on purpose so the allergy-warning flow has something to catch
+// in testing without any manual catalog setup.
+export const DEFAULT_MEDICINES: {
+  name: string;
+  genericName?: string;
+  classes: string[];
+  form: MEDICINE_FORM;
+  strength?: string;
+  defaultDose?: string;
+  defaultFrequency?: string;
+  defaultFoodTiming?: (typeof FOOD_TIMING_OPTIONS)[number];
+}[] = [
+  {
+    name: 'Amoxicillin',
+    genericName: 'Amoxicillin',
+    classes: ['penicillin'],
+    form: MEDICINE_FORM.CAPSULE,
+    strength: '500mg',
+    defaultDose: '1-0-1',
+    defaultFrequency: 'Twice daily',
+    defaultFoodTiming: 'after_food',
+  },
+  {
+    name: 'Augmentin',
+    genericName: 'Amoxicillin + Clavulanic acid',
+    classes: ['penicillin'],
+    form: MEDICINE_FORM.TABLET,
+    strength: '625mg',
+    defaultDose: '1-0-1',
+    defaultFrequency: 'Twice daily',
+    defaultFoodTiming: 'after_food',
+  },
+  {
+    name: 'Azithromycin',
+    genericName: 'Azithromycin',
+    classes: ['macrolide'],
+    form: MEDICINE_FORM.TABLET,
+    strength: '500mg',
+    defaultDose: '1-0-0',
+    defaultFrequency: 'Once daily',
+    defaultFoodTiming: 'before_food',
+  },
+  {
+    name: 'Doxycycline',
+    genericName: 'Doxycycline',
+    classes: ['tetracycline'],
+    form: MEDICINE_FORM.CAPSULE,
+    strength: '100mg',
+    defaultDose: '1-0-1',
+    defaultFrequency: 'Twice daily',
+    defaultFoodTiming: 'after_food',
+  },
+  {
+    name: 'Cefuroxime',
+    genericName: 'Cefuroxime axetil',
+    classes: ['cephalosporin'],
+    form: MEDICINE_FORM.TABLET,
+    strength: '500mg',
+    defaultDose: '1-0-1',
+    defaultFrequency: 'Twice daily',
+    defaultFoodTiming: 'after_food',
+  },
+  {
+    name: 'Etoricoxib',
+    genericName: 'Etoricoxib',
+    classes: ['nsaid'],
+    form: MEDICINE_FORM.TABLET,
+    strength: '60mg',
+    defaultDose: '1-0-0',
+    defaultFrequency: 'Once daily',
+    defaultFoodTiming: 'after_food',
+  },
+  {
+    name: 'Ibuprofen',
+    genericName: 'Ibuprofen',
+    classes: ['nsaid'],
+    form: MEDICINE_FORM.TABLET,
+    strength: '400mg',
+    defaultDose: '1-1-1',
+    defaultFrequency: 'Thrice daily',
+    defaultFoodTiming: 'after_food',
+  },
+  {
+    name: 'Paracetamol',
+    genericName: 'Paracetamol',
+    classes: [],
+    form: MEDICINE_FORM.TABLET,
+    strength: '650mg',
+    defaultDose: '1-1-1',
+    defaultFrequency: 'Thrice daily',
+    defaultFoodTiming: 'after_food',
+  },
+  {
+    name: 'Pantoprazole',
+    genericName: 'Pantoprazole',
+    classes: [],
+    form: MEDICINE_FORM.TABLET,
+    strength: '40mg',
+    defaultDose: '1-0-0',
+    defaultFrequency: 'Once daily',
+    defaultFoodTiming: 'before_food',
+  },
+  {
+    name: 'Cetirizine',
+    genericName: 'Cetirizine',
+    classes: [],
+    form: MEDICINE_FORM.TABLET,
+    strength: '10mg',
+    defaultDose: '0-0-1',
+    defaultFrequency: 'Once daily, at night',
+    defaultFoodTiming: 'anytime',
+  },
+];
+
 export const MEDICAL_SPECIALIZATIONS = [
   'Cardiology',
   'Dermatology',

@@ -51,6 +51,11 @@ interface CompleteVisitDialogProps {
   patientCode?: string;
   collectedByName?: string;
   updateAppointmentStatus: UpdateStatusFn;
+  // Lets a caller that already collected these live (e.g. the doctor's Today
+  // console) carry that work into the dialog instead of losing it.
+  initialSessionNotes?: string;
+  initialFollowUp?: FollowUpOption;
+  initialExtraItems?: PaymentItem[];
   onClose: () => void;
   onSuccess: (message: string) => void;
 }
@@ -136,13 +141,18 @@ export default function CompleteVisitDialog({
   patientCode,
   collectedByName,
   updateAppointmentStatus,
+  initialSessionNotes,
+  initialFollowUp,
+  initialExtraItems,
   onClose,
   onSuccess,
 }: CompleteVisitDialogProps) {
   const [sessionNotes, setSessionNotes] = useState(
-    appointment.sessionNotes || "",
+    initialSessionNotes ?? appointment.sessionNotes ?? "",
   );
-  const [followUp, setFollowUp] = useState<FollowUpOption>("none");
+  const [followUp, setFollowUp] = useState<FollowUpOption>(
+    initialFollowUp ?? "none",
+  );
   const [items, setItems] = useState<PaymentItem[]>([
     {
       name: "Consultation",
@@ -150,6 +160,7 @@ export default function CompleteVisitDialog({
       unitPrice: consultationFee ?? 0,
       isAuto: true,
     },
+    ...(initialExtraItems ?? []),
   ]);
   const [newItemName, setNewItemName] = useState("");
   const [newItemPrice, setNewItemPrice] = useState("");

@@ -3,15 +3,23 @@ import type { Response } from 'express';
 import { ReportsService } from './reports.service';
 import { HospitalContextGuard } from '../auth/guards/hospital-context.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { CurrentHospitalUser } from '../auth/decorators/current-user.decorator';
+import type { HospitalUserProfile } from '../auth/decorators/current-user.decorator';
 import { toCsv } from '../common/csv.util';
+
+// A doctor caller only ever sees their own row — resolved from the
+// membership context, never taken from the request.
+function scopeFor(userProfile: HospitalUserProfile): string | undefined {
+  return userProfile.role === 'doctor' ? userProfile.userId : undefined;
+}
 
 @Controller('hospitals/:id/reports')
 @UseGuards(HospitalContextGuard)
-@Roles('admin')
 export class ReportsController {
   constructor(private readonly reportsService: ReportsService) {}
 
   @Get('daily-collection')
+  @Roles('admin')
   getDailyCollection(
     @Param('id') hospitalId: string,
     @Query('startDate') startDate?: string,
@@ -43,22 +51,26 @@ export class ReportsController {
   }
 
   @Get('doctor-revenue')
+  @Roles('admin', 'doctor')
   getDoctorRevenue(
     @Param('id') hospitalId: string,
+    @CurrentHospitalUser() userProfile: HospitalUserProfile,
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
   ) {
-    return this.reportsService.getDoctorRevenue(hospitalId, { startDate, endDate });
+    return this.reportsService.getDoctorRevenue(hospitalId, { startDate, endDate }, scopeFor(userProfile));
   }
 
   @Get('doctor-revenue/export.csv')
+  @Roles('admin', 'doctor')
   async exportDoctorRevenue(
     @Param('id') hospitalId: string,
+    @CurrentHospitalUser() userProfile: HospitalUserProfile,
     @Res() res: Response,
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
   ) {
-    const report = await this.reportsService.getDoctorRevenue(hospitalId, { startDate, endDate });
+    const report = await this.reportsService.getDoctorRevenue(hospitalId, { startDate, endDate }, scopeFor(userProfile));
     const csv = toCsv(report.table, [
       { label: 'Doctor', value: (r) => r.name },
       { label: 'Specialization', value: (r) => r.specialization },
@@ -77,11 +89,13 @@ export class ReportsController {
   }
 
   @Get('dues-aging')
+  @Roles('admin')
   getDuesAging(@Param('id') hospitalId: string) {
     return this.reportsService.getDuesAging(hospitalId);
   }
 
   @Get('dues-aging/export.csv')
+  @Roles('admin')
   async exportDuesAging(@Param('id') hospitalId: string, @Res() res: Response) {
     const report = await this.reportsService.getDuesAging(hospitalId);
     const csv = toCsv(report.table, [
@@ -98,22 +112,26 @@ export class ReportsController {
   }
 
   @Get('no-shows')
+  @Roles('admin', 'doctor')
   getNoShows(
     @Param('id') hospitalId: string,
+    @CurrentHospitalUser() userProfile: HospitalUserProfile,
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
   ) {
-    return this.reportsService.getNoShows(hospitalId, { startDate, endDate });
+    return this.reportsService.getNoShows(hospitalId, { startDate, endDate }, scopeFor(userProfile));
   }
 
   @Get('no-shows/export.csv')
+  @Roles('admin', 'doctor')
   async exportNoShows(
     @Param('id') hospitalId: string,
+    @CurrentHospitalUser() userProfile: HospitalUserProfile,
     @Res() res: Response,
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
   ) {
-    const report = await this.reportsService.getNoShows(hospitalId, { startDate, endDate });
+    const report = await this.reportsService.getNoShows(hospitalId, { startDate, endDate }, scopeFor(userProfile));
     const csv = toCsv(report.byDoctor, [
       { label: 'Doctor', value: (r) => r.name },
       { label: 'Booked', value: (r) => r.totalCount },
