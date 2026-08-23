@@ -14,6 +14,7 @@ export interface Patient {
   bloodGroup?: string;
   age?: string;
   address: string;
+  allergies?: string[];
   status: "active" | "inactive" | "archived" | "approved" | "pending";
   createdAt: any;
   updatedAt?: any;

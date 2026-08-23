@@ -1,9 +1,15 @@
 "use client";
 
 import { format } from "date-fns";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2, X } from "lucide-react";
 import type React from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  type KeyboardEvent,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import toast from "react-hot-toast";
 import ConfirmDeleteModal from "@/components/ConfirmDeleteModal";
 import DuplicateWarningModal, {
@@ -47,6 +53,7 @@ type FormState = {
   gender: string;
   address: string;
   notes: string;
+  allergies: string[];
   status: "active" | "inactive" | "archived" | "approved" | "pending";
 };
 
@@ -59,6 +66,7 @@ const EMPTY_FORM: FormState = {
   gender: "",
   address: "",
   notes: "",
+  allergies: [],
   status: "active",
 };
 
@@ -105,6 +113,7 @@ export default function AddEditPatient1({
   const [duplicateMatches, setDuplicateMatches] = useState<
     DuplicateMatch[] | null
   >(null);
+  const [allergyInput, setAllergyInput] = useState("");
   const [activeSection, setActiveSection] = useState<
     "personal" | "contact" | "notes"
   >("personal");
@@ -125,6 +134,7 @@ export default function AddEditPatient1({
         gender: p.gender || "",
         address: p.address || "",
         notes: p.notes || "",
+        allergies: p.allergies || [],
         status: (p.status as FormState["status"]) || "active",
       };
       setFormData(next);
@@ -182,6 +192,29 @@ export default function AddEditPatient1({
 
   function discardChanges() {
     setFormData(initialData);
+    setAllergyInput("");
+  }
+
+  function addAllergy() {
+    const value = allergyInput.trim();
+    if (value && !formData.allergies.includes(value)) {
+      update("allergies", [...formData.allergies, value]);
+    }
+    setAllergyInput("");
+  }
+
+  function removeAllergy(value: string) {
+    update(
+      "allergies",
+      formData.allergies.filter((a) => a !== value),
+    );
+  }
+
+  function onAllergyKeyDown(e: KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter" || e.key === ",") {
+      e.preventDefault();
+      addAllergy();
+    }
   }
 
   async function savePatient(confirmDuplicate = false) {
@@ -205,6 +238,7 @@ export default function AddEditPatient1({
         gender: formData.gender as GENDER,
         address: formData.address,
         notes: formData.notes,
+        allergies: formData.allergies,
       };
 
       if (isNew) {
@@ -578,16 +612,53 @@ export default function AddEditPatient1({
                 Internal notes — not shown to the patient
               </p>
             </div>
-            <Field label="Additional notes" optional>
-              <textarea
-                value={formData.notes}
+            <Field
+              label="Allergies"
+              optional
+              hint="Checked against a medicine's allergy class tags when a doctor writes a prescription."
+            >
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {formData.allergies.map((a) => (
+                  <span
+                    key={a}
+                    className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold bg-status-danger-soft text-status-danger"
+                  >
+                    {a}
+                    {canEdit && (
+                      <button
+                        type="button"
+                        onClick={() => removeAllergy(a)}
+                        className="hover:opacity-70"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    )}
+                  </span>
+                ))}
+              </div>
+              <input
+                type="text"
+                value={allergyInput}
                 disabled={!canEdit}
-                onChange={(e) => update("notes", e.target.value)}
-                placeholder="Any additional information about the patient..."
-                rows={4}
-                className={`${inputClass} resize-none`}
+                onChange={(e) => setAllergyInput(e.target.value)}
+                onKeyDown={onAllergyKeyDown}
+                onBlur={addAllergy}
+                placeholder="Type an allergy and press Enter (e.g. Penicillin)"
+                className={inputClass}
               />
             </Field>
+            <div className="mt-5">
+              <Field label="Additional notes" optional>
+                <textarea
+                  value={formData.notes}
+                  disabled={!canEdit}
+                  onChange={(e) => update("notes", e.target.value)}
+                  placeholder="Any additional information about the patient..."
+                  rows={4}
+                  className={`${inputClass} resize-none`}
+                />
+              </Field>
+            </div>
           </section>
         </div>
       </div>

@@ -4,6 +4,7 @@ import {
   AlertTriangle,
   CalendarOff,
   ClipboardList,
+  Pill,
   Receipt,
   ShieldCheck,
   Users,
@@ -44,6 +45,13 @@ export default function SettingsHubPage() {
         "Everything the front desk can add to a bill, and what it costs today.",
     },
     {
+      href: `/hospital/${hospitalId}/settings/medicines`,
+      icon: <Pill size={20} />,
+      title: "Medicines",
+      description:
+        "The catalog doctors prescribe from, including allergy class tags.",
+    },
+    {
       href: `/hospital/${hospitalId}/settings/hospital-holidays`,
       icon: <CalendarOff size={20} />,
       title: "Hospital holidays",
@@ -56,8 +64,8 @@ export default function SettingsHubPage() {
     <div>
       <h1 className="text-xl font-bold text-ink-900 mb-1">Settings</h1>
       <p className="text-sm text-ink-500 mb-5">
-        Team, roles &amp; permissions, the audit trail, the charge catalog, and
-        hospital holidays.
+        Team, roles &amp; permissions, the audit trail, the charge catalog,
+        medicines, and hospital holidays.
       </p>
 
       <div className="grid sm:grid-cols-3 gap-4">

@@ -21,6 +21,8 @@ import { ApprovalsModule } from './approvals/approvals.module';
 import { ChargeCatalogModule } from './charge-catalog/charge-catalog.module';
 import { HospitalHolidaysModule } from './hospital-holidays/hospital-holidays.module';
 import { ReportsModule } from './reports/reports.module';
+import { MedicinesModule } from './medicines/medicines.module';
+import { PrescriptionsModule } from './prescriptions/prescriptions.module';
 
 @Module({
   imports: [
@@ -43,6 +45,8 @@ import { ReportsModule } from './reports/reports.module';
     ChargeCatalogModule,
     HospitalHolidaysModule,
     ReportsModule,
+    MedicinesModule,
+    PrescriptionsModule,
     PlatformAdminModule,
   ],
   controllers: [AppController],

@@ -7,9 +7,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { useApproveRequest, useDeclineRequest } from "@/hooks/useApprovalsApi";
 import type { ApprovalRequest } from "@/types/audit";
 
-const MONEY_ACTIONS = new Set(["issue_refund", "close_day", "apply_discount"]);
+export const MONEY_ACTIONS = new Set(["issue_refund", "close_day", "apply_discount"]);
 
-const ACTION_LABELS: Record<string, string> = {
+export const ACTION_LABELS: Record<string, string> = {
   issue_refund: "Issue a refund",
   close_day: "Close the day",
   extend_expired_package: "Extend an expired package",
@@ -19,6 +19,15 @@ const ACTION_LABELS: Record<string, string> = {
   cancel_no_show: "Cancel / mark no-show",
   delete_appointment: "Delete an appointment",
 };
+
+// Same lookup ApprovalModal uses for its own "Amount" row — kept here so the
+// dashboard's approval list can show the same figure without duplicating the
+// (slightly odd) payload shape knowledge in two places.
+export function getApprovalAmount(approval: ApprovalRequest): number | undefined {
+  return approval.payload?.body?.refundReason !== undefined || approval.payload?.body?.total
+    ? approval.payload?.body?.total
+    : undefined;
+}
 
 interface ApprovalModalProps {
   hospitalId: string;
@@ -38,9 +47,7 @@ export default function ApprovalModal({ hospitalId, approval, onClose }: Approva
   const isSelf = approval.requestedBy.userId === user?.id;
   const isMoney = MONEY_ACTIONS.has(approval.action);
   const label = ACTION_LABELS[approval.action] || approval.action.replace(/_/g, " ");
-  const amount = approval.payload?.body?.refundReason !== undefined || approval.payload?.body?.total
-    ? approval.payload?.body?.total
-    : undefined;
+  const amount = getApprovalAmount(approval);
 
   const approve = async () => {
     setError(null);

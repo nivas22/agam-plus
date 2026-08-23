@@ -7,7 +7,6 @@ import {
   Check,
   ChevronDown,
   ChevronRight,
-  ClipboardList,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -87,11 +86,6 @@ export default function DoctorHospitalLayout({
       to: "/patients",
       label: "Patients",
       icon: <FaUserInjured size={18} />,
-    },
-    {
-      to: "/attendance",
-      label: "Attendance",
-      icon: <ClipboardList size={18} />,
     },
   ];
 

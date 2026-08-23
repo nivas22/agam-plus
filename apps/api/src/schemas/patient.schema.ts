@@ -42,6 +42,11 @@ export class Patient {
   @Prop()
   address?: string;
 
+  // Free-text allergy terms (e.g. "Penicillin") — matched against a
+  // Medicine's classes/name by PrescriptionsService's allergy check.
+  @Prop({ type: [String], default: [] })
+  allergies?: string[];
+
   @Prop({ default: 'active', index: true })
   status?: string;
 

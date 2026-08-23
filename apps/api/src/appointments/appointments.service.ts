@@ -145,6 +145,42 @@ export class AppointmentsService {
     };
   }
 
+  // Single-appointment fetch for surfaces that need one appointment's
+  // enriched details directly (e.g. the prescription writer route) rather
+  // than filtering the list endpoint.
+  async getAppointmentById(hospitalId: string, userProfile: HospitalUserProfile, appointmentId: string) {
+    const appointment = (await this.appointmentRepository.getAppointmentById(appointmentId)) as AppointmentWithDetails | null;
+    if (!appointment || (appointment as any).hospitalId !== hospitalId) {
+      throw ApiError.notFound('Appointment not found in this hospital');
+    }
+
+    const userRole = userProfile?.role || 'doctor';
+    if (userRole === 'doctor' && appointment.doctorProfileId !== userProfile?.userId) {
+      throw ApiError.forbidden('This appointment belongs to a different doctor');
+    }
+
+    const [patient, doctor] = await Promise.all([
+      appointment.patientId
+        ? this.patientRepository.getPatientById(appointment.patientId)
+        : null,
+      appointment.doctorProfileId
+        ? this.doctorRepository.getDoctorProfileById(appointment.doctorProfileId)
+        : null,
+    ]);
+
+    return {
+      appointment: {
+        ...appointment,
+        patientName: (patient as any)?.name ?? appointment.patientName ?? 'Unknown Patient',
+        patientPhone: (patient as any)?.phone ?? appointment.patientPhone ?? '',
+        patientAge: (patient as any)?.age ?? appointment.patientAge ?? null,
+        patientGender: (patient as any)?.gender ?? appointment.patientGender ?? '',
+        doctorName: (doctor as any)?.name ?? appointment.doctorName ?? 'Unknown Doctor',
+        doctorSpecialization: (doctor as any)?.specialization ?? appointment.doctorSpecialization ?? '',
+      },
+    };
+  }
+
   async createAppointment(hospitalId: string, user: JwtUser, userProfile: HospitalUserProfile, body: CreateAppointmentBody) {
     const { doctorProfileId, patientId, startDate, preferredTime, frequency, numberOfOccurrences, selectedDays, notes } = body;
 

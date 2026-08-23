@@ -38,7 +38,9 @@ import {
   normalizeStatus,
   OVERDUE_GRACE_MINUTES,
   type PresenceOverride,
+  presenceStorageKey,
   type QueueLane,
+  readPresenceOverrides,
   todaysWindows,
   toISODate,
 } from "./queueBoard";
@@ -55,32 +57,13 @@ type ActionDialog = {
   appt: AppointmentWithDetails;
 };
 
-function presenceStorageKey(hospitalId: string, dateISO: string): string {
-  return `queue-presence:${hospitalId}:${dateISO}`;
-}
-
-function readPresenceOverrides(
-  hospitalId: string,
-  dateISO: string,
-): Record<string, PresenceOverride> {
-  if (typeof window === "undefined") return {};
-  try {
-    const raw = window.localStorage.getItem(
-      presenceStorageKey(hospitalId, dateISO),
-    );
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
-  }
-}
-
 export default function TodaysQueuePage({
   hospitalId,
   userRole,
   canEdit,
   userId,
 }: TodaysQueuePageProps) {
-  const { user } = useAuth();
+  const { user, navigateToHospitalRoute } = useAuth();
   const [now, setNow] = useState(() => new Date());
   const [selectedAppt, setSelectedAppt] =
     useState<AppointmentWithDetails | null>(null);
@@ -449,6 +432,12 @@ export default function TodaysQueuePage({
                     canEdit={canEdit}
                     onSelect={setSelectedAppt}
                     onComplete={setCompleteAppt}
+                    onWritePrescription={(a) =>
+                      navigateToHospitalRoute(
+                        `appointments/${a.id}/prescription`,
+                        hospitalId,
+                      )
+                    }
                     onCheckIn={(a) =>
                       quickUpdate(a, APPOINTMENT_STATUS.CHECKED_IN)
                     }
@@ -725,6 +714,7 @@ function DoctorLane({
   canEdit,
   onSelect,
   onComplete,
+  onWritePrescription,
   onCheckIn,
   onSendIn,
   onAddWalkIn,
@@ -741,6 +731,7 @@ function DoctorLane({
   canEdit: boolean;
   onSelect: (a: AppointmentWithDetails) => void;
   onComplete: (a: AppointmentWithDetails) => void;
+  onWritePrescription: (a: AppointmentWithDetails) => void;
   onCheckIn: (a: AppointmentWithDetails) => void;
   onSendIn: (a: AppointmentWithDetails) => void;
   onAddWalkIn: (presetDoctorId?: string) => void;
@@ -811,11 +802,18 @@ function DoctorLane({
             ))}
           </div>
           {canEdit && (
-            <div className="px-3 pb-3">
+            <div className="px-3 pb-3 flex gap-2">
+              <button
+                type="button"
+                onClick={() => onWritePrescription(lane.inConsultation[0])}
+                className="flex-1 h-8 rounded-lg border border-border text-ink-700 hover:bg-surface-canvas text-xs font-semibold transition-colors"
+              >
+                Write prescription
+              </button>
               <button
                 type="button"
                 onClick={() => onComplete(lane.inConsultation[0])}
-                className="w-full h-8 rounded-lg bg-status-open hover:bg-status-open-hover text-white text-xs font-semibold transition-colors"
+                className="flex-1 h-8 rounded-lg bg-status-open hover:bg-status-open-hover text-white text-xs font-semibold transition-colors"
               >
                 Complete visit
               </button>

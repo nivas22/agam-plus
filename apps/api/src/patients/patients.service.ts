@@ -220,6 +220,9 @@ export class PatientsService {
       bloodGroup: patientData.bloodGroup || null,
       address: patientData.address || '',
       medicalHistory: patientData.medicalHistory || '',
+      allergies: Array.isArray(patientData.allergies)
+        ? patientData.allergies.filter(Boolean)
+        : [],
       lookingForSpecialization: patientData.lookingForSpecialization || null,
       status: 'active',
       createdBy: user.uid,
@@ -240,6 +243,7 @@ export class PatientsService {
         email: patientData.email,
         status: 'active',
         membershipStatus: 'approved',
+        allergies: patientProfileData.allergies,
       },
     };
   }

@@ -2,7 +2,7 @@ import { PERMISSION_STATE, ROLE } from '../constants';
 
 export interface PermissionActionDef {
   key: string;
-  group: 'appointments' | 'money' | 'packages' | 'patients';
+  group: 'appointments' | 'money' | 'packages' | 'patients' | 'prescriptions';
   label: string;
   description: string;
   // Read-type actions can only be ALLOWED/BLOCKED — there's no natural way to
@@ -32,6 +32,9 @@ export const PERMISSION_CATALOG: PermissionActionDef[] = [
   { key: 'add_edit_patients', group: 'patients', label: 'Add & edit patients', description: 'Contact details, not clinical data' },
   { key: 'read_session_notes', group: 'patients', label: 'Read session notes', description: 'What the doctor wrote during a visit', readOnly: true },
   { key: 'merge_duplicate_patients', group: 'patients', label: 'Merge duplicate patients', description: 'Moves visits, dues and packages', unenforced: true },
+
+  { key: 'write_prescription', group: 'prescriptions', label: 'Write & edit prescriptions', description: 'Add medicines, override allergy warnings' },
+  { key: 'manage_medicine_catalog', group: 'prescriptions', label: 'Manage the medicine catalog', description: 'Add/edit/archive medicines and their allergy tags' },
 ];
 
 export type PermissionMatrix = Record<string, PERMISSION_STATE>;
@@ -62,6 +65,8 @@ const FRONT_DESK_DEFAULTS: PermissionMatrix = {
   add_edit_patients: ALLOWED,
   read_session_notes: BLOCKED,
   merge_duplicate_patients: NEEDS_APPROVAL,
+  write_prescription: BLOCKED,
+  manage_medicine_catalog: BLOCKED,
 };
 
 const NURSE_DEFAULTS: PermissionMatrix = {
@@ -79,6 +84,8 @@ const NURSE_DEFAULTS: PermissionMatrix = {
   add_edit_patients: ALLOWED,
   read_session_notes: BLOCKED,
   merge_duplicate_patients: BLOCKED,
+  write_prescription: BLOCKED,
+  manage_medicine_catalog: BLOCKED,
 };
 
 const ACCOUNTANT_DEFAULTS: PermissionMatrix = {
@@ -96,6 +103,8 @@ const ACCOUNTANT_DEFAULTS: PermissionMatrix = {
   add_edit_patients: BLOCKED,
   read_session_notes: BLOCKED,
   merge_duplicate_patients: BLOCKED,
+  write_prescription: BLOCKED,
+  manage_medicine_catalog: BLOCKED,
 };
 
 // Owner/admin are never looked up here — PermissionsService short-circuits

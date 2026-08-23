@@ -16,6 +16,8 @@ export enum DB_COLLECTIONS {
   APPROVAL_REQUESTS = 'approval_requests',
   CHARGE_CATALOG_ITEMS = 'charge_catalog_items',
   HOSPITAL_HOLIDAYS = 'hospital_holidays',
+  MEDICINES = 'medicines',
+  PRESCRIPTIONS = 'prescriptions',
 }
 
 // FRONT_DESK/NURSE/ACCOUNTANT replace the old unused STAFF value — nothing
@@ -373,6 +375,39 @@ export const TN_HOLIDAY_SEED_LIST: {
     repeatsAnnually: true,
   },
 ];
+
+// A hospital's own free-text medicine catalog — not a fixed drug database.
+// `classes` on a Medicine (e.g. "penicillin", "nsaid") are hospital-curated
+// tags matched against a patient's `allergies` strings for the prescription
+// writer's allergy warning — see PrescriptionsService.
+export enum MEDICINE_FORM {
+  TABLET = 'tablet',
+  CAPSULE = 'capsule',
+  SYRUP = 'syrup',
+  INJECTION = 'injection',
+  DROPS = 'drops',
+  OINTMENT = 'ointment',
+  INHALER = 'inhaler',
+  OTHER = 'other',
+}
+
+export const MEDICINE_FORM_VALUES = Object.values(MEDICINE_FORM);
+
+export const FOOD_TIMING_OPTIONS = [
+  'before_food',
+  'after_food',
+  'with_food',
+  'anytime',
+] as const;
+
+// A prescription is a draft until the doctor signs it — signing just stamps
+// issuedAt; it can still be resaved afterwards (no immutability lock in v1).
+export enum PRESCRIPTION_STATUS {
+  DRAFT = 'draft',
+  SIGNED = 'signed',
+}
+
+export const PRESCRIPTION_STATUS_VALUES = Object.values(PRESCRIPTION_STATUS);
 
 export const MEDICAL_SPECIALIZATIONS = [
   'Cardiology',

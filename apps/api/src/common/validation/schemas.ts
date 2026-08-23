@@ -8,6 +8,9 @@ import {
   PACKAGE_PAYMENT_METHOD_VALUES,
   CHARGE_CATALOG_CATEGORY_VALUES,
   HOLIDAY_CLOSURE_TYPE_VALUES,
+  MEDICINE_FORM_VALUES,
+  FOOD_TIMING_OPTIONS,
+  PRESCRIPTION_STATUS_VALUES,
 } from '../../constants';
 
 /* -------------------------------------------------------------------------- */
@@ -239,6 +242,7 @@ export const createPatientSchema = z.object({
   email: z.string().email('Invalid email format').optional(),
   address: z.string().optional(),
   medicalHistory: z.string().optional(),
+  allergies: z.array(z.string()).optional(),
 });
 
 export const updatePatientSchema = createPatientSchema.partial();
@@ -428,4 +432,59 @@ export const generateHolidayRepeatsSchema = z.object({
 
 export const importTnHolidayListSchema = z.object({
   year: z.number().int(),
+});
+
+/* -------------------------------------------------------------------------- */
+/*                            MEDICINE SCHEMAS                                */
+/* -------------------------------------------------------------------------- */
+
+export const createMedicineSchema = z.object({
+  name: z.string().min(1, 'Name is required'),
+  genericName: z.string().optional(),
+  classes: z.array(z.string()).default([]),
+  form: z.enum(MEDICINE_FORM_VALUES as [string, ...string[]]),
+  strength: z.string().optional(),
+  defaultDose: z.string().optional(),
+  defaultFrequency: z.string().optional(),
+  defaultFoodTiming: z.enum(FOOD_TIMING_OPTIONS).optional(),
+});
+
+export const updateMedicineSchema = createMedicineSchema.partial();
+
+export const medicineStatusSchema = z.object({
+  status: z.enum(['active', 'archived']),
+});
+
+/* -------------------------------------------------------------------------- */
+/*                          PRESCRIPTION SCHEMAS                              */
+/* -------------------------------------------------------------------------- */
+
+const prescriptionItemSchema = z.object({
+  medicineId: z.string().min(1),
+  medicineName: z.string().min(1),
+  strength: z.string().optional(),
+  form: z.string().optional(),
+  dose: z.string().min(1, 'Dose is required'),
+  frequency: z.string().optional(),
+  foodTiming: z.enum(FOOD_TIMING_OPTIONS).optional(),
+  duration: z.string().optional(),
+  quantity: z.string().optional(),
+  note: z.string().optional(),
+});
+
+const allergyOverrideSchema = z.object({
+  medicineId: z.string().min(1),
+  medicineName: z.string().min(1),
+  matchedAllergyTerm: z.string().min(1),
+  reason: z.string().min(1, 'A reason is required to override an allergy warning'),
+});
+
+export const savePrescriptionSchema = z.object({
+  items: z.array(prescriptionItemSchema).default([]),
+  allergyOverrides: z.array(allergyOverrideSchema).default([]),
+  advice: z.string().optional(),
+});
+
+export const prescriptionStatusSchema = z.object({
+  status: z.enum(PRESCRIPTION_STATUS_VALUES as [string, ...string[]]),
 });

@@ -16,6 +16,8 @@ import { AuditLogRepository } from './audit-log.repository';
 import { ApprovalRequestRepository } from './approval-request.repository';
 import { ChargeCatalogItemRepository } from './charge-catalog-item.repository';
 import { HospitalHolidayRepository } from './hospital-holiday.repository';
+import { MedicineRepository } from './medicine.repository';
+import { PrescriptionRepository } from './prescription.repository';
 import { User, UserSchema } from '../schemas/user.schema';
 import { Hospital, HospitalSchema } from '../schemas/hospital.schema';
 import {
@@ -46,6 +48,8 @@ import {
   HospitalHoliday,
   HospitalHolidaySchema,
 } from '../schemas/hospital-holiday.schema';
+import { Medicine, MedicineSchema } from '../schemas/medicine.schema';
+import { Prescription, PrescriptionSchema } from '../schemas/prescription.schema';
 
 const repositories = [
   UserRepository,
@@ -64,6 +68,8 @@ const repositories = [
   ApprovalRequestRepository,
   ChargeCatalogItemRepository,
   HospitalHolidayRepository,
+  MedicineRepository,
+  PrescriptionRepository,
 ];
 
 @Global()
@@ -85,6 +91,8 @@ const repositories = [
       { name: ApprovalRequest.name, schema: ApprovalRequestSchema },
       { name: ChargeCatalogItem.name, schema: ChargeCatalogItemSchema },
       { name: HospitalHoliday.name, schema: HospitalHolidaySchema },
+      { name: Medicine.name, schema: MedicineSchema },
+      { name: Prescription.name, schema: PrescriptionSchema },
     ]),
   ],
   providers: repositories,

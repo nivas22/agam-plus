@@ -37,6 +37,15 @@ export class AppointmentsController {
     });
   }
 
+  @Get(':appointmentId')
+  getAppointment(
+    @Param('id') hospitalId: string,
+    @Param('appointmentId') appointmentId: string,
+    @CurrentHospitalUser() userProfile: HospitalUserProfile,
+  ) {
+    return this.appointmentsService.getAppointmentById(hospitalId, userProfile, appointmentId);
+  }
+
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @Roles('admin', 'doctor', 'front_desk', 'nurse')

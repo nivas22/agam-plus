@@ -246,6 +246,28 @@ export interface DoctorPresence {
   detail: string;
 }
 
+export function presenceStorageKey(hospitalId: string, dateISO: string): string {
+  return `queue-presence:${hospitalId}:${dateISO}`;
+}
+
+// Reads today's manual presence overrides for a hospital. Safe to call from
+// any page that wants a read-only view of presence (e.g. the dashboard) —
+// only the queue page itself writes to this key.
+export function readPresenceOverrides(
+  hospitalId: string,
+  dateISO: string,
+): Record<string, PresenceOverride> {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = window.localStorage.getItem(
+      presenceStorageKey(hospitalId, dateISO),
+    );
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
 export function computePresence(
   lane: QueueLane,
   override: PresenceOverride | undefined,

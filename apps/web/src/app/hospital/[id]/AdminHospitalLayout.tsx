@@ -7,7 +7,6 @@ import {
   Check,
   ChevronDown,
   ChevronRight,
-  ClipboardList,
   IndianRupee,
   LayoutDashboard,
   ListChecks,
@@ -120,11 +119,6 @@ export default function AdminHospitalLayout({
       label: "Payments",
       icon: <IndianRupee size={18} />,
       isNew: true,
-    },
-    {
-      to: "/attendance",
-      label: "Attendance",
-      icon: <ClipboardList size={18} />,
     },
     ...(isAdmin
       ? [
