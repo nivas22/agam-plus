@@ -1,12 +1,24 @@
-'use client';
+"use client";
 
+import {
+  Calendar,
+  Clock,
+  Mail,
+  MapPin,
+  Pencil,
+  Phone,
+  Stethoscope,
+  Trash2,
+  UserCircle2,
+  X,
+} from "lucide-react";
+import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { X, Mail, Phone, MapPin, Calendar, Clock, Stethoscope, Pencil, Trash2 } from "lucide-react";
-import { calculateAge, formatAppointmentDate } from "@/utils/dateUtils";
-import { Patient } from "@/types/patientNew";
-import { Appointment } from "@/types/appointment";
-import { patientStatusConfig } from "@/lib/patientStatus";
 import { paletteFor } from "@/lib/avatarPalette";
+import { patientStatusConfig } from "@/lib/patientStatus";
+import type { Appointment } from "@/types/appointment";
+import type { Patient } from "@/types/patientNew";
+import { calculateAge, formatAppointmentDate } from "@/utils/dateUtils";
 
 interface PatientDetailSidebarProps {
   patient: Patient | null;
@@ -18,8 +30,8 @@ interface PatientDetailSidebarProps {
 }
 
 const getInitials = (name?: string) => {
-  const parts = (name || '').trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return 'P';
+  const parts = (name || "").trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "P";
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 };
@@ -32,8 +44,13 @@ export default function PatientDetailSidebar({
   futureAppointments = [],
   canEdit = true,
 }: PatientDetailSidebarProps) {
-  const [renderedPatient, setRenderedPatient] = useState<Patient | null>(patient);
+  const [renderedPatient, setRenderedPatient] = useState<Patient | null>(
+    patient,
+  );
   const [closing, setClosing] = useState(false);
+  const router = useRouter();
+  const params = useParams();
+  const hospitalId = params.id as string;
 
   useEffect(() => {
     if (patient) {
@@ -51,7 +68,7 @@ export default function PatientDetailSidebar({
   if (!renderedPatient) return null;
   const p = renderedPatient;
   const status = patientStatusConfig(p.status);
-  const [c1, c2] = paletteFor(p.name || 'Patient');
+  const [c1, c2] = paletteFor(p.name || "Patient");
   const initials = getInitials(p.name);
   const age = p.dateOfBirth ? calculateAge(p.dateOfBirth) : null;
 
@@ -63,13 +80,13 @@ export default function PatientDetailSidebar({
   return (
     <div className="fixed inset-0 z-50">
       <div
-        className={`absolute inset-0 bg-ink-900/40 ${closing ? 'animate-sidebarFadeOut' : 'animate-sidebarFadeIn'}`}
+        className={`absolute inset-0 bg-ink-900/40 ${closing ? "animate-sidebarFadeOut" : "animate-sidebarFadeIn"}`}
         onClick={onClose}
       />
 
       <div
         className={`absolute right-0 top-0 h-full w-full sm:w-[440px] bg-surface-paper shadow-2xl flex flex-col ${
-          closing ? 'animate-sidebarSlideOut' : 'animate-sidebarSlideIn'
+          closing ? "animate-sidebarSlideOut" : "animate-sidebarSlideIn"
         }`}
       >
         {/* Header */}
@@ -84,7 +101,9 @@ export default function PatientDetailSidebar({
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <h2 className="text-base font-bold text-ink-900 truncate">{p.name || 'Unnamed Patient'}</h2>
+                  <h2 className="text-base font-bold text-ink-900 truncate">
+                    {p.name || "Unnamed Patient"}
+                  </h2>
                   {p.patientId && (
                     <span className="px-2 py-0.5 bg-brand-violet-soft text-brand-violet text-xs font-semibold rounded-md shrink-0">
                       #{p.patientId}
@@ -92,7 +111,10 @@ export default function PatientDetailSidebar({
                   )}
                 </div>
                 <p className="text-sm text-ink-500 truncate">
-                  {p.gender ? p.gender.charAt(0).toUpperCase() + p.gender.slice(1).toLowerCase() : 'Unknown'}
+                  {p.gender
+                    ? p.gender.charAt(0).toUpperCase() +
+                      p.gender.slice(1).toLowerCase()
+                    : "Unknown"}
                   {age !== null && ` · ${age} yrs`}
                 </p>
                 <span
@@ -101,6 +123,15 @@ export default function PatientDetailSidebar({
                   <span className={`w-1.5 h-1.5 rounded-full ${status.dot}`} />
                   {status.label}
                 </span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    router.push(`/hospital/${hospitalId}/patients/${p.id}`)
+                  }
+                  className="flex items-center gap-1 mt-1.5 text-xs font-medium text-brand-violet hover:underline"
+                >
+                  <UserCircle2 className="w-3.5 h-3.5" /> View full profile
+                </button>
               </div>
             </div>
 
@@ -137,7 +168,9 @@ export default function PatientDetailSidebar({
         {/* Content */}
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
           <section className="space-y-3">
-            <h3 className="text-xs font-bold uppercase tracking-wide text-ink-500">Contact</h3>
+            <h3 className="text-xs font-bold uppercase tracking-wide text-ink-500">
+              Contact
+            </h3>
             <div className="space-y-2.5">
               {p.email && (
                 <div className="flex items-center gap-3 text-sm text-ink-700">
@@ -161,7 +194,9 @@ export default function PatientDetailSidebar({
           </section>
 
           <section className="space-y-3">
-            <h3 className="text-xs font-bold uppercase tracking-wide text-ink-500">Next Appointment</h3>
+            <h3 className="text-xs font-bold uppercase tracking-wide text-ink-500">
+              Next Appointment
+            </h3>
             {nextAppointment ? (
               <div className="bg-brand-violet-soft rounded-xl p-3.5 border border-brand-violet/20">
                 <div className="flex items-center gap-3">
@@ -189,7 +224,10 @@ export default function PatientDetailSidebar({
                     <span className="truncate">
                       Dr. {nextAppointment.doctor.name}
                       {nextAppointment.doctor.specialization && (
-                        <span className="text-ink-500"> ({nextAppointment.doctor.specialization})</span>
+                        <span className="text-ink-500">
+                          {" "}
+                          ({nextAppointment.doctor.specialization})
+                        </span>
                       )}
                     </span>
                   </div>
@@ -204,7 +242,10 @@ export default function PatientDetailSidebar({
             {patientAppointments.length > 1 && (
               <div className="space-y-2">
                 {patientAppointments.slice(1, 4).map((appt, index) => (
-                  <div key={appt.id || index} className="bg-surface-canvas rounded-lg p-2.5 border border-border">
+                  <div
+                    key={appt.id || index}
+                    className="bg-surface-canvas rounded-lg p-2.5 border border-border"
+                  >
                     <div className="text-sm font-medium text-ink-900">
                       {formatAppointmentDate(appt.date).date}
                     </div>
@@ -221,7 +262,9 @@ export default function PatientDetailSidebar({
 
           {p.notes && (
             <section className="space-y-3">
-              <h3 className="text-xs font-bold uppercase tracking-wide text-ink-500">Notes</h3>
+              <h3 className="text-xs font-bold uppercase tracking-wide text-ink-500">
+                Notes
+              </h3>
               <div className="bg-status-warning-soft border border-status-warning/20 rounded-xl p-3.5">
                 <p className="text-sm text-ink-700">{p.notes}</p>
               </div>

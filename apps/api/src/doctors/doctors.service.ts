@@ -4,10 +4,12 @@ import { MembershipRepository } from '../repositories/membership.repository';
 import { DoctorRepository } from '../repositories/doctor.repository';
 import { UserRepository } from '../repositories/user.repository';
 import { AppointmentRepository } from '../repositories/appointment.repository';
+import { HospitalHolidayRepository } from '../repositories/hospital-holiday.repository';
 import { EmailService } from '../email/email.service';
 import { ApiError } from '../common/errors/api-error';
 import { DoctorProfile, TimeSlot } from '../types/doctor';
-import { ACTIVE_APPOINTMENT_STATUSES } from '../constants';
+import { ACTIVE_APPOINTMENT_STATUSES, ROLE } from '../constants';
+import { findHolidayForDate, filterSlotsForHoliday } from '../hospital-holidays/holiday-availability.util';
 
 @Injectable()
 export class DoctorsService {
@@ -16,6 +18,7 @@ export class DoctorsService {
     private readonly doctorRepository: DoctorRepository,
     private readonly userRepository: UserRepository,
     private readonly appointmentRepository: AppointmentRepository,
+    private readonly hospitalHolidayRepository: HospitalHolidayRepository,
     private readonly emailService: EmailService,
     private readonly config: ConfigService,
   ) {}
@@ -111,6 +114,8 @@ export class DoctorsService {
         consultationFee: membership.consultationFee || null,
         availability: membership.availability || null,
         appointmentDuration: membership.appointmentDuration || 30,
+        bufferMinutes: membership.bufferMinutes || 0,
+        patientsPerSlot: membership.patientsPerSlot || 1,
         experience: prof.experience || null,
         bio: prof.bio || '',
         address: prof.address || '',
@@ -191,10 +196,22 @@ export class DoctorsService {
       status?: 'active' | 'inactive' | 'pending';
       availability?: TimeSlot[];
       appointmentDuration?: number;
+      bufferMinutes?: number;
+      patientsPerSlot?: number;
     },
   ) {
     // Check if user exists by email
     const existingUser = await this.userRepository.getUserByEmail(doctorData.email);
+    const existingUserId = existingUser ? (existingUser as any).id : undefined;
+
+    if (!(doctorData as any).confirmDuplicate && doctorData.phone) {
+      const duplicates = await this.findDoctorsByPhone(hospitalId, doctorData.phone, existingUserId);
+      if (duplicates.length > 0) {
+        throw ApiError.conflict(`A doctor with phone ${doctorData.phone} already exists in this hospital`, {
+          duplicates,
+        });
+      }
+    }
 
     let doctorUserId: string;
     if (!existingUser) {
@@ -209,6 +226,17 @@ export class DoctorsService {
 
     // Check if membership already exists
     const existingMembership = await this.membershipRepository.getHospitalMembershipData(doctorUserId, hospitalId);
+
+    // A hospital membership is one row per (userId, hospitalId) carrying a single
+    // role — there's no membership-level support for "this person is both a
+    // patient and a doctor here" yet. Rather than silently overwrite a patient's
+    // membership with doctor-only fields (and leave their role stuck as
+    // 'patient', which would then fail every doctor-only route), fail loudly.
+    if (existingMembership && (existingMembership as any).role !== 'doctor') {
+      throw ApiError.conflict(
+        `This person is already a ${(existingMembership as any).role} at this hospital and can't also be added as a doctor yet`,
+      );
+    }
 
     if (!existingMembership) {
       // Create hospital membership with specialization and consultationFee
@@ -226,6 +254,8 @@ export class DoctorsService {
         isAcceptingBookings: doctorData.status !== 'inactive',
         availability: doctorData.availability || [],
         appointmentDuration: doctorData.appointmentDuration || 30,
+        bufferMinutes: doctorData.bufferMinutes || 0,
+        patientsPerSlot: doctorData.patientsPerSlot || 1,
       });
     } else {
       // Update existing membership with specialization, consultationFee, and scheduling fields if provided
@@ -234,6 +264,8 @@ export class DoctorsService {
       if (doctorData.consultationFee) updates.consultationFee = doctorData.consultationFee;
       if (doctorData.availability) updates.availability = doctorData.availability;
       if (doctorData.appointmentDuration) updates.appointmentDuration = doctorData.appointmentDuration;
+      if (doctorData.bufferMinutes !== undefined) updates.bufferMinutes = doctorData.bufferMinutes;
+      if (doctorData.patientsPerSlot) updates.patientsPerSlot = doctorData.patientsPerSlot;
 
       if (Object.keys(updates).length > 0) {
         await this.membershipRepository.updateHospitalMembership((existingMembership as any).id, updates);
@@ -259,7 +291,7 @@ export class DoctorsService {
 
     // Send welcome email notification to the doctor
     try {
-      const hospitalName = this.config.get<string>('HOSPITAL_NAME') || 'Hospital';
+      const hospitalName = 'Hospital';
 
       await this.emailService.sendDoctorWelcomeEmail(doctorData.email, doctorData.name, hospitalName);
     } catch (emailError) {
@@ -310,6 +342,8 @@ export class DoctorsService {
       consultationFee: membershipData?.consultationFee,
       availability: membershipData?.availability || [],
       appointmentDuration: membershipData?.appointmentDuration || 30,
+      bufferMinutes: membershipData?.bufferMinutes || 0,
+      patientsPerSlot: membershipData?.patientsPerSlot || 1,
       membershipId: membershipData?.id,
       membershipStatus: membershipData?.status,
     };
@@ -401,6 +435,12 @@ export class DoctorsService {
     if (updates.appointmentDuration !== undefined) {
       membershipUpdates.appointmentDuration = updates.appointmentDuration;
     }
+    if (updates.bufferMinutes !== undefined) {
+      membershipUpdates.bufferMinutes = updates.bufferMinutes;
+    }
+    if (updates.patientsPerSlot !== undefined) {
+      membershipUpdates.patientsPerSlot = updates.patientsPerSlot;
+    }
 
     // Update the membership if there are any updates
     if (Object.keys(membershipUpdates).length > 0) {
@@ -457,6 +497,8 @@ export class DoctorsService {
           name: doctorData.name,
           specialization: doctorData.specialization,
           appointmentDuration: doctorData.appointmentDuration || 30,
+          bufferMinutes: doctorData.bufferMinutes || 0,
+          patientsPerSlot: doctorData.patientsPerSlot || 1,
         },
       };
     }
@@ -466,6 +508,8 @@ export class DoctorsService {
     return {
       availability: doctorData.availability || [],
       appointmentDuration: doctorData.appointmentDuration || 30,
+      bufferMinutes: doctorData.bufferMinutes || 0,
+      patientsPerSlot: doctorData.patientsPerSlot || 1,
       isAvailabilityUpdated: memberData.isAvailabilityUpdated || false,
     };
   }
@@ -473,9 +517,9 @@ export class DoctorsService {
   async saveAvailability(
     hospitalId: string,
     doctorId: string,
-    body: { availability: TimeSlot[]; appointmentDuration?: number },
+    body: { availability: TimeSlot[]; appointmentDuration?: number; bufferMinutes?: number; patientsPerSlot?: number },
   ) {
-    const { availability, appointmentDuration } = body;
+    const { availability, appointmentDuration, bufferMinutes, patientsPerSlot } = body;
 
     if (!availability || !Array.isArray(availability)) {
       throw ApiError.badRequest('Availability array is required');
@@ -508,6 +552,14 @@ export class DoctorsService {
       updateData.appointmentDuration = appointmentDuration;
     }
 
+    if (bufferMinutes !== undefined) {
+      updateData.bufferMinutes = bufferMinutes;
+    }
+
+    if (patientsPerSlot) {
+      updateData.patientsPerSlot = patientsPerSlot;
+    }
+
     await this.membershipRepository.updateHospitalMembership(memberDoc.id, updateData);
 
     return {
@@ -518,6 +570,8 @@ export class DoctorsService {
         hospitalId,
         availability,
         appointmentDuration,
+        bufferMinutes,
+        patientsPerSlot,
       },
     };
   }
@@ -546,6 +600,8 @@ export class DoctorsService {
         name: doctorData.name,
         specialization: doctorData.specialization,
         appointmentDuration: doctorData.appointmentDuration || 30,
+        bufferMinutes: doctorData.bufferMinutes || 0,
+        patientsPerSlot: doctorData.patientsPerSlot || 1,
       },
     };
   }
@@ -580,6 +636,28 @@ export class DoctorsService {
     };
   }
 
+  // Finds doctors already in this hospital whose profile phone matches, so
+  // createDoctor can warn about a likely duplicate before creating a second
+  // profile under a different email for the same person.
+  private async findDoctorsByPhone(hospitalId: string, phone: string, excludeUserId?: string) {
+    const members = await this.membershipRepository.getHospitalMembers(hospitalId, { role: ROLE.DOCTOR });
+    const memberUserIds = members
+      .map((m: any) => m.userId)
+      .filter((userId: string) => userId && userId !== excludeUserId);
+
+    if (memberUserIds.length === 0) return [];
+
+    const profiles = await this.doctorRepository.getDoctorProfilesByUserIds(memberUserIds);
+    return profiles
+      .filter((p: any) => p.phone === phone)
+      .map((p: any) => ({
+        id: p.userId,
+        name: p.name,
+        phone: p.phone,
+        specialization: p.specialization,
+      }));
+  }
+
   // Helper function to find next available slot
   private async findNextAvailableSlot(
     doctor: any,
@@ -596,7 +674,7 @@ export class DoctorsService {
 
       if (slots.length > 0) {
         // If we have a preferred time and it's available, use it
-        if (preferredTime && slots.includes(preferredTime)) {
+        if (preferredTime && slots.some((s) => s.time === preferredTime)) {
           return {
             date: currentDate.toISOString().split('T')[0],
             time: preferredTime,
@@ -606,7 +684,7 @@ export class DoctorsService {
         // Otherwise, use the first available slot
         return {
           date: currentDate.toISOString().split('T')[0],
-          time: slots[0],
+          time: slots[0].time,
         };
       }
 
@@ -620,7 +698,10 @@ export class DoctorsService {
   }
 
   // Helper function to get available slots
-  private async getAvailableSlots(doctor: any, date: string): Promise<string[]> {
+  private async getAvailableSlots(
+    doctor: any,
+    date: string,
+  ): Promise<{ time: string; remaining: number; capacity: number }[]> {
     try {
       const doctorAvailability = doctor?.availability || [];
 
@@ -628,9 +709,10 @@ export class DoctorsService {
       const dateObj = new Date(date);
       const dayOfWeek = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
 
-      // Check if doctor is available on this day
-      const dayAvailability = doctorAvailability.find((a: any) => a.day === dayOfWeek);
-      if (!dayAvailability) return [];
+      // Check if doctor is available on this day — a day can have more than one
+      // working window (e.g. a morning and an evening shift), so collect all of them.
+      const dayWindows = doctorAvailability.filter((a: any) => a.day === dayOfWeek);
+      if (dayWindows.length === 0) return [];
 
       // Get existing appointments using repository function
       // Include legacy 'scheduled' for appointments created before this status migration.
@@ -639,33 +721,58 @@ export class DoctorsService {
         'scheduled',
       ]);
 
-      const existingTimes = existingAppointments.map((appt: any) => appt.time);
+      // Count how many patients are already booked into each slot, so a slot
+      // stays available until it reaches the doctor's patientsPerSlot capacity.
+      const bookedCounts: Record<string, number> = {};
+      for (const appt of existingAppointments as any[]) {
+        bookedCounts[appt.time] = (bookedCounts[appt.time] || 0) + 1;
+      }
 
       // Check if the date is today
       const today = new Date();
       const isToday = dateObj.toDateString() === today.toDateString();
       const currentTime = isToday ? today : null;
 
-      // Build available slots
-      const slots: string[] = [];
-      const startTime = new Date(`${date}T${dayAvailability.startTime}`);
-      const endTime = new Date(`${date}T${dayAvailability.endTime}`);
+      // Build available slots across every window for this day
+      const slots: { time: string; remaining: number; capacity: number }[] = [];
       const duration = doctor.appointmentDuration || 30;
-      const current = new Date(startTime);
+      const gap = Math.max(0, doctor.bufferMinutes || 0);
+      const capacity = Math.max(1, doctor.patientsPerSlot || 1);
+      const step = duration + gap;
 
-      while (current < endTime) {
-        const timeString = current.toTimeString().substring(0, 5);
+      for (const dayAvailability of dayWindows) {
+        const startTime = new Date(`${date}T${dayAvailability.startTime}`);
+        const endTime = new Date(`${date}T${dayAvailability.endTime}`);
+        const current = new Date(startTime);
 
-        // Skip past time slots if the date is today
-        if (isToday && currentTime && current <= currentTime) {
-          current.setMinutes(current.getMinutes() + duration);
-          continue;
+        // A slot only counts as bookable if the appointment fits before closing time.
+        while (current.getTime() + duration * 60000 <= endTime.getTime()) {
+          const timeString = current.toTimeString().substring(0, 5);
+
+          // Skip past time slots if the date is today
+          if (isToday && currentTime && current <= currentTime) {
+            current.setMinutes(current.getMinutes() + step);
+            continue;
+          }
+
+          const booked = bookedCounts[timeString] || 0;
+          if (booked < capacity) {
+            slots.push({ time: timeString, remaining: capacity - booked, capacity });
+          }
+          current.setMinutes(current.getMinutes() + step);
         }
+      }
 
-        if (!existingTimes.includes(timeString)) {
-          slots.push(timeString);
-        }
-        current.setMinutes(current.getMinutes() + duration);
+      slots.sort((a, b) => a.time.localeCompare(b.time));
+
+      if (doctor?.hospitalId) {
+        const holidays = await this.hospitalHolidayRepository.getActiveInRange(
+          doctor.hospitalId,
+          date,
+          date,
+        );
+        const holiday = findHolidayForDate(holidays, date);
+        return filterSlotsForHoliday(slots, holiday, doctor.userId);
       }
 
       return slots;

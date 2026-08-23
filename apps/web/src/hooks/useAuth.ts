@@ -11,7 +11,7 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { AuthData, AuthError, Hospital, LoginSuccess } from '@/types/auth';
 import { HospitalMember } from '@/types/doctorNew';
-import { MEMBERSHIP_STATUS, ROLE } from '../constants';
+import { MEMBERSHIP_STATUS, ROLE, STAFF_CONSOLE_ROLES } from '../constants';
 
 
 // Query keys
@@ -232,14 +232,13 @@ export function useAuth() {
   };
 
   // Dynamic route helpers
-  const getHospitalRoute = (path: string, hospitalId?: string, isMobile?: boolean) => {
+  const getHospitalRoute = (path: string, hospitalId?: string) => {
   const targetHospitalId = hospitalId || currentHospital?.id;
   if (!targetHospitalId) return '/select-hospital';
-  
+
   // Remove any leading/trailing slashes and ensure proper formatting
   const cleanPath = path.replace(/^\/+|\/+$/g, '');
-  return isMobile ? `/mobile/hospital/${targetHospitalId}/${cleanPath}` : 
-  `/hospital/${targetHospitalId}/${cleanPath}`;
+  return `/hospital/${targetHospitalId}/${cleanPath}`;
 };
 
 const navigateToHospitalRoute = (path: string, hospitalId?: string) => {
@@ -248,15 +247,15 @@ const navigateToHospitalRoute = (path: string, hospitalId?: string) => {
 };
 
   // Role-based redirect paths
-  const getRoleBasedRedirect = (hospitalId?: string, isMobile?: boolean) => {
+  const getRoleBasedRedirect = (hospitalId?: string) => {
     const targetHospitalId = hospitalId || currentHospital?.id;
-    
+
     if (!targetHospitalId) {
       return '/select-hospital';
     }
 
     const membership = hospitals.find(h => h.hospitalId === targetHospitalId);
-    
+
     if (!membership) {
       return '/select-hospital';
     }
@@ -265,7 +264,7 @@ const navigateToHospitalRoute = (path: string, hospitalId?: string) => {
 
     switch (role) {
       case ROLE.ADMIN:
-        return getHospitalRoute('/dashboard', targetHospitalId, isMobile);
+        return getHospitalRoute('/dashboard', targetHospitalId);
       case ROLE.DOCTOR:
 
         if (status === MEMBERSHIP_STATUS.PENDING) {
@@ -276,8 +275,10 @@ const navigateToHospitalRoute = (path: string, hospitalId?: string) => {
          return '/setup'
         }
 
-        return getHospitalRoute('/dashboard', targetHospitalId, isMobile);
-      case ROLE.STAFF:
+        return getHospitalRoute('/dashboard', targetHospitalId);
+      case ROLE.FRONT_DESK:
+      case ROLE.NURSE:
+      case ROLE.ACCOUNTANT:
         return status === MEMBERSHIP_STATUS.APPROVED
           ? getHospitalRoute('/dashboard', targetHospitalId)
           : '/select-hospital';
@@ -294,6 +295,14 @@ const navigateToHospitalRoute = (path: string, hospitalId?: string) => {
     
     if (!membership || membership.status !== MEMBERSHIP_STATUS.APPROVED) {
       return false;
+    }
+
+    if (requiredRole === 'admin') {
+      // The admin console shell is shared by front desk/nurse/accountant too —
+      // each endpoint enforces its own finer-grained permission server-side
+      // (see Roles & permissions), so the frontend only needs to admit them
+      // to the same layout, not gate them out at the role level.
+      return STAFF_CONSOLE_ROLES.includes(membership.role);
     }
 
     if (requiredRole && membership.role !== requiredRole) {
@@ -346,7 +355,7 @@ const navigateToHospitalRoute = (path: string, hospitalId?: string) => {
     // Current context
     isAdmin: getCurrentHospitalRole() === ROLE.ADMIN,
     isDoctor: getCurrentHospitalRole() === ROLE.DOCTOR,
-    isStaff: getCurrentHospitalRole() === ROLE.STAFF,
+    isStaff: [ROLE.FRONT_DESK, ROLE.NURSE, ROLE.ACCOUNTANT].includes(getCurrentHospitalRole() as ROLE),
     isPatient: getCurrentHospitalRole() === ROLE.PATIENT,
     isApproved: getCurrentHospitalStatus() === MEMBERSHIP_STATUS.APPROVED,
     isPending: getCurrentHospitalStatus() === MEMBERSHIP_STATUS.PENDING,

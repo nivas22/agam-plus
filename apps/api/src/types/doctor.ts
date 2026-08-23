@@ -19,6 +19,8 @@ export interface Doctor {
   location?: string;
   availability?: TimeSlot[];
   appointmentDuration?: number;
+  bufferMinutes?: number;
+  patientsPerSlot?: number;
 }
 
 export interface DoctorProfile {
@@ -40,6 +42,8 @@ export interface DoctorProfile {
   gender?: string;
   maritalStatus?: string;
   appointmentDuration?: number;
+  bufferMinutes?: number;
+  patientsPerSlot?: number;
   membershipId?: string | null;
   membershipStatus?: string;
   joinedAt?: Date | string | null;
@@ -56,7 +60,7 @@ export interface HospitalMember {
   id: string;
   hospitalId: string;
   userId: string;
-  role: 'admin' | 'doctor' | 'staff' | 'patient';
+  role: 'admin' | 'doctor' | 'front_desk' | 'nurse' | 'accountant' | 'patient';
   status: 'pending' | 'approved' | 'rejected';
   joinedAt: any;
   invitedBy?: string;

@@ -51,6 +51,7 @@ export class HospitalContextGuard implements CanActivate {
       email: user.email || '',
       specialization: doctorProfile?.specialization || '',
       role: userRole,
+      isOwner: !!(membership as any).isOwner,
       currentHospital: hospitalProfile,
       doctorProfile,
     };

@@ -3,15 +3,20 @@ import { AppointmentRepository } from '../repositories/appointment.repository';
 import { DoctorRepository } from '../repositories/doctor.repository';
 import { PatientRepository } from '../repositories/patient.repository';
 import { MembershipRepository } from '../repositories/membership.repository';
+import { HospitalHolidayRepository } from '../repositories/hospital-holiday.repository';
+import { PermissionsService } from '../permissions/permissions.service';
+import { AuditService } from '../audit/audit.service';
 import { ApiError } from '../common/errors/api-error';
 import { AppointmentWithDetails } from '../types/appointment';
 import { JwtUser, HospitalUserProfile } from '../auth/decorators/current-user.decorator';
 import { CreateAppointmentBody, UpdateAppointmentBody, AppointmentListQuery } from './appointments.types';
+import { findHolidayForDate, filterSlotsForHoliday } from '../hospital-holidays/holiday-availability.util';
 import {
   APPOINTMENT_STATUS,
   ACTIVE_APPOINTMENT_STATUSES,
   isValidAppointmentTransition,
   normalizeAppointmentStatus,
+  PERMISSION_STATE,
 } from '../constants';
 
 // Timestamp field to stamp when an appointment enters a given status.
@@ -45,6 +50,9 @@ export class AppointmentsService {
     private readonly doctorRepository: DoctorRepository,
     private readonly patientRepository: PatientRepository,
     private readonly membershipRepository: MembershipRepository,
+    private readonly hospitalHolidayRepository: HospitalHolidayRepository,
+    private readonly permissionsService: PermissionsService,
+    private readonly auditService: AuditService,
   ) {}
 
   async getAppointments(hospitalId: string, userProfile: HospitalUserProfile, query: AppointmentListQuery) {
@@ -118,11 +126,58 @@ export class AppointmentsService {
       } as AppointmentWithDetails;
     });
 
+    // read_session_notes is a response-shaping check, not a request-blocking
+    // one — there's no natural way to queue a read for approval, so
+    // needs_approval collapses to blocked here (see PermissionsService.getActionState).
+    const notesState = await this.permissionsService.getActionState(hospitalId, userRole, 'read_session_notes', {
+      isOwner: userProfile?.isOwner,
+    });
+    const visibleAppointments =
+      notesState === PERMISSION_STATE.ALLOWED
+        ? appointmentsWithDetails
+        : appointmentsWithDetails.map(({ sessionNotes, ...rest }: any) => rest);
+
     return {
-      appointments: appointmentsWithDetails,
-      total: appointmentsWithDetails.length,
+      appointments: visibleAppointments,
+      total: visibleAppointments.length,
       hospitalId,
       userRole,
+    };
+  }
+
+  // Single-appointment fetch for surfaces that need one appointment's
+  // enriched details directly (e.g. the prescription writer route) rather
+  // than filtering the list endpoint.
+  async getAppointmentById(hospitalId: string, userProfile: HospitalUserProfile, appointmentId: string) {
+    const appointment = (await this.appointmentRepository.getAppointmentById(appointmentId)) as AppointmentWithDetails | null;
+    if (!appointment || (appointment as any).hospitalId !== hospitalId) {
+      throw ApiError.notFound('Appointment not found in this hospital');
+    }
+
+    const userRole = userProfile?.role || 'doctor';
+    if (userRole === 'doctor' && appointment.doctorProfileId !== userProfile?.userId) {
+      throw ApiError.forbidden('This appointment belongs to a different doctor');
+    }
+
+    const [patient, doctor] = await Promise.all([
+      appointment.patientId
+        ? this.patientRepository.getPatientById(appointment.patientId)
+        : null,
+      appointment.doctorProfileId
+        ? this.doctorRepository.getDoctorProfileById(appointment.doctorProfileId)
+        : null,
+    ]);
+
+    return {
+      appointment: {
+        ...appointment,
+        patientName: (patient as any)?.name ?? appointment.patientName ?? 'Unknown Patient',
+        patientPhone: (patient as any)?.phone ?? appointment.patientPhone ?? '',
+        patientAge: (patient as any)?.age ?? appointment.patientAge ?? null,
+        patientGender: (patient as any)?.gender ?? appointment.patientGender ?? '',
+        doctorName: (doctor as any)?.name ?? appointment.doctorName ?? 'Unknown Doctor',
+        doctorSpecialization: (doctor as any)?.specialization ?? appointment.doctorSpecialization ?? '',
+      },
     };
   }
 
@@ -286,15 +341,19 @@ export class AppointmentsService {
     }
 
     // Try to find preferred time first
-    if (preferredTime && slots.includes(preferredTime)) {
+    if (preferredTime && slots.some((s) => s.time === preferredTime)) {
       return { date, time: preferredTime };
     }
 
     // Otherwise return first available slot
-    return { date, time: slots[0] };
+    return { date, time: slots[0].time };
   }
 
-  private async getAvailableSlots(doctor: any, membership: any, date: string): Promise<string[]> {
+  private async getAvailableSlots(
+    doctor: any,
+    membership: any,
+    date: string,
+  ): Promise<{ time: string; remaining: number; capacity: number }[]> {
     try {
       const doctorAvailability = membership?.availability || [];
 
@@ -302,9 +361,10 @@ export class AppointmentsService {
       const dateObj = new Date(date);
       const dayOfWeek = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
 
-      // Check if doctor is available on this day
-      const dayAvailability = doctorAvailability.find((a: any) => a.day === dayOfWeek);
-      if (!dayAvailability) return [];
+      // Check if doctor is available on this day — a day can have more than one
+      // working window (e.g. a morning and an evening shift), so collect all of them.
+      const dayWindows = doctorAvailability.filter((a: any) => a.day === dayOfWeek);
+      if (dayWindows.length === 0) return [];
 
       // Check for existing appointments on this date
       // Include legacy 'scheduled' for appointments created before this status migration.
@@ -313,34 +373,61 @@ export class AppointmentsService {
         'scheduled',
       ]);
 
-      const bookedSlots = existingAppointments.map((appt: any) => appt.time);
+      // Count how many patients are already booked into each slot, so a slot
+      // stays available until it reaches the doctor's patientsPerSlot capacity.
+      const bookedCounts: Record<string, number> = {};
+      for (const appt of existingAppointments as any[]) {
+        bookedCounts[appt.time] = (bookedCounts[appt.time] || 0) + 1;
+      }
 
       // Check if the date is today
       const today = new Date();
       const isToday = dateObj.toDateString() === today.toDateString();
       const currentTime = isToday ? today : null;
 
-      // Generate all possible slots
-      const slots: string[] = [];
-      const startTime = new Date(`${date}T${dayAvailability.startTime}`);
-      const endTime = new Date(`${date}T${dayAvailability.endTime}`);
-      const duration = doctor.appointmentDuration || 30;
-      const current = new Date(startTime);
+      // Generate all possible slots across every window for this day
+      // Booking-rule fields (appointmentDuration/bufferMinutes/patientsPerSlot) are
+      // hospital-scoped and persisted on the membership, not the doctor profile.
+      const slots: { time: string; remaining: number; capacity: number }[] = [];
+      const duration = membership?.appointmentDuration || doctor.appointmentDuration || 30;
+      const gap = Math.max(0, membership?.bufferMinutes || 0);
+      const capacity = Math.max(1, membership?.patientsPerSlot || 1);
+      const step = duration + gap;
 
-      while (current < endTime) {
-        const timeString = current.toTimeString().substring(0, 5);
+      for (const dayAvailability of dayWindows) {
+        const startTime = new Date(`${date}T${dayAvailability.startTime}`);
+        const endTime = new Date(`${date}T${dayAvailability.endTime}`);
+        const current = new Date(startTime);
 
-        // Skip past time slots if the date is today
-        if (isToday && currentTime && current <= currentTime) {
-          current.setMinutes(current.getMinutes() + duration);
-          continue;
+        // A slot only counts as bookable if the appointment fits before closing time.
+        while (current.getTime() + duration * 60000 <= endTime.getTime()) {
+          const timeString = current.toTimeString().substring(0, 5);
+
+          // Skip past time slots if the date is today
+          if (isToday && currentTime && current <= currentTime) {
+            current.setMinutes(current.getMinutes() + step);
+            continue;
+          }
+
+          // Only include slot if it hasn't reached capacity
+          const booked = bookedCounts[timeString] || 0;
+          if (booked < capacity) {
+            slots.push({ time: timeString, remaining: capacity - booked, capacity });
+          }
+          current.setMinutes(current.getMinutes() + step);
         }
+      }
 
-        // Only include slot if it's not already booked
-        if (!bookedSlots.includes(timeString)) {
-          slots.push(timeString);
-        }
-        current.setMinutes(current.getMinutes() + duration);
+      slots.sort((a, b) => a.time.localeCompare(b.time));
+
+      if (membership?.hospitalId) {
+        const holidays = await this.hospitalHolidayRepository.getActiveInRange(
+          membership.hospitalId,
+          date,
+          date,
+        );
+        const holiday = findHolidayForDate(holidays, date);
+        return filterSlotsForHoliday(slots, holiday, membership.userId);
       }
 
       return slots;
@@ -387,6 +474,17 @@ export class AppointmentsService {
     }
 
     const isRescheduling = Boolean(appointmentData?.rescheduleDate && appointmentData?.rescheduleTime);
+
+    // This one route conflates several distinct permission-catalog actions
+    // (book/reschedule vs cancel/no-show vs plain clinical-queue transitions)
+    // depending on what's actually being requested — so the check happens
+    // here per-branch rather than as a single @RequirePermission on the route.
+    const cancelLikeStatus = status === APPOINTMENT_STATUS.CANCELLED || status === APPOINTMENT_STATUS.NO_SHOW;
+    if (isRescheduling) {
+      await this.permissionsService.enforce(hospitalId, userProfile, 'book_reschedule', { body, params: { id: hospitalId } });
+    } else if (cancelLikeStatus) {
+      await this.permissionsService.enforce(hospitalId, userProfile, 'cancel_no_show', { body, params: { id: hospitalId } });
+    }
 
     // Rescheduling is a compound action (new date/time + status reset) validated
     // on its own below; every other status change must follow the queue lifecycle.
@@ -444,6 +542,24 @@ export class AppointmentsService {
 
     await this.appointmentRepository.updateAppointment(appointmentId, updateData);
 
+    if (isRescheduling) {
+      await this.auditService.log({
+        hospitalId,
+        actor: { userId: userProfile.userId, name: userProfile.name, role: userRole },
+        action: 'appointment.rescheduled',
+        area: 'appointments',
+        summary: `Rescheduled ${appointmentId}${existingData.patientName ? ` · ${existingData.patientName}` : ''} → ${updateData.date} ${updateData.time}`,
+      });
+    } else if (cancelLikeStatus) {
+      await this.auditService.log({
+        hospitalId,
+        actor: { userId: userProfile.userId, name: userProfile.name, role: userRole },
+        action: status === APPOINTMENT_STATUS.NO_SHOW ? 'appointment.no_show' : 'appointment.cancelled',
+        area: 'appointments',
+        summary: `${status === APPOINTMENT_STATUS.NO_SHOW ? 'Marked no-show' : 'Cancelled'} ${appointmentId}${existingData.patientName ? ` · ${existingData.patientName}` : ''}`,
+      });
+    }
+
     return {
       success: true,
       message: 'Appointment updated successfully',
@@ -489,6 +605,14 @@ export class AppointmentsService {
       status: APPOINTMENT_STATUS.CANCELLED,
       deletedBy: userProfile?.userId,
       deletedByRole: userRole,
+    });
+
+    await this.auditService.log({
+      hospitalId,
+      actor: { userId: userProfile.userId, name: userProfile.name, role: userRole },
+      action: 'appointment.deleted',
+      area: 'appointments',
+      summary: `Deleted ${appointmentId}${existingData.patientName ? ` · ${existingData.patientName}` : ''}`,
     });
 
     return {

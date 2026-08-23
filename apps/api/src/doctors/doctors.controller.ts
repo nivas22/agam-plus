@@ -94,7 +94,7 @@ export class DoctorsController {
   saveAvailability(
     @Param('id') hospitalId: string,
     @Param('doctorId') doctorId: string,
-    @Body() body: { availability: any[]; appointmentDuration?: number },
+    @Body() body: { availability: any[]; appointmentDuration?: number; bufferMinutes?: number; patientsPerSlot?: number },
   ) {
     return this.doctorsService.saveAvailability(hospitalId, doctorId, body);
   }

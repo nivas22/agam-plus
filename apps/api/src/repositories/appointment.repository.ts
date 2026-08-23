@@ -1,12 +1,18 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { Appointment, AppointmentDocument } from '../schemas/appointment.schema';
+import {
+  Appointment,
+  AppointmentDocument,
+} from '../schemas/appointment.schema';
 import { toPlain, toPlainList } from './mongo.util';
 
 @Injectable()
 export class AppointmentRepository {
-  constructor(@InjectModel(Appointment.name) private readonly appointmentModel: Model<AppointmentDocument>) {}
+  constructor(
+    @InjectModel(Appointment.name)
+    private readonly appointmentModel: Model<AppointmentDocument>,
+  ) {}
 
   async getAppointmentsByHospitalId(hospitalId: string, limit?: number) {
     let query = this.appointmentModel.find({ hospitalId });
@@ -19,7 +25,12 @@ export class AppointmentRepository {
   async getAppointmentsByDoctorId(
     hospitalId: string,
     doctorId: string,
-    options?: { startDate?: string; endDate?: string; status?: string; limit?: number },
+    options?: {
+      startDate?: string;
+      endDate?: string;
+      status?: string;
+      limit?: number;
+    },
   ) {
     const filter: Record<string, any> = { hospitalId, doctorId };
     if (options?.startDate || options?.endDate) {
@@ -36,7 +47,10 @@ export class AppointmentRepository {
     return toPlainList(docs);
   }
 
-  async getUpcomingAppointments(hospitalId: string, options?: { doctorId?: string; limit?: number }) {
+  async getUpcomingAppointments(
+    hospitalId: string,
+    options?: { doctorId?: string; limit?: number },
+  ) {
     const now = new Date().toISOString();
 
     const filter: Record<string, any> = { hospitalId, date: { $gte: now } };
@@ -72,7 +86,10 @@ export class AppointmentRepository {
   }
 
   async updateAppointment(appointmentId: string, updates: any) {
-    await this.appointmentModel.updateOne({ _id: appointmentId }, { $set: { ...updates, updatedAt: new Date() } });
+    await this.appointmentModel.updateOne(
+      { _id: appointmentId },
+      { $set: { ...updates, updatedAt: new Date() } },
+    );
   }
 
   async getAppointmentById(appointmentId: string) {
@@ -80,7 +97,11 @@ export class AppointmentRepository {
     return toPlain(doc);
   }
 
-  async getAppointmentsByDoctorAndDate(doctorProfileId: string, date: string, statuses: string[] = ['scheduled', 'confirmed']) {
+  async getAppointmentsByDoctorAndDate(
+    doctorProfileId: string,
+    date: string,
+    statuses: string[] = ['scheduled', 'confirmed'],
+  ) {
     const docs = await this.appointmentModel
       .find({ doctorProfileId, date, status: { $in: statuses } })
       .lean();
@@ -92,14 +113,19 @@ export class AppointmentRepository {
     doctorProfileId?: string;
     patientId?: string;
     status?: string;
+    statuses?: string[];
+    type?: string;
     startDate?: string;
     endDate?: string;
     limit?: number;
   }) {
     const filter: Record<string, any> = { hospitalId: options.hospitalId };
-    if (options.doctorProfileId) filter.doctorProfileId = options.doctorProfileId;
+    if (options.doctorProfileId)
+      filter.doctorProfileId = options.doctorProfileId;
     if (options.patientId) filter.patientId = options.patientId;
-    if (options.status) filter.status = options.status;
+    if (options.statuses?.length) filter.status = { $in: options.statuses };
+    else if (options.status) filter.status = options.status;
+    if (options.type) filter.type = options.type;
     if (options.startDate && options.endDate) {
       filter.date = { $gte: options.startDate, $lte: options.endDate };
     }
@@ -108,6 +134,14 @@ export class AppointmentRepository {
     if (options.limit) query = query.limit(options.limit);
 
     const docs = await query.lean();
+    return toPlainList(docs);
+  }
+
+  async getAppointmentsByPackageId(hospitalId: string, packageId: string) {
+    const docs = await this.appointmentModel
+      .find({ hospitalId, packageId })
+      .sort({ date: 1, time: 1 })
+      .lean();
     return toPlainList(docs);
   }
 }

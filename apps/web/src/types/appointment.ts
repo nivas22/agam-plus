@@ -1,5 +1,5 @@
-import { Doctor } from "./doctor";
-import { Patient } from "./patient";
+import type { Doctor } from "./doctor";
+import type { Patient } from "./patient";
 
 // types/patient.ts
 export interface TimeSlot {
@@ -15,7 +15,17 @@ export interface Appointment {
   doctorProfileId: string;
   date: string;
   time: string;
-  status: 'pending' | 'confirmed' | 'checked-in' | 'waiting' | 'in-consultation' | 'completed' | 'cancelled' | 'no-show' | 'rescheduled' | 'scheduled';
+  status:
+    | "pending"
+    | "confirmed"
+    | "checked-in"
+    | "waiting"
+    | "in-consultation"
+    | "completed"
+    | "cancelled"
+    | "no-show"
+    | "rescheduled"
+    | "scheduled";
   notes?: string;
   sessionNotes?: string;
   createdAt: string;
@@ -38,6 +48,9 @@ export interface AppointmentWithDetails extends Appointment {
   reopenedAt?: string;
   cancelReason?: string;
   noShowReason?: string;
+  type?: string;
+  packageId?: string;
+  packageVisitNumber?: number;
 }
 
 export type AppointmentResponse = {
@@ -57,15 +70,21 @@ export interface AppointmentFormData {
   patientId: string;
   startDate: string;
   preferredTime: string;
-  frequency: 'once' | 'weekly' | 'monthly';
+  frequency: "once" | "weekly" | "monthly";
   notes?: string;
   numberOfOccurrences?: number;
   selectedDays?: string[];
   recurringDates?: number[];
 }
 
+export interface AvailableSlot {
+  time: string;
+  remaining: number;
+  capacity: number;
+}
+
 export interface SlotsResponse {
-  availableSlots: string[];
+  availableSlots: AvailableSlot[];
   doctor: {
     id: string;
     name: string;

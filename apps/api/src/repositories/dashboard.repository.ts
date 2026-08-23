@@ -30,7 +30,7 @@ export class DashboardRepository {
       return await this.connection.collection(DB_COLLECTIONS.HOSPITAL_MEMBERS).countDocuments({
         hospitalId,
         status: 'approved',
-        role: { $in: ['doctor', 'staff', 'nurse'] },
+        role: { $in: ['doctor', 'front_desk', 'nurse', 'accountant'] },
       });
     } catch {
       return 0;

@@ -20,7 +20,6 @@ interface PageHeaderProps {
   onCalendarClick?: (mode: ViewMode) => void;
   viewMode?: ViewMode;
   onViewChange?: (mode: ViewMode) => void;
-  isMobile?: boolean;
 }
 
 export default function PageHeader({
@@ -36,7 +35,6 @@ export default function PageHeader({
   onCalendarClick,
   viewMode = 'list',
   onViewChange,
-  isMobile = false,
 }: PageHeaderProps) {
   const getPlaceholder = (): string => {
     if (type.toLowerCase() === 'patient') {
@@ -47,7 +45,7 @@ export default function PageHeader({
 
   return (
     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-      { !isMobile && <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3">
         <div className="p-3 bg-brand-violet-soft rounded-xl">
           <Icon className="w-6 h-6 text-brand-violet" />
         </div>
@@ -57,7 +55,7 @@ export default function PageHeader({
             {dataLength} {dataLength === 1 ? `${type.toLowerCase()}` : `${type.toLowerCase()}s`} found
           </p>
         </div>
-      </div> }
+      </div>
       
       <div className="flex gap-3">
         <div className="relative flex-1">

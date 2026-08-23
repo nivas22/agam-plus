@@ -17,9 +17,11 @@ import { Doctor } from "@/types/doctorNew";
 import AppointmentDetails from "./AppointmentDetails";
 import DoctorAppointmentBottomSheet from "./DoctorAppointmentDetails";
 import { ChangeDoctorDialog, RescheduleDialog, CancelDialog, NoShowDialog } from "./appointments/AppointmentActionDialogs";
+import CompleteVisitDialog from "./appointments/CompleteVisitDialog";
 import { useHospitalAppointmentsApi } from "@/hooks/useNewAppointmentsApi";
 import { useHospitalPatients } from "@/hooks/useNewPatientApi";
 import { useHospitalDoctors } from "@/hooks/useNewDoctorApi";
+import { useAuth } from "@/hooks/useAuth";
 import { ROLE, APPOINTMENT_STATUS } from "../constants";
 import { paletteFor } from "@/lib/avatarPalette";
 
@@ -28,7 +30,6 @@ interface AppointmentsPageProps {
   canEdit: boolean;
   hospitalId: string;
   userId?: string;
-  isMobile?: boolean;
 }
 
 const RANGE_OPTIONS = [
@@ -216,10 +217,11 @@ function SpecDot({ specialization }: { specialization?: string }) {
   return <span className="w-1.5 h-1.5 rounded-sm shrink-0" style={{ background: c1 }} />;
 }
 
-export default function AppointmentsPage({ userRole, canEdit, hospitalId, userId, isMobile }: AppointmentsPageProps) {
+export default function AppointmentsPage({ userRole, canEdit, hospitalId, userId }: AppointmentsPageProps) {
   const router = useRouter();
+  const { user } = useAuth();
 
-  const ADD_APPOINTMENT_PATH = isMobile ? `/mobile/hospital/${hospitalId}/appointments/add` : `/hospital/${hospitalId}/appointments/add`;
+  const ADD_APPOINTMENT_PATH = `/hospital/${hospitalId}/appointments/add`;
 
   const [view, setView] = useState<"agenda" | "week">("agenda");
   const [range, setRange] = useState("week");
@@ -233,7 +235,6 @@ export default function AppointmentsPage({ userRole, canEdit, hospitalId, userId
   const [updateAppointmentsMode, setUpdateAppointmentsMode] = useState(false);
   const [actionDialog, setActionDialog] = useState<{ kind: "changeDoctor" | "reschedule" | "cancel" | "noShow"; appt: AppointmentWithDetails } | null>(null);
   const [showNotesModal, setShowNotesModal] = useState(false);
-  const [sessionNotes, setSessionNotes] = useState("");
   const [toast, setToast] = useState<string | null>(null);
   const [selectedDoctorForAppointments, setSelectedDoctorForAppointments] = useState<Doctor | null>(null);
   const [selectedAppointmentsToUpdate, setSelectedAppointmentsToUpdate] = useState<AppointmentWithDetails[]>([]);
@@ -356,7 +357,6 @@ export default function AppointmentsPage({ userRole, canEdit, hospitalId, userId
 
   const openCompleteFlow = useCallback((appt: AppointmentWithDetails) => {
     setSelectedApp(appt);
-    setSessionNotes(appt.sessionNotes || "");
     setShowNotesModal(true);
   }, []);
 
@@ -366,7 +366,6 @@ export default function AppointmentsPage({ userRole, canEdit, hospitalId, userId
         await updateAppointmentStatus(appointmentId, status, notes);
         showToast(STATUS_TOAST[status] || "Appointment updated");
         setShowNotesModal(false);
-        setSessionNotes("");
         setSelectedApp(null);
         await refetchAppointments();
       } catch (err) {
@@ -855,40 +854,22 @@ export default function AppointmentsPage({ userRole, canEdit, hospitalId, userId
         <DoctorAppointmentBottomSheet appointment={selectedApp} onClose={() => setSelectedApp(null)} onRefetch={refetchAppointments} />
       )}
 
-      {/* Session Notes Modal */}
+      {/* Complete visit — session notes, bill and payment collection */}
       {showNotesModal && selectedApp && (
-        <div className="fixed inset-0 bg-trace-background bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-surface-paper rounded-xl shadow-xl w-full max-w-md p-6">
-            <h3 className="text-lg font-semibold text-ink-900 mb-4">Complete visit — {selectedApp.patientName}</h3>
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-ink-700 mb-2">Session notes</label>
-              <textarea
-                value={sessionNotes}
-                onChange={(e) => setSessionNotes(e.target.value)}
-                placeholder="Details about the session, treatment provided, observations, etc."
-                rows={4}
-                className="w-full p-3 border border-border rounded-lg focus:ring-2 focus:ring-brand-violet focus:border-brand-violet resize-none"
-              />
-            </div>
-            <div className="flex gap-3 justify-end">
-              <button
-                onClick={() => {
-                  setShowNotesModal(false);
-                  setSessionNotes("");
-                }}
-                className="px-4 py-2 border border-border text-ink-700 rounded-lg hover:bg-surface-canvas transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => handleUpdateStatus(selectedApp.id, "completed", sessionNotes)}
-                className="px-4 py-2 bg-brand-violet text-white rounded-lg hover:bg-brand-violet-hover transition-colors"
-              >
-                Mark completed
-              </button>
-            </div>
-          </div>
-        </div>
+        <CompleteVisitDialog
+          appointment={selectedApp}
+          hospitalId={hospitalId}
+          consultationFee={doctorsData.doctors.find((d) => d.id === selectedApp.doctorProfileId)?.consultationFee}
+          doctorName={selectedApp.doctorName}
+          patientCode={getPatientCode(selectedApp.patientId)}
+          collectedByName={user?.name}
+          updateAppointmentStatus={updateAppointmentStatus}
+          onClose={() => {
+            setShowNotesModal(false);
+            setSelectedApp(null);
+          }}
+          onSuccess={handleDialogSuccess}
+        />
       )}
 
       {/* Appointment action dialogs (change doctor / reschedule / cancel / no-show) */}

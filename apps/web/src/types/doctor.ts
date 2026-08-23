@@ -57,8 +57,8 @@ export interface HospitalMember {
   id: string;
   hospitalId: string;
   userId: string;
-  role: "admin" | "doctor" | "staff" | "patient";
-  status: "pending" | "approved" | "rejected";
+  role: "admin" | "doctor" | "front_desk" | "nurse" | "accountant" | "patient";
+  status: "pending" | "approved" | "rejected" | "suspended" | "deactivated";
   joinedAt: any;
   invitedBy?: string;
   hospital: Hospital;

@@ -1,35 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Toaster } from "react-hot-toast";
 
 import LoginPage from "@/components/LoginPage";
-import MobileLoginPage from "@/components/mobile/MobileLoginPage";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import { useAuth } from "@/hooks/useAuth";
-import { useDeviceDetect } from "@/hooks/useDeviceDetect";
 import SelectHospitalPage from "./select-hospital/page";
-import SplashScreen from "@/components/mobile/SplashScreen";
 
 
 export default function Home() {
   const { user, loading: authLoading, getRoleBasedRedirect } = useAuth();
-  const { isMobile } = useDeviceDetect();
-  const [showSplash, setShowSplash] = useState(true);
   const router = useRouter();
-
-  // Handle splash screen for mobile
-  useEffect(() => {
-    if (isMobile && !user) {
-      const timer = setTimeout(() => {
-        setShowSplash(false);
-      }, 5000);
-      return () => clearTimeout(timer);
-    } else {
-      setShowSplash(false);
-    }
-  }, [isMobile, user]);
 
   useEffect(() => {
     if (user && !authLoading) {
@@ -43,14 +26,9 @@ export default function Home() {
     return <LoadingSpinner />;
   }
 
-  // ✅ Show splash screen for mobile on first load
-  if (isMobile && showSplash && !user) {
-    return <SplashScreen />;
-  }
-
   // ✅ Show login if not authenticated
   if (!user) {
-    return isMobile ? <MobileLoginPage /> : <LoginPage />;
+    return <LoginPage />;
   }
 
   // ✅ If doctor is pending → show pending page
@@ -67,8 +45,7 @@ export default function Home() {
   return (
     <>
       <Toaster position="top-right" />
-      <LoadingSpinner message="Redirecting to your dashboard..." />
+      <LoadingSpinner message="Redirecting to your dashboard...." />
     </>
   );
 }
-

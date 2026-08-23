@@ -20,6 +20,7 @@ export interface HospitalUserProfile {
   email: string;
   specialization?: string;
   role: string;
+  isOwner?: boolean;
   currentHospital: any;
   doctorProfile?: any;
 }

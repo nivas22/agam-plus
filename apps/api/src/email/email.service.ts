@@ -134,6 +134,46 @@ This is an automated message. Please do not reply to this email.
     return this.sendEmail({ to: doctorEmail, subject, html, text });
   }
 
+  async sendTeamMemberWelcomeEmail(memberEmail: string, memberName: string, hospitalName: string): Promise<boolean> {
+    const appUrl = this.config.get<string>('NEXT_PUBLIC_APP_URL') || 'https://yourhospital.com';
+    const subject = `You've been added to the ${hospitalName} team`;
+
+    const html = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background-color: #4f3fd6; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+          .content { background-color: #f9fafb; padding: 30px; border-radius: 0 0 8px 8px; }
+          .button { display: inline-block; background-color: #4f3fd6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 20px 0; }
+          .footer { text-align: center; margin-top: 20px; color: #6b7280; font-size: 14px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header"><h1>Welcome to ${hospitalName}</h1></div>
+          <div class="content">
+            <p>Hi ${memberName},</p>
+            <p>You've been added to the <strong>${hospitalName}</strong> team. Sign in with this email address to get started.</p>
+            <div style="text-align: center;">
+              <a href="${appUrl}/login" class="button">Sign in</a>
+            </div>
+            <p>If you weren't expecting this, contact your hospital administrator.</p>
+          </div>
+          <div class="footer"><p>This is an automated message. Please do not reply to this email.</p></div>
+        </div>
+      </body>
+    </html>
+  `;
+
+    const text = `Welcome to ${hospitalName}\n\nHi ${memberName},\n\nYou've been added to the ${hospitalName} team. Sign in with this email address at ${appUrl}/login to get started.\n\nIf you weren't expecting this, contact your hospital administrator.`;
+
+    return this.sendEmail({ to: memberEmail, subject, html, text });
+  }
+
   async sendDoctorApprovalEmail(doctorEmail: string, doctorName: string, hospitalName: string): Promise<boolean> {
     const appUrl = this.config.get<string>('NEXT_PUBLIC_APP_URL') || 'https://yourhospital.com';
     const subject = `Your Doctor Profile Has Been Approved - ${hospitalName}`;

@@ -25,12 +25,5 @@ export default function Home() {
     );
   }
 
-  return (
-    <AdminDashboardClient
-      isLoading={dashboard.isLoading}
-      formattedData={dashboard.formattedData}
-      quickStats={dashboard.quickStats}
-      error={dashboard.error}
-    />
-  );
+  return <AdminDashboardClient />;
 }

@@ -40,7 +40,7 @@ describe('MembershipRepository', () => {
 
   it('getHospitalMembers filters by optional status/role', async () => {
     await repo.createHospitalMembership({ userId: 'u1', hospitalId: 'h1', role: 'doctor', status: 'approved' });
-    await repo.createHospitalMembership({ userId: 'u2', hospitalId: 'h1', role: 'staff', status: 'pending' });
+    await repo.createHospitalMembership({ userId: 'u2', hospitalId: 'h1', role: 'front_desk', status: 'pending' });
 
     expect(await repo.getHospitalMembers('h1')).toHaveLength(2);
     expect(await repo.getHospitalMembers('h1', { role: 'doctor' })).toHaveLength(1);

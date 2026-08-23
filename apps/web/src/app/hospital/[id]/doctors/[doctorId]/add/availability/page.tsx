@@ -9,6 +9,8 @@ import { useAvailabilityApi } from '@/hooks/useAvailability';
 interface AvailabilityData {
   availability: TimeSlot[];
   appointmentDuration: number;
+  bufferMinutes: number;
+  patientsPerSlot: number;
 }
 
 export default function AvailabilityPage() {
@@ -32,6 +34,8 @@ export default function AvailabilityPage() {
   const [formData, setFormData] = useState<AvailabilityData>({
     availability: [],
     appointmentDuration: 30,
+    bufferMinutes: 0,
+    patientsPerSlot: 1,
   });
   const [activeDay, setActiveDay] = useState('Monday');
   const [newTimeSlot, setNewTimeSlot] = useState<TimeSlot>({ day: 'Monday', startTime: '', endTime: '' });
@@ -52,6 +56,8 @@ export default function AvailabilityPage() {
       setFormData({
         availability: availability.availability || [],
         appointmentDuration: availability.appointmentDuration || 30,
+        bufferMinutes: availability.bufferMinutes ?? 0,
+        patientsPerSlot: availability.patientsPerSlot || 1,
       });
     }
   }, [availability]);
@@ -193,7 +199,7 @@ export default function AvailabilityPage() {
     setSaveMessage('');
     
     try {
-      await saveAvailability(formData.availability, formData.appointmentDuration);
+      await saveAvailability(formData.availability, formData.appointmentDuration, formData.bufferMinutes, formData.patientsPerSlot);
       
       setSaveMessage('Availability saved successfully!');
       setTimeout(() => {
@@ -310,6 +316,53 @@ export default function AvailabilityPage() {
                 <span className="text-sm sm:text-base font-semibold text-ink-700">minutes</span>
               </div>
               <span className="text-xs text-ink-500">(5-240 min)</span>
+            </div>
+
+            <div className="mt-4 pt-4 border-t border-border flex flex-col sm:flex-row gap-4">
+              <div className="flex-1 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                <label className="text-sm text-ink-700 font-medium">Gap after each:</label>
+                <div className="flex items-center gap-2 bg-surface-paper px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg border-2 border-border focus-within:border-brand-violet transition-colors">
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min="0"
+                    max="120"
+                    step="5"
+                    value={formData.bufferMinutes}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value);
+                      if (!isNaN(val) && val >= 0 && val <= 120) {
+                        setFormData((prev) => ({ ...prev, bufferMinutes: val }));
+                      }
+                    }}
+                    className="w-16 text-center text-lg font-bold text-ink-900 bg-transparent focus:outline-none [-moz-appearance:textfield] [&::-webkit-outer-spin-button]:appearance-auto [&::-webkit-inner-spin-button]:appearance-auto"
+                    placeholder="0"
+                  />
+                  <span className="text-sm font-semibold text-ink-700">minutes to reset the room</span>
+                </div>
+              </div>
+              <div className="flex-1 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                <label className="text-sm text-ink-700 font-medium">Patients per slot:</label>
+                <div className="flex items-center gap-2 bg-surface-paper px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg border-2 border-border focus-within:border-brand-violet transition-colors">
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min="1"
+                    max="20"
+                    step="1"
+                    value={formData.patientsPerSlot}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value);
+                      if (!isNaN(val) && val >= 1 && val <= 20) {
+                        setFormData((prev) => ({ ...prev, patientsPerSlot: val }));
+                      }
+                    }}
+                    className="w-16 text-center text-lg font-bold text-ink-900 bg-transparent focus:outline-none [-moz-appearance:textfield] [&::-webkit-outer-spin-button]:appearance-auto [&::-webkit-inner-spin-button]:appearance-auto"
+                    placeholder="1"
+                  />
+                  <span className="text-sm font-semibold text-ink-700">above 1 allows overlap</span>
+                </div>
+              </div>
             </div>
           </div>
 

@@ -1,17 +1,35 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Put,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { PatientsService } from './patients.service';
 import { HospitalContextGuard } from '../auth/guards/hospital-context.guard';
+import { PermissionGuard } from '../permissions/guards/permission.guard';
+import { RequirePermission } from '../permissions/decorators/require-permission.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
-import { CurrentUser, CurrentHospitalUser } from '../auth/decorators/current-user.decorator';
-import type { JwtUser, HospitalUserProfile } from '../auth/decorators/current-user.decorator';
+import {
+  CurrentUser,
+  CurrentHospitalUser,
+} from '../auth/decorators/current-user.decorator';
+import type {
+  JwtUser,
+  HospitalUserProfile,
+} from '../auth/decorators/current-user.decorator';
 
 @Controller('hospitals/:id/patients')
-@UseGuards(HospitalContextGuard)
+@UseGuards(HospitalContextGuard, PermissionGuard)
 export class PatientsController {
   constructor(private readonly patientsService: PatientsService) {}
 
   @Get()
-  @Roles('admin', 'doctor')
+  @Roles('admin', 'doctor', 'front_desk', 'nurse', 'accountant')
   list(
     @Param('id') hospitalId: string,
     @CurrentHospitalUser() userProfile: HospitalUserProfile,
@@ -29,19 +47,34 @@ export class PatientsController {
   }
 
   @Post()
-  @Roles('admin')
-  create(@Param('id') hospitalId: string, @CurrentUser() user: JwtUser, @Body() body: Record<string, any>) {
+  @Roles('admin', 'front_desk', 'nurse')
+  @RequirePermission('add_edit_patients')
+  create(
+    @Param('id') hospitalId: string,
+    @CurrentUser() user: JwtUser,
+    @Body() body: Record<string, any>,
+  ) {
     return this.patientsService.createPatient(hospitalId, user, body);
   }
 
+  @Get('search')
+  @Roles('admin', 'doctor', 'front_desk', 'nurse', 'accountant')
+  search(@Param('id') hospitalId: string, @Query('q') q?: string) {
+    return this.patientsService.searchPatients(hospitalId, q || '');
+  }
+
   @Get(':patientId')
-  @Roles('admin', 'doctor')
-  getOne(@Param('id') hospitalId: string, @Param('patientId') patientId: string) {
+  @Roles('admin', 'doctor', 'front_desk', 'nurse', 'accountant')
+  getOne(
+    @Param('id') hospitalId: string,
+    @Param('patientId') patientId: string,
+  ) {
     return this.patientsService.getPatient(hospitalId, patientId);
   }
 
   @Put(':patientId')
-  @Roles('admin')
+  @Roles('admin', 'front_desk', 'nurse')
+  @RequirePermission('add_edit_patients')
   update(
     @Param('id') hospitalId: string,
     @Param('patientId') patientId: string,
@@ -57,6 +90,10 @@ export class PatientsController {
     @Param('patientId') patientId: string,
     @CurrentHospitalUser() userProfile: HospitalUserProfile,
   ) {
-    return this.patientsService.deletePatient(hospitalId, patientId, userProfile.userId);
+    return this.patientsService.deletePatient(
+      hospitalId,
+      patientId,
+      userProfile.userId,
+    );
   }
 }

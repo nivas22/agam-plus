@@ -6,14 +6,20 @@ import { toPlain, toPlainList } from './mongo.util';
 
 @Injectable()
 export class PatientRepository {
-  constructor(@InjectModel(Patient.name) private readonly patientModel: Model<PatientDocument>) {}
+  constructor(
+    @InjectModel(Patient.name)
+    private readonly patientModel: Model<PatientDocument>,
+  ) {}
 
   async getPatientById(patientId: string) {
     const doc = await this.patientModel.findById(patientId).lean();
     return toPlain(doc);
   }
 
-  async verifyPatientInHospital(patientId: string, hospitalId: string): Promise<boolean> {
+  async verifyPatientInHospital(
+    patientId: string,
+    hospitalId: string,
+  ): Promise<boolean> {
     const patient = await this.getPatientById(patientId);
     return patient !== null && (patient as any).hospitalId === hospitalId;
   }
@@ -26,9 +32,24 @@ export class PatientRepository {
     return toPlainList(docs);
   }
 
-  async patientExistsByEmail(hospitalId: string, email: string): Promise<boolean> {
+  async patientExistsByEmail(
+    hospitalId: string,
+    email: string,
+  ): Promise<boolean> {
     const count = await this.patientModel.countDocuments({ hospitalId, email });
     return count > 0;
+  }
+
+  async findPatientsByPhone(
+    hospitalId: string,
+    phone: string,
+    excludePatientId?: string,
+  ) {
+    const filter: Record<string, any> = { hospitalId, phone };
+    if (excludePatientId) filter._id = { $ne: excludePatientId };
+
+    const docs = await this.patientModel.find(filter).lean();
+    return toPlainList(docs);
   }
 
   async createPatient(patientData: any) {
@@ -45,10 +66,31 @@ export class PatientRepository {
     return toPlainList(docs);
   }
 
+  async searchPatientsByHospital(
+    hospitalId: string,
+    searchTerm: string,
+    limit = 20,
+  ) {
+    // Escape regex metacharacters — searchTerm is free-text user input.
+    const escaped = searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const pattern = new RegExp(escaped, 'i');
+
+    const docs = await this.patientModel
+      .find({
+        hospitalId,
+        $or: [{ name: pattern }, { phone: pattern }, { patientId: pattern }],
+      })
+      .limit(limit)
+      .lean();
+    return toPlainList(docs);
+  }
+
   async getPatientsByUserIds(userIds: string[], hospitalId: string) {
     if (userIds.length === 0) return [];
 
-    const docs = await this.patientModel.find({ userId: { $in: userIds }, hospitalId }).lean();
+    const docs = await this.patientModel
+      .find({ userId: { $in: userIds }, hospitalId })
+      .lean();
     return toPlainList(docs);
   }
 
@@ -63,7 +105,10 @@ export class PatientRepository {
   }
 
   async updatePatient(patientId: string, updates: any) {
-    await this.patientModel.updateOne({ _id: patientId }, { $set: { ...updates, updatedAt: new Date() } });
+    await this.patientModel.updateOne(
+      { _id: patientId },
+      { $set: { ...updates, updatedAt: new Date() } },
+    );
   }
 
   async deletePatient(patientId: string, deletedBy: string) {

@@ -25,16 +25,16 @@ export class PatientsService {
     page: number,
     limit: number,
   ) {
-    const members = await this.membershipRepository.getHospitalMembers(hospitalId, {
-      role: ROLE.PATIENT,
-      status: status || undefined,
-    });
+    // Source "who is a patient here" from the Patient collection itself, not
+    // from a role='patient' hospital membership. A user can only hold one
+    // membership per hospital (unique index on userId+hospitalId), so a
+    // doctor who is also registered as a patient at this hospital has no
+    // 'patient'-role membership row — but their Patient profile is real and
+    // must still show up here, be searchable, and be bookable.
+    const patientProfiles =
+      await this.patientRepository.getPatientsByHospitalId(hospitalId);
 
-    const memberUserIds = members
-      .map((m: any) => m.userId)
-      .filter((id: string) => id && id !== requesterUserId);
-
-    if (memberUserIds.length === 0) {
+    if (patientProfiles.length === 0) {
       return {
         patients: [],
         total: 0,
@@ -50,16 +50,28 @@ export class PatientsService {
       };
     }
 
-    const patientProfiles = await this.patientRepository.getPatientsByUserIds(memberUserIds, hospitalId);
+    const patientMembers = await this.membershipRepository.getHospitalMembers(
+      hospitalId,
+      { role: ROLE.PATIENT },
+    );
+    const membershipByUserId = new Map(
+      patientMembers.map((m: any) => [m.userId, m]),
+    );
 
     const patients: any[] = [];
 
     for (const profile of patientProfiles) {
       const prof = profile as any;
+      if (!prof.userId || prof.userId === requesterUserId) continue;
+
+      const membership = membershipByUserId.get(prof.userId) as any;
+      // No membership row (the doctor-also-patient case) is treated the same
+      // as today's default for a patient created via the front desk: approved.
+      const membershipStatus = membership?.status || 'approved';
+      if (status && membershipStatus !== status) continue;
+
       const userData = await this.userRepository.getUserById(prof.userId);
       const user = userData as any;
-      const membershipData = members.find((m: any) => m.userId === prof.userId);
-      const membership = membershipData as any;
 
       patients.push({
         id: prof.id || prof.userId,
@@ -67,8 +79,8 @@ export class PatientsService {
         userId: prof.userId,
         patientId: prof.patientId || null,
         membershipId: membership?.id || null,
-        membershipStatus: membership?.status || 'approved',
-        status: membership?.status || 'approved',
+        membershipStatus,
+        status: membershipStatus,
 
         name: prof.name || user?.name || 'Unknown Patient',
         dateOfBirth: prof.dateOfBirth || '',
@@ -110,11 +122,30 @@ export class PatientsService {
     };
   }
 
-  async createPatient(hospitalId: string, user: JwtUser, patientData: Record<string, any>) {
+  async searchPatients(hospitalId: string, searchTerm: string) {
+    const q = (searchTerm || '').trim();
+    if (q.length < 2) {
+      return { patients: [], total: 0 };
+    }
+
+    const patients = await this.patientRepository.searchPatientsByHospital(
+      hospitalId,
+      q,
+    );
+    return { patients, total: patients.length };
+  }
+
+  async createPatient(
+    hospitalId: string,
+    user: JwtUser,
+    patientData: Record<string, any>,
+  ) {
     const requiredFields = ['name', 'email', 'phone'];
     const missingFields = requiredFields.filter((f) => !patientData[f]);
     if (missingFields.length > 0) {
-      throw ApiError.badRequest(`Missing required fields: ${missingFields.join(', ')}`);
+      throw ApiError.badRequest(
+        `Missing required fields: ${missingFields.join(', ')}`,
+      );
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -122,7 +153,30 @@ export class PatientsService {
       throw ApiError.badRequest('Invalid email format');
     }
 
-    const existingUser = await this.userRepository.getUserByEmail(patientData.email);
+    if (!patientData.confirmDuplicate && patientData.phone) {
+      const duplicates = await this.patientRepository.findPatientsByPhone(
+        hospitalId,
+        patientData.phone,
+      );
+      if (duplicates.length > 0) {
+        throw ApiError.conflict(
+          `A patient with phone ${patientData.phone} already exists in this hospital`,
+          {
+            duplicates: duplicates.map((d: any) => ({
+              id: d.id,
+              name: d.name,
+              phone: d.phone,
+              patientId: d.patientId,
+              status: d.status,
+            })),
+          },
+        );
+      }
+    }
+
+    const existingUser = await this.userRepository.getUserByEmail(
+      patientData.email,
+    );
 
     let patientUserId: string;
     if (!existingUser) {
@@ -134,7 +188,11 @@ export class PatientsService {
       patientUserId = (existingUser as any).id;
     }
 
-    const existingMembership = await this.membershipRepository.getHospitalMembershipData(patientUserId, hospitalId);
+    const existingMembership =
+      await this.membershipRepository.getHospitalMembershipData(
+        patientUserId,
+        hospitalId,
+      );
 
     if (!existingMembership) {
       await this.membershipRepository.createHospitalMembership({
@@ -162,12 +220,16 @@ export class PatientsService {
       bloodGroup: patientData.bloodGroup || null,
       address: patientData.address || '',
       medicalHistory: patientData.medicalHistory || '',
+      allergies: Array.isArray(patientData.allergies)
+        ? patientData.allergies.filter(Boolean)
+        : [],
       lookingForSpecialization: patientData.lookingForSpecialization || null,
       status: 'active',
       createdBy: user.uid,
     };
 
-    const patientId = await this.patientRepository.createPatient(patientProfileData);
+    const patientId =
+      await this.patientRepository.createPatient(patientProfileData);
 
     return {
       success: true,
@@ -181,6 +243,7 @@ export class PatientsService {
         email: patientData.email,
         status: 'active',
         membershipStatus: 'approved',
+        allergies: patientProfileData.allergies,
       },
     };
   }
@@ -195,7 +258,11 @@ export class PatientsService {
     return { patient };
   }
 
-  async updatePatient(hospitalId: string, patientId: string, updates: Record<string, any>) {
+  async updatePatient(
+    hospitalId: string,
+    patientId: string,
+    updates: Record<string, any>,
+  ) {
     const patient = await this.patientRepository.getPatientById(patientId);
 
     if (!patient || (patient as any).hospitalId !== hospitalId) {
@@ -203,10 +270,15 @@ export class PatientsService {
     }
 
     if (updates.email && updates.email !== (patient as any).email) {
-      const emailExists = await this.patientRepository.patientExistsByEmail(hospitalId, updates.email);
+      const emailExists = await this.patientRepository.patientExistsByEmail(
+        hospitalId,
+        updates.email,
+      );
 
       if (emailExists) {
-        throw ApiError.conflict('Another patient with this email already exists in this hospital');
+        throw ApiError.conflict(
+          'Another patient with this email already exists in this hospital',
+        );
       }
 
       // listPatients reads email from the linked User doc first, falling back to
@@ -220,12 +292,17 @@ export class PatientsService {
     const updateData = { ...updates, updatedAt: new Date().toISOString() };
     await this.patientRepository.updatePatient(patientId, updateData);
 
-    const updatedPatient = await this.patientRepository.getPatientById(patientId);
+    const updatedPatient =
+      await this.patientRepository.getPatientById(patientId);
 
     return { success: true, patient: updatedPatient };
   }
 
-  async deletePatient(hospitalId: string, patientId: string, deletedBy: string) {
+  async deletePatient(
+    hospitalId: string,
+    patientId: string,
+    deletedBy: string,
+  ) {
     const patient = await this.patientRepository.getPatientById(patientId);
 
     if (!patient || (patient as any).hospitalId !== hospitalId) {
