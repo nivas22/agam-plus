@@ -2,6 +2,7 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
+import { useAuth } from "@/hooks/useAuth";
 
 interface ReportLink {
   key: string;
@@ -34,19 +35,27 @@ interface ReportsLayoutProps {
   children: React.ReactNode;
 }
 
+// A doctor only ever sees their own numbers, so hospital-wide cash/AR
+// reports (daily collection, dues aging) stay off their nav entirely.
+const DOCTOR_REPORT_KEYS = new Set(["doctor-revenue", "no-shows"]);
+
 export default function ReportsLayout({
   hospitalId,
   children,
 }: ReportsLayoutProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const { isDoctor } = useAuth();
   const basePath = `/hospital/${hospitalId}/reports`;
+  const links = isDoctor
+    ? REPORT_LINKS.filter((link) => DOCTOR_REPORT_KEYS.has(link.key))
+    : REPORT_LINKS;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[212px_minmax(0,1fr)] gap-4 items-start">
       <div className="bg-surface-paper border border-border rounded-xl overflow-hidden">
         <nav>
-          {REPORT_LINKS.map((link) => {
+          {links.map((link) => {
             const href = `${basePath}${link.path}`;
             const active = pathname === href;
 

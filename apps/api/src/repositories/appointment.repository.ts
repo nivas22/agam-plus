@@ -144,4 +144,65 @@ export class AppointmentRepository {
       .lean();
     return toPlainList(docs);
   }
+
+  // Completed visits with no session notes at all — the doctor dashboard's
+  // "waiting on you" list surfaces these so a visit's record doesn't go
+  // permanently blank.
+  async getCompletedWithoutNotes(
+    hospitalId: string,
+    doctorProfileId: string,
+    sinceDate: string,
+  ) {
+    const docs = await this.appointmentModel
+      .find({
+        hospitalId,
+        doctorProfileId,
+        status: 'completed',
+        date: { $gte: sinceDate },
+        $or: [{ sessionNotes: { $exists: false } }, { sessionNotes: '' }],
+      })
+      .sort({ date: -1, time: -1 })
+      .lean();
+    return toPlainList(docs);
+  }
+
+  // Follow-up appointments (see APPOINTMENT_TYPE.FOLLOW_UP) in a date range,
+  // any status — the caller classifies each as overdue/booked/due-soon.
+  async getFollowUps(
+    hospitalId: string,
+    doctorProfileId: string,
+    options: { fromDate: string; toDate: string },
+  ) {
+    const docs = await this.appointmentModel
+      .find({
+        hospitalId,
+        doctorProfileId,
+        type: 'follow-up',
+        date: { $gte: options.fromDate, $lte: options.toDate },
+      })
+      .sort({ date: 1 })
+      .lean();
+    return toPlainList(docs);
+  }
+
+  // Count of a doctor's appointments still holding a slot in [startDate,
+  // endDate] — used both for the leave-request impact count and the "Your
+  // week" booked-vs-open tally for a single day.
+  async getAppointmentCountInRange(
+    hospitalId: string,
+    doctorProfileId: string,
+    startDate: string,
+    endDate: string,
+    options?: { excludeStatuses?: string[] },
+  ) {
+    const filter: Record<string, any> = {
+      hospitalId,
+      doctorProfileId,
+      date: { $gte: startDate, $lte: endDate },
+    };
+    if (options?.excludeStatuses?.length) {
+      filter.status = { $nin: options.excludeStatuses };
+    }
+    return this.appointmentModel.countDocuments(filter);
+  }
 }

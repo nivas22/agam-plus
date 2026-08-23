@@ -74,7 +74,7 @@ export default function PlatformAdminHospitalsPage() {
     <div className="space-y-6 pb-10">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-ink-900">Hospitals</h1>
+          <h1 className="font-display tracking-tight text-2xl font-bold text-ink-900">Hospitals</h1>
           <p className="text-sm text-ink-500">{hospitals.length} {hospitals.length === 1 ? 'hospital' : 'hospitals'} on the platform</p>
         </div>
         <button
@@ -178,7 +178,7 @@ export default function PlatformAdminHospitalsPage() {
                         {hospital.phone && (
                           <div className="flex items-center gap-1.5 text-xs text-ink-500 min-w-0">
                             <Phone className="w-3 h-3 shrink-0" />
-                            <span className="truncate">{hospital.phone}</span>
+                            <span className="font-mono tabular truncate">{hospital.phone}</span>
                           </div>
                         )}
                       </div>
@@ -202,7 +202,7 @@ export default function PlatformAdminHospitalsPage() {
 
                     <td className="px-6 py-4 align-middle hidden lg:table-cell text-sm whitespace-nowrap">
                       <div className="text-ink-700">{joinedRelative}</div>
-                      {joinedAbsolute && <div className="text-xs text-ink-500">{joinedAbsolute}</div>}
+                      {joinedAbsolute && <div className="font-mono tabular text-xs text-ink-500">{joinedAbsolute}</div>}
                     </td>
 
                     <td className="px-6 py-4 align-middle">

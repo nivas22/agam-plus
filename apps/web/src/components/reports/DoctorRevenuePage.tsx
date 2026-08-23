@@ -64,7 +64,7 @@ export default function DoctorRevenuePage({
     <ReportsLayout hospitalId={hospitalId}>
       <div className="flex flex-wrap items-end gap-4 mb-4">
         <div>
-          <h1 className="text-xl font-bold text-ink-900">Doctor revenue</h1>
+          <h1 className="text-xl font-bold text-ink-900 font-display tracking-tight">Doctor revenue</h1>
           <p className="text-sm text-ink-500 mt-0.5">
             What each doctor billed, what actually came in, and how full their
             diary was.
@@ -92,7 +92,7 @@ export default function DoctorRevenuePage({
       ) : (
         <>
           <div className="bg-surface-paper border border-border rounded-xl shadow-sm p-4">
-            <h2 className="text-sm font-semibold text-ink-900 mb-3">
+            <h2 className="text-sm font-semibold text-ink-900 mb-3 font-display tracking-tight">
               Billed by doctor
             </h2>
             {report.chart.doctors.length === 0 ? (
@@ -112,7 +112,7 @@ export default function DoctorRevenuePage({
 
           <div className="bg-surface-paper border border-border rounded-xl shadow-sm overflow-hidden mt-3.5">
             <div className="px-4 py-3 border-b border-border">
-              <h2 className="text-sm font-semibold text-ink-900">The detail</h2>
+              <h2 className="text-sm font-semibold text-ink-900 font-display tracking-tight">The detail</h2>
             </div>
             {report.table.length === 0 ? (
               <div className="py-10 px-6 text-center text-sm text-ink-500">

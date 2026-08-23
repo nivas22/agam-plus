@@ -65,7 +65,7 @@ export default function AddTeamMemberDrawer({ hospitalId, onClose }: AddTeamMemb
       <div className="relative w-full max-w-[498px] h-full bg-surface-paper shadow-2xl flex flex-col">
         <div className="px-6 pt-5 pb-4 border-b border-border flex items-start justify-between">
           <div>
-            <h2 className="text-lg font-bold text-ink-900">Add a team member</h2>
+            <h2 className="text-lg font-bold text-ink-900 font-display tracking-tight">Add a team member</h2>
             <p className="text-xs text-ink-500 mt-1">They&apos;ll get an invite and set their own password on first sign-in.</p>
           </div>
           <button type="button" onClick={onClose} className="p-1 rounded-lg hover:bg-surface-canvas text-ink-500">

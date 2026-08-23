@@ -362,7 +362,7 @@ export default function AddEditHospital({ isNew = false, id }: AddEditHospitalPr
               <div className="mt-4 pt-4 border-t border-border space-y-2 text-sm">
                 <div className="flex items-center justify-between">
                   <span className="text-ink-500">Added</span>
-                  <span className="text-ink-900">{formatAdded(hospital?.createdAt)}</span>
+                  <span className="text-ink-900 font-mono tabular">{formatAdded(hospital?.createdAt)}</span>
                 </div>
               </div>
             )}
@@ -386,7 +386,7 @@ export default function AddEditHospital({ isNew = false, id }: AddEditHospitalPr
         <div className="space-y-6 min-w-0">
           <section className="bg-surface-paper rounded-xl border border-border shadow-sm p-5 md:p-6">
             <div className="mb-5">
-              <h2 className="text-lg font-bold text-ink-900">Hospital details</h2>
+              <h2 className="text-lg font-bold text-ink-900 font-display tracking-tight">Hospital details</h2>
               <p className="text-sm text-ink-500">Basic information shown across the platform</p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -448,7 +448,7 @@ export default function AddEditHospital({ isNew = false, id }: AddEditHospitalPr
           {!isNew && (
             <section className="bg-surface-paper rounded-xl border border-border shadow-sm p-5 md:p-6">
               <div className="mb-4">
-                <h2 className="text-lg font-bold text-ink-900 flex items-center gap-2">
+                <h2 className="text-lg font-bold text-ink-900 flex items-center gap-2 font-display tracking-tight">
                   <Users className="w-5 h-5 text-brand-violet" />
                   Hospital members
                 </h2>
@@ -527,7 +527,7 @@ export default function AddEditHospital({ isNew = false, id }: AddEditHospitalPr
           {isNew && (
             <section className="bg-surface-paper rounded-xl border border-border shadow-sm p-5 md:p-6">
               <div className="mb-4">
-                <h2 className="text-lg font-bold text-ink-900 flex items-center gap-2">
+                <h2 className="text-lg font-bold text-ink-900 flex items-center gap-2 font-display tracking-tight">
                   <ShieldCheck className="w-5 h-5 text-brand-violet" />
                   Hospital admin email(s)
                 </h2>

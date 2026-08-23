@@ -212,7 +212,7 @@ export default function PatientsPage({
       {/* Header */}
       <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-ink-900">Patients</h1>
+          <h1 className="text-2xl font-bold text-ink-900 font-display tracking-tight">Patients</h1>
           <p className="text-sm text-ink-500 mt-1">Everyone in your care, and everyone waiting to join.</p>
         </div>
 

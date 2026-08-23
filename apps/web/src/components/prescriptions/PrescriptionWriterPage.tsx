@@ -384,7 +384,7 @@ export default function PrescriptionWriterPage({
 
           <div className="bg-surface-paper border border-border rounded-xl overflow-hidden">
             <div className="px-4 py-3 border-b border-border flex items-center justify-between">
-              <h2 className="text-sm font-bold text-ink-900">Prescription</h2>
+              <h2 className="text-sm font-bold text-ink-900 font-display tracking-tight">Prescription</h2>
               <span className="text-xs text-ink-500">
                 {items.length} medicine{items.length === 1 ? "" : "s"}
               </span>
@@ -530,7 +530,7 @@ export default function PrescriptionWriterPage({
                   .filter(Boolean)
                   .join(" · ")}
               </span>
-              <span className="shrink-0">{todayDisplay()}</span>
+              <span className="shrink-0 font-mono tabular">{todayDisplay()}</span>
             </div>
             <div className="flex items-baseline justify-between gap-2 text-xs pb-3 mb-3 border-b border-border">
               <span>
@@ -651,7 +651,7 @@ export default function PrescriptionWriterPage({
                 <AlertTriangle className="w-4.5 h-4.5" />
               </span>
               <div>
-                <h3 className="text-base font-semibold text-ink-900">
+                <h3 className="text-base font-semibold text-ink-900 font-display tracking-tight">
                   {pendingConflict.medicine.name} can&apos;t go on this
                   prescription
                 </h3>

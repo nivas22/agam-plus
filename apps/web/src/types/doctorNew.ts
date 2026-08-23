@@ -106,6 +106,11 @@ export interface CreateDoctorData {
 }
 
 export interface UpdateDoctorData {
+  name?: string;
+  email?: string;
+  gender?: string;
+  maritalStatus?: string;
+  address?: string;
   specialization?: string;
   qualification?: string;
   consultationFee?: number;

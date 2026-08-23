@@ -146,7 +146,7 @@ export default function DoctorDetailSidebar({
             <div className="flex items-center gap-3 min-w-0">
               <DoctorAvatar name={d.name} size="lg" />
               <div className="min-w-0">
-                <h2 className="text-base font-bold text-ink-900 truncate">
+                <h2 className="font-display tracking-tight text-base font-bold text-ink-900 truncate">
                   Dr. {d.name}
                 </h2>
                 <p className="text-sm text-ink-500 truncate">
@@ -203,7 +203,7 @@ export default function DoctorDetailSidebar({
         {/* Content */}
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
           <section className="space-y-3">
-            <h3 className="text-xs font-bold uppercase tracking-wide text-ink-500">
+            <h3 className="font-display tracking-tight text-xs font-bold uppercase tracking-wide text-ink-500">
               Contact
             </h3>
             <div className="space-y-2.5">
@@ -216,7 +216,7 @@ export default function DoctorDetailSidebar({
               {d.phone && (
                 <div className="flex items-center gap-3 text-sm text-ink-700">
                   <Phone className="w-4 h-4 text-ink-500 shrink-0" />
-                  <span>{d.phone}</span>
+                  <span className="font-mono tabular">{d.phone}</span>
                 </div>
               )}
               {(d.address || d.location) && (
@@ -236,7 +236,7 @@ export default function DoctorDetailSidebar({
 
           {(d.experience || d.qualification || d.consultationFee != null) && (
             <section className="space-y-3">
-              <h3 className="text-xs font-bold uppercase tracking-wide text-ink-500">
+              <h3 className="font-display tracking-tight text-xs font-bold uppercase tracking-wide text-ink-500">
                 Professional
               </h3>
               <div className="grid grid-cols-2 gap-3">
@@ -265,7 +265,7 @@ export default function DoctorDetailSidebar({
                     <div className="flex items-center gap-2 text-ink-500 text-xs mb-1">
                       <IndianRupee className="w-3.5 h-3.5" /> Consultation Fee
                     </div>
-                    <div className="text-sm font-semibold text-ink-900">
+                    <div className="font-mono tabular text-sm font-semibold text-ink-900">
                       ₹{d.consultationFee}
                     </div>
                   </div>
@@ -275,7 +275,7 @@ export default function DoctorDetailSidebar({
           )}
 
           <section className="space-y-3">
-            <h3 className="text-xs font-bold uppercase tracking-wide text-ink-500">
+            <h3 className="font-display tracking-tight text-xs font-bold uppercase tracking-wide text-ink-500">
               Availability
             </h3>
             <div className="space-y-2">
@@ -288,7 +288,7 @@ export default function DoctorDetailSidebar({
                     <div className="text-sm font-medium text-ink-900">
                       {sortDays(slot.days).map(formatDayName).join(", ")}
                     </div>
-                    <div className="text-xs text-ink-500 mt-0.5">
+                    <div className="font-mono tabular text-xs text-ink-500 mt-0.5">
                       {formatTime(slot.startTime)} - {formatTime(slot.endTime)}
                     </div>
                   </div>

@@ -57,7 +57,7 @@ export default function RolesPermissionsPage({ hospitalId }: RolesPermissionsPag
     <div>
       <div className="flex items-end gap-3.5 mb-4">
         <div>
-          <h1 className="text-xl font-bold text-ink-900">Roles &amp; permissions</h1>
+          <h1 className="text-xl font-bold text-ink-900 font-display tracking-tight">Roles &amp; permissions</h1>
           <p className="text-sm text-ink-500 mt-0.5">
             What each role can do on its own, what needs a second pair of eyes, and what it can&apos;t touch.
           </p>
@@ -115,7 +115,7 @@ export default function RolesPermissionsPage({ hospitalId }: RolesPermissionsPag
 
         <div className="bg-surface-paper border border-border rounded-xl overflow-hidden">
           <div className="px-4 py-3 border-b border-border flex items-center justify-between">
-            <h2 className="text-sm font-bold text-ink-900">What {ROLE_LABELS[active.role] || active.role} can do</h2>
+            <h2 className="text-sm font-bold text-ink-900 font-display tracking-tight">What {ROLE_LABELS[active.role] || active.role} can do</h2>
             <span className="text-[11px] text-ink-500">Changes apply at their next sign-in</span>
           </div>
 

@@ -18,6 +18,7 @@ export enum DB_COLLECTIONS {
   HOSPITAL_HOLIDAYS = 'hospital_holidays',
   MEDICINES = 'medicines',
   PRESCRIPTIONS = 'prescriptions',
+  LEAVE_REQUESTS = 'leave_requests',
 }
 
 // FRONT_DESK/NURSE/ACCOUNTANT replace the old unused STAFF value — nothing
@@ -148,11 +149,14 @@ export function isValidAppointmentTransition(
   return APPOINTMENT_STATUS_TRANSITIONS[current]?.includes(to) ?? false;
 }
 
-// Marks whether an appointment was booked ad-hoc or drawn from a prepaid
-// package. PACKAGE appointments carry packageId/packageVisitNumber.
+// Marks whether an appointment was booked ad-hoc, drawn from a prepaid
+// package, or auto-created as a doctor-requested follow-up at visit
+// completion (see FOLLOW_UP_DAY_OFFSETS / PaymentsService.completeVisit).
+// PACKAGE appointments carry packageId/packageVisitNumber.
 export enum APPOINTMENT_TYPE {
   REGULAR = 'regular',
   PACKAGE = 'package',
+  FOLLOW_UP = 'follow-up',
 }
 
 export const APPOINTMENT_TYPE_VALUES = Object.values(APPOINTMENT_TYPE);
@@ -408,6 +412,134 @@ export enum PRESCRIPTION_STATUS {
 }
 
 export const PRESCRIPTION_STATUS_VALUES = Object.values(PRESCRIPTION_STATUS);
+
+// A doctor's leave request needs admin sign-off before it's treated as
+// blocking their schedule — mirrors ApprovalRequest's status wording.
+export enum LEAVE_REQUEST_STATUS {
+  PENDING = 'pending',
+  APPROVED = 'approved',
+  DECLINED = 'declined',
+}
+
+export const LEAVE_REQUEST_STATUS_VALUES = Object.values(LEAVE_REQUEST_STATUS);
+
+// Seeded once per hospital the first time its medicine catalog is read empty
+// (see MedicinesService) — same one-time-seed idea as
+// DEFAULT_CHARGE_CATALOG_ITEMS, so a fresh hospital isn't blank on day one.
+// A spread of classes (penicillin/nsaid/cephalosporin/macrolide/tetracycline)
+// is included on purpose so the allergy-warning flow has something to catch
+// in testing without any manual catalog setup.
+export const DEFAULT_MEDICINES: {
+  name: string;
+  genericName?: string;
+  classes: string[];
+  form: MEDICINE_FORM;
+  strength?: string;
+  defaultDose?: string;
+  defaultFrequency?: string;
+  defaultFoodTiming?: (typeof FOOD_TIMING_OPTIONS)[number];
+}[] = [
+  {
+    name: 'Amoxicillin',
+    genericName: 'Amoxicillin',
+    classes: ['penicillin'],
+    form: MEDICINE_FORM.CAPSULE,
+    strength: '500mg',
+    defaultDose: '1-0-1',
+    defaultFrequency: 'Twice daily',
+    defaultFoodTiming: 'after_food',
+  },
+  {
+    name: 'Augmentin',
+    genericName: 'Amoxicillin + Clavulanic acid',
+    classes: ['penicillin'],
+    form: MEDICINE_FORM.TABLET,
+    strength: '625mg',
+    defaultDose: '1-0-1',
+    defaultFrequency: 'Twice daily',
+    defaultFoodTiming: 'after_food',
+  },
+  {
+    name: 'Azithromycin',
+    genericName: 'Azithromycin',
+    classes: ['macrolide'],
+    form: MEDICINE_FORM.TABLET,
+    strength: '500mg',
+    defaultDose: '1-0-0',
+    defaultFrequency: 'Once daily',
+    defaultFoodTiming: 'before_food',
+  },
+  {
+    name: 'Doxycycline',
+    genericName: 'Doxycycline',
+    classes: ['tetracycline'],
+    form: MEDICINE_FORM.CAPSULE,
+    strength: '100mg',
+    defaultDose: '1-0-1',
+    defaultFrequency: 'Twice daily',
+    defaultFoodTiming: 'after_food',
+  },
+  {
+    name: 'Cefuroxime',
+    genericName: 'Cefuroxime axetil',
+    classes: ['cephalosporin'],
+    form: MEDICINE_FORM.TABLET,
+    strength: '500mg',
+    defaultDose: '1-0-1',
+    defaultFrequency: 'Twice daily',
+    defaultFoodTiming: 'after_food',
+  },
+  {
+    name: 'Etoricoxib',
+    genericName: 'Etoricoxib',
+    classes: ['nsaid'],
+    form: MEDICINE_FORM.TABLET,
+    strength: '60mg',
+    defaultDose: '1-0-0',
+    defaultFrequency: 'Once daily',
+    defaultFoodTiming: 'after_food',
+  },
+  {
+    name: 'Ibuprofen',
+    genericName: 'Ibuprofen',
+    classes: ['nsaid'],
+    form: MEDICINE_FORM.TABLET,
+    strength: '400mg',
+    defaultDose: '1-1-1',
+    defaultFrequency: 'Thrice daily',
+    defaultFoodTiming: 'after_food',
+  },
+  {
+    name: 'Paracetamol',
+    genericName: 'Paracetamol',
+    classes: [],
+    form: MEDICINE_FORM.TABLET,
+    strength: '650mg',
+    defaultDose: '1-1-1',
+    defaultFrequency: 'Thrice daily',
+    defaultFoodTiming: 'after_food',
+  },
+  {
+    name: 'Pantoprazole',
+    genericName: 'Pantoprazole',
+    classes: [],
+    form: MEDICINE_FORM.TABLET,
+    strength: '40mg',
+    defaultDose: '1-0-0',
+    defaultFrequency: 'Once daily',
+    defaultFoodTiming: 'before_food',
+  },
+  {
+    name: 'Cetirizine',
+    genericName: 'Cetirizine',
+    classes: [],
+    form: MEDICINE_FORM.TABLET,
+    strength: '10mg',
+    defaultDose: '0-0-1',
+    defaultFrequency: 'Once daily, at night',
+    defaultFoodTiming: 'anytime',
+  },
+];
 
 export const MEDICAL_SPECIALIZATIONS = [
   'Cardiology',

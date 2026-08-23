@@ -23,7 +23,7 @@ export default function DashboardHeader({
         <div className={`w-7 h-7 ${iconColor}`}>{icon}</div>
       </div>
       <div>
-        <h1 className="text-2xl font-bold text-ink-900">{title}</h1>
+        <h1 className="font-display tracking-tight text-2xl font-bold text-ink-900">{title}</h1>
         {subtitle && <p className="text-ink-500 text-sm">{subtitle}</p>}
       </div>
     </div>

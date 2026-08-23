@@ -67,7 +67,7 @@ export default function SetupExperience() {
           <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-status-open to-brand-violet rounded-full mb-4 shadow-lg">
             <GraduationCap className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-3xl font-bold text-ink-900 mb-2">Professional Experience</h1>
+          <h1 className="font-display tracking-tight text-3xl font-bold text-ink-900 mb-2">Professional Experience</h1>
           <p className="text-ink-700">Share your qualifications and expertise</p>
         </div>
 
@@ -83,7 +83,7 @@ export default function SetupExperience() {
         <div className="bg-surface-paper rounded-2xl shadow-xl p-6 md:p-8 border border-border">
           {/* Professional Info Section */}
           <div className="mb-8">
-            <h2 className="text-xl font-semibold text-ink-900 mb-6 flex items-center gap-2">
+            <h2 className="font-display tracking-tight text-xl font-semibold text-ink-900 mb-6 flex items-center gap-2">
               <div className="w-1 h-6 bg-gradient-to-b from-status-open to-brand-violet rounded-full"></div>
               Professional Information
             </h2>

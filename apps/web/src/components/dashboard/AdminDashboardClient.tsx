@@ -80,7 +80,7 @@ export default function AdminDashboardClient({
       {/* Quick Stats */}
       {quickStats?.length > 0 && (
         <div className="bg-surface-paper rounded-xl shadow-sm border border-border p-6">
-          <h3 className="text-lg font-semibold text-ink-900 mb-4">
+          <h3 className="font-display tracking-tight text-lg font-semibold text-ink-900 mb-4">
             Quick Statistics
           </h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

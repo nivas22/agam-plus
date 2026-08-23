@@ -37,7 +37,7 @@ export default function TeamPage({ hospitalId }: TeamPageProps) {
     <div>
       <div className="flex items-end gap-3.5 mb-4">
         <div>
-          <h1 className="text-xl font-bold text-ink-900">Team</h1>
+          <h1 className="text-xl font-bold text-ink-900 font-display tracking-tight">Team</h1>
           <p className="text-sm text-ink-500 mt-0.5">
             Everyone who signs in. Doctors are managed separately under Doctors.
           </p>

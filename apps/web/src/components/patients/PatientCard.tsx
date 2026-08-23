@@ -129,11 +129,11 @@ export default function PatientCard({
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 mb-0.5">
-                  <h3 className="text-base font-bold text-ink-900 truncate">
+                  <h3 className="text-base font-bold text-ink-900 truncate font-display tracking-tight">
                     {patient.name || "Unnamed Patient"}
                   </h3>
                   {patient.patientId && (
-                    <span className="px-2 py-0.5 bg-brand-violet-soft text-brand-violet text-xs font-semibold rounded-md">
+                    <span className="px-2 py-0.5 bg-brand-violet-soft text-brand-violet text-xs font-semibold rounded-md font-mono tabular">
                       #{patient.patientId}
                     </span>
                   )}
@@ -202,7 +202,7 @@ export default function PatientCard({
               <div className="w-8 h-8 rounded-lg bg-status-open-soft flex items-center justify-center flex-shrink-0 group-hover/item:bg-status-open-soft transition-colors">
                 <Phone className="w-4 h-4 text-status-open" />
               </div>
-              <span className="text-sm text-ink-700 font-medium">{patient.phone}</span>
+              <span className="text-sm text-ink-700 font-medium font-mono tabular">{patient.phone}</span>
             </div>
           )}
 

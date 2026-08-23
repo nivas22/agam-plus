@@ -1,10 +1,11 @@
 'use client';
 import { useState, useEffect, ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
-import { User, Mail, Phone, Save, CheckCircle2, Award, FileText, Briefcase, ArrowLeft } from "lucide-react";
+import { User, Mail, Phone, Save, CheckCircle2, Award, FileText, Briefcase, ArrowLeft, MapPin, IndianRupee } from "lucide-react";
 import { GENDER } from "../../../constants";
 import { useAuth } from "@/hooks/useAuth";
 import { getDoctorById, useUpdateHospitalDoctor } from "@/hooks/useNewDoctorApi";
+import { PillGroup, ToggleSwitch } from "@/components/common/EditFormControls";
 
 interface DoctorProfileData {
   fullName?: string;
@@ -16,7 +17,12 @@ interface DoctorProfileData {
   qualification?: string;
   experience?: string;
   bio?: string;
+  address?: string;
+  consultationFee?: number;
+  status?: "active" | "inactive" | "pending";
 }
+
+const MARITAL_STATUSES = ["Single", "Married"];
 
 export default function SetupDoctorProfile() {
   const router = useRouter();
@@ -28,7 +34,7 @@ export default function SetupDoctorProfile() {
 
   const membership = getMembership?.();
   const hospitalId = currentHospital?.id || membership?.hospitalId || '';
-  
+
   const updateDoctorMutation = useUpdateHospitalDoctor(hospitalId);
 
   useEffect(() => {
@@ -41,10 +47,15 @@ export default function SetupDoctorProfile() {
             fullName: doctor.name,
             email: doctor.email,
             phone: doctor.phone,
+            gender: doctor.gender,
+            maritalStatus: doctor.maritalStatus,
             specialization: doctor.specialization,
             qualification: doctor.qualification,
             experience: doctor.experience,
             bio: doctor.bio,
+            address: doctor.address,
+            consultationFee: doctor.consultationFee,
+            status: doctor.status,
           });
         }
       } catch (error) {
@@ -82,23 +93,30 @@ export default function SetupDoctorProfile() {
     try {
       setSaveSuccess(false);
       setSaveError(null);
-      
+
       // Prepare update data - only include fields that can be updated via API
       const updateData = {
+        name: formData.fullName,
+        email: formData.email,
+        phone: formData.phone,
+        gender: formData.gender,
+        maritalStatus: formData.maritalStatus,
         specialization: formData.specialization,
         qualification: formData.qualification,
         experience: formData.experience,
         bio: formData.bio,
-        phone: formData.phone,
+        address: formData.address,
+        consultationFee: formData.consultationFee,
+        status: formData.status,
       };
-      
+
       await updateDoctorMutation.mutateAsync({
         doctorId: user.id,
         updates: updateData,
       });
-      
+
       setSaveSuccess(true);
-      
+
       // Hide success message after 3 seconds and navigate back
       setTimeout(() => {
         setSaveSuccess(false);
@@ -107,7 +125,7 @@ export default function SetupDoctorProfile() {
     } catch (error) {
       console.error('Failed to update profile:', error);
       setSaveError(error instanceof Error ? error.message : 'Failed to update profile');
-      
+
       // Hide error message after 5 seconds
       setTimeout(() => setSaveError(null), 5000);
     }
@@ -143,7 +161,7 @@ export default function SetupDoctorProfile() {
             <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-brand-violet to-brand-violet rounded-full mb-4 shadow-lg">
               <Award className="w-8 h-8 text-white" />
             </div>
-            <h1 className="text-3xl font-bold text-ink-900 mb-2">Edit Doctor Profile</h1>
+            <h1 className="font-display tracking-tight text-3xl font-bold text-ink-900 mb-2">Edit Doctor Profile</h1>
             <p className="text-ink-700">Update your professional information</p>
           </div>
         </div>
@@ -168,9 +186,21 @@ export default function SetupDoctorProfile() {
 
         {/* Form Card */}
         <div className="bg-surface-paper rounded-2xl shadow-xl p-6 md:p-8 border border-border">
+          {/* Accepting bookings */}
+          <div className="mb-8 flex items-center justify-between gap-3 rounded-xl border border-border bg-surface-canvas p-4">
+            <div>
+              <div className="text-sm font-semibold text-ink-900">Accepting bookings</div>
+              <div className="text-xs text-ink-500">Shown to patients when booking</div>
+            </div>
+            <ToggleSwitch
+              checked={formData.status === "active"}
+              onChange={(v) => handleSelectChange("status", v ? "active" : "inactive")}
+            />
+          </div>
+
           {/* Personal Info Section */}
           <div className="mb-8">
-            <h2 className="text-xl font-semibold text-ink-900 mb-6 flex items-center gap-2">
+            <h2 className="font-display tracking-tight text-xl font-semibold text-ink-900 mb-6 flex items-center gap-2">
               <div className="w-1 h-6 bg-gradient-to-b from-brand-violet to-brand-violet rounded-full"></div>
               Personal Information
             </h2>
@@ -252,12 +282,25 @@ export default function SetupDoctorProfile() {
                   ))}
                 </div>
               </div>
+
+              {/* Marital Status */}
+              <div>
+                <label className="block text-sm font-medium text-ink-700 mb-3">
+                  Marital Status
+                </label>
+                <PillGroup
+                  options={MARITAL_STATUSES}
+                  value={formData.maritalStatus || ""}
+                  onChange={(v) => handleSelectChange("maritalStatus", v)}
+                  onClear={() => handleSelectChange("maritalStatus", "")}
+                />
+              </div>
             </div>
           </div>
 
           {/* Professional Info Section */}
           <div className="mb-8">
-            <h2 className="text-xl font-semibold text-ink-900 mb-6 flex items-center gap-2">
+            <h2 className="font-display tracking-tight text-xl font-semibold text-ink-900 mb-6 flex items-center gap-2">
               <div className="w-1 h-6 bg-gradient-to-b from-brand-violet to-brand-violet rounded-full"></div>
               Professional Information
             </h2>
@@ -313,6 +356,48 @@ export default function SetupDoctorProfile() {
                     onChange={handleInputChange}
                     placeholder="e.g., 10+ years"
                     className="w-full pl-11 pr-4 py-3 border border-border rounded-xl focus:ring-2 focus:ring-brand-violet focus:border-transparent transition-all outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Consultation Fee */}
+              <div>
+                <label className="block text-sm font-medium text-ink-700 mb-2">
+                  Consultation Fee
+                </label>
+                <div className="relative">
+                  <IndianRupee className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-ink-500" />
+                  <input
+                    type="number"
+                    min={0}
+                    name="consultationFee"
+                    value={formData.consultationFee ?? ""}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        consultationFee: e.target.value ? Number(e.target.value) : undefined,
+                      }))
+                    }
+                    placeholder="500"
+                    className="w-full pl-11 pr-4 py-3 border border-border rounded-xl focus:ring-2 focus:ring-brand-violet focus:border-transparent transition-all outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Address */}
+              <div>
+                <label className="block text-sm font-medium text-ink-700 mb-2">
+                  Clinic Address
+                </label>
+                <div className="relative">
+                  <MapPin className="absolute left-3 top-3 w-5 h-5 text-ink-500" />
+                  <textarea
+                    name="address"
+                    value={formData.address || ""}
+                    onChange={handleInputChange}
+                    placeholder="Block, street, area, city, PIN"
+                    rows={3}
+                    className="w-full pl-11 pr-4 py-3 border border-border rounded-xl focus:ring-2 focus:ring-brand-violet focus:border-transparent transition-all outline-none resize-none"
                   />
                 </div>
               </div>

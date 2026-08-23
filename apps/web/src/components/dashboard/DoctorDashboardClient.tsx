@@ -103,7 +103,7 @@ export default function DoctorDashboardClient({
         {/* Quick Stats */}
         {quickStats && quickStats.length > 0 && (
           <div className="bg-surface-paper rounded-xl shadow-sm border border-border p-6">
-            <h3 className="text-xl font-bold text-ink-900 mb-6 flex items-center gap-2">
+            <h3 className="font-display tracking-tight text-xl font-bold text-ink-900 mb-6 flex items-center gap-2">
               <div className="w-1 h-6 bg-status-open rounded-full"></div>
               Quick Stats
             </h3>
@@ -123,7 +123,7 @@ export default function DoctorDashboardClient({
                 <CalendarDays className="w-6 h-6 text-status-open" />
               </div>
               <div className="flex-1">
-                <h3 className="text-lg font-bold text-ink-900 mb-2">
+                <h3 className="font-display tracking-tight text-lg font-bold text-ink-900 mb-2">
                   Next Appointment
                 </h3>
                 <p className="text-ink-700 font-medium">
@@ -140,7 +140,7 @@ export default function DoctorDashboardClient({
         {/* Upcoming Appointments */}
         {upcomingAppointments && upcomingAppointments.length > 0 && (
           <div className="bg-surface-paper rounded-xl shadow-sm border border-border p-6">
-            <h3 className="text-xl font-bold text-ink-900 mb-6 flex items-center gap-2">
+            <h3 className="font-display tracking-tight text-xl font-bold text-ink-900 mb-6 flex items-center gap-2">
               <div className="w-1 h-6 bg-status-open rounded-full"></div>
               Upcoming Appointments
             </h3>
@@ -162,8 +162,8 @@ export default function DoctorDashboardClient({
                     <p className="text-sm text-ink-700 mt-1">{appointment.type}</p>
                   </div>
                   <div className="text-right flex-shrink-0">
-                    <p className="text-sm font-semibold text-status-open">{appointment.time}</p>
-                    <p className="text-xs text-ink-500 mt-1">{appointment.date}</p>
+                    <p className="font-mono tabular text-sm font-semibold text-status-open">{appointment.time}</p>
+                    <p className="font-mono tabular text-xs text-ink-500 mt-1">{appointment.date}</p>
                   </div>
                 </div>
               ))}
@@ -174,7 +174,7 @@ export default function DoctorDashboardClient({
         {/* Recent Activity */}
         {recentActivity.length > 0 && (
           <div className="bg-surface-paper rounded-xl shadow-sm border border-border p-6">
-            <h3 className="text-xl font-bold text-ink-900 mb-6 flex items-center gap-2">
+            <h3 className="font-display tracking-tight text-xl font-bold text-ink-900 mb-6 flex items-center gap-2">
               <div className="w-1 h-6 bg-brand-violet rounded-full"></div>
               Recent Activity
             </h3>
@@ -189,7 +189,7 @@ export default function DoctorDashboardClient({
                     <span className="font-semibold text-ink-900">{activity.patientName}</span>
                     <span className="text-ink-700"> • {activity.action}</span>
                   </div>
-                  <span className="text-sm text-ink-500">{activity.time}</span>
+                  <span className="font-mono tabular text-sm text-ink-500">{activity.time}</span>
                 </li>
               ))}
             </ul>

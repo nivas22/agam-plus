@@ -60,7 +60,7 @@ export default function SelectHospitalPage() {
                 <Sparkles className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h1 className="text-2xl md:text-3xl font-bold text-white">
+                <h1 className="font-display tracking-tight text-2xl md:text-3xl font-bold text-white">
                   Welcome back, {user.name}
                 </h1>
               </div>
@@ -93,7 +93,7 @@ export default function SelectHospitalPage() {
                   <Check className="text-status-open w-4 h-4" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-semibold text-ink-900">Active Hospitals</h2>
+                  <h2 className="font-display tracking-tight text-lg font-semibold text-ink-900">Active Hospitals</h2>
                   <p className="text-xs text-ink-500">{approvedHospitals.length} {approvedHospitals.length === 1 ? 'facility' : 'facilities'}</p>
                 </div>
               </div>
@@ -123,7 +123,7 @@ export default function SelectHospitalPage() {
                   <Clock className="text-status-warning w-4 h-4" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-semibold text-ink-900">Pending Approval</h2>
+                  <h2 className="font-display tracking-tight text-lg font-semibold text-ink-900">Pending Approval</h2>
                   <p className="text-xs text-ink-500">{pendingHospitals.length} request{pendingHospitals.length === 1 ? '' : 's'} awaiting review</p>
                 </div>
               </div>
@@ -148,7 +148,7 @@ export default function SelectHospitalPage() {
             <div className="inline-flex items-center justify-center w-16 h-16 bg-brand-violet-soft rounded-2xl mb-6">
               <Building2 className="text-brand-violet w-8 h-8" />
             </div>
-            <h3 className="text-xl font-bold text-ink-900 mb-2">
+            <h3 className="font-display tracking-tight text-xl font-bold text-ink-900 mb-2">
               No Hospital Access
             </h3>
             <p className="text-sm text-ink-700 mb-8 max-w-md mx-auto">
@@ -257,7 +257,7 @@ function HospitalCard({ hospital, member, onSelect, isSwitching, type, index }: 
               <Building2 className={`w-5 h-5 ${isApproved ? 'text-brand-violet' : 'text-status-warning'}`} />
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className="text-sm font-semibold text-ink-900 truncate mb-0.5">
+              <h3 className="font-display tracking-tight text-sm font-semibold text-ink-900 truncate mb-0.5">
                 {hospital.name}
               </h3>
               <div className="flex items-center text-xs text-ink-500">

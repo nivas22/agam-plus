@@ -298,7 +298,7 @@ export default function PatientProfilePage({
           {getInitials(patient.name)}
         </div>
         <div className="min-w-0">
-          <h1 className="text-xl font-bold text-ink-900">{patient.name}</h1>
+          <h1 className="text-xl font-bold text-ink-900 font-display tracking-tight">{patient.name}</h1>
           <div className="flex items-center gap-2 flex-wrap text-[12.5px] text-ink-500 mt-0.5">
             {patient.patientId && (
               <span className="font-mono">P-{patient.patientId}</span>
@@ -484,7 +484,7 @@ export default function PatientProfilePage({
       <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-4 mt-4 items-start">
         <div className="space-y-3.5">
           <div className="bg-surface-paper border border-border rounded-xl shadow-sm overflow-hidden">
-            <h2 className="text-sm font-semibold text-ink-900 px-4 py-3 border-b border-border">
+            <h2 className="text-sm font-semibold text-ink-900 px-4 py-3 border-b border-border font-display tracking-tight">
               Details
             </h2>
             <div className="px-4 py-1">
@@ -511,7 +511,7 @@ export default function PatientProfilePage({
 
           {usualDoctors.length > 0 && (
             <div className="bg-surface-paper border border-border rounded-xl shadow-sm overflow-hidden">
-              <h2 className="text-sm font-semibold text-ink-900 px-4 py-3 border-b border-border">
+              <h2 className="text-sm font-semibold text-ink-900 px-4 py-3 border-b border-border font-display tracking-tight">
                 Usual doctors
               </h2>
               <div className="px-4 py-1">
@@ -696,13 +696,13 @@ function VisitRow({
   return (
     <div className="grid grid-cols-[62px_1fr_auto] gap-3.5 px-4 py-3.5 border-t border-border first:border-t-0">
       <div className="text-center border border-border rounded-lg py-1.5 bg-surface-canvas/40 h-fit">
-        <div className="font-bold text-ink-900 text-base leading-tight">
+        <div className="font-bold text-ink-900 text-base leading-tight font-mono tabular">
           {box.d}
         </div>
         <div className="text-[10px] text-ink-500 uppercase tracking-wide">
           {box.m}
         </div>
-        <div className="text-[9.5px] text-ink-500">{box.y}</div>
+        <div className="text-[9.5px] text-ink-500 font-mono tabular">{box.y}</div>
       </div>
       <div className="min-w-0">
         <div
@@ -855,7 +855,7 @@ function UpcomingRow({ appointment }: { appointment: AppointmentWithDetails }) {
   return (
     <div className="flex items-center gap-3.5 px-4 py-3.5 border-t border-border first:border-t-0">
       <div className="text-center border border-border rounded-lg py-1.5 px-2.5 bg-surface-canvas/40">
-        <div className="font-bold text-ink-900 text-base leading-tight">
+        <div className="font-bold text-ink-900 text-base leading-tight font-mono tabular">
           {box.d}
         </div>
         <div className="text-[10px] text-ink-500 uppercase tracking-wide">
@@ -866,7 +866,7 @@ function UpcomingRow({ appointment }: { appointment: AppointmentWithDetails }) {
         <div className="text-[13.5px] font-semibold text-ink-900">
           Dr. {appointment.doctorName}
         </div>
-        <div className="text-[11.5px] text-ink-500 flex items-center gap-1 mt-0.5">
+        <div className="text-[11.5px] text-ink-500 flex items-center gap-1 mt-0.5 font-mono tabular">
           <Clock className="w-3 h-3" /> {formatTime12h(appointment.time)}
         </div>
       </div>

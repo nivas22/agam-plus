@@ -25,19 +25,19 @@ export default function NoDataFound({
 
       {searchQuery ? (
         <>
-          <h3 className="text-lg font-semibold text-ink-900 mb-2">No {entityType} found</h3>
+          <h3 className="font-display tracking-tight text-lg font-semibold text-ink-900 mb-2">No {entityType} found</h3>
           <p className="text-ink-700 mb-4">
             No results found for "<span className="font-medium">{searchQuery}</span>"
           </p>
         </>
       ) : hasFilters ? (
         <>
-          <h3 className="text-lg font-semibold text-ink-900 mb-2">No matching {entityType}</h3>
+          <h3 className="font-display tracking-tight text-lg font-semibold text-ink-900 mb-2">No matching {entityType}</h3>
           <p className="text-ink-700 mb-4">Try adjusting your filters</p>
         </>
       ) : (
         <>
-          <h3 className="text-lg font-semibold text-ink-900 mb-2">No {entityType} yet</h3>
+          <h3 className="font-display tracking-tight text-lg font-semibold text-ink-900 mb-2">No {entityType} yet</h3>
           <p className="text-ink-700 mb-4">Get started by adding your first {entityType.slice(0, -1)}</p>
         </>
       )}

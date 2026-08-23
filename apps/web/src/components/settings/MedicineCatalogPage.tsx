@@ -10,10 +10,12 @@ import MedicineItemDrawer from "./MedicineItemDrawer";
 
 interface MedicineCatalogPageProps {
   hospitalId: string;
+  canEdit?: boolean;
 }
 
 export default function MedicineCatalogPage({
   hospitalId,
+  canEdit = true,
 }: MedicineCatalogPageProps) {
   const [showArchived, setShowArchived] = useState(false);
   const [search, setSearch] = useState("");
@@ -38,21 +40,23 @@ export default function MedicineCatalogPage({
     <div>
       <div className="flex items-end gap-3.5 mb-4">
         <div>
-          <h1 className="text-xl font-bold text-ink-900">Medicines</h1>
+          <h1 className="text-xl font-bold text-ink-900 font-display tracking-tight">Medicines</h1>
           <p className="text-sm text-ink-500 mt-0.5">
             The catalog doctors search from when writing a prescription —
             including allergy class tags.
           </p>
         </div>
         <div className="flex-1" />
-        <button
-          type="button"
-          onClick={() => setDrawerItemId(null)}
-          className="flex items-center gap-1.5 bg-brand-violet hover:bg-brand-violet-hover text-white text-sm font-semibold rounded-lg px-4 py-2.5 transition-colors"
-        >
-          <Plus size={16} />
-          Add medicine
-        </button>
+        {canEdit && (
+          <button
+            type="button"
+            onClick={() => setDrawerItemId(null)}
+            className="flex items-center gap-1.5 bg-brand-violet hover:bg-brand-violet-hover text-white text-sm font-semibold rounded-lg px-4 py-2.5 transition-colors"
+          >
+            <Plus size={16} />
+            Add medicine
+          </button>
+        )}
       </div>
 
       <div className="bg-surface-paper border border-border rounded-xl overflow-hidden">
@@ -185,7 +189,7 @@ export default function MedicineCatalogPage({
                       }}
                       className="px-3 py-1.5 rounded-lg border border-border text-xs font-semibold text-ink-700"
                     >
-                      Edit
+                      {canEdit ? "Edit" : "View"}
                     </button>
                   </td>
                 </tr>
@@ -199,11 +203,12 @@ export default function MedicineCatalogPage({
         <MedicineItemDrawer
           hospitalId={hospitalId}
           itemId={drawerItemId ?? undefined}
+          readOnly={!canEdit}
           onClose={() => setDrawerItemId(undefined)}
         />
       )}
 
-      {items.length === 0 && !isLoading && !showArchived && !search && (
+      {canEdit && items.length === 0 && !isLoading && !showArchived && !search && (
         <div className="mt-5 flex gap-2.5 items-start bg-status-warning-soft border border-status-warning/30 rounded-lg p-3 text-xs text-status-warning">
           <AlertTriangle size={16} className="flex-none mt-0.5" />
           <span>

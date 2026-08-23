@@ -435,7 +435,7 @@ export default function AdminDashboardClient() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-end gap-3 sm:gap-4">
         <div className="flex-1">
-          <h1 className="text-2xl font-bold text-ink-900">
+          <h1 className="font-display tracking-tight text-2xl font-bold text-ink-900">
             {greeting}, {firstName}
           </h1>
           <p className="text-ink-500 text-sm mt-0.5">
@@ -523,7 +523,7 @@ export default function AdminDashboardClient() {
       {/* Today's doctors */}
       <div className="bg-surface-paper border border-border rounded-xl overflow-hidden shadow-sm">
         <div className="flex items-center gap-2.5 px-4 py-3 border-b border-border">
-          <h2 className="text-[14.5px] font-bold text-ink-900">
+          <h2 className="font-display tracking-tight text-[14.5px] font-bold text-ink-900">
             Today&apos;s doctors
           </h2>
           <span className="flex-1" />
@@ -575,7 +575,7 @@ export default function AdminDashboardClient() {
           {/* Needs you */}
           <div className="bg-surface-paper border border-border rounded-xl overflow-hidden shadow-sm">
             <div className="flex items-center gap-2.5 px-4 py-3 border-b border-border">
-              <h2 className="text-[14.5px] font-bold text-ink-900 flex items-center gap-2">
+              <h2 className="font-display tracking-tight text-[14.5px] font-bold text-ink-900 flex items-center gap-2">
                 Needs you
                 {visibleNeedsYou.length > 0 && (
                   <span className="bg-status-danger text-white rounded-full text-[10.5px] px-2 py-0.5 font-bold">
@@ -631,7 +631,7 @@ export default function AdminDashboardClient() {
           {/* Money today */}
           <div className="bg-surface-paper border border-border rounded-xl overflow-hidden shadow-sm">
             <div className="flex items-center gap-2.5 px-4 py-3 border-b border-border">
-              <h2 className="text-[14.5px] font-bold text-ink-900">
+              <h2 className="font-display tracking-tight text-[14.5px] font-bold text-ink-900">
                 Money today
               </h2>
               <span className="flex-1" />
@@ -644,7 +644,7 @@ export default function AdminDashboardClient() {
                 <div className="text-[10.5px] uppercase tracking-wide font-bold text-white/80">
                   Collected
                 </div>
-                <div className="text-2xl font-bold mt-0.5">
+                <div className="font-mono tabular text-2xl font-bold mt-0.5">
                   {money(todayReport?.tiles.collected.amount)}
                 </div>
                 <div className="text-[11.5px] text-white/85 mt-0.5">
@@ -655,7 +655,7 @@ export default function AdminDashboardClient() {
                 <div className="text-[10.5px] uppercase tracking-wide font-bold text-ink-500">
                   Cash
                 </div>
-                <div className="text-xl font-bold mt-0.5 text-ink-900">
+                <div className="font-mono tabular text-xl font-bold mt-0.5 text-ink-900">
                   {money(todayReport?.totals.cash)}
                 </div>
                 <div className="text-[11.5px] text-ink-500 mt-0.5">
@@ -666,7 +666,7 @@ export default function AdminDashboardClient() {
                 <div className="text-[10.5px] uppercase tracking-wide font-bold text-ink-500">
                   UPI
                 </div>
-                <div className="text-xl font-bold mt-0.5 text-ink-900">
+                <div className="font-mono tabular text-xl font-bold mt-0.5 text-ink-900">
                   {money(todayReport?.totals.upi)}
                 </div>
                 <div className="text-[11.5px] text-ink-500 mt-0.5">
@@ -677,7 +677,7 @@ export default function AdminDashboardClient() {
                 <div className="text-[10.5px] uppercase tracking-wide font-bold text-ink-500">
                   Unpaid raised
                 </div>
-                <div className="text-xl font-bold mt-0.5 text-status-danger">
+                <div className="font-mono tabular text-xl font-bold mt-0.5 text-status-danger">
                   {money(todayReport?.tiles.raisedButUnpaid.amount)}
                 </div>
                 <div className="text-[11.5px] text-ink-500 mt-0.5">
@@ -696,7 +696,7 @@ export default function AdminDashboardClient() {
           {/* Month chart */}
           <div className="bg-surface-paper border border-border rounded-xl overflow-hidden shadow-sm">
             <div className="flex items-center gap-2.5 px-4 py-3 border-b border-border">
-              <h2 className="text-[14.5px] font-bold text-ink-900">
+              <h2 className="font-display tracking-tight text-[14.5px] font-bold text-ink-900">
                 {format(now, "MMMM")} so far
               </h2>
             </div>
@@ -714,7 +714,7 @@ export default function AdminDashboardClient() {
           {/* Doctors this month */}
           <div className="bg-surface-paper border border-border rounded-xl overflow-hidden shadow-sm">
             <div className="flex items-center gap-2.5 px-4 py-3 border-b border-border">
-              <h2 className="text-[14.5px] font-bold text-ink-900">
+              <h2 className="font-display tracking-tight text-[14.5px] font-bold text-ink-900">
                 Doctors this month
               </h2>
               <span className="flex-1" />
@@ -819,7 +819,7 @@ export default function AdminDashboardClient() {
         <div className="space-y-4">
           <div className="bg-surface-paper border border-border rounded-xl overflow-hidden shadow-sm">
             <div className="flex items-center gap-2.5 px-4 py-3 border-b border-border">
-              <h2 className="text-[14.5px] font-bold text-ink-900">
+              <h2 className="font-display tracking-tight text-[14.5px] font-bold text-ink-900">
                 Queue right now
               </h2>
               <span className="flex-1" />
@@ -868,7 +868,7 @@ export default function AdminDashboardClient() {
 
           <div className="bg-surface-paper border border-border rounded-xl overflow-hidden shadow-sm">
             <div className="px-4 py-3 border-b border-border">
-              <h2 className="text-[14.5px] font-bold text-ink-900">
+              <h2 className="font-display tracking-tight text-[14.5px] font-bold text-ink-900">
                 Coming up
               </h2>
             </div>
@@ -903,7 +903,7 @@ export default function AdminDashboardClient() {
 
           <div className="bg-surface-paper border border-border rounded-xl overflow-hidden shadow-sm">
             <div className="flex items-center gap-2.5 px-4 py-3 border-b border-border">
-              <h2 className="text-[14.5px] font-bold text-ink-900">
+              <h2 className="font-display tracking-tight text-[14.5px] font-bold text-ink-900">
                 Latest activity
               </h2>
               <span className="flex-1" />

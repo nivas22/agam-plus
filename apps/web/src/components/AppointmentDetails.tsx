@@ -590,7 +590,7 @@ export default function AppointmentDetails({
               {getInitials(selectedPatient?.name || "Patient")}
             </span>
             <div className="min-w-0">
-              <h3 className="text-base font-bold text-ink-900 truncate">
+              <h3 className="font-display tracking-tight text-base font-bold text-ink-900 truncate">
                 {activeAction === "viewNotes"
                   ? "Visit record"
                   : currentAction?.title || "Appointment"}
@@ -673,7 +673,7 @@ export default function AppointmentDetails({
                     <div className="p-4 bg-brand-violet-soft rounded-xl border border-brand-violet/20 space-y-2">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-sm font-medium">
+                          <p className="font-mono tabular text-sm font-medium">
                             {new Date(
                               selectedAppointment.date,
                             ).toLocaleDateString([], {
@@ -683,7 +683,7 @@ export default function AppointmentDetails({
                               year: "numeric",
                             })}
                           </p>
-                          <p className="text-sm text-brand-violet">
+                          <p className="font-mono tabular text-sm text-brand-violet">
                             {timeDisplay(selectedAppointment.time)}
                           </p>
                         </div>
@@ -1002,10 +1002,10 @@ export default function AppointmentDetails({
                               <Clock className="w-4 h-4 text-ink-500 flex-shrink-0" />
                               <div className="flex-1 min-w-0">
                                 <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
-                                  <span className="text-sm font-medium text-ink-900">
+                                  <span className="font-mono tabular text-sm font-medium text-ink-900">
                                     {timeDisplay(appt.time)}
                                   </span>
-                                  <span className="text-xs text-ink-500">
+                                  <span className="font-mono tabular text-xs text-ink-500">
                                     {new Date(appt.date).toLocaleDateString(
                                       [],
                                       {
@@ -1113,7 +1113,7 @@ export default function AppointmentDetails({
                       <p className="text-sm font-medium text-status-open">
                         New appointment time:
                       </p>
-                      <p className="text-sm">
+                      <p className="font-mono tabular text-sm">
                         {new Date(
                           `${rescheduleDate}T${rescheduleTime}`,
                         ).toLocaleString([], {
@@ -1344,7 +1344,7 @@ export default function AppointmentDetails({
                                   <span className="font-medium">
                                     {event.label}
                                   </span>
-                                  <span className="text-ink-500">
+                                  <span className="font-mono tabular text-ink-500">
                                     {" "}
                                     · {format(event.at, "d MMM, h:mm a")}
                                   </span>

@@ -134,7 +134,7 @@ export default function RequestAccessPage() {
           </button>
           
           <div className="bg-gradient-to-r from-brand-violet to-brand-violet rounded-2xl p-6 shadow-lg">
-            <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">
+            <h1 className="font-display tracking-tight text-2xl md:text-3xl font-bold text-white mb-2">
               Request Hospital Access
             </h1>
             <p className="text-sm text-brand-violet-soft">
@@ -176,7 +176,7 @@ export default function RequestAccessPage() {
             <div className="inline-flex items-center justify-center w-16 h-16 bg-brand-violet-soft rounded-2xl mb-6">
               <Building2 className="w-8 h-8 text-brand-violet" />
             </div>
-            <h3 className="text-xl font-bold text-ink-900 mb-2">
+            <h3 className="font-display tracking-tight text-xl font-bold text-ink-900 mb-2">
               No hospitals found
             </h3>
             <p className="text-sm text-ink-700">
@@ -200,7 +200,7 @@ export default function RequestAccessPage() {
                 <div className="inline-flex items-center justify-center w-14 h-14 bg-brand-violet-soft rounded-xl mb-4">
                   <Building2 className="w-7 h-7 text-brand-violet" />
                 </div>
-                <h3 className="text-xl font-bold text-ink-900 mb-1">
+                <h3 className="font-display tracking-tight text-xl font-bold text-ink-900 mb-1">
                   Request Access
                 </h3>
                 <p className="text-sm text-ink-700">{selectedHospital.name}</p>
@@ -356,7 +356,7 @@ function HospitalCard({ hospital, onRequest, index }: HospitalCardProps) {
               <Building2 className="w-5 h-5 text-brand-violet" />
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className="text-sm font-semibold text-ink-900 truncate mb-0.5">
+              <h3 className="font-display tracking-tight text-sm font-semibold text-ink-900 truncate mb-0.5">
                 {hospital.name}
               </h3>
               <div className="flex items-center text-xs text-ink-500">

@@ -120,7 +120,7 @@ export default function LoginPage() {
                 <FaHospital className="feature-icon-inner" />
               </div>
               <div className="feature-content">
-                <h3 className="feature-title">Multi-Hospital Support</h3>
+                <h3 className="feature-title font-display tracking-tight">Multi-Hospital Support</h3>
                 <p className="feature-description">Work across multiple hospitals with single sign-on</p>
               </div>
             </div>
@@ -130,7 +130,7 @@ export default function LoginPage() {
                 <FaUserMd className="feature-icon-inner" />
               </div>
               <div className="feature-content">
-                <h3 className="feature-title">Role-Based Access</h3>
+                <h3 className="feature-title font-display tracking-tight">Role-Based Access</h3>
                 <p className="feature-description">Different permissions for admins, doctors, and staff</p>
               </div>
             </div>
@@ -142,7 +142,7 @@ export default function LoginPage() {
                 </svg>
               </div>
               <div className="feature-content">
-                <h3 className="feature-title">Patient Records</h3>
+                <h3 className="feature-title font-display tracking-tight">Patient Records</h3>
                 <p className="feature-description">Secure and organized patient information</p>
               </div>
             </div>
@@ -154,7 +154,7 @@ export default function LoginPage() {
                 </svg>
               </div>
               <div className="feature-content">
-                <h3 className="feature-title">Appointment Scheduling</h3>
+                <h3 className="feature-title font-display tracking-tight">Appointment Scheduling</h3>
                 <p className="feature-description">Streamlined booking and management</p>
               </div>
             </div>
@@ -189,7 +189,7 @@ export default function LoginPage() {
       <div className="login-section">
         <div className="login-form-container">
           <div className="login-header">
-            <h2 className="login-title">Welcome Back</h2>
+            <h2 className="login-title font-display tracking-tight">Welcome Back</h2>
             <p className="login-subtitle">Sign in to access your hospitals</p>
           </div>
 

@@ -55,7 +55,7 @@ export default function PlatformAdminUsersPage() {
   return (
     <div className="space-y-6 pb-10">
       <div>
-        <h1 className="text-2xl font-bold text-ink-900">Users</h1>
+        <h1 className="font-display tracking-tight text-2xl font-bold text-ink-900">Users</h1>
         <p className="text-sm text-ink-500">{users.length} {users.length === 1 ? 'user' : 'users'} on the platform</p>
       </div>
 
@@ -97,8 +97,8 @@ export default function PlatformAdminUsersPage() {
                         )}
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-ink-700">{formatDate(user.lastLogin)}</td>
-                    <td className="px-4 py-3 text-ink-700">{formatDate(user.createdAt)}</td>
+                    <td className="font-mono tabular px-4 py-3 text-ink-700">{formatDate(user.lastLogin)}</td>
+                    <td className="font-mono tabular px-4 py-3 text-ink-700">{formatDate(user.createdAt)}</td>
                     <td className="px-4 py-3 text-right">
                       <button
                         onClick={() => toggleMutation.mutate({ userId: user.id, isPlatformAdmin: !user.isPlatformAdmin })}

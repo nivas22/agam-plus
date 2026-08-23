@@ -140,7 +140,7 @@ export default function ProfilePage() {
           <div className="w-12 h-12 bg-status-danger-soft rounded-full flex items-center justify-center mx-auto mb-4">
             <X className="text-status-danger" size={24} />
           </div>
-          <h3 className="text-lg font-semibold text-ink-900 mb-2">Failed to Load Profile</h3>
+          <h3 className="text-lg font-semibold text-ink-900 mb-2 font-display tracking-tight">Failed to Load Profile</h3>
           <p className="text-sm text-ink-500">Please try refreshing the page</p>
         </div>
       </div>
@@ -154,7 +154,7 @@ export default function ProfilePage() {
         <div className="bg-surface-paper/80 backdrop-blur-sm border-b border-border px-4 sm:px-6 lg:px-8 py-4 shadow-sm">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-ink-900">Profile</h1>
+              <h1 className="text-xl sm:text-2xl font-bold text-ink-900 font-display tracking-tight">Profile</h1>
               <p className="text-sm text-ink-500 mt-0.5">Manage your professional information</p>
             </div>
             <div className="flex items-center gap-2">
@@ -199,7 +199,7 @@ export default function ProfilePage() {
                       </div>
                     </div>
 
-                    <h2 className="mt-4 text-xl sm:text-2xl font-bold text-ink-900 text-center">{profileData.name}</h2>
+                    <h2 className="mt-4 text-xl sm:text-2xl font-bold text-ink-900 text-center font-display tracking-tight">{profileData.name}</h2>
 
                     <div className="mt-2 flex items-center gap-2">
                       {isDoctor ? (
@@ -234,7 +234,7 @@ export default function ProfilePage() {
                         <div className="w-8 h-8 rounded-lg bg-surface-canvas flex items-center justify-center flex-shrink-0">
                           <Phone size={14} className="text-ink-700" />
                         </div>
-                        <span className="text-ink-700">{profileData.phone}</span>
+                        <span className="text-ink-700 font-mono tabular">{profileData.phone}</span>
                       </div>
                     )}
 
@@ -261,7 +261,7 @@ export default function ProfilePage() {
                     <div className="px-6 py-4 bg-brand-violet-soft border-b border-brand-violet/20 flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <Award className="text-brand-violet" size={20} />
-                        <h3 className="text-lg font-bold text-ink-900">Professional Credentials</h3>
+                        <h3 className="text-lg font-bold text-ink-900 font-display tracking-tight">Professional Credentials</h3>
                       </div>
                       <button
                         onClick={() => router.push('/setup/doctor-profile')}
@@ -296,7 +296,7 @@ export default function ProfilePage() {
                     <div className="px-6 py-4 bg-status-open-soft border-b border-status-open/20 flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <FileText className="text-status-open" size={20} />
-                        <h3 className="text-lg font-bold text-ink-900">About</h3>
+                        <h3 className="text-lg font-bold text-ink-900 font-display tracking-tight">About</h3>
                       </div>
                       <button
                         onClick={() => router.push('/setup/doctor-profile')}
@@ -322,7 +322,7 @@ export default function ProfilePage() {
                     <div className="px-6 py-4 bg-brand-violet-soft border-b border-brand-violet/20 flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <Calendar className="text-brand-violet" size={20} />
-                        <h3 className="text-lg font-bold text-ink-900">Weekly Schedule</h3>
+                        <h3 className="text-lg font-bold text-ink-900 font-display tracking-tight">Weekly Schedule</h3>
                       </div>
                       <button
                         onClick={() => router.push(`/hospital/${currentHospital?.id}/doctors/${user?.id}/add/availability`)}
@@ -362,7 +362,7 @@ export default function ProfilePage() {
                                   ) : (
                                     <div className="flex flex-wrap justify-end gap-2">
                                       {daySlots.map((slot, idx) => (
-                                        <span key={idx} className="inline-block px-2.5 py-1 bg-brand-violet-soft text-brand-violet text-xs font-medium rounded-md border border-brand-violet/20">
+                                        <span key={idx} className="inline-block px-2.5 py-1 bg-brand-violet-soft text-brand-violet text-xs font-medium rounded-md border border-brand-violet/20 font-mono tabular">
                                           {formatTimeForDisplay(slot.startTime)} - {formatTimeForDisplay(slot.endTime)}
                                         </span>
                                       ))}
@@ -384,7 +384,7 @@ export default function ProfilePage() {
                 <div className="px-6 py-4 bg-brand-violet-soft border-b border-brand-violet/20 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Shield className="text-brand-violet" size={20} />
-                    <h3 className="text-lg font-bold text-ink-900">Account Settings</h3>
+                    <h3 className="text-lg font-bold text-ink-900 font-display tracking-tight">Account Settings</h3>
                   </div>
                   <button
                     onClick={() => router.push('/setup/profile')}
@@ -414,7 +414,7 @@ export default function ProfilePage() {
                 <div className="px-6 py-4 border-b border-status-danger/20 bg-status-danger-soft">
                   <div className="flex items-center gap-2">
                     <AlertTriangle className="text-status-danger" size={20} />
-                    <h3 className="text-lg font-bold text-ink-900">Danger Zone</h3>
+                    <h3 className="text-lg font-bold text-ink-900 font-display tracking-tight">Danger Zone</h3>
                   </div>
                 </div>
                 <div className="p-6">

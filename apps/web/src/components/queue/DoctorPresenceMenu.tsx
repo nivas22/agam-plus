@@ -13,6 +13,7 @@ interface DoctorPresenceMenuProps {
   now: Date;
   onMarkHere: () => void;
   onMarkRunningLate: (expectedTime: string) => void;
+  onMarkOnBreak: (returnTime: string) => void;
   onOpenNotComing: () => void;
   onLeftForDay: () => void;
 }
@@ -35,6 +36,18 @@ function roundedTimeOptions(now: Date): string[] {
   });
 }
 
+// Common afternoon/evening return slots for a doctor stepping out after
+// their morning session — later in the day than "running late" cares about,
+// so a fixed clock-hour list reads better than an offset from now. Only
+// hours still ahead of now are offered.
+function laterTimeOptions(now: Date): string[] {
+  const nowMins = now.getHours() * 60 + now.getMinutes();
+  return ["13:00", "14:00", "16:00", "18:00"].filter((t) => {
+    const [h, m] = t.split(":").map(Number);
+    return h * 60 + m > nowMins;
+  });
+}
+
 export default function DoctorPresenceMenu({
   label,
   tone,
@@ -42,12 +55,15 @@ export default function DoctorPresenceMenu({
   now,
   onMarkHere,
   onMarkRunningLate,
+  onMarkOnBreak,
   onOpenNotComing,
   onLeftForDay,
 }: DoctorPresenceMenuProps) {
   const [open, setOpen] = useState(false);
   const [pickingTime, setPickingTime] = useState(false);
   const [customTime, setCustomTime] = useState("");
+  const [pickingBreakTime, setPickingBreakTime] = useState(false);
+  const [customBreakTime, setCustomBreakTime] = useState("");
   const btnRef = useRef<HTMLButtonElement>(null);
   const popRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState({ top: 0, left: 0 });
@@ -83,14 +99,17 @@ export default function DoctorPresenceMenu({
     }
     setOpen((o) => !o);
     setPickingTime(false);
+    setPickingBreakTime(false);
   };
 
   const close = () => {
     setOpen(false);
     setPickingTime(false);
+    setPickingBreakTime(false);
   };
 
   const timeOptions = roundedTimeOptions(now);
+  const breakTimeOptions = laterTimeOptions(now);
 
   return (
     <>
@@ -184,6 +203,61 @@ export default function DoctorPresenceMenu({
                       disabled={!customTime}
                       onClick={() => {
                         onMarkRunningLate(customTime);
+                        close();
+                      }}
+                      className="border border-border rounded-lg px-2.5 py-1.5 text-xs font-medium text-ink-700 hover:bg-surface-canvas disabled:opacity-50"
+                    >
+                      Set
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="border-t border-border">
+              <button
+                type="button"
+                onClick={() => setPickingBreakTime((p) => !p)}
+                className="w-full flex items-start gap-2.5 px-3.5 py-2.5 text-left hover:bg-surface-canvas/60"
+              >
+                <span className="w-2 h-2 rounded-full bg-status-warning mt-1.5 shrink-0" />
+                <span>
+                  <span className="block text-sm font-semibold text-ink-900">
+                    Morning session done
+                  </span>
+                  <span className="block text-xs text-ink-500 mt-0.5">
+                    Stepping out, back later today — evening bookings stay as
+                    they are
+                  </span>
+                </span>
+              </button>
+              {pickingBreakTime && (
+                <div className="px-3.5 pb-3 flex flex-wrap gap-1.5">
+                  {breakTimeOptions.map((t) => (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => {
+                        onMarkOnBreak(t);
+                        close();
+                      }}
+                      className="border border-border rounded-lg px-2.5 py-1.5 font-mono text-xs text-ink-700 hover:border-brand-violet hover:text-brand-violet"
+                    >
+                      {formatTime12h(t)}
+                    </button>
+                  ))}
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="time"
+                      value={customBreakTime}
+                      onChange={(e) => setCustomBreakTime(e.target.value)}
+                      className="border border-border rounded-lg px-2 py-1.5 text-xs font-mono"
+                    />
+                    <button
+                      type="button"
+                      disabled={!customBreakTime}
+                      onClick={() => {
+                        onMarkOnBreak(customBreakTime);
                         close();
                       }}
                       className="border border-border rounded-lg px-2.5 py-1.5 text-xs font-medium text-ink-700 hover:bg-surface-canvas disabled:opacity-50"

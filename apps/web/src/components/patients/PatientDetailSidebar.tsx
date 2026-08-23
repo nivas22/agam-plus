@@ -101,11 +101,11 @@ export default function PatientDetailSidebar({
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <h2 className="text-base font-bold text-ink-900 truncate">
+                  <h2 className="text-base font-bold text-ink-900 truncate font-display tracking-tight">
                     {p.name || "Unnamed Patient"}
                   </h2>
                   {p.patientId && (
-                    <span className="px-2 py-0.5 bg-brand-violet-soft text-brand-violet text-xs font-semibold rounded-md shrink-0">
+                    <span className="px-2 py-0.5 bg-brand-violet-soft text-brand-violet text-xs font-semibold rounded-md shrink-0 font-mono tabular">
                       #{p.patientId}
                     </span>
                   )}
@@ -168,7 +168,7 @@ export default function PatientDetailSidebar({
         {/* Content */}
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
           <section className="space-y-3">
-            <h3 className="text-xs font-bold uppercase tracking-wide text-ink-500">
+            <h3 className="text-xs font-bold uppercase tracking-wide text-ink-500 font-display tracking-tight">
               Contact
             </h3>
             <div className="space-y-2.5">
@@ -181,7 +181,7 @@ export default function PatientDetailSidebar({
               {p.phone && (
                 <div className="flex items-center gap-3 text-sm text-ink-700">
                   <Phone className="w-4 h-4 text-ink-500 shrink-0" />
-                  <span>{p.phone}</span>
+                  <span className="font-mono tabular">{p.phone}</span>
                 </div>
               )}
               {p.address && (
@@ -194,14 +194,14 @@ export default function PatientDetailSidebar({
           </section>
 
           <section className="space-y-3">
-            <h3 className="text-xs font-bold uppercase tracking-wide text-ink-500">
+            <h3 className="text-xs font-bold uppercase tracking-wide text-ink-500 font-display tracking-tight">
               Next Appointment
             </h3>
             {nextAppointment ? (
               <div className="bg-brand-violet-soft rounded-xl p-3.5 border border-brand-violet/20">
                 <div className="flex items-center gap-3">
                   <div className="bg-surface-paper rounded-lg shadow-sm px-2.5 py-1.5 text-center shrink-0">
-                    <div className="text-brand-violet font-bold text-base leading-none">
+                    <div className="text-brand-violet font-bold text-base leading-none font-mono tabular">
                       {formatAppointmentDate(nextAppointment.date).day}
                     </div>
                     <div className="text-brand-violet text-[10px] uppercase leading-none mt-0.5">
@@ -209,10 +209,10 @@ export default function PatientDetailSidebar({
                     </div>
                   </div>
                   <div className="min-w-0">
-                    <div className="text-sm font-medium text-ink-900 truncate">
+                    <div className="text-sm font-medium text-ink-900 truncate font-mono tabular">
                       {formatAppointmentDate(nextAppointment.date).date}
                     </div>
-                    <div className="text-xs text-ink-700 flex items-center gap-1">
+                    <div className="text-xs text-ink-700 flex items-center gap-1 font-mono tabular">
                       <Clock className="w-3 h-3 text-brand-violet shrink-0" />
                       {nextAppointment.time}
                     </div>
@@ -246,7 +246,7 @@ export default function PatientDetailSidebar({
                     key={appt.id || index}
                     className="bg-surface-canvas rounded-lg p-2.5 border border-border"
                   >
-                    <div className="text-sm font-medium text-ink-900">
+                    <div className="text-sm font-medium text-ink-900 font-mono tabular">
                       {formatAppointmentDate(appt.date).date}
                     </div>
                     <div className="text-xs text-ink-500 flex items-center gap-1 mt-0.5">
@@ -262,7 +262,7 @@ export default function PatientDetailSidebar({
 
           {p.notes && (
             <section className="space-y-3">
-              <h3 className="text-xs font-bold uppercase tracking-wide text-ink-500">
+              <h3 className="text-xs font-bold uppercase tracking-wide text-ink-500 font-display tracking-tight">
                 Notes
               </h3>
               <div className="bg-status-warning-soft border border-status-warning/20 rounded-xl p-3.5">

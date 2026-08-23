@@ -290,7 +290,7 @@ export default function DoctorsPage({
       {/* Header */}
       <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-ink-900">Doctors</h1>
+          <h1 className="text-2xl font-bold text-ink-900 font-display tracking-tight">Doctors</h1>
           <p className="text-sm text-ink-500 mt-1">Everyone who can be booked, and everyone waiting to be.</p>
         </div>
 

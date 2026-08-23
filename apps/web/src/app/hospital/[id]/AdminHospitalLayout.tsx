@@ -287,7 +287,7 @@ export default function AdminHospitalLayout({
               </div>
               {sidebarExpanded && (
                 <div className="flex-1 min-w-0 text-left">
-                  <h1 className="text-base font-bold text-white truncate">
+                  <h1 className="font-display tracking-tight text-base font-bold text-white truncate">
                     Agam Plus
                   </h1>
                   <p className="text-[10px] text-night-muted font-medium tracking-wider uppercase truncate">
@@ -473,7 +473,7 @@ export default function AdminHospitalLayout({
                     <FaHospital className="text-white text-lg" />
                   </div>
                   <div className="flex-1 min-w-0 text-left">
-                    <h2 className="text-base font-bold text-white">
+                    <h2 className="font-display tracking-tight text-base font-bold text-white">
                       Agam Plus
                     </h2>
                     <p className="text-sm text-white/80 truncate">

@@ -233,6 +233,21 @@ export default function TodaysQueuePage({
     [user?.name],
   );
 
+  const handleMarkOnBreak = useCallback(
+    (doctorId: string, returnTime: string) => {
+      setPresenceOverrides((cur) => ({
+        ...cur,
+        [doctorId]: {
+          kind: "onBreak",
+          returnTime,
+          setBy: user?.name || "Front desk",
+          setAt: new Date().toISOString(),
+        },
+      }));
+    },
+    [user?.name],
+  );
+
   // "Not coming today" always opens the bulk modal, even with nothing
   // booked, so the desk can still record why and stop the day being blank.
   // "Left for the day" skips the modal when nothing's left to reassign.
@@ -306,7 +321,7 @@ export default function TodaysQueuePage({
     <div className="pb-16">
       <div className="flex flex-wrap items-start gap-4 mb-4">
         <div>
-          <h1 className="text-xl font-bold text-ink-900">Today&apos;s queue</h1>
+          <h1 className="text-xl font-bold text-ink-900 font-display tracking-tight">Today&apos;s queue</h1>
           <p className="text-sm text-ink-500 mt-1">
             {format(now, "EEEE, d MMMM yyyy")} · updates every 30s
           </p>
@@ -402,7 +417,7 @@ export default function TodaysQueuePage({
               {lanes.length === 0 ? (
                 <div className="md:col-span-2 xl:col-span-3 bg-surface-paper border border-border rounded-xl py-14 px-6 text-center shadow-sm">
                   <UserPlus className="w-8 h-8 text-border mx-auto mb-3" />
-                  <h3 className="text-base font-semibold text-ink-900 mb-1">
+                  <h3 className="text-base font-semibold text-ink-900 mb-1 font-display tracking-tight">
                     Nothing booked today
                   </h3>
                   <p className="text-sm text-ink-500">
@@ -449,6 +464,7 @@ export default function TodaysQueuePage({
                     onMarkRunningLate={(t) =>
                       handleMarkRunningLate(lane.doctor.id, t)
                     }
+                    onMarkOnBreak={(t) => handleMarkOnBreak(lane.doctor.id, t)}
                     onOpenNotComing={() => handleOpenNotComing(lane)}
                     onLeftForDay={() => handleLeftForDay(lane)}
                     getPatientCode={getPatientCode}
@@ -461,7 +477,7 @@ export default function TodaysQueuePage({
           <div className="space-y-4">
             <div className="bg-surface-paper border border-border rounded-xl overflow-hidden">
               <div className="px-4 py-3 border-b border-border flex items-center gap-2">
-                <h2 className="text-sm font-bold text-ink-900">
+                <h2 className="text-sm font-bold text-ink-900 font-display tracking-tight">
                   Needs a decision
                 </h2>
                 <span className="ml-auto font-mono text-xs text-ink-500">
@@ -720,6 +736,7 @@ function DoctorLane({
   onAddWalkIn,
   onMarkHere,
   onMarkRunningLate,
+  onMarkOnBreak,
   onOpenNotComing,
   onLeftForDay,
   getPatientCode,
@@ -737,6 +754,7 @@ function DoctorLane({
   onAddWalkIn: (presetDoctorId?: string) => void;
   onMarkHere: () => void;
   onMarkRunningLate: (expectedTime: string) => void;
+  onMarkOnBreak: (returnTime: string) => void;
   onOpenNotComing: () => void;
   onLeftForDay: () => void;
   getPatientCode: (patientId: string) => string | undefined;
@@ -746,6 +764,7 @@ function DoctorLane({
   const minsPastStart = windows.length ? nowMins - windows[0].start : null;
   const showNudge =
     presence.tone === "expected" &&
+    presence.label !== "ON BREAK" &&
     minsPastStart != null &&
     minsPastStart > 0 &&
     lane.waiting.length > 0;
@@ -768,6 +787,7 @@ function DoctorLane({
             now={now}
             onMarkHere={onMarkHere}
             onMarkRunningLate={onMarkRunningLate}
+            onMarkOnBreak={onMarkOnBreak}
             onOpenNotComing={onOpenNotComing}
             onLeftForDay={onLeftForDay}
           />

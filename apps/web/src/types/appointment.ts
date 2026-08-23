@@ -30,6 +30,9 @@ export interface Appointment {
   sessionNotes?: string;
   createdAt: string;
   updatedAt: string;
+  checkedInAt?: string;
+  waitingAt?: string;
+  consultationStartedAt?: string;
   completedAt?: string; // Timestamp when appointment was marked as completed
   patient?: Patient;
   doctor?: Doctor;

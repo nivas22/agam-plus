@@ -657,7 +657,7 @@ export default function CreateAppointment({
             <ArrowLeft className="w-4 h-4" />
           </button>
           <div className="flex-1 min-w-0">
-            <h1 className="text-xl font-bold text-ink-900">
+            <h1 className="font-display tracking-tight text-xl font-bold text-ink-900">
               Schedule an appointment
             </h1>
             <p className="text-sm text-ink-500 mt-0.5">
@@ -1073,7 +1073,7 @@ export default function CreateAppointment({
                         <span className="font-mono text-ink-900">
                           {format(new Date(`${o.iso}T00:00:00`), "dd MMM")}
                         </span>
-                        <span className="text-ink-500">
+                        <span className="font-mono tabular text-ink-500">
                           {format(new Date(`${o.iso}T00:00:00`), "EEE")}
                         </span>
                         <span className="flex justify-end">

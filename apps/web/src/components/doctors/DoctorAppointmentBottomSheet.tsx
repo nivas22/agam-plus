@@ -66,7 +66,7 @@ export default function DoctorAppointmentBottomSheet({
 
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-border">
-          <h2 className="text-xl font-bold text-ink-900">
+          <h2 className="font-display tracking-tight text-xl font-bold text-ink-900">
             Appointment Details
           </h2>
           <button
@@ -84,7 +84,7 @@ export default function DoctorAppointmentBottomSheet({
               {appointment.patientName?.[0]?.toUpperCase() || "P"}
             </div>
             <div>
-              <h3 className="font-semibold text-ink-900 text-lg">
+              <h3 className="font-display tracking-tight font-semibold text-ink-900 text-lg">
                 {appointment.patientName}
               </h3>
               <p className="text-sm text-ink-500">
@@ -98,7 +98,7 @@ export default function DoctorAppointmentBottomSheet({
           {appointment.patientPhone && (
             <div className="flex items-center gap-2 text-sm text-ink-700">
               <Phone className="w-4 h-4" />
-              <span>{appointment.patientPhone}</span>
+              <span className="font-mono tabular">{appointment.patientPhone}</span>
             </div>
           )}
         </div>
@@ -114,7 +114,7 @@ export default function DoctorAppointmentBottomSheet({
               <Calendar className="w-5 h-5 text-brand-violet" />
               <div>
                 <p className="text-sm text-ink-700">Date</p>
-                <p className="font-medium text-ink-900">
+                <p className="font-mono tabular font-medium text-ink-900">
                   {format(appointmentDate, "EEE, MMM d, yyyy")}
                 </p>
               </div>
@@ -124,7 +124,7 @@ export default function DoctorAppointmentBottomSheet({
               <Clock className="w-5 h-5 text-brand-violet" />
               <div>
                 <p className="text-sm text-ink-700">Time</p>
-                <p className="font-medium text-ink-900">
+                <p className="font-mono tabular font-medium text-ink-900">
                   {format(appointmentDate, "h:mm a")}
                 </p>
               </div>

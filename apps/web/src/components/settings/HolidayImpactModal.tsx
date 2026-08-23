@@ -220,7 +220,7 @@ export default function HolidayImpactModal({
                         Package
                       </span>
                     )}
-                    <span className="block text-xs text-ink-500">
+                    <span className="block text-xs text-ink-500 font-mono tabular">
                       {[
                         appt.patientPhone,
                         isPackage && appt.packageVisitNumber

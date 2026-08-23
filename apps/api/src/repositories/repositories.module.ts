@@ -18,6 +18,7 @@ import { ChargeCatalogItemRepository } from './charge-catalog-item.repository';
 import { HospitalHolidayRepository } from './hospital-holiday.repository';
 import { MedicineRepository } from './medicine.repository';
 import { PrescriptionRepository } from './prescription.repository';
+import { LeaveRequestRepository } from './leave-request.repository';
 import { User, UserSchema } from '../schemas/user.schema';
 import { Hospital, HospitalSchema } from '../schemas/hospital.schema';
 import {
@@ -50,6 +51,7 @@ import {
 } from '../schemas/hospital-holiday.schema';
 import { Medicine, MedicineSchema } from '../schemas/medicine.schema';
 import { Prescription, PrescriptionSchema } from '../schemas/prescription.schema';
+import { LeaveRequest, LeaveRequestSchema } from '../schemas/leave-request.schema';
 
 const repositories = [
   UserRepository,
@@ -70,6 +72,7 @@ const repositories = [
   HospitalHolidayRepository,
   MedicineRepository,
   PrescriptionRepository,
+  LeaveRequestRepository,
 ];
 
 @Global()
@@ -93,6 +96,7 @@ const repositories = [
       { name: HospitalHoliday.name, schema: HospitalHolidaySchema },
       { name: Medicine.name, schema: MedicineSchema },
       { name: Prescription.name, schema: PrescriptionSchema },
+      { name: LeaveRequest.name, schema: LeaveRequestSchema },
     ]),
   ],
   providers: repositories,

@@ -7,6 +7,7 @@ import {
   Check,
   ChevronDown,
   ChevronRight,
+  Clock,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -73,6 +74,11 @@ export default function DoctorHospitalLayout({
   // Doctor-specific navigation items
   const navItems = [
     {
+      to: "/today",
+      label: "Today",
+      icon: <Clock size={18} />,
+    },
+    {
       to: "/dashboard",
       label: "Dashboard",
       icon: <LayoutDashboard size={18} />,
@@ -87,15 +93,21 @@ export default function DoctorHospitalLayout({
       label: "Patients",
       icon: <FaUserInjured size={18} />,
     },
+    {
+      to: "/reports",
+      label: "Reports",
+      icon: <TrendingUp size={18} />,
+    },
+    {
+      to: "/settings",
+      label: "Settings",
+      icon: <Settings size={18} />,
+    },
   ];
 
   // Desktop sidebar groups
-  const careItems = navItems.slice(0, 3);
-  const operationsItems = navItems.slice(3);
-  const comingSoonItems = [
-    { label: "Reports", icon: <TrendingUp size={18} /> },
-    { label: "Settings", icon: <Settings size={18} /> },
-  ];
+  const careItems = navItems.slice(0, 4);
+  const operationsItems = navItems.slice(4);
 
   const toggleMenu = () => setIsOpen(!isOpen);
 
@@ -215,7 +227,7 @@ export default function DoctorHospitalLayout({
               </div>
               {sidebarExpanded && (
                 <div className="flex-1 min-w-0 text-left">
-                  <h1 className="text-base font-bold text-white truncate">
+                  <h1 className="font-display tracking-tight text-base font-bold text-white truncate">
                     Agam Plus
                   </h1>
                   <p className="text-[10px] text-night-muted font-medium tracking-wider uppercase truncate">
@@ -300,28 +312,6 @@ export default function DoctorHospitalLayout({
                   </button>
                 );
               })}
-              {comingSoonItems.map((item) => (
-                <div
-                  key={item.label}
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg w-full text-night-muted/50 cursor-not-allowed border-l-2 border-transparent"
-                  title={sidebarExpanded ? undefined : item.label}
-                  aria-disabled="true"
-                >
-                  <div className="flex-shrink-0 w-5 h-5 flex items-center justify-center">
-                    {item.icon}
-                  </div>
-                  {sidebarExpanded && (
-                    <span className="text-sm font-medium truncate">
-                      {item.label}
-                    </span>
-                  )}
-                  {sidebarExpanded && (
-                    <span className="ml-auto text-[9px] font-semibold uppercase tracking-wide text-night-muted/60">
-                      Soon
-                    </span>
-                  )}
-                </div>
-              ))}
             </div>
           </nav>
 
@@ -404,7 +394,7 @@ export default function DoctorHospitalLayout({
                     <FaUserMd className="text-white text-lg" />
                   </div>
                   <div className="flex-1 min-w-0 text-left">
-                    <h2 className="text-base font-bold text-white">
+                    <h2 className="font-display tracking-tight text-base font-bold text-white">
                       Agam Plus
                     </h2>
                     <p className="text-sm text-white/80 truncate">

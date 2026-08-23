@@ -16,12 +16,14 @@ import { FOOD_TIMING_OPTIONS, MEDICINE_FORM_OPTIONS } from "@/types/medicine";
 interface MedicineItemDrawerProps {
   hospitalId: string;
   itemId?: string;
+  readOnly?: boolean;
   onClose: () => void;
 }
 
 export default function MedicineItemDrawer({
   hospitalId,
   itemId,
+  readOnly = false,
   onClose,
 }: MedicineItemDrawerProps) {
   const isEdit = !!itemId;
@@ -116,7 +118,7 @@ export default function MedicineItemDrawer({
       <div className="relative w-full max-w-[520px] h-full bg-surface-paper shadow-2xl flex flex-col">
         <div className="px-6 pt-5 pb-4 border-b border-border flex items-start justify-between">
           <div>
-            <h2 className="text-lg font-bold text-ink-900">
+            <h2 className="text-lg font-bold text-ink-900 font-display tracking-tight">
               {isEdit ? item?.name || "Loading…" : "Add a medicine"}
             </h2>
             <p className="text-xs text-ink-500 mt-1">
@@ -151,6 +153,7 @@ export default function MedicineItemDrawer({
                     type="text"
                     className={inputClass}
                     value={name}
+                    disabled={readOnly}
                     onChange={(e) => setName(e.target.value)}
                   />
                 </Field>
@@ -159,6 +162,7 @@ export default function MedicineItemDrawer({
                     type="text"
                     className={inputClass}
                     value={genericName}
+                    disabled={readOnly}
                     onChange={(e) => setGenericName(e.target.value)}
                   />
                 </Field>
@@ -169,6 +173,7 @@ export default function MedicineItemDrawer({
                   <select
                     className={inputClass}
                     value={form}
+                    disabled={readOnly}
                     onChange={(e) => setForm(e.target.value as MedicineForm)}
                   >
                     {MEDICINE_FORM_OPTIONS.map((opt) => (
@@ -183,6 +188,7 @@ export default function MedicineItemDrawer({
                     type="text"
                     className={inputClass}
                     value={strength}
+                    disabled={readOnly}
                     onChange={(e) => setStrength(e.target.value)}
                   />
                 </Field>
@@ -200,27 +206,31 @@ export default function MedicineItemDrawer({
                       className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold bg-status-warning-soft text-status-warning"
                     >
                       {c}
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setClasses((prev) => prev.filter((x) => x !== c))
-                        }
-                        className="hover:opacity-70"
-                      >
-                        <X size={11} />
-                      </button>
+                      {!readOnly && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setClasses((prev) => prev.filter((x) => x !== c))
+                          }
+                          className="hover:opacity-70"
+                        >
+                          <X size={11} />
+                        </button>
+                      )}
                     </span>
                   ))}
                 </div>
-                <input
-                  type="text"
-                  className={inputClass}
-                  placeholder="Type a class and press Enter"
-                  value={classInput}
-                  onChange={(e) => setClassInput(e.target.value)}
-                  onKeyDown={onClassKeyDown}
-                  onBlur={addClass}
-                />
+                {!readOnly && (
+                  <input
+                    type="text"
+                    className={inputClass}
+                    placeholder="Type a class and press Enter"
+                    value={classInput}
+                    onChange={(e) => setClassInput(e.target.value)}
+                    onKeyDown={onClassKeyDown}
+                    onBlur={addClass}
+                  />
+                )}
               </Field>
 
               <div className="grid grid-cols-2 gap-3">
@@ -229,6 +239,7 @@ export default function MedicineItemDrawer({
                     type="text"
                     className={inputClass}
                     value={defaultDose}
+                    disabled={readOnly}
                     onChange={(e) => setDefaultDose(e.target.value)}
                   />
                 </Field>
@@ -237,6 +248,7 @@ export default function MedicineItemDrawer({
                     type="text"
                     className={inputClass}
                     value={defaultFrequency}
+                    disabled={readOnly}
                     onChange={(e) => setDefaultFrequency(e.target.value)}
                   />
                 </Field>
@@ -246,6 +258,7 @@ export default function MedicineItemDrawer({
                 <select
                   className={inputClass}
                   value={defaultFoodTiming}
+                  disabled={readOnly}
                   onChange={(e) =>
                     setDefaultFoodTiming(e.target.value as FoodTiming)
                   }
@@ -261,7 +274,7 @@ export default function MedicineItemDrawer({
             </div>
 
             <div className="px-6 py-4 border-t border-border flex items-center gap-3">
-              {isEdit && item && (
+              {!readOnly && isEdit && item && (
                 <button
                   type="button"
                   onClick={archiveOrRestore}
@@ -272,22 +285,34 @@ export default function MedicineItemDrawer({
                 </button>
               )}
               <div className="flex-1" />
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2 rounded-lg border border-border text-sm font-semibold text-ink-700"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={saving}
-                onClick={submit}
-                className="px-4 py-2 rounded-lg bg-brand-violet hover:bg-brand-violet-hover text-white text-sm font-semibold disabled:opacity-60 flex items-center gap-1.5"
-              >
-                {saving && <Loader2 size={14} className="animate-spin" />}
-                Save
-              </button>
+              {readOnly ? (
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-4 py-2 rounded-lg border border-border text-sm font-semibold text-ink-700"
+                >
+                  Close
+                </button>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="px-4 py-2 rounded-lg border border-border text-sm font-semibold text-ink-700"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    disabled={saving}
+                    onClick={submit}
+                    className="px-4 py-2 rounded-lg bg-brand-violet hover:bg-brand-violet-hover text-white text-sm font-semibold disabled:opacity-60 flex items-center gap-1.5"
+                  >
+                    {saving && <Loader2 size={14} className="animate-spin" />}
+                    Save
+                  </button>
+                </>
+              )}
             </div>
           </>
         )}

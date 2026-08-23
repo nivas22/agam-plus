@@ -55,7 +55,7 @@ export default function FiltersPanel({
   return (
     <div className="bg-surface-paper p-4 rounded-xl shadow-sm border border-border mb-6">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-ink-900">Filter {title}</h3>
+        <h3 className="font-display tracking-tight text-lg font-semibold text-ink-900">Filter {title}</h3>
         <button
           onClick={onClose}
           className="p-2 hover:bg-surface-canvas rounded-lg transition-colors"

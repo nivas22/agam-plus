@@ -95,9 +95,9 @@ export default function PatientDetailModal({
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h2 className="text-lg font-bold text-ink-900">{patient.name || "Unnamed Patient"}</h2>
+                  <h2 className="text-lg font-bold text-ink-900 font-display tracking-tight">{patient.name || "Unnamed Patient"}</h2>
                   {patient.patientId && (
-                    <span className="px-2 py-0.5 bg-brand-violet-soft text-brand-violet text-xs font-semibold rounded-md">
+                    <span className="px-2 py-0.5 bg-brand-violet-soft text-brand-violet text-xs font-semibold rounded-md font-mono tabular">
                       #{patient.patientId}
                     </span>
                   )}
@@ -150,7 +150,7 @@ export default function PatientDetailModal({
             {patient.phone && (
               <div className="flex items-center gap-1.5">
                 <Phone className="w-4 h-4 text-status-open" />
-                <span className="text-ink-700">{patient.phone}</span>
+                <span className="text-ink-700 font-mono tabular">{patient.phone}</span>
               </div>
             )}
           </div>
@@ -167,7 +167,7 @@ export default function PatientDetailModal({
 
               <div className="flex items-center mb-2">
                 <div className="bg-surface-paper p-2 rounded-lg shadow-sm mr-3">
-                  <div className="text-brand-violet font-bold text-lg text-center">
+                  <div className="text-brand-violet font-bold text-lg text-center font-mono tabular">
                     {formatAppointmentDate(nextAppointment.date).day}
                   </div>
                   <div className="text-brand-violet text-xs uppercase text-center">
@@ -176,10 +176,10 @@ export default function PatientDetailModal({
                 </div>
 
                 <div>
-                  <div className="font-medium text-ink-900">
+                  <div className="font-medium text-ink-900 font-mono tabular">
                     {formatAppointmentDate(nextAppointment.date).date}
                   </div>
-                  <div className="text-ink-700 text-sm flex items-center">
+                  <div className="text-ink-700 text-sm flex items-center font-mono tabular">
                     <Clock className="mr-1 text-brand-violet" size={12} />
                     {nextAppointment.time}
                   </div>
@@ -288,7 +288,7 @@ export default function PatientDetailModal({
               <div className="space-y-2">
                 {nextAppointments.slice(1, 4).map((appt, index) => (
                   <div key={appt.id || index} className="p-3 bg-surface-canvas rounded-lg border border-border">
-                    <div className="font-medium text-ink-900">
+                    <div className="font-medium text-ink-900 font-mono tabular">
                       {formatAppointmentDate(appt.date).date}
                     </div>
                     <div className="text-ink-700 text-sm flex items-center mt-1">

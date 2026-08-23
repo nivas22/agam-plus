@@ -50,7 +50,7 @@ export default function TeamMemberProfilePage({ hospitalId, memberId }: TeamMemb
           {initials(member.name)}
         </span>
         <div className="flex-1 min-w-0">
-          <h1 className="text-xl font-bold text-ink-900">{member.name}</h1>
+          <h1 className="text-xl font-bold text-ink-900 font-display tracking-tight">{member.name}</h1>
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1 text-sm text-ink-500">
             <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold ${ROLE_BADGE_STYLES[member.role]}`}>
               {ROLE_LABELS[member.role] || member.role}
@@ -94,17 +94,17 @@ export default function TeamMemberProfilePage({ hospitalId, memberId }: TeamMemb
 
       <div className="grid md:grid-cols-2 gap-4 mt-4">
         <div className="bg-surface-paper border border-border rounded-xl p-4">
-          <h2 className="text-sm font-bold text-ink-900 mb-3">Details</h2>
+          <h2 className="text-sm font-bold text-ink-900 mb-3 font-display tracking-tight">Details</h2>
           <dl className="text-sm divide-y divide-border">
             <Row label="Email" value={member.email} />
-            <Row label="Phone" value={member.phone || "—"} />
+            <Row label="Phone" value={member.phone || "—"} mono />
             <Row label="Employee ID" value={member.employeeId} mono />
             <Row label="Cash drawer" value={member.handlesCash ? (member.pinSet ? "Yes · PIN set" : "Yes · PIN not set yet") : "No"} />
           </dl>
         </div>
 
         <div className="bg-surface-paper border border-border rounded-xl p-4">
-          <h2 className="text-sm font-bold text-ink-900 mb-3">What they can do</h2>
+          <h2 className="text-sm font-bold text-ink-900 mb-3 font-display tracking-tight">What they can do</h2>
           <div className="space-y-2">
             {Object.entries(
               member.permissions.catalog.reduce<Record<string, { allowed: number; needsApproval: number; blocked: number }>>(
@@ -142,7 +142,7 @@ export default function TeamMemberProfilePage({ hospitalId, memberId }: TeamMemb
       </div>
 
       <div className="bg-surface-paper border border-border rounded-xl p-4 mt-4">
-        <h2 className="text-sm font-bold text-ink-900 mb-3">This week&apos;s attendance</h2>
+        <h2 className="text-sm font-bold text-ink-900 mb-3 font-display tracking-tight">This week&apos;s attendance</h2>
         <p className="text-xs text-ink-500 mb-3">Based on sign-in activity — not a time clock.</p>
         <div className="grid grid-cols-7 gap-1.5">
           {DAY_LABELS.map((d) => {
@@ -179,7 +179,7 @@ function Row({ label, value, mono }: { label: string; value: string; mono?: bool
   return (
     <div className="flex justify-between py-2 first:pt-0">
       <span className="text-ink-500">{label}</span>
-      <span className={`font-medium text-ink-900 ${mono ? "font-mono" : ""}`}>{value}</span>
+      <span className={`font-medium text-ink-900 ${mono ? "font-mono tabular" : ""}`}>{value}</span>
     </div>
   );
 }

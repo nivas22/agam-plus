@@ -619,7 +619,7 @@ export default function AddEditDoctor({
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-ink-500">Added</span>
-                  <span className="text-ink-900">
+                  <span className="font-mono tabular text-ink-900">
                     {formatAdded(doctorData?.doctor?.createdAt)}
                   </span>
                 </div>
@@ -719,7 +719,7 @@ export default function AddEditDoctor({
             className="bg-surface-paper rounded-xl border border-border shadow-sm p-5 md:p-6 scroll-mt-24"
           >
             <div className="mb-5">
-              <h2 className="text-lg font-bold text-ink-900">Personal</h2>
+              <h2 className="font-display tracking-tight text-lg font-bold text-ink-900">Personal</h2>
               <p className="text-sm text-ink-500">
                 How patients and staff identify this doctor
               </p>
@@ -754,7 +754,7 @@ export default function AddEditDoctor({
               </Field>
               <Field label="Phone" hint="10 digits, no country code.">
                 <div className="flex gap-2">
-                  <span className="flex items-center px-3 rounded-lg border border-border bg-surface-canvas text-sm text-ink-700 shrink-0">
+                  <span className="font-mono tabular flex items-center px-3 rounded-lg border border-border bg-surface-canvas text-sm text-ink-700 shrink-0">
                     +91
                   </span>
                   <input
@@ -767,7 +767,7 @@ export default function AddEditDoctor({
                       )
                     }
                     placeholder="98765 43210"
-                    className={inputClass}
+                    className={`${inputClass} font-mono tabular`}
                   />
                 </div>
               </Field>
@@ -799,7 +799,7 @@ export default function AddEditDoctor({
             className="bg-surface-paper rounded-xl border border-border shadow-sm p-5 md:p-6 scroll-mt-24"
           >
             <div className="mb-5">
-              <h2 className="text-lg font-bold text-ink-900">Professional</h2>
+              <h2 className="font-display tracking-tight text-lg font-bold text-ink-900">Professional</h2>
               <p className="text-sm text-ink-500">
                 What this doctor practises and where
               </p>
@@ -858,7 +858,7 @@ export default function AddEditDoctor({
                 hint="Per appointment, before taxes."
               >
                 <div className="flex gap-2">
-                  <span className="flex items-center px-3 rounded-lg border border-border bg-surface-canvas text-sm text-ink-700 shrink-0">
+                  <span className="font-mono tabular flex items-center px-3 rounded-lg border border-border bg-surface-canvas text-sm text-ink-700 shrink-0">
                     ₹
                   </span>
                   <input
@@ -873,7 +873,7 @@ export default function AddEditDoctor({
                       )
                     }
                     placeholder="500"
-                    className={inputClass}
+                    className={`${inputClass} font-mono tabular`}
                   />
                 </div>
               </Field>
@@ -903,7 +903,7 @@ export default function AddEditDoctor({
             className="bg-surface-paper rounded-xl border border-border shadow-sm p-5 md:p-6 scroll-mt-24"
           >
             <div className="mb-5">
-              <h2 className="text-lg font-bold text-ink-900">Availability</h2>
+              <h2 className="font-display tracking-tight text-lg font-bold text-ink-900">Availability</h2>
               <p className="text-sm text-ink-500">
                 The hours patients can book, and how long each visit runs
               </p>
@@ -911,7 +911,7 @@ export default function AddEditDoctor({
 
             <div className="bg-surface-canvas rounded-xl p-4 mb-5">
               <div className="mb-4">
-                <h3 className="text-sm font-bold text-ink-900">
+                <h3 className="font-display tracking-tight text-sm font-bold text-ink-900">
                   Booking rules
                 </h3>
                 <p className="text-xs text-ink-500">
@@ -987,12 +987,12 @@ export default function AddEditDoctor({
             )}
 
             <div className="hidden sm:flex justify-between pl-[152px] pr-2 text-xs text-ink-500 mb-1">
-              <span>7a</span>
-              <span>10a</span>
-              <span>1p</span>
-              <span>4p</span>
-              <span>7p</span>
-              <span>10p</span>
+              <span className="font-mono tabular">7a</span>
+              <span className="font-mono tabular">10a</span>
+              <span className="font-mono tabular">1p</span>
+              <span className="font-mono tabular">4p</span>
+              <span className="font-mono tabular">7p</span>
+              <span className="font-mono tabular">10p</span>
             </div>
 
             <div className="border-t border-border">

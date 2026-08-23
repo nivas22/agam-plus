@@ -7,6 +7,33 @@ module.exports = {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        // Populated by next/font (see src/app/fonts.ts) — the variable
+        // resolves to the loaded font plus its metric-matched fallback, so
+        // these three literal stacks only take effect before the font
+        // module has run (e.g. server-rendered HTML before hydration).
+        display: [
+          'var(--font-display)',
+          'Bricolage Grotesque',
+          'IBM Plex Sans',
+          'system-ui',
+          'sans-serif',
+        ],
+        sans: [
+          'var(--font-body)',
+          'IBM Plex Sans',
+          'system-ui',
+          '-apple-system',
+          'sans-serif',
+        ],
+        mono: [
+          'var(--font-mono)',
+          'IBM Plex Mono',
+          'ui-monospace',
+          'SF Mono',
+          'monospace',
+        ],
+      },
       colors: {
         ink: {
           900: '#161A2E',
@@ -79,5 +106,13 @@ module.exports = {
       }
     },
   },
-  plugins: [],
+  plugins: [
+    // Tailwind core already ships `tabular-nums`; `.tabular` is the shorter
+    // alias the typography spec asks for, same declaration.
+    ({ addUtilities }) => {
+      addUtilities({
+        '.tabular': { fontVariantNumeric: 'tabular-nums' },
+      });
+    },
+  ],
 }

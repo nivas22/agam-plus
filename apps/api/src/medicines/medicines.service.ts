@@ -3,6 +3,7 @@ import { MedicineRepository } from '../repositories/medicine.repository';
 import { AuditService } from '../audit/audit.service';
 import { ApiError } from '../common/errors/api-error';
 import { HospitalUserProfile } from '../auth/decorators/current-user.decorator';
+import { DEFAULT_MEDICINES } from '../constants';
 
 interface CreateMedicineData {
   name: string;
@@ -30,7 +31,34 @@ export class MedicinesService {
     private readonly auditService: AuditService,
   ) {}
 
+  // Gives every hospital a sensible starting catalog the first time it's
+  // read, instead of an empty list with nothing to prescribe from. Runs at
+  // most once per hospital — subsequent reads see real items and skip this
+  // entirely. Not attributed to any user/audit entry since no admin action
+  // triggered it (mirrors ChargeCatalogService.seedDefaultsIfEmpty).
+  private async seedDefaultsIfEmpty(hospitalId: string) {
+    const existingCount = await this.medicineRepository.countAllByHospital(hospitalId);
+    if (existingCount > 0) return;
+
+    for (const defaultMedicine of DEFAULT_MEDICINES) {
+      await this.medicineRepository.createItem({
+        hospitalId,
+        name: defaultMedicine.name,
+        genericName: defaultMedicine.genericName,
+        classes: defaultMedicine.classes,
+        form: defaultMedicine.form,
+        strength: defaultMedicine.strength,
+        defaultDose: defaultMedicine.defaultDose,
+        defaultFrequency: defaultMedicine.defaultFrequency,
+        defaultFoodTiming: defaultMedicine.defaultFoodTiming,
+        status: 'active',
+      });
+    }
+  }
+
   async listItems(hospitalId: string, filters: { status?: string; search?: string }) {
+    await this.seedDefaultsIfEmpty(hospitalId);
+
     const items = await this.medicineRepository.listByHospital(hospitalId, {
       status: filters.status,
     });

@@ -57,7 +57,7 @@ export default function DuplicateWarningModal({
           <div className="flex-1">
             <h2
               id="duplicate-modal-title"
-              className="text-lg font-semibold text-ink-900"
+              className="font-display tracking-tight text-lg font-semibold text-ink-900"
             >
               Possible duplicate {entityLabel}
             </h2>

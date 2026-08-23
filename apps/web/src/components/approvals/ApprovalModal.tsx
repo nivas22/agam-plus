@@ -76,7 +76,7 @@ export default function ApprovalModal({ hospitalId, approval, onClose }: Approva
       <div className="w-full max-w-[560px] bg-surface-paper rounded-2xl shadow-2xl overflow-hidden">
         <div className="px-5.5 pt-4.5 pb-3.5 border-b border-border flex items-start gap-3">
           <div>
-            <h2 className="text-lg font-bold text-ink-900">{label}</h2>
+            <h2 className="font-display tracking-tight text-lg font-bold text-ink-900">{label}</h2>
             <div className="text-xs text-ink-500 mt-0.5">
               Requested by {approval.requestedBy.name} ({approval.requestedBy.role.replace("_", " ")})
             </div>

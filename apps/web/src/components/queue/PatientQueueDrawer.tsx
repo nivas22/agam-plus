@@ -96,7 +96,7 @@ export default function PatientQueueDrawer({
             {patientCode ? patientCode.slice(-2) : "—"}
           </span>
           <div className="min-w-0">
-            <h2 className="text-lg font-bold text-ink-900 truncate">
+            <h2 className="text-lg font-bold text-ink-900 truncate font-display tracking-tight">
               {appointment.patientName}
             </h2>
             <div className="text-xs text-ink-500 mt-0.5">

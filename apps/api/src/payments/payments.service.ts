@@ -423,6 +423,7 @@ export class PaymentsService {
           date: `${followUpDate.getFullYear()}-${String(followUpDate.getMonth() + 1).padStart(2, '0')}-${String(followUpDate.getDate()).padStart(2, '0')}`,
           time: existingData.time,
           status: APPOINTMENT_STATUS.PENDING,
+          type: APPOINTMENT_TYPE.FOLLOW_UP,
           notes: 'Follow-up scheduled at visit completion',
           createdBy: user.uid,
           userRole,

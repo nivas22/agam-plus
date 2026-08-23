@@ -230,6 +230,7 @@ export function nextWorkingDate(
 export type PresenceOverride =
   | { kind: "here"; setAt: string }
   | { kind: "runningLate"; expectedTime: string; setBy: string; setAt: string }
+  | { kind: "onBreak"; returnTime: string; setBy: string; setAt: string }
   | {
       kind: "notIn";
       reason: string;
@@ -246,7 +247,10 @@ export interface DoctorPresence {
   detail: string;
 }
 
-export function presenceStorageKey(hospitalId: string, dateISO: string): string {
+export function presenceStorageKey(
+  hospitalId: string,
+  dateISO: string,
+): string {
   return `queue-presence:${hospitalId}:${dateISO}`;
 }
 
@@ -303,6 +307,18 @@ export function computePresence(
       tone: "late",
       label: "RUNNING LATE",
       detail: `Expected around ${formatTime12h(override.expectedTime)}`,
+    };
+  }
+  // A doctor who finished their morning session and will resume later today —
+  // distinct from "left for the day" (gone for good) since their remaining
+  // bookings (typically evening ones) stay untouched, nothing to reassign.
+  // Superseded automatically the moment a new consultation starts (the
+  // in-consultation check above runs first).
+  if (override?.kind === "onBreak") {
+    return {
+      tone: "expected",
+      label: "ON BREAK",
+      detail: `Back around ${formatTime12h(override.returnTime)}`,
     };
   }
 

@@ -172,7 +172,7 @@ export default function FAQPage() {
               <ArrowLeft size={20} className="text-ink-700" />
             </button>
             <div>
-              <h1 className="text-2xl font-bold text-ink-900">Frequently Asked Questions</h1>
+              <h1 className="font-display tracking-tight text-2xl font-bold text-ink-900">Frequently Asked Questions</h1>
               <p className="text-sm text-ink-700">Find answers to common questions</p>
             </div>
           </div>
@@ -213,7 +213,7 @@ export default function FAQPage() {
         {filteredFAQs.length === 0 ? (
           <div className="text-center py-12">
             <HelpCircle className="w-16 h-16 text-ink-500 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-ink-900 mb-2">No results found</h3>
+            <h3 className="font-display tracking-tight text-lg font-semibold text-ink-900 mb-2">No results found</h3>
             <p className="text-ink-700">Try adjusting your search or filter</p>
           </div>
         ) : (
@@ -237,7 +237,7 @@ export default function FAQPage() {
                           {faq.category}
                         </span>
                       </div>
-                      <h3 className="text-base font-semibold text-ink-900">
+                      <h3 className="font-display tracking-tight text-base font-semibold text-ink-900">
                         {faq.question}
                       </h3>
                     </div>
@@ -266,7 +266,7 @@ export default function FAQPage() {
         {/* Contact Support */}
         <div className="mt-12 bg-gradient-to-r from-brand-violet to-brand-violet rounded-2xl p-8 text-center text-white shadow-xl">
           <HelpCircle className="w-12 h-12 mx-auto mb-4 opacity-90" />
-          <h2 className="text-2xl font-bold mb-2">Still have questions?</h2>
+          <h2 className="font-display tracking-tight text-2xl font-bold mb-2">Still have questions?</h2>
           <p className="text-brand-violet-soft mb-6">
             Can't find the answer you're looking for? Please contact our support team.
           </p>

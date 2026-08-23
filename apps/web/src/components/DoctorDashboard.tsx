@@ -74,7 +74,7 @@ export default function DoctorDashboard() {
             <Stethoscope className="w-8 h-8 text-status-open" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold text-ink-900">Doctor Dashboard</h1>
+            <h1 className="font-display tracking-tight text-3xl font-bold text-ink-900">Doctor Dashboard</h1>
             <p className="text-ink-700 text-base mt-1">Welcome back, Dr. {doctorData.name}</p>
           </div>
         </div>
@@ -89,7 +89,7 @@ export default function DoctorDashboard() {
               </div>
               <div className="flex-1">
                 <p className="text-sm text-ink-700 font-medium mb-1">My Patients</p>
-                <h2 className="text-3xl font-bold text-ink-900">{totalPatients}</h2>
+                <h2 className="font-display tracking-tight text-3xl font-bold text-ink-900">{totalPatients}</h2>
               </div>
             </div>
             <p className="text-xs text-ink-500 ml-1">Under your care</p>
@@ -103,7 +103,7 @@ export default function DoctorDashboard() {
               </div>
               <div className="flex-1">
                 <p className="text-sm text-ink-700 font-medium mb-1">Today's Appointments</p>
-                <h2 className="text-3xl font-bold text-ink-900">{todayAppointments}</h2>
+                <h2 className="font-display tracking-tight text-3xl font-bold text-ink-900">{todayAppointments}</h2>
               </div>
             </div>
             <p className="text-xs text-ink-500 ml-1">Scheduled for today</p>
@@ -117,7 +117,7 @@ export default function DoctorDashboard() {
               </div>
               <div className="flex-1">
                 <p className="text-sm text-ink-700 font-medium mb-1">Completed</p>
-                <h2 className="text-3xl font-bold text-ink-900">{appointmentStats.completed}</h2>
+                <h2 className="font-display tracking-tight text-3xl font-bold text-ink-900">{appointmentStats.completed}</h2>
               </div>
             </div>
             <p className="text-xs text-ink-500 ml-1">Total completed sessions</p>
@@ -131,7 +131,7 @@ export default function DoctorDashboard() {
               </div>
               <div className="flex-1">
                 <p className="text-sm text-ink-700 font-medium mb-1">Scheduled</p>
-                <h2 className="text-3xl font-bold text-ink-900">{appointmentStats.scheduled}</h2>
+                <h2 className="font-display tracking-tight text-3xl font-bold text-ink-900">{appointmentStats.scheduled}</h2>
               </div>
             </div>
             <p className="text-xs text-ink-500 ml-1">Upcoming sessions</p>
@@ -146,7 +146,7 @@ export default function DoctorDashboard() {
               <div className="flex items-center gap-3">
                 <div className="w-1 h-8 bg-brand-violet rounded-full"></div>
                 <div>
-                  <h3 className="text-xl font-bold text-ink-900">Upcoming Appointments</h3>
+                  <h3 className="font-display tracking-tight text-xl font-bold text-ink-900">Upcoming Appointments</h3>
                   <p className="text-sm text-ink-500">Next 7 days</p>
                 </div>
               </div>
@@ -170,14 +170,14 @@ export default function DoctorDashboard() {
                         <p className="font-semibold text-ink-900 truncate">{appt.patientName}</p>
                         <div className="flex items-center gap-2 mt-1">
                           <Phone className="w-3.5 h-3.5 text-ink-500" />
-                          <p className="text-sm text-ink-700 truncate">{appt.patientPhone || "No phone"}</p>
+                          <p className="font-mono tabular text-sm text-ink-700 truncate">{appt.patientPhone || "No phone"}</p>
                         </div>
                       </div>
                       <div className="text-right ml-4">
-                        <p className="text-sm font-semibold text-ink-900 whitespace-nowrap">
+                        <p className="font-mono tabular text-sm font-semibold text-ink-900 whitespace-nowrap">
                           {format(appt.appointmentDate, "MMM dd")}
                         </p>
-                        <p className="text-xs text-ink-500 mt-0.5">
+                        <p className="font-mono tabular text-xs text-ink-500 mt-0.5">
                           {format(appt.appointmentDate, "h:mm a")}
                         </p>
                         <span className={`inline-block text-xs px-2.5 py-1 rounded-full border mt-2 font-medium ${statusColors[status]}`}>
@@ -197,7 +197,7 @@ export default function DoctorDashboard() {
               <div className="flex items-center gap-3">
                 <div className="w-1 h-8 bg-status-open rounded-full"></div>
                 <div>
-                  <h3 className="text-xl font-bold text-ink-900">My Patients</h3>
+                  <h3 className="font-display tracking-tight text-xl font-bold text-ink-900">My Patients</h3>
                   <p className="text-sm text-ink-500">{totalPatients} total</p>
                 </div>
               </div>
@@ -221,7 +221,7 @@ export default function DoctorDashboard() {
                       <p className="font-semibold text-ink-900 truncate">{patient.name}</p>
                       <div className="flex items-center gap-2 mt-1">
                         <Phone className="w-3.5 h-3.5 text-ink-500" />
-                        <p className="text-sm text-ink-700 truncate">{patient.phone || "No phone"}</p>
+                        <p className="font-mono tabular text-sm text-ink-700 truncate">{patient.phone || "No phone"}</p>
                       </div>
                       {patient.address && (
                         <div className="flex items-center gap-2 mt-1">

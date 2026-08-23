@@ -107,7 +107,7 @@ export default function DoctorDetailModal({
                 {doctor.name ? doctor.name[0].toUpperCase() : "D"}
               </div>
               <div>
-                <h2 className="text-2m font-bold text-ink-900">Dr. {doctor.name}</h2>
+                <h2 className="font-display tracking-tight text-2m font-bold text-ink-900">Dr. {doctor.name}</h2>
                 <p className="text-xs text-ink-500">{doctor.specialization || "General Practitioner"}</p>
               </div>
             </div>
@@ -142,7 +142,7 @@ export default function DoctorDetailModal({
         <div className="p-6 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
-              <h3 className="text-lg font-semibold text-ink-900">Contact Information</h3>
+              <h3 className="font-display tracking-tight text-lg font-semibold text-ink-900">Contact Information</h3>
               <div className="space-y-3">
                 {doctor.email && (
                   <div className="flex items-center gap-3">
@@ -153,7 +153,7 @@ export default function DoctorDetailModal({
                 {doctor.phone && (
                   <div className="flex items-center gap-3">
                     <Phone className="w-4 h-4 text-ink-500" />
-                    <span className="text-ink-700">{doctor.phone}</span>
+                    <span className="font-mono tabular text-ink-700">{doctor.phone}</span>
                   </div>
                 )}
                 <div className="flex items-center gap-3">
@@ -163,7 +163,7 @@ export default function DoctorDetailModal({
             </div>
 
             <div className="space-y-2">
-              <h3 className="text-lg font-semibold text-ink-900">Professional Details</h3>
+              <h3 className="font-display tracking-tight text-lg font-semibold text-ink-900">Professional Details</h3>
               <div className="space-y-3">
                 {doctor.experience && (
                   <div className="flex items-center gap-3">
@@ -181,7 +181,7 @@ export default function DoctorDetailModal({
             </div>
 
             <div className="space-y-2 md:col-span-2">
-              <h3 className="text-lg font-semibold text-ink-900">Availability</h3>
+              <h3 className="font-display tracking-tight text-lg font-semibold text-ink-900">Availability</h3>
               <div className="space-y-4 mt-3">
                 {doctor.availability && doctor.availability.length > 0 ? (
                   Object.keys(groupedAvailability).length > 0 ? (
@@ -196,7 +196,7 @@ export default function DoctorDetailModal({
                           </div>
                           <div className="flex items-center gap-2">
                             <span className="text-sm font-medium text-ink-500">Time:</span>
-                            <span className="text-sm font-medium text-ink-900">
+                            <span className="font-mono tabular text-sm font-medium text-ink-900">
                               {formatTime(slot.startTime)} - {formatTime(slot.endTime)}
                             </span>
                           </div>

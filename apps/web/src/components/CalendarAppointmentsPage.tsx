@@ -238,10 +238,10 @@ export default function CalendarAppointmentsPage({
             <p className="text-xs text-ink-700 truncate">
               {appointment.patientName}
               {patient?.patientId && (
-                <span className="text-ink-500 ml-1">#{patient.patientId}</span>
+                <span className="font-mono tabular text-ink-500 ml-1">#{patient.patientId}</span>
               )}
             </p>
-            <p className="text-xs text-ink-500">
+            <p className="font-mono tabular text-xs text-ink-500">
               {formattedTime}
             </p>
             <div className="flex items-center gap-1 mt-1">
@@ -356,7 +356,7 @@ export default function CalendarAppointmentsPage({
                 <ChevronRight className="w-5 h-5" />
               </button>
             </div>
-            <h2 className="text-lg font-semibold text-ink-900">
+            <h2 className="font-display tracking-tight text-lg font-semibold text-ink-900">
               {format(currentDate, 'MMMM yyyy')}
             </h2>
           </div>
@@ -483,7 +483,7 @@ export default function CalendarAppointmentsPage({
                   {getInitials(hoveredAppointment.doctorName)}
                 </div>
                 <div className="flex-1">
-                  <h3 className="font-bold text-ink-900 text-lg">
+                  <h3 className="font-display tracking-tight font-bold text-ink-900 text-lg">
                     Dr. {hoveredAppointment.doctorName}
                   </h3>
                   {hoveredAppointment.doctorSpecialization && (
@@ -503,7 +503,7 @@ export default function CalendarAppointmentsPage({
                     <p className="font-semibold text-ink-900">
                       {hoveredAppointment.patientName}
                       {patient?.patientId && (
-                        <span className="text-ink-500 ml-1 font-normal text-xs">#{patient.patientId}</span>
+                        <span className="font-mono tabular text-ink-500 ml-1 font-normal text-xs">#{patient.patientId}</span>
                       )}
                     </p>
                     {hoveredAppointment.patientAge && (
@@ -517,14 +517,14 @@ export default function CalendarAppointmentsPage({
 
               <div className="flex items-center gap-2 text-sm text-ink-700 pt-2">
                 <CalendarDays className="w-4 h-4" />
-                <span>
+                <span className="font-mono tabular">
                   {format(new Date(hoveredAppointment.date), "EEE, MMM d, yyyy")}
                 </span>
               </div>
 
               <div className="flex items-center gap-2 text-sm text-ink-700">
                 <div className="w-4 h-4 flex items-center justify-center">⏰</div>
-                <span>
+                <span className="font-mono tabular">
                   {format(parse(hoveredAppointment.time, "HH:mm", new Date(2000, 0, 1)), "h:mm a")}
                 </span>
               </div>
@@ -532,7 +532,7 @@ export default function CalendarAppointmentsPage({
               {hoveredAppointment.patientPhone && (
                 <div className="flex items-center gap-2 text-sm text-ink-700">
                   <div className="w-4 h-4 flex items-center justify-center">📞</div>
-                  <span>{hoveredAppointment.patientPhone}</span>
+                  <span className="font-mono tabular">{hoveredAppointment.patientPhone}</span>
                 </div>
               )}
 

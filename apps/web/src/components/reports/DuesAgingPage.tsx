@@ -30,7 +30,7 @@ export default function DuesAgingPage({ hospitalId }: DuesAgingPageProps) {
     <ReportsLayout hospitalId={hospitalId}>
       <div className="flex flex-wrap items-end gap-4 mb-4">
         <div>
-          <h1 className="text-xl font-bold text-ink-900">Dues aging</h1>
+          <h1 className="text-xl font-bold text-ink-900 font-display tracking-tight">Dues aging</h1>
           <p className="text-sm text-ink-500 mt-0.5">
             Unpaid bills, sorted by how long they've been unpaid.{" "}
             {report ? `As of ${report.asOf}.` : ""}
@@ -103,7 +103,7 @@ export default function DuesAgingPage({ hospitalId }: DuesAgingPageProps) {
           </div>
 
           <div className="bg-surface-paper border border-border rounded-xl shadow-sm p-4 mt-3.5">
-            <h2 className="text-sm font-semibold text-ink-900 mb-3">
+            <h2 className="text-sm font-semibold text-ink-900 mb-3 font-display tracking-tight">
               How old the money is
             </h2>
             {report.buckets.every((b) => b.amount === 0) ? (
@@ -124,7 +124,7 @@ export default function DuesAgingPage({ hospitalId }: DuesAgingPageProps) {
 
           <div className="bg-surface-paper border border-border rounded-xl shadow-sm overflow-hidden mt-3.5">
             <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-              <h2 className="text-sm font-semibold text-ink-900">
+              <h2 className="text-sm font-semibold text-ink-900 font-display tracking-tight">
                 Oldest first
               </h2>
               <span className="text-[11.5px] text-ink-500">
@@ -159,7 +159,7 @@ export default function DuesAgingPage({ hospitalId }: DuesAgingPageProps) {
                           <div className="font-medium text-ink-900">
                             {r.patientName || "—"}
                           </div>
-                          <div className="text-[11px] text-ink-500">
+                          <div className="text-[11px] text-ink-500 font-mono tabular">
                             {r.patientPhone}
                           </div>
                         </td>

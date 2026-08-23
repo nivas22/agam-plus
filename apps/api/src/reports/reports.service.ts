@@ -130,15 +130,27 @@ export class ReportsService {
     };
   }
 
-  async getDoctorRevenue(hospitalId: string, query: DateRangeQuery) {
+  async getDoctorRevenue(hospitalId: string, query: DateRangeQuery, scopeDoctorProfileId?: string) {
     const { startDate, endDate } = this.resolveMonthRange(query);
     const { start, end } = dayBoundsUTC(startDate, endDate);
 
-    const [revenueByDoctor, appointments, doctorMembers] = await Promise.all([
+    const [revenueByDoctorAll, appointmentsAll, doctorMembersAll] = await Promise.all([
       this.paymentRepository.aggregateRevenueByDoctor(hospitalId, start, end),
       this.appointmentRepository.getAppointmentsWithFilters({ hospitalId, startDate, endDate }),
       this.membershipRepository.getHospitalMembers(hospitalId, { role: ROLE.DOCTOR, status: MEMBERSHIP_STATUS.APPROVED }),
     ]);
+
+    // A doctor caller only ever gets their own row — filter every input
+    // before it feeds the aggregation below, so nothing else can leak through.
+    const revenueByDoctor = scopeDoctorProfileId
+      ? revenueByDoctorAll.filter((r) => r.doctorProfileId === scopeDoctorProfileId)
+      : revenueByDoctorAll;
+    const appointments = scopeDoctorProfileId
+      ? (appointmentsAll as any[]).filter((a) => a.doctorProfileId === scopeDoctorProfileId)
+      : appointmentsAll;
+    const doctorMembers = scopeDoctorProfileId
+      ? doctorMembersAll.filter((m: any) => m.userId === scopeDoctorProfileId)
+      : doctorMembersAll;
 
     const doctorProfiles = await this.doctorRepository.getDoctorProfilesByUserIds(
       doctorMembers.map((m: any) => m.userId).filter(Boolean),
@@ -302,7 +314,7 @@ export class ReportsService {
     };
   }
 
-  async getNoShows(hospitalId: string, query: DateRangeQuery) {
+  async getNoShows(hospitalId: string, query: DateRangeQuery, scopeDoctorProfileId?: string) {
     const { startDate, endDate } = this.resolveLast3MonthsRange(query);
     const periodDays = eachDateIso(startDate, endDate).length;
 
@@ -313,11 +325,23 @@ export class ReportsService {
     const prevStartIso = prevStart.toISOString().slice(0, 10);
     const prevEndIso = prevEnd.toISOString().slice(0, 10);
 
-    const [appointments, prevAppointments, doctorMembers] = await Promise.all([
+    const [appointmentsAll, prevAppointmentsAll, doctorMembersAll] = await Promise.all([
       this.appointmentRepository.getAppointmentsWithFilters({ hospitalId, startDate, endDate }),
       this.appointmentRepository.getAppointmentsWithFilters({ hospitalId, startDate: prevStartIso, endDate: prevEndIso }),
       this.membershipRepository.getHospitalMembers(hospitalId, { role: ROLE.DOCTOR }),
     ]);
+
+    // A doctor caller only ever gets their own row — filter every input
+    // before it feeds the aggregation below, so nothing else can leak through.
+    const appointments = scopeDoctorProfileId
+      ? (appointmentsAll as any[]).filter((a) => a.doctorProfileId === scopeDoctorProfileId)
+      : appointmentsAll;
+    const prevAppointments = scopeDoctorProfileId
+      ? (prevAppointmentsAll as any[]).filter((a) => a.doctorProfileId === scopeDoctorProfileId)
+      : prevAppointmentsAll;
+    const doctorMembers = scopeDoctorProfileId
+      ? doctorMembersAll.filter((m: any) => m.userId === scopeDoctorProfileId)
+      : doctorMembersAll;
 
     const memberByUserId = new Map(doctorMembers.map((m: any) => [m.userId, m]));
 

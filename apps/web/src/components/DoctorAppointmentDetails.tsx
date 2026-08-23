@@ -168,7 +168,7 @@ export default function DoctorAppointmentBottomSheet({
 
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-border">
-          <h2 className="text-xl font-bold text-ink-900">
+          <h2 className="font-display tracking-tight text-xl font-bold text-ink-900">
             Appointment Details
           </h2>
           <button
@@ -186,7 +186,7 @@ export default function DoctorAppointmentBottomSheet({
               {appointment.patientName?.[0]?.toUpperCase() || "P"}
             </div>
             <div>
-              <h3 className="font-semibold text-ink-900 text-lg">
+              <h3 className="font-display tracking-tight font-semibold text-ink-900 text-lg">
                 {appointment.patientName}
               </h3>
               <p className="text-sm text-ink-500">
@@ -200,7 +200,7 @@ export default function DoctorAppointmentBottomSheet({
           {appointment.patientPhone && (
             <div className="flex items-center gap-2 text-sm text-ink-700">
               <Phone className="w-4 h-4" />
-              <span>{appointment.patientPhone}</span>
+              <span className="font-mono tabular">{appointment.patientPhone}</span>
             </div>
           )}
         </div>
@@ -216,7 +216,7 @@ export default function DoctorAppointmentBottomSheet({
               <Calendar className="w-5 h-5 text-brand-violet" />
               <div>
                 <p className="text-sm text-ink-700">Date</p>
-                <p className="font-medium text-ink-900">
+                <p className="font-mono tabular font-medium text-ink-900">
                   {format(appointmentDate, "EEE, MMM d, yyyy")}
                 </p>
               </div>
@@ -226,7 +226,7 @@ export default function DoctorAppointmentBottomSheet({
               <Clock className="w-5 h-5 text-brand-violet" />
               <div>
                 <p className="text-sm text-ink-700">Time</p>
-                <p className="font-medium text-ink-900">
+                <p className="font-mono tabular font-medium text-ink-900">
                   {format(appointmentDate, "h:mm a")}
                 </p>
               </div>
@@ -373,7 +373,7 @@ export default function DoctorAppointmentBottomSheet({
       {showNotesModal && (
         <div className="fixed inset-0 bg-trace-background bg-opacity-40 flex items-center justify-center z-[60] p-4">
           <div className="bg-surface-paper rounded-xl shadow-xl w-full max-w-md p-6">
-            <h3 className="text-lg font-semibold text-ink-900 mb-4">
+            <h3 className="font-display tracking-tight text-lg font-semibold text-ink-900 mb-4">
               Session Notes for {appointment.patientName}
             </h3>
             
@@ -422,7 +422,7 @@ export default function DoctorAppointmentBottomSheet({
       {showConfirmCancel && (
         <div className="fixed inset-0 bg-trace-background bg-opacity-40 flex items-center justify-center z-[60] p-4">
           <div className="bg-surface-paper rounded-xl shadow-xl w-full max-w-md p-6">
-            <h3 className="text-lg font-semibold text-ink-900 mb-4">
+            <h3 className="font-display tracking-tight text-lg font-semibold text-ink-900 mb-4">
               Cancel Appointment
             </h3>
             <p className="text-ink-700 mb-6">
@@ -457,7 +457,7 @@ export default function DoctorAppointmentBottomSheet({
       {showConfirmNoShow && (
         <div className="fixed inset-0 bg-trace-background bg-opacity-40 flex items-center justify-center z-[60] p-4">
           <div className="bg-surface-paper rounded-xl shadow-xl w-full max-w-md p-6">
-            <h3 className="text-lg font-semibold text-ink-900 mb-4">
+            <h3 className="font-display tracking-tight text-lg font-semibold text-ink-900 mb-4">
               Mark as No Show
             </h3>
             <p className="text-ink-700 mb-6">
@@ -492,7 +492,7 @@ export default function DoctorAppointmentBottomSheet({
       {showConfirmNotAvailable && (
         <div className="fixed inset-0 bg-trace-background bg-opacity-40 flex items-center justify-center z-[60] p-4">
           <div className="bg-surface-paper rounded-xl shadow-xl w-full max-w-md p-6">
-            <h3 className="text-lg font-semibold text-ink-900 mb-4">
+            <h3 className="font-display tracking-tight text-lg font-semibold text-ink-900 mb-4">
               Mark as Not Available
             </h3>
             <p className="text-ink-700 mb-6">
