@@ -5,13 +5,14 @@ import { format } from "date-fns";
 import {
   CalendarDays,
   ChevronDown,
+  History,
   Info,
   Plus,
   Printer,
   Search,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useHospitalAppointmentsApi } from "@/hooks/useNewAppointmentsApi";
 import { useHospitalDoctors } from "@/hooks/useNewDoctorApi";
@@ -28,6 +29,8 @@ import {
   RescheduleDialog,
 } from "./appointments/AppointmentActionDialogs";
 import CompleteVisitDialog from "./appointments/CompleteVisitDialog";
+import ConfirmationDialog from "./ConfirmationDialog";
+import { apptDateTime } from "./queue/queueBoard";
 
 interface AppointmentsPageProps {
   userRole: string | undefined;
@@ -309,7 +312,7 @@ export default function AppointmentsPage({
 
   const ADD_APPOINTMENT_PATH = `/hospital/${hospitalId}/appointments/add`;
 
-  const [view, setView] = useState<"agenda" | "week">("agenda");
+  const [view, setView] = useState<"agenda" | "week" | "past">("agenda");
   const [range, setRange] = useState("week");
   const [search, setSearch] = useState("");
   const [doctorFilter, setDoctorFilter] = useState("all");
@@ -351,7 +354,9 @@ export default function AppointmentsPage({
     () =>
       view === "week"
         ? { start: currentWeek.start, end: currentWeek.end }
-        : getRangeDates(range),
+        : view === "past"
+          ? getRangeDates("past")
+          : getRangeDates(range),
     [view, range, currentWeek],
   );
 
@@ -371,6 +376,20 @@ export default function AppointmentsPage({
     refetchAppointments,
     updateAppointmentStatus,
   } = useHospitalAppointmentsApi(hospitalId, userRole, false, params);
+
+  // React Query treats a tab/dropdown switch as "just show me this cached
+  // key" when that exact date range was already fetched recently (2 min
+  // staleTime) — e.g. flipping Agenda -> Past -> Agenda -> Past. Force a
+  // live refetch on every range change so the list is never silently stale.
+  const isFirstRangeFetch = useRef(true);
+  useEffect(() => {
+    if (isFirstRangeFetch.current) {
+      isFirstRangeFetch.current = false;
+      return;
+    }
+    refetchAppointments();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rangeDates.start, rangeDates.end]);
 
   const { data: patientsData = { patients: [] }, isLoading: patientsLoading } =
     useHospitalPatients(hospitalId, undefined, true);
@@ -449,7 +468,9 @@ export default function AppointmentsPage({
       });
     }
     return [...results].sort((a, b) =>
-      (a.date + a.time).localeCompare(b.date + b.time),
+      view === "past"
+        ? (b.date + b.time).localeCompare(a.date + a.time)
+        : (a.date + a.time).localeCompare(b.date + b.time),
     );
   }, [
     statsScope,
@@ -457,6 +478,7 @@ export default function AppointmentsPage({
     today,
     search,
     getPatientCode,
+    view,
     isAttentionStatus,
   ]);
 
@@ -494,6 +516,11 @@ export default function AppointmentsPage({
     setShowNotesModal(true);
   }, []);
 
+  const [earlyCheckInAppt, setEarlyCheckInAppt] =
+    useState<AppointmentWithDetails | null>(null);
+  const [wrongDayCheckInAppt, setWrongDayCheckInAppt] =
+    useState<AppointmentWithDetails | null>(null);
+
   const handleUpdateStatus = useCallback(
     async (appointmentId: string, status: string, notes = "") => {
       try {
@@ -513,13 +540,27 @@ export default function AppointmentsPage({
   );
 
   // A row's primary action always moves it exactly one step forward — except
-  // "Complete", which needs session notes first, so it opens that modal instead.
+  // "Complete", which needs session notes first, so it opens that modal
+  // instead, and "Check in": a different day is a hard stop (nothing to
+  // confirm — that appointment isn't today's business), while same-day but
+  // still-early just asks for confirmation, since the booking could be a
+  // genuinely early arrival.
   const advanceAppointment = useCallback(
     (appt: AppointmentWithDetails) => {
       const step = getNextStep(appt.status);
       if (!step) return;
       if (step.status === APPOINTMENT_STATUS.COMPLETED) {
         openCompleteFlow(appt);
+      } else if (
+        step.status === APPOINTMENT_STATUS.CHECKED_IN &&
+        appt.date !== toISODate(new Date())
+      ) {
+        setWrongDayCheckInAppt(appt);
+      } else if (
+        step.status === APPOINTMENT_STATUS.CHECKED_IN &&
+        new Date() < apptDateTime(appt)
+      ) {
+        setEarlyCheckInAppt(appt);
       } else {
         handleUpdateStatus(appt.id, step.status);
       }
@@ -783,13 +824,14 @@ export default function AppointmentsPage({
           100,
       ),
     );
-    const gaps = selectedDoctor
-      ? computeGaps(
-          selectedDoctor,
-          date,
-          live.map((a) => a.time),
-        )
-      : null;
+    const gaps =
+      selectedDoctor && view !== "past"
+        ? computeGaps(
+            selectedDoctor,
+            date,
+            live.map((a) => a.time),
+          )
+        : null;
     const lines = buildDayLines(items, gaps, isToday, nowMins);
 
     return (
@@ -1033,7 +1075,7 @@ export default function AppointmentsPage({
         <select
           value={range}
           onChange={(e) => setRange(e.target.value)}
-          disabled={view === "week"}
+          disabled={view === "week" || view === "past"}
           className="h-9 pl-3 pr-8 rounded-lg border border-border bg-surface-paper text-sm disabled:opacity-50"
         >
           {RANGE_OPTIONS.map((o) => (
@@ -1069,6 +1111,13 @@ export default function AppointmentsPage({
               className={`px-3 py-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 transition-colors ${view === "week" ? "bg-surface-paper text-ink-900 shadow-sm" : "text-ink-500"}`}
             >
               <ChevronDown className="w-3.5 h-3.5 -rotate-90" /> Week
+            </button>
+            <button
+              type="button"
+              onClick={() => setView("past")}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 transition-colors ${view === "past" ? "bg-surface-paper text-ink-900 shadow-sm" : "text-ink-500"}`}
+            >
+              <History className="w-3.5 h-3.5" /> Past
             </button>
           </div>
           <button
@@ -1219,6 +1268,46 @@ export default function AppointmentsPage({
           onSuccess={handleDialogSuccess}
         />
       )}
+
+      {/* Confirm early check-in — scheduled time hasn't arrived yet */}
+      <ConfirmationDialog
+        isOpen={!!earlyCheckInAppt}
+        onClose={() => setEarlyCheckInAppt(null)}
+        onConfirm={() => {
+          if (earlyCheckInAppt) {
+            handleUpdateStatus(
+              earlyCheckInAppt.id,
+              APPOINTMENT_STATUS.CHECKED_IN,
+            );
+          }
+          setEarlyCheckInAppt(null);
+        }}
+        title="Check in early?"
+        message={
+          earlyCheckInAppt
+            ? `This appointment is booked for ${format(new Date(`${earlyCheckInAppt.date}T00:00:00`), "d MMM")}, ${formatTime12h(earlyCheckInAppt.time)}, which hasn't started yet. Check in anyway?`
+            : ""
+        }
+        confirmText="Check in anyway"
+      />
+
+      {/* Block check-in — appointment isn't scheduled for today */}
+      <ConfirmationDialog
+        isOpen={!!wrongDayCheckInAppt}
+        onClose={() => setWrongDayCheckInAppt(null)}
+        onConfirm={() => setWrongDayCheckInAppt(null)}
+        hideCancel
+        confirmColor="red"
+        confirmText="OK"
+        title="Can't check in"
+        message={
+          wrongDayCheckInAppt
+            ? wrongDayCheckInAppt.date < toISODate(new Date())
+              ? `This appointment was booked for ${format(new Date(`${wrongDayCheckInAppt.date}T00:00:00`), "d MMM")}, ${formatTime12h(wrongDayCheckInAppt.time)} and is now overdue. Reschedule it before checking the patient in.`
+              : `This appointment is booked for ${format(new Date(`${wrongDayCheckInAppt.date}T00:00:00`), "d MMM")}, ${formatTime12h(wrongDayCheckInAppt.time)} — check-in only opens on that day.`
+            : ""
+        }
+      />
 
       {/* Toast Notification */}
       {toast && (

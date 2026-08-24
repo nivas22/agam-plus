@@ -8,6 +8,10 @@ import CompleteVisitDialog from "@/components/appointments/CompleteVisitDialog";
 import { useAuth } from "@/hooks/useAuth";
 import { useChargeCatalogItems } from "@/hooks/useChargeCatalogApi";
 import {
+  useDoctorPresence,
+  useSetDoctorPresence,
+} from "@/hooks/useDoctorPresenceApi";
+import {
   useHospitalAppointmentsApi,
   usePatientHospitalAppointments,
 } from "@/hooks/useNewAppointmentsApi";
@@ -37,10 +41,7 @@ import {
   getInitials,
   laneStatus,
   minutesBetween,
-  type PresenceOverride,
-  presenceStorageKey,
   type QueueLane,
-  readPresenceOverrides,
   todaysWindows,
   toISODate,
 } from "./queueBoard";
@@ -218,22 +219,15 @@ export default function DoctorTodayPage({
     [duePaymentsData],
   );
 
-  // Presence has no backend field yet — same session-local convention
-  // TodaysQueuePage already uses, scoped per hospital+day.
-  const [presenceOverrides, setPresenceOverrides] = useState<
-    Record<string, PresenceOverride>
-  >(() => readPresenceOverrides(hospitalId, toISODate(new Date())));
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      window.localStorage.setItem(
-        presenceStorageKey(hospitalId, today),
-        JSON.stringify(presenceOverrides),
-      );
-    } catch {
-      // Private browsing / quota exceeded — presence just won't survive a reload.
-    }
-  }, [presenceOverrides, hospitalId, today]);
+  // Backed by the DB (see useDoctorPresenceApi) — same source TodaysQueuePage
+  // reads/writes, so a doctor marking themself "here" here shows up
+  // immediately on the front desk's board too, with the change recorded in
+  // the audit trail (area "doctors").
+  const { data: presenceOverrides = {} } = useDoctorPresence(
+    hospitalId,
+    today,
+  );
+  const setDoctorPresence = useSetDoctorPresence(hospitalId);
 
   const lane: QueueLane | null = useMemo(
     () => (doctor ? buildLanes([doctor], appointments, now)[0] : null),
@@ -461,54 +455,39 @@ export default function DoctorTodayPage({
               canEdit={true}
               now={now}
               onMarkHere={() =>
-                setPresenceOverrides((cur) => ({
-                  ...cur,
-                  [doctorId]: { kind: "here", setAt: new Date().toISOString() },
-                }))
+                setDoctorPresence.mutate({ doctorId, date: today, kind: "here" })
               }
               onMarkRunningLate={(t) =>
-                setPresenceOverrides((cur) => ({
-                  ...cur,
-                  [doctorId]: {
-                    kind: "runningLate",
-                    expectedTime: t,
-                    setBy: user?.name || "Doctor",
-                    setAt: new Date().toISOString(),
-                  },
-                }))
+                setDoctorPresence.mutate({
+                  doctorId,
+                  date: today,
+                  kind: "runningLate",
+                  expectedTime: t,
+                })
               }
               onMarkOnBreak={(t) =>
-                setPresenceOverrides((cur) => ({
-                  ...cur,
-                  [doctorId]: {
-                    kind: "onBreak",
-                    returnTime: t,
-                    setBy: user?.name || "Doctor",
-                    setAt: new Date().toISOString(),
-                  },
-                }))
+                setDoctorPresence.mutate({
+                  doctorId,
+                  date: today,
+                  kind: "onBreak",
+                  returnTime: t,
+                })
               }
               onOpenNotComing={() =>
-                setPresenceOverrides((cur) => ({
-                  ...cur,
-                  [doctorId]: {
-                    kind: "notIn",
-                    reason: "Not coming today",
-                    toldBy: user?.name || "Doctor",
-                    setBy: user?.name || "Doctor",
-                    setAt: new Date().toISOString(),
-                  },
-                }))
+                setDoctorPresence.mutate({
+                  doctorId,
+                  date: today,
+                  kind: "notIn",
+                  reason: "Not coming today",
+                  toldBy: user?.name || "Doctor",
+                })
               }
               onLeftForDay={() =>
-                setPresenceOverrides((cur) => ({
-                  ...cur,
-                  [doctorId]: {
-                    kind: "leftForDay",
-                    setBy: user?.name || "Doctor",
-                    setAt: new Date().toISOString(),
-                  },
-                }))
+                setDoctorPresence.mutate({
+                  doctorId,
+                  date: today,
+                  kind: "leftForDay",
+                })
               }
             />
             <span className="font-mono text-base font-semibold text-ink-900">

@@ -24,6 +24,7 @@ import { MedicinesModule } from './medicines/medicines.module';
 import { PrescriptionsModule } from './prescriptions/prescriptions.module';
 import { LeaveRequestsModule } from './leave-requests/leave-requests.module';
 import { DoctorDashboardModule } from './doctor-dashboard/doctor-dashboard.module';
+import { DoctorPresenceModule } from './doctor-presence/doctor-presence.module';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { DoctorDashboardModule } from './doctor-dashboard/doctor-dashboard.modul
     PrescriptionsModule,
     LeaveRequestsModule,
     DoctorDashboardModule,
+    DoctorPresenceModule,
     PlatformAdminModule,
   ],
   controllers: [AppController],

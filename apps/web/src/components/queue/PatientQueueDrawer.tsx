@@ -18,6 +18,7 @@ interface PatientQueueDrawerProps {
   appointment: AppointmentWithDetails;
   hospitalId: string;
   doctor?: Doctor | null;
+  queuePosition?: number;
   patientCode?: string;
   now: Date;
   onClose: () => void;
@@ -34,6 +35,7 @@ export default function PatientQueueDrawer({
   appointment,
   hospitalId,
   doctor,
+  queuePosition,
   patientCode,
   now,
   onClose,
@@ -96,8 +98,13 @@ export default function PatientQueueDrawer({
             {patientCode ? patientCode.slice(-2) : "—"}
           </span>
           <div className="min-w-0">
-            <h2 className="text-lg font-bold text-ink-900 truncate font-display tracking-tight">
-              {appointment.patientName}
+            <h2 className="flex items-center gap-2 text-lg font-bold text-ink-900 truncate font-display tracking-tight">
+              {queuePosition != null && (
+                <span className="w-6 h-6 rounded-full bg-brand-violet text-white text-xs font-bold flex items-center justify-center shrink-0">
+                  {queuePosition}
+                </span>
+              )}
+              <span className="truncate">{appointment.patientName}</span>
             </h2>
             <div className="text-xs text-ink-500 mt-0.5">
               {[

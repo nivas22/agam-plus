@@ -350,11 +350,10 @@ export class PaymentsService {
     }
 
     const invoiceYear = new Date().getFullYear();
-    const sequence =
-      (await this.paymentRepository.countPaymentsForYear(
-        hospitalId,
-        invoiceYear,
-      )) + 1;
+    const sequence = await this.paymentRepository.getNextInvoiceSequence(
+      hospitalId,
+      invoiceYear,
+    );
     paymentData.invoiceYear = invoiceYear;
     paymentData.invoiceNumber = `INV-${invoiceYear}-${String(sequence).padStart(4, '0')}`;
 

@@ -12,16 +12,27 @@ import type {
 } from "@/types/appointment";
 import type { Patient } from "@/types/patientNew";
 import {
+  computePresence,
+  type DoctorPresence,
   doctorAvailabilityNow,
   getInitials,
+  type PresenceOverride,
   type QueueLane,
   toISODate,
 } from "./queueBoard";
+
+const PRESENCE_TONE_CLS: Record<DoctorPresence["tone"], string> = {
+  in: "text-status-open",
+  expected: "text-status-warning",
+  late: "text-status-warning",
+  notIn: "text-status-danger",
+};
 
 interface AddWalkInModalProps {
   hospitalId: string;
   lanes: QueueLane[];
   patients: Patient[];
+  presenceOverrides: Record<string, PresenceOverride>;
   now: Date;
   initialDoctorId?: string | null;
   onClose: () => void;
@@ -41,6 +52,7 @@ export default function AddWalkInModal({
   hospitalId,
   lanes,
   patients,
+  presenceOverrides,
   now,
   initialDoctorId,
   onClose,
@@ -55,9 +67,28 @@ export default function AddWalkInModal({
       lanes.map((lane) => {
         const busy = lane.inConsultation.length + lane.waiting.length;
         const availability = doctorAvailabilityNow(lane.doctor, now);
-        return { lane, doctor: lane.doctor, busy, availability };
+        const presence = computePresence(
+          lane,
+          presenceOverrides[lane.doctor.id],
+          now,
+        );
+        return { lane, doctor: lane.doctor, busy, availability, presence };
       }),
-    [lanes, now],
+    [lanes, now, presenceOverrides],
+  );
+
+  // A walk-in can only be slotted in with a doctor who's actually in session
+  // right now and not flagged out — not coming in, left for the day, or on
+  // a break — even if their scheduled window is technically still open.
+  const availableDoctorOptions = useMemo(
+    () =>
+      doctorOptions.filter(
+        (o) =>
+          o.availability.available &&
+          o.presence.tone !== "notIn" &&
+          o.presence.label !== "ON BREAK",
+      ),
+    [doctorOptions],
   );
 
   const [search, setSearch] = useState("");
@@ -249,52 +280,41 @@ export default function AddWalkInModal({
               Which doctor
             </label>
             <div className="grid grid-cols-3 gap-2">
-              {doctorOptions.map(({ doctor, busy, availability }) => {
+              {availableDoctorOptions.map(({ doctor, busy, presence }) => {
                 const active = doctorId === doctor.id;
                 return (
                   <button
                     key={doctor.id}
                     type="button"
-                    disabled={!availability.available}
                     onClick={() => setDoctorId(doctor.id)}
                     aria-pressed={active}
-                    title={
-                      availability.available ? undefined : availability.label
-                    }
+                    title={presence.detail}
                     className={`border rounded-lg p-3 text-left transition-colors ${
-                      !availability.available
-                        ? "opacity-50 cursor-not-allowed border-border"
-                        : active
-                          ? "border-brand-violet bg-brand-violet-soft"
-                          : "border-border hover:border-ink-500/40"
+                      active
+                        ? "border-brand-violet bg-brand-violet-soft"
+                        : "border-border hover:border-ink-500/40"
                     }`}
                   >
                     <span
-                      className={`block text-sm font-semibold truncate ${active && availability.available ? "text-brand-violet" : "text-ink-900"}`}
+                      className={`block text-sm font-semibold truncate ${active ? "text-brand-violet" : "text-ink-900"}`}
                     >
                       Dr. {doctor.name}
                     </span>
                     <span
                       className={`block text-xs font-mono mt-1 ${
-                        !availability.available
-                          ? "text-ink-500"
-                          : busy === 0
-                            ? "text-status-open"
-                            : "text-status-warning"
+                        PRESENCE_TONE_CLS[presence.tone]
                       }`}
                     >
-                      {availability.available
-                        ? busy === 0
-                          ? "Free now"
-                          : `~${busy * (doctor.appointmentDuration || 30)} min wait`
-                        : availability.label}
+                      {presence.label}
+                      {busy > 0 &&
+                        ` · ~${busy * (doctor.appointmentDuration || 30)} min wait`}
                     </span>
                   </button>
                 );
               })}
-              {doctorOptions.length === 0 && (
+              {availableDoctorOptions.length === 0 && (
                 <p className="text-sm text-ink-500 col-span-3">
-                  No doctors with a session today.
+                  No doctors available right now.
                 </p>
               )}
             </div>

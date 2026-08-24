@@ -11,7 +11,12 @@ import {
   RescheduleDialog,
 } from "@/components/appointments/AppointmentActionDialogs";
 import CompleteVisitDialog from "@/components/appointments/CompleteVisitDialog";
+import DoctorDetailSidebar from "@/components/doctors/DoctorDetailSidebar";
 import { useAuth } from "@/hooks/useAuth";
+import {
+  useDoctorPresence,
+  useSetDoctorPresence,
+} from "@/hooks/useDoctorPresenceApi";
 import { useHospitalAppointmentsApi } from "@/hooks/useNewAppointmentsApi";
 import { useHospitalDoctors } from "@/hooks/useNewDoctorApi";
 import { useHospitalPatients } from "@/hooks/useNewPatientApi";
@@ -38,9 +43,7 @@ import {
   normalizeStatus,
   OVERDUE_GRACE_MINUTES,
   type PresenceOverride,
-  presenceStorageKey,
   type QueueLane,
-  readPresenceOverrides,
   todaysWindows,
   toISODate,
 } from "./queueBoard";
@@ -74,19 +77,12 @@ export default function TodaysQueuePage({
   const [walkInPresetDoctorId, setWalkInPresetDoctorId] = useState<
     string | null
   >(null);
-  // Presence has no backend field yet (see PresenceOverride in queueBoard.ts),
-  // so it's kept in localStorage instead of plain component state — survives
-  // a reload on this device, scoped per hospital+day so it can't leak into
-  // tomorrow. It still won't sync to a different front-desk terminal; that
-  // needs a real backend field.
-  const [presenceOverrides, setPresenceOverrides] = useState<
-    Record<string, PresenceOverride>
-  >(() => readPresenceOverrides(hospitalId, toISODate(new Date())));
   const [absentModal, setAbsentModal] = useState<{
     doctor: Doctor;
     variant: "notComing" | "leftForDay";
   } | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [activeDoctor, setActiveDoctor] = useState<Doctor | null>(null);
 
   const openAddWalkIn = useCallback((presetDoctorId?: string) => {
     setWalkInPresetDoctorId(presetDoctorId ?? null);
@@ -100,17 +96,16 @@ export default function TodaysQueuePage({
 
   const today = toISODate(now);
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      window.localStorage.setItem(
-        presenceStorageKey(hospitalId, today),
-        JSON.stringify(presenceOverrides),
-      );
-    } catch {
-      // Private browsing / quota exceeded — presence just won't survive a reload.
-    }
-  }, [presenceOverrides, hospitalId, today]);
+  // Backed by the DB (see useDoctorPresenceApi) — shared across every
+  // front-desk terminal and the doctor's own device, with every change
+  // recorded in the audit trail (area "doctors"). Replaces the old
+  // localStorage-only version of this, which also had a bug where a tab
+  // left open across midnight would carry yesterday's overrides into today.
+  const { data: presenceOverrides = {} } = useDoctorPresence(
+    hospitalId,
+    today,
+  );
+  const setDoctorPresence = useSetDoctorPresence(hospitalId);
 
   const params = useMemo(() => {
     const p = new URLSearchParams();
@@ -211,41 +206,35 @@ export default function TodaysQueuePage({
     [updateAppointmentStatus, refetchAppointments, showToast],
   );
 
-  const handleMarkHere = useCallback((doctorId: string) => {
-    setPresenceOverrides((cur) => ({
-      ...cur,
-      [doctorId]: { kind: "here", setAt: new Date().toISOString() },
-    }));
-  }, []);
+  const handleMarkHere = useCallback(
+    (doctorId: string) => {
+      setDoctorPresence.mutate({ doctorId, date: today, kind: "here" });
+    },
+    [setDoctorPresence, today],
+  );
 
   const handleMarkRunningLate = useCallback(
     (doctorId: string, expectedTime: string) => {
-      setPresenceOverrides((cur) => ({
-        ...cur,
-        [doctorId]: {
-          kind: "runningLate",
-          expectedTime,
-          setBy: user?.name || "Front desk",
-          setAt: new Date().toISOString(),
-        },
-      }));
+      setDoctorPresence.mutate({
+        doctorId,
+        date: today,
+        kind: "runningLate",
+        expectedTime,
+      });
     },
-    [user?.name],
+    [setDoctorPresence, today],
   );
 
   const handleMarkOnBreak = useCallback(
     (doctorId: string, returnTime: string) => {
-      setPresenceOverrides((cur) => ({
-        ...cur,
-        [doctorId]: {
-          kind: "onBreak",
-          returnTime,
-          setBy: user?.name || "Front desk",
-          setAt: new Date().toISOString(),
-        },
-      }));
+      setDoctorPresence.mutate({
+        doctorId,
+        date: today,
+        kind: "onBreak",
+        returnTime,
+      });
     },
-    [user?.name],
+    [setDoctorPresence, today],
   );
 
   // "Not coming today" always opens the bulk modal, even with nothing
@@ -258,33 +247,34 @@ export default function TodaysQueuePage({
   const handleLeftForDay = useCallback(
     (lane: QueueLane) => {
       if (lane.waiting.length === 0 && lane.yetToArrive.length === 0) {
-        setPresenceOverrides((cur) => ({
-          ...cur,
-          [lane.doctor.id]: {
-            kind: "leftForDay",
-            setBy: user?.name || "Front desk",
-            setAt: new Date().toISOString(),
-          },
-        }));
+        setDoctorPresence.mutate({
+          doctorId: lane.doctor.id,
+          date: today,
+          kind: "leftForDay",
+        });
         showToast(`Dr. ${lane.doctor.name} marked as left for the day`);
         return;
       }
       setAbsentModal({ doctor: lane.doctor, variant: "leftForDay" });
     },
-    [user?.name, showToast],
+    [setDoctorPresence, today, showToast],
   );
 
   const handleAbsentApplied = useCallback(
     async (override: PresenceOverride, message: string) => {
       if (!absentModal) return;
-      setPresenceOverrides((cur) => ({
-        ...cur,
-        [absentModal.doctor.id]: override,
-      }));
+      setDoctorPresence.mutate({
+        doctorId: absentModal.doctor.id,
+        date: today,
+        kind: override.kind,
+        reason: "reason" in override ? override.reason : undefined,
+        toldBy: "toldBy" in override ? override.toldBy : undefined,
+        note: "note" in override ? override.note : undefined,
+      });
       showToast(message);
       await refetchAppointments();
     },
-    [absentModal, showToast, refetchAppointments],
+    [absentModal, setDoctorPresence, today, showToast, refetchAppointments],
   );
 
   const waitingAll = lanes.flatMap((l) => l.waiting);
@@ -446,6 +436,7 @@ export default function TodaysQueuePage({
                     now={now}
                     canEdit={canEdit}
                     onSelect={setSelectedAppt}
+                    onSelectDoctor={setActiveDoctor}
                     onComplete={setCompleteAppt}
                     onWritePrescription={(a) =>
                       navigateToHospitalRoute(
@@ -539,18 +530,6 @@ export default function TodaysQueuePage({
                 {OVERDUE_GRACE_MINUTES} minutes late.
               </div>
             </div>
-
-            {canEdit && (
-              <div className="bg-surface-paper border border-border rounded-xl p-4">
-                <button
-                  type="button"
-                  onClick={() => openAddWalkIn()}
-                  className="w-full h-10 rounded-lg bg-brand-violet hover:bg-brand-violet-hover text-white text-sm font-medium flex items-center justify-center gap-2 transition-colors"
-                >
-                  <Plus className="w-4 h-4" /> Add walk-in
-                </button>
-              </div>
-            )}
           </div>
         </div>
       )}
@@ -562,6 +541,15 @@ export default function TodaysQueuePage({
           doctor={doctorsData.doctors.find(
             (d) => d.id === selectedAppt.doctorProfileId,
           )}
+          queuePosition={(() => {
+            const lane = allLanes.find(
+              (l) => l.doctor.id === selectedAppt.doctorProfileId,
+            );
+            const index = lane?.waiting.findIndex(
+              (a) => a.id === selectedAppt.id,
+            );
+            return index != null && index >= 0 ? index + 1 : undefined;
+          })()}
           patientCode={getPatientCode(selectedAppt.patientId)}
           now={now}
           onClose={() => setSelectedAppt(null)}
@@ -667,6 +655,7 @@ export default function TodaysQueuePage({
           hospitalId={hospitalId}
           lanes={allLanes}
           patients={patientsData.patients}
+          presenceOverrides={presenceOverrides}
           now={now}
           initialDoctorId={walkInPresetDoctorId}
           onClose={() => {
@@ -701,6 +690,13 @@ export default function TodaysQueuePage({
           );
         })()}
 
+      {activeDoctor && (
+        <DoctorDetailSidebar
+          doctor={activeDoctor}
+          onClose={() => setActiveDoctor(null)}
+        />
+      )}
+
       {toast && (
         <div className="fixed bottom-5 right-5 bg-ink-900 text-white px-4 py-3 rounded-lg shadow-lg z-50">
           {toast}
@@ -729,6 +725,7 @@ function DoctorLane({
   now,
   canEdit,
   onSelect,
+  onSelectDoctor,
   onComplete,
   onWritePrescription,
   onCheckIn,
@@ -747,6 +744,7 @@ function DoctorLane({
   now: Date;
   canEdit: boolean;
   onSelect: (a: AppointmentWithDetails) => void;
+  onSelectDoctor: (d: Doctor) => void;
   onComplete: (a: AppointmentWithDetails) => void;
   onWritePrescription: (a: AppointmentWithDetails) => void;
   onCheckIn: (a: AppointmentWithDetails) => void;
@@ -761,7 +759,13 @@ function DoctorLane({
 }) {
   const windows = todaysWindows(lane.doctor, now);
   const nowMins = now.getHours() * 60 + now.getMinutes();
-  const minsPastStart = windows.length ? nowMins - windows[0].start : null;
+  // The window actually in progress right now — a doctor with more than one
+  // session today (e.g. morning + evening) would otherwise always measure
+  // against the day's first window, however many hours ago that was.
+  const currentWindow = windows.find(
+    (w) => nowMins >= w.start && nowMins < w.end,
+  );
+  const minsPastStart = currentWindow ? nowMins - currentWindow.start : null;
   const showNudge =
     presence.tone === "expected" &&
     presence.label !== "ON BREAK" &&
@@ -774,9 +778,13 @@ function DoctorLane({
       <div className="px-4 py-3 border-b border-border flex items-start gap-3">
         <SpecAvatar name={lane.doctor.name} />
         <div className="min-w-0">
-          <div className="text-sm font-semibold text-ink-900 truncate">
+          <button
+            type="button"
+            onClick={() => onSelectDoctor(lane.doctor)}
+            className="text-sm font-semibold text-ink-900 truncate hover:underline hover:text-brand-violet transition-colors text-left"
+          >
             Dr. {lane.doctor.name}
-          </div>
+          </button>
           <div className="text-xs text-ink-500 truncate">{presence.detail}</div>
         </div>
         <span className="ml-auto shrink-0">
@@ -866,12 +874,13 @@ function DoctorLane({
               )}
           </div>
         ) : (
-          lane.waiting.map((appt) => (
+          lane.waiting.map((appt, index) => (
             <QueueCard
               key={appt.id}
               appt={appt}
               now={now}
               tone="waiting"
+              queuePosition={index + 1}
               patientCode={getPatientCode(appt.patientId)}
               onClick={() => onSelect(appt)}
               action={
@@ -920,6 +929,7 @@ function QueueCard({
   appt,
   now,
   tone,
+  queuePosition,
   patientCode,
   onClick,
   action,
@@ -927,6 +937,7 @@ function QueueCard({
   appt: AppointmentWithDetails;
   now: Date;
   tone: "now" | "waiting" | "expected";
+  queuePosition?: number;
   patientCode?: string;
   onClick: () => void;
   action?: { label: string; onClick: () => void };
@@ -956,8 +967,15 @@ function QueueCard({
           : formatTime12h(appt.time).replace(" ", "")}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block text-sm font-semibold text-ink-900 truncate">
-          {appt.patientName}
+        <span className="flex items-center gap-1.5">
+          {queuePosition != null && (
+            <span className="w-5 h-5 rounded-full bg-brand-violet text-white text-[10px] font-bold flex items-center justify-center shrink-0">
+              {queuePosition}
+            </span>
+          )}
+          <span className="block text-sm font-semibold text-ink-900 truncate">
+            {appt.patientName}
+          </span>
         </span>
         <span className="block text-xs text-ink-500 truncate">
           {[

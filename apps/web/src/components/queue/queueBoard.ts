@@ -220,13 +220,13 @@ export function nextWorkingDate(
   return null;
 }
 
-// Manually-set presence, entered by the front desk for whatever the day's
-// data can't prove on its own (a doctor who hasn't started a consultation
-// yet could be five minutes away or a no-show — only a human knows which).
-// Session-local only: there's no backend field for "today's presence" yet,
-// so this resets on reload. The *consequences* of "not coming" (reassigning
-// or cancelling appointments) are real, persisted appointment updates —
-// only the presence label itself is ephemeral.
+// Manually-set presence, entered by the front desk (or the doctor
+// themself) for whatever the day's data can't prove on its own — a doctor
+// who hasn't started a consultation yet could be five minutes away or a
+// no-show, and only a human knows which. Persisted server-side per
+// hospital+doctor+day (see useDoctorPresenceApi), shared across every
+// front-desk terminal and the doctor's own device, with every change
+// recorded in the audit trail.
 export type PresenceOverride =
   | { kind: "here"; setAt: string }
   | { kind: "runningLate"; expectedTime: string; setBy: string; setAt: string }
@@ -247,30 +247,10 @@ export interface DoctorPresence {
   detail: string;
 }
 
-export function presenceStorageKey(
-  hospitalId: string,
-  dateISO: string,
-): string {
-  return `queue-presence:${hospitalId}:${dateISO}`;
-}
-
-// Reads today's manual presence overrides for a hospital. Safe to call from
-// any page that wants a read-only view of presence (e.g. the dashboard) —
-// only the queue page itself writes to this key.
-export function readPresenceOverrides(
-  hospitalId: string,
-  dateISO: string,
-): Record<string, PresenceOverride> {
-  if (typeof window === "undefined") return {};
-  try {
-    const raw = window.localStorage.getItem(
-      presenceStorageKey(hospitalId, dateISO),
-    );
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
-  }
-}
+// How long past a doctor's shift start we wait, with no consultation started
+// and no manual "here" from the front desk, before flagging them as running
+// late on our own — nobody has to notice and set it by hand.
+export const AUTO_LATE_GRACE_MINUTES = 15;
 
 export function computePresence(
   lane: QueueLane,
@@ -338,11 +318,42 @@ export function computePresence(
   }
 
   const availability = doctorAvailabilityNow(lane.doctor, now);
+
+  if (availability.available) {
+    const nowMins = now.getHours() * 60 + now.getMinutes();
+    const currentWindow = todaysWindows(lane.doctor, now).find(
+      (w) => nowMins >= w.start && nowMins < w.end,
+    );
+    const minsPastStart = currentWindow ? nowMins - currentWindow.start : 0;
+    if (minsPastStart >= AUTO_LATE_GRACE_MINUTES) {
+      return {
+        tone: "late",
+        label: "RUNNING LATE",
+        detail: `${minsPastStart} min past start · not marked in`,
+      };
+    }
+    return {
+      tone: "expected",
+      label: "EXPECTED",
+      detail: "Due now · not arrived",
+    };
+  }
+
+  // Every window for today has come and gone and the doctor was never seen —
+  // flag it, but only as a display label. Whether to actually reassign or
+  // cancel their remaining bookings stays a front-desk call via "Not coming
+  // today"; we don't take that action on their behalf.
+  if (availability.label === "Session over") {
+    return {
+      tone: "notIn",
+      label: "NOT COMING TODAY",
+      detail: "Did not check in during scheduled hours today",
+    };
+  }
+
   return {
     tone: "expected",
     label: "EXPECTED",
-    detail: availability.available
-      ? "Due now · not arrived"
-      : availability.label,
+    detail: availability.label,
   };
 }

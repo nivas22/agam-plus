@@ -10,11 +10,11 @@ import {
   minutesToTimeStr,
   nextWorkingDate,
   type QueueLane,
-  readPresenceOverrides,
   todaysWindows,
   toISODate,
 } from "@/components/queue/queueBoard";
 import { useAuth } from "@/hooks/useAuth";
+import { useDoctorPresence } from "@/hooks/useDoctorPresenceApi";
 import {
   useDoctorDashboardFollowUps,
   useDoctorDashboardPending,
@@ -102,6 +102,10 @@ export default function DoctorDashboardPage({
   const { data: doctorsData = { doctors: [] } } =
     useHospitalDoctors(hospitalId);
   const doctor = doctorsData.doctors.find((d: Doctor) => d.id === doctorId);
+  const { data: presenceOverrides = {} } = useDoctorPresence(
+    hospitalId,
+    today,
+  );
 
   const todayParams = useMemo(() => {
     const p = new URLSearchParams();
@@ -154,7 +158,6 @@ export default function DoctorDashboardPage({
 
   const lane: QueueLane = buildLanes([doctor], appointments, now)[0];
   const windows = todaysWindows(doctor, now);
-  const presenceOverrides = readPresenceOverrides(hospitalId, today);
   const presence = computePresence(lane, presenceOverrides[doctorId], now);
 
   const nowMins = now.getHours() * 60 + now.getMinutes();

@@ -15,6 +15,7 @@ const AREA_LABELS: Record<string, string> = {
   settings: "Settings",
   access: "Access",
   patients: "Patients",
+  doctors: "Doctors",
 };
 
 const AREA_TAG_STYLES: Record<string, string> = {
@@ -23,6 +24,7 @@ const AREA_TAG_STYLES: Record<string, string> = {
   settings: "bg-surface-canvas text-ink-700",
   access: "bg-status-open-soft text-status-open",
   patients: "bg-status-warning-soft text-status-warning",
+  doctors: "bg-brand-violet-soft text-brand-violet",
 };
 
 function money(v: number): string {

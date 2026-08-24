@@ -19,6 +19,7 @@ import { HospitalHolidayRepository } from './hospital-holiday.repository';
 import { MedicineRepository } from './medicine.repository';
 import { PrescriptionRepository } from './prescription.repository';
 import { LeaveRequestRepository } from './leave-request.repository';
+import { DoctorPresenceRepository } from './doctor-presence.repository';
 import { User, UserSchema } from '../schemas/user.schema';
 import { Hospital, HospitalSchema } from '../schemas/hospital.schema';
 import {
@@ -52,6 +53,11 @@ import {
 import { Medicine, MedicineSchema } from '../schemas/medicine.schema';
 import { Prescription, PrescriptionSchema } from '../schemas/prescription.schema';
 import { LeaveRequest, LeaveRequestSchema } from '../schemas/leave-request.schema';
+import { Counter, CounterSchema } from '../schemas/counter.schema';
+import {
+  DoctorPresence,
+  DoctorPresenceSchema,
+} from '../schemas/doctor-presence.schema';
 
 const repositories = [
   UserRepository,
@@ -73,6 +79,7 @@ const repositories = [
   MedicineRepository,
   PrescriptionRepository,
   LeaveRequestRepository,
+  DoctorPresenceRepository,
 ];
 
 @Global()
@@ -97,6 +104,8 @@ const repositories = [
       { name: Medicine.name, schema: MedicineSchema },
       { name: Prescription.name, schema: PrescriptionSchema },
       { name: LeaveRequest.name, schema: LeaveRequestSchema },
+      { name: Counter.name, schema: CounterSchema },
+      { name: DoctorPresence.name, schema: DoctorPresenceSchema },
     ]),
   ],
   providers: repositories,

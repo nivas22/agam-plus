@@ -19,6 +19,8 @@ export enum DB_COLLECTIONS {
   MEDICINES = 'medicines',
   PRESCRIPTIONS = 'prescriptions',
   LEAVE_REQUESTS = 'leave_requests',
+  COUNTERS = 'counters',
+  DOCTOR_PRESENCE = 'doctor_presence',
 }
 
 // FRONT_DESK/NURSE/ACCOUNTANT replace the old unused STAFF value — nothing

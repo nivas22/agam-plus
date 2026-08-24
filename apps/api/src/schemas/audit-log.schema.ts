@@ -32,7 +32,7 @@ export class AuditLogEntry {
   @Prop({ required: true })
   action: string;
 
-  @Prop({ required: true, enum: ['money', 'appointments', 'settings', 'access', 'patients'], index: true })
+  @Prop({ required: true, enum: ['money', 'appointments', 'settings', 'access', 'patients', 'doctors'], index: true })
   area: string;
 
   @Prop({ required: true })
