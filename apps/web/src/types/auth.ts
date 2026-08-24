@@ -1,7 +1,4 @@
-import { 
-  User as FirebaseUser,
-} from "firebase/auth";
-import { Doctor, HospitalMember } from "./doctorNew";
+import type { Doctor, HospitalMember } from "./doctorNew";
 
 // Types
 export type ROLE = "admin" | "doctor" | "patient" | string;
@@ -37,7 +34,6 @@ export interface Hospital {
 
 export type LoginSuccess = {
   success: true;
-  user: FirebaseUser;
   userData: AppUser;
   role: ROLE;
   hospitals: HospitalMember[];
@@ -48,13 +44,6 @@ export type LoginError = {
   success: false;
   message: string;
 };
-
-export type LoginResult = LoginSuccess;
-
-export interface RegisterResult {
-  user: FirebaseUser;
-  userData: AppUser;
-}
 
 export interface AuthData {
   user: AppUser;
@@ -76,5 +65,5 @@ export interface UserProfile {
   currentHospital: Hospital;
   role: ROLE;
   status: STATUS;
-  doctorProfile?: Doctor
+  doctorProfile?: Doctor;
 }

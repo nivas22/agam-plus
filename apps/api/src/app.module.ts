@@ -2,7 +2,6 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { FirebaseModule } from './firebase/firebase.module';
 import { DatabaseModule } from './database/database.module';
 import { RepositoriesModule } from './repositories/repositories.module';
 import { EmailModule } from './email/email.module';
@@ -29,7 +28,6 @@ import { DoctorDashboardModule } from './doctor-dashboard/doctor-dashboard.modul
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
-    FirebaseModule,
     DatabaseModule,
     RepositoriesModule,
     EmailModule,

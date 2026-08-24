@@ -1,7 +1,7 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as jwt from 'jsonwebtoken';
-import { FIREBASE_AUTH } from '../firebase/firebase.constants';
+import { OAuth2Client } from 'google-auth-library';
 import { UserRepository } from '../repositories/user.repository';
 import { MembershipRepository } from '../repositories/membership.repository';
 import { HospitalRepository } from '../repositories/hospital.repository';
@@ -19,27 +19,57 @@ const formatDate = (value: any) => {
 
 @Injectable()
 export class AuthService {
+  private readonly googleClient: OAuth2Client;
+
   constructor(
-    @Inject(FIREBASE_AUTH) private readonly firebaseAuth: import('firebase-admin').auth.Auth,
     private readonly config: ConfigService,
     private readonly userRepository: UserRepository,
     private readonly membershipRepository: MembershipRepository,
     private readonly hospitalRepository: HospitalRepository,
     private readonly auditService: AuditService,
-  ) {}
+  ) {
+    this.googleClient = new OAuth2Client(
+      this.config.get<string>('GOOGLE_CLIENT_ID'),
+    );
+  }
 
   private signToken(payload: JwtUser): string {
-    return jwt.sign(payload, this.config.get<string>('JWT_SECRET')!, { expiresIn: '7d' });
+    return jwt.sign(payload, this.config.get<string>('JWT_SECRET')!, {
+      expiresIn: '7d',
+    });
   }
 
   async login(idToken: string) {
-    const decodedToken = await this.firebaseAuth.verifyIdToken(idToken);
-
-    if (new Date().getTime() / 1000 - decodedToken.auth_time > 5 * 60) {
-      throw ApiError.unauthorized('Recent sign in required');
+    // The token is Google's own ID token (verified against our OAuth client ID), minted
+    // fresh by the sign-in flow on every call — unlike Firebase's session tokens there's
+    // no long-lived client session to stale-check, so no separate recency check is needed.
+    let payload: { sub: string; email?: string; name?: string } | undefined;
+    try {
+      const ticket = await this.googleClient.verifyIdToken({
+        idToken,
+        audience: this.config.get<string>('GOOGLE_CLIENT_ID'),
+      });
+      payload = ticket.getPayload();
+    } catch {
+      throw ApiError.unauthorized('Invalid or expired Google token');
     }
 
-    const userSnap = await this.userRepository.getUserByFirebaseUidOrEmail(decodedToken.uid, decodedToken.email || '');
+    if (!payload?.sub || !payload.email) {
+      throw ApiError.unauthorized(
+        'Unable to retrieve verified Google account email',
+      );
+    }
+
+    const decodedToken = {
+      uid: payload.sub,
+      email: payload.email,
+      name: payload.name,
+    };
+
+    const userSnap = await this.userRepository.getUserByFirebaseUidOrEmail(
+      decodedToken.uid,
+      decodedToken.email || '',
+    );
 
     let userData: any;
     if (!userSnap.empty) {
@@ -63,10 +93,13 @@ export class AuthService {
       userData = { id: newUserId, uid: decodedToken.uid, ...newUserData };
     }
 
-    const hospitals = await this.membershipRepository.getUserHospitalsWithDetails(userData.id);
+    const hospitals =
+      await this.membershipRepository.getUserHospitalsWithDetails(userData.id);
 
     let currentHospital: any = null;
-    const approvedHospital = hospitals.find((h: any) => h.status === 'approved');
+    const approvedHospital = hospitals.find(
+      (h: any) => h.status === 'approved',
+    );
     if (approvedHospital) {
       currentHospital = approvedHospital.hospital;
     } else if (hospitals.length > 0) {
@@ -74,13 +107,19 @@ export class AuthService {
     }
 
     if (currentHospital) {
-      await this.userRepository.updateUser(userData.id, { lastHospitalId: currentHospital.id });
+      await this.userRepository.updateUser(userData.id, {
+        lastHospitalId: currentHospital.id,
+      });
 
-      const role = approvedHospital ? (approvedHospital as any).role : undefined;
+      const role = approvedHospital ? approvedHospital.role : undefined;
       if (role) {
         await this.auditService.log({
           hospitalId: currentHospital.id,
-          actor: { userId: userData.id, name: userData.name || userData.email, role },
+          actor: {
+            userId: userData.id,
+            name: userData.name || userData.email,
+            role,
+          },
           action: 'access.signed_in',
           area: 'access',
           summary: `Signed in`,
@@ -106,19 +145,23 @@ export class AuthService {
 
     const userData = { ...userDoc, uid: user.uid };
 
-    const hospitals = await this.membershipRepository.getUserHospitalsWithDetails(user.userId, {
-      formatJoinedAt: formatDate,
-      includeAvailability: true,
-    });
+    const hospitals =
+      await this.membershipRepository.getUserHospitalsWithDetails(user.userId, {
+        formatJoinedAt: formatDate,
+        includeAvailability: true,
+      });
 
     let currentHospital: any = null;
-    const lastHospitalId = (userDoc as any).lastHospitalId;
+    const lastHospitalId = userDoc.lastHospitalId;
     if (lastHospitalId) {
-      currentHospital = await this.hospitalRepository.getHospitalById(lastHospitalId);
+      currentHospital =
+        await this.hospitalRepository.getHospitalById(lastHospitalId);
     }
 
     if (!currentHospital) {
-      const approvedHospital = hospitals.find((h: any) => h.status === 'approved');
+      const approvedHospital = hospitals.find(
+        (h: any) => h.status === 'approved',
+      );
       if (approvedHospital) currentHospital = approvedHospital.hospital;
     }
 
@@ -127,7 +170,7 @@ export class AuthService {
 
   async getSession(user: JwtUser) {
     const userDoc = await this.userRepository.getUserById(user.userId);
-    const status = (userDoc as any)?.status || 'approved';
+    const status = userDoc?.status || 'approved';
 
     return {
       user: {
@@ -140,13 +183,19 @@ export class AuthService {
   }
 
   async switchHospital(user: JwtUser, hospitalId: string) {
-    const membershipData = await this.membershipRepository.getHospitalMembershipData(user.userId, hospitalId);
+    const membershipData =
+      await this.membershipRepository.getHospitalMembershipData(
+        user.userId,
+        hospitalId,
+      );
     if (!membershipData) {
       throw ApiError.forbidden('No access to this hospital');
     }
 
-    const userRole = (membershipData as any).role || 'doctor';
-    await this.userRepository.updateUser(user.userId, { lastHospitalId: hospitalId });
+    const userRole = membershipData.role || 'doctor';
+    await this.userRepository.updateUser(user.userId, {
+      lastHospitalId: hospitalId,
+    });
 
     return { success: true, hospitalId, role: userRole };
   }

@@ -1,21 +1,29 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { FcGoogle } from 'react-icons/fc';
-import { useAuth } from '@/hooks/useAuth';
-import { FaUserMd, FaEnvelope, FaLock, FaEye, FaEyeSlash, FaHospital } from 'react-icons/fa';
-import { useRouter, useSearchParams } from 'next/navigation';
-import Link from 'next/link';
-import './scss/LoginPage.scss';
+import { GoogleLogin } from "@react-oauth/google";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import {
+  FaEnvelope,
+  FaEye,
+  FaEyeSlash,
+  FaHospital,
+  FaLock,
+  FaUserMd,
+} from "react-icons/fa";
+import { FcGoogle } from "react-icons/fc";
+import { useAuth } from "@/hooks/useAuth";
+import "./scss/LoginPage.scss";
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [localError, setLocalError] = useState('');
+  const [localError, setLocalError] = useState("");
   const [isEmailLoginEnabled, setIsEmailLoginEnabled] = useState(false);
   const isLoggingInWithEmail = false;
-  
+
   const {
     user,
     loading,
@@ -28,35 +36,42 @@ export default function LoginPage() {
     currentHospital,
     handlePostLoginRedirect,
   } = useAuth();
-  
+
   const router = useRouter();
   const searchParams = useSearchParams();
-  const from = searchParams.get('from');
+  const from = searchParams.get("from");
 
   // Redirect if authenticated
   useEffect(() => {
     if (isAuthenticated && user) {
       // If there's a 'from' parameter, redirect back to that page
-      if (from && from !== '/login') {
+      if (from && from !== "/login") {
         router.push(from);
-      } else if(approvedHospitals.length > 0) {
+      } else if (approvedHospitals.length > 0) {
         handlePostLoginRedirect(approvedHospitals, router);
       }
-      
     }
-  }, [isAuthenticated, user, hospitals, approvedHospitals, currentHospital, from, router]);
+  }, [
+    isAuthenticated,
+    user,
+    hospitals,
+    approvedHospitals,
+    currentHospital,
+    from,
+    router,
+  ]);
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLocalError('');
-    
+    setLocalError("");
+
     if (!email || !password) {
-      setLocalError('Please enter both email and password');
+      setLocalError("Please enter both email and password");
       return;
     }
 
     if (!isValidEmail(email)) {
-      setLocalError('Please enter a valid email address');
+      setLocalError("Please enter a valid email address");
       return;
     }
 
@@ -72,16 +87,16 @@ export default function LoginPage() {
     // }
   };
 
-  const handleGoogleLogin = async () => {
-    setLocalError('');
-    
+  const handleGoogleLogin = async (credential: string) => {
+    setLocalError("");
+
     try {
-      const result = await loginWithGoogle();
+      const result = await loginWithGoogle(credential);
       if (!result.success) {
-        setLocalError('Google login failed');
+        setLocalError("Google login failed");
       }
     } catch (err: any) {
-      setLocalError(err.message || 'An unexpected error occurred');
+      setLocalError(err.message || "An unexpected error occurred");
     }
   };
 
@@ -105,9 +120,9 @@ export default function LoginPage() {
           {/* Logo and App Name */}
           <div className="logo-section">
             <div className="logo-container">
-              <img 
-                src="/agam-plus-logo.svg" 
-                alt="Agam Plus Logo" 
+              <img
+                src="/agam-plus-logo.svg"
+                alt="Agam Plus Logo"
                 className="app-logo"
               />
             </div>
@@ -120,8 +135,12 @@ export default function LoginPage() {
                 <FaHospital className="feature-icon-inner" />
               </div>
               <div className="feature-content">
-                <h3 className="feature-title font-display tracking-tight">Multi-Hospital Support</h3>
-                <p className="feature-description">Work across multiple hospitals with single sign-on</p>
+                <h3 className="feature-title font-display tracking-tight">
+                  Multi-Hospital Support
+                </h3>
+                <p className="feature-description">
+                  Work across multiple hospitals with single sign-on
+                </p>
               </div>
             </div>
 
@@ -130,32 +149,66 @@ export default function LoginPage() {
                 <FaUserMd className="feature-icon-inner" />
               </div>
               <div className="feature-content">
-                <h3 className="feature-title font-display tracking-tight">Role-Based Access</h3>
-                <p className="feature-description">Different permissions for admins, doctors, and staff</p>
+                <h3 className="feature-title font-display tracking-tight">
+                  Role-Based Access
+                </h3>
+                <p className="feature-description">
+                  Different permissions for admins, doctors, and staff
+                </p>
               </div>
             </div>
 
             <div className="feature-item">
               <div className="feature-icon feature-icon-purple">
-                <svg className="feature-icon-inner w-5 h-5 text-brand-violet" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                <svg
+                  className="feature-icon-inner w-5 h-5 text-brand-violet"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                  ></path>
                 </svg>
               </div>
               <div className="feature-content">
-                <h3 className="feature-title font-display tracking-tight">Patient Records</h3>
-                <p className="feature-description">Secure and organized patient information</p>
+                <h3 className="feature-title font-display tracking-tight">
+                  Patient Records
+                </h3>
+                <p className="feature-description">
+                  Secure and organized patient information
+                </p>
               </div>
             </div>
 
             <div className="feature-item">
               <div className="feature-icon feature-icon-orange">
-                <svg className="feature-icon-inner w-5 h-5 text-status-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                <svg
+                  className="feature-icon-inner w-5 h-5 text-status-warning"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                  ></path>
                 </svg>
               </div>
               <div className="feature-content">
-                <h3 className="feature-title font-display tracking-tight">Appointment Scheduling</h3>
-                <p className="feature-description">Streamlined booking and management</p>
+                <h3 className="feature-title font-display tracking-tight">
+                  Appointment Scheduling
+                </h3>
+                <p className="feature-description">
+                  Streamlined booking and management
+                </p>
               </div>
             </div>
           </div>
@@ -167,7 +220,9 @@ export default function LoginPage() {
               Quick Access
             </h4>
             <p className="demo-description">
-              Sign in with Google to access the multi-hospital system. You can request access to multiple hospitals and switch between them seamlessly.
+              Sign in with Google to access the multi-hospital system. You can
+              request access to multiple hospitals and switch between them
+              seamlessly.
             </p>
           </div>
 
@@ -175,9 +230,17 @@ export default function LoginPage() {
           {isAuthenticated && hospitals.length > 0 && (
             <div className="hospital-status">
               <p className="hospital-status-text">
-                Access to <strong>{approvedHospitals.length}</strong> approved hospitals
+                Access to <strong>{approvedHospitals.length}</strong> approved
+                hospitals
                 {hospitals.length > approvedHospitals.length && (
-                  <span> and <strong>{hospitals.length - approvedHospitals.length}</strong> pending</span>
+                  <span>
+                    {" "}
+                    and{" "}
+                    <strong>
+                      {hospitals.length - approvedHospitals.length}
+                    </strong>{" "}
+                    pending
+                  </span>
                 )}
               </p>
             </div>
@@ -189,16 +252,14 @@ export default function LoginPage() {
       <div className="login-section">
         <div className="login-form-container">
           <div className="login-header">
-            <h2 className="login-title font-display tracking-tight">Welcome Back</h2>
+            <h2 className="login-title font-display tracking-tight">
+              Welcome Back
+            </h2>
             <p className="login-subtitle">Sign in to access your hospitals</p>
           </div>
 
           {/* Error Message */}
-          {displayError && (
-            <div className="error-message">
-              {displayError}
-            </div>
-          )}
+          {displayError && <div className="error-message">{displayError}</div>}
 
           {/* Loading State */}
           {isLoading && (
@@ -211,16 +272,21 @@ export default function LoginPage() {
           )}
 
           {/* Google Login Button */}
-          <button
-            onClick={handleGoogleLogin}
-            disabled={isLoading}
-            className="google-button"
-          >
-            <FcGoogle className="text-xl" />
-            <span>
-              {isLoggingInWithGoogle ? 'Signing in...' : 'Continue with Google'}
-            </span>
-          </button>
+          <div className="google-button-wrapper">
+            <GoogleLogin
+              onSuccess={(credentialResponse) => {
+                if (credentialResponse.credential) {
+                  handleGoogleLogin(credentialResponse.credential);
+                }
+              }}
+              onError={() => setLocalError("Google login failed")}
+              theme="outline"
+              shape="pill"
+              size="large"
+              text="continue_with"
+              width="384"
+            />
+          </div>
 
           {/* Divider */}
           <div className="divider">
@@ -232,7 +298,10 @@ export default function LoginPage() {
           {/* Email Form */}
           <form className="space-y-4" onSubmit={handleEmailLogin}>
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-ink-700 mb-1">
+              <label
+                htmlFor="email"
+                className="block text-sm font-medium text-ink-700 mb-1"
+              >
                 Email address
               </label>
               <div className="relative">
@@ -255,7 +324,10 @@ export default function LoginPage() {
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-ink-700 mb-1">
+              <label
+                htmlFor="password"
+                className="block text-sm font-medium text-ink-700 mb-1"
+              >
                 Password
               </label>
               <div className="relative">
@@ -280,15 +352,19 @@ export default function LoginPage() {
                   disabled={isLoading || !isEmailLoginEnabled}
                   className="absolute inset-y-0 right-0 pr-3 flex items-center text-ink-500 hover:text-ink-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {showPassword ? <FaEyeSlash className="h-5 w-5" /> : <FaEye className="h-5 w-5" />}
+                  {showPassword ? (
+                    <FaEyeSlash className="h-5 w-5" />
+                  ) : (
+                    <FaEye className="h-5 w-5" />
+                  )}
                 </button>
               </div>
             </div>
 
             {/* Forgot Password Link */}
             <div className="flex justify-end">
-              <Link 
-                href="/forgot-password" 
+              <Link
+                href="/forgot-password"
                 className="text-sm text-brand-violet hover:text-brand-violet-hover font-medium transition-colors duration-200"
               >
                 Forgot your password?
@@ -306,9 +382,9 @@ export default function LoginPage() {
                   Signing in...
                 </div>
               ) : isEmailLoginEnabled ? (
-                'Sign in with Email'
+                "Sign in with Email"
               ) : (
-                'Email Login Coming Soon'
+                "Email Login Coming Soon"
               )}
             </button>
           </form>
@@ -316,9 +392,9 @@ export default function LoginPage() {
           {/* Registration Link */}
           <div className="mt-6 text-center">
             <p className="text-ink-700">
-              Don&apos;t have an account?{' '}
-              <Link 
-                href="/register" 
+              Don&apos;t have an account?{" "}
+              <Link
+                href="/register"
                 className="text-brand-violet hover:text-brand-violet-hover font-medium transition-colors duration-200"
               >
                 Request Access
@@ -328,7 +404,9 @@ export default function LoginPage() {
 
           {/* Hospital Access Info */}
           <div className="mt-6 p-4 bg-surface-canvas rounded-lg border border-border">
-            <h4 className="text-sm font-medium text-ink-700 mb-2">How it works:</h4>
+            <h4 className="text-sm font-medium text-ink-700 mb-2">
+              How it works:
+            </h4>
             <ul className="text-xs text-ink-700 space-y-1">
               <li>• Sign in with your Google account</li>
               <li>• Request access to hospitals you work with</li>
@@ -341,11 +419,17 @@ export default function LoginPage() {
           <div className="mt-8 text-center">
             <p className="text-sm text-ink-500">
               By signing in, you agree to our{" "}
-              <Link href="/terms" className="text-brand-violet hover:text-brand-violet-hover font-medium">
+              <Link
+                href="/terms"
+                className="text-brand-violet hover:text-brand-violet-hover font-medium"
+              >
                 Terms of Service
               </Link>{" "}
               and{" "}
-              <Link href="/privacy" className="text-brand-violet hover:text-brand-violet-hover font-medium">
+              <Link
+                href="/privacy"
+                className="text-brand-violet hover:text-brand-violet-hover font-medium"
+              >
                 Privacy Policy
               </Link>
             </p>

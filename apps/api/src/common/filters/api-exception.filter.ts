@@ -22,7 +22,10 @@ export class ApiExceptionFilter implements ExceptionFilter {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
 
-    this.logger.error('API Error:', exception instanceof Error ? exception.stack : exception);
+    this.logger.error(
+      'API Error:',
+      exception instanceof Error ? exception.stack : exception,
+    );
 
     if (exception instanceof ApiError) {
       const body: ErrorResponseBody = {
@@ -45,42 +48,20 @@ export class ApiExceptionFilter implements ExceptionFilter {
         error: Array.isArray(message) ? message.join(', ') : message,
         timestamp: new Date().toISOString(),
       };
-      if (typeof exceptionResponse === 'object' && (exceptionResponse as any).details) {
+      if (
+        typeof exceptionResponse === 'object' &&
+        (exceptionResponse as any).details
+      ) {
         body.details = (exceptionResponse as any).details;
       }
       response.status(status).json(body);
       return;
     }
 
-    if (typeof exception === 'object' && exception !== null && 'code' in exception) {
-      const firebaseError = exception as { code: string; message: string };
-
-      if (
-        firebaseError.code === 'auth/session-cookie-expired' ||
-        firebaseError.code === 'auth/session-cookie-revoked'
-      ) {
-        response
-          .status(401)
-          .json({ error: 'Session expired', timestamp: new Date().toISOString() });
-        return;
-      }
-
-      if (firebaseError.code === 'auth/id-token-expired') {
-        response
-          .status(401)
-          .json({ error: 'Token expired', timestamp: new Date().toISOString() });
-        return;
-      }
-
-      if (firebaseError.code === 'auth/argument-error') {
-        response
-          .status(401)
-          .json({ error: 'Invalid authentication token', timestamp: new Date().toISOString() });
-        return;
-      }
-    }
-
-    const errorMessage = exception instanceof Error ? exception.message : 'Internal server error';
-    response.status(500).json({ error: errorMessage, timestamp: new Date().toISOString() });
+    const errorMessage =
+      exception instanceof Error ? exception.message : 'Internal server error';
+    response
+      .status(500)
+      .json({ error: errorMessage, timestamp: new Date().toISOString() });
   }
 }

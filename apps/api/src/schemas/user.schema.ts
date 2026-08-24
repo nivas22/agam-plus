@@ -9,6 +9,8 @@ export class User {
   @Prop({ required: true, unique: true, trim: true, lowercase: true })
   email: string;
 
+  // Holds Google's `sub` claim (stable per-account ID) — named firebaseUid for
+  // historical reasons from when Firebase Auth brokered Google sign-in.
   @Prop({ index: true, sparse: true, unique: true })
   firebaseUid?: string;
 

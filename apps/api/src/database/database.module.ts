@@ -4,8 +4,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 
 // Connection is created once per Nest app instance; apps/api/api/index.ts
 // memoizes bootstrap() at module scope so this is naturally reused across
-// warm Vercel invocations, mirroring the admin.apps.length guard in
-// firebase.module.ts. maxPoolSize is kept low since each concurrent
+// warm Vercel invocations. maxPoolSize is kept low since each concurrent
 // serverless instance opens its own pool.
 @Global()
 @Module({
