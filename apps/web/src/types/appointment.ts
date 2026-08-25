@@ -34,6 +34,10 @@ export interface Appointment {
   waitingAt?: string;
   consultationStartedAt?: string;
   completedAt?: string; // Timestamp when appointment was marked as completed
+  bookingSource?: "scheduled" | "walk-in";
+  // Desk-triggered queue priority override — see orderQueue in queueBoard.ts.
+  urgentOverrideAt?: string;
+  urgentOverrideReason?: string;
   patient?: Patient;
   doctor?: Doctor;
 }
@@ -78,6 +82,10 @@ export interface AppointmentFormData {
   numberOfOccurrences?: number;
   selectedDays?: string[];
   recurringDates?: number[];
+  bookingSource?: "scheduled" | "walk-in";
+  // Front-desk override for the walk-in board: book `preferredTime` exactly,
+  // skipping the normal slot-capacity search. See appointments.service.ts.
+  forceSlot?: boolean;
 }
 
 export interface AvailableSlot {

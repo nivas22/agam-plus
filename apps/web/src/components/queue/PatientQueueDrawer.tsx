@@ -2,25 +2,43 @@
 "use client";
 
 import { format } from "date-fns";
-import { Phone, X } from "lucide-react";
+import { AlertTriangle, Check, Pencil, Phone, ReceiptText, X } from "lucide-react";
+import { useMemo, useState } from "react";
 import { usePatientHospitalAppointments } from "@/hooks/useNewAppointmentsApi";
+import { useHospitalPayments } from "@/hooks/useNewPaymentApi";
+import { CollectDueDialog } from "@/components/payments/PaymentActionDialogs";
 import type { AppointmentWithDetails } from "@/types/appointment";
 import type { Doctor } from "@/types/doctorNew";
+import type { Patient } from "@/types/patientNew";
 import { APPOINTMENT_STATUS, APPOINTMENT_TYPE } from "../../constants";
 import {
   apptDateTime,
   formatTime12h,
   minutesBetween,
   normalizeStatus,
+  stageStart,
 } from "./queueBoard";
+
+function money(v: number): string {
+  return `₹${Math.round(v).toLocaleString("en-IN")}`;
+}
+
+function ageDays(iso: string): number {
+  return Math.max(
+    0,
+    Math.round((Date.now() - new Date(iso).getTime()) / 86_400_000),
+  );
+}
 
 interface PatientQueueDrawerProps {
   appointment: AppointmentWithDetails;
   hospitalId: string;
   doctor?: Doctor | null;
+  patient?: Patient | null;
   queuePosition?: number;
   patientCode?: string;
   now: Date;
+  collectedByName?: string;
   onClose: () => void;
   onCheckIn: () => void;
   onSendIn: () => void;
@@ -29,15 +47,19 @@ interface PatientQueueDrawerProps {
   onReschedule: () => void;
   onCancel: () => void;
   onNoShow: () => void;
+  onUpdateReason: (notes: string) => void;
+  onToast: (message: string) => void;
 }
 
 export default function PatientQueueDrawer({
   appointment,
   hospitalId,
   doctor,
+  patient,
   queuePosition,
   patientCode,
   now,
+  collectedByName,
   onClose,
   onCheckIn,
   onSendIn,
@@ -46,7 +68,24 @@ export default function PatientQueueDrawer({
   onReschedule,
   onCancel,
   onNoShow,
+  onUpdateReason,
+  onToast,
 }: PatientQueueDrawerProps) {
+  const [editingReason, setEditingReason] = useState(false);
+  const [reasonDraft, setReasonDraft] = useState(appointment.notes || "");
+  const [collecting, setCollecting] = useState(false);
+
+  const dueParams = useMemo(
+    () =>
+      new URLSearchParams({ status: "due", patientId: appointment.patientId }),
+    [appointment.patientId],
+  );
+  const { data: dueData } = useHospitalPayments(hospitalId, dueParams);
+  const duePayments = (dueData?.payments || []).sort((a, b) =>
+    a.createdAt.localeCompare(b.createdAt),
+  );
+  const totalDue = duePayments.reduce((s, p) => s + p.total, 0);
+  const oldestDue = duePayments[0];
   const norm = normalizeStatus(appointment.status);
   const isWaiting =
     norm === APPOINTMENT_STATUS.WAITING ||
@@ -84,9 +123,16 @@ export default function PatientQueueDrawer({
     : isWaiting
       ? "waiting since"
       : "booked for";
-  const waitMinutes =
-    isInConsultation || isWaiting
-      ? minutesBetween(new Date(appointment.updatedAt), now)
+  const waitMinutes = isInConsultation
+    ? minutesBetween(
+        stageStart(appointment, appointment.consultationStartedAt),
+        now,
+      )
+    : isWaiting
+      ? minutesBetween(
+          stageStart(appointment, appointment.waitingAt || appointment.checkedInAt),
+          now,
+        )
       : minutesBetween(now, scheduled);
 
   return (
@@ -105,6 +151,11 @@ export default function PatientQueueDrawer({
                 </span>
               )}
               <span className="truncate">{appointment.patientName}</span>
+              {appointment.bookingSource === "walk-in" && (
+                <span className="shrink-0 rounded-md bg-status-warning-soft text-status-warning border border-status-warning/20 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide">
+                  Walk-in
+                </span>
+              )}
             </h2>
             <div className="text-xs text-ink-500 mt-0.5">
               {[
@@ -151,6 +202,33 @@ export default function PatientQueueDrawer({
               </div>
             )}
 
+          {totalDue > 0 && oldestDue && (
+            <div className="mt-2.5 flex items-center gap-2.5 rounded-lg bg-status-danger-soft border border-status-danger/25 px-3 py-2.5 text-status-danger">
+              <ReceiptText className="w-4 h-4 shrink-0" />
+              <span className="text-xs flex-1">
+                <b>{money(totalDue)} unpaid</b> from{" "}
+                {format(new Date(oldestDue.createdAt), "d MMM")} ·{" "}
+                {ageDays(oldestDue.createdAt)} days
+              </span>
+              <button
+                type="button"
+                onClick={() => setCollecting(true)}
+                className="shrink-0 h-7 px-3 rounded-md bg-status-danger text-white text-xs font-semibold hover:opacity-90"
+              >
+                Collect
+              </button>
+            </div>
+          )}
+          {patient?.allergies && patient.allergies.length > 0 && (
+            <div className="mt-2.5 flex items-center gap-2.5 rounded-lg bg-status-warning-soft border border-status-warning/25 px-3 py-2.5 text-status-warning">
+              <AlertTriangle className="w-4 h-4 shrink-0" />
+              <span className="text-xs">
+                Allergic to {patient.allergies.join(", ")} — flagged on the
+                record
+              </span>
+            </div>
+          )}
+
           <div className="mt-4 text-[11px] font-semibold uppercase tracking-wide text-ink-500">
             This appointment
           </div>
@@ -169,14 +247,72 @@ export default function PatientQueueDrawer({
                 {doctor?.appointmentDuration || 30} min
               </span>
             </div>
-            {appointment.notes && (
-              <div className="flex justify-between py-2 gap-3">
+            <div className="flex justify-between py-2">
+              <span className="text-ink-500">Booked via</span>
+              <span className="font-medium text-ink-900">
+                {appointment.bookingSource === "walk-in"
+                  ? "Walk-in at the desk"
+                  : "Scheduled"}
+              </span>
+            </div>
+            <div className="py-2">
+              <div className="flex items-center gap-2">
                 <span className="text-ink-500 shrink-0">Reason</span>
-                <span className="font-medium text-ink-900 text-right">
-                  {appointment.notes}
-                </span>
+                {!editingReason && (
+                  <>
+                    <span className="font-medium text-ink-900 text-right flex-1 truncate">
+                      {appointment.notes || "—"}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setReasonDraft(appointment.notes || "");
+                        setEditingReason(true);
+                      }}
+                      className="p-1 rounded-md hover:bg-surface-canvas text-ink-500 shrink-0"
+                    >
+                      <Pencil size={13} />
+                    </button>
+                  </>
+                )}
               </div>
-            )}
+              {editingReason && (
+                <div className="flex items-center gap-1.5 mt-1.5">
+                  <input
+                    autoFocus
+                    value={reasonDraft}
+                    onChange={(e) => setReasonDraft(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        onUpdateReason(reasonDraft.trim());
+                        setEditingReason(false);
+                      } else if (e.key === "Escape") {
+                        setEditingReason(false);
+                      }
+                    }}
+                    placeholder="Fever and body ache, 2 days"
+                    className="flex-1 h-8 px-2.5 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-brand-violet/20 focus:border-brand-violet"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onUpdateReason(reasonDraft.trim());
+                      setEditingReason(false);
+                    }}
+                    className="h-8 w-8 shrink-0 flex items-center justify-center rounded-lg bg-brand-violet hover:bg-brand-violet-hover text-white"
+                  >
+                    <Check size={14} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditingReason(false)}
+                    className="h-8 w-8 shrink-0 flex items-center justify-center rounded-lg border border-border text-ink-500 hover:bg-surface-canvas"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="mt-4 text-[11px] font-semibold uppercase tracking-wide text-ink-500">
@@ -290,6 +426,19 @@ export default function PatientQueueDrawer({
           </div>
         </div>
       </div>
+
+      {collecting && oldestDue && (
+        <CollectDueDialog
+          hospitalId={hospitalId}
+          payment={oldestDue}
+          collectedByName={collectedByName}
+          onClose={() => setCollecting(false)}
+          onSuccess={(message) => {
+            setCollecting(false);
+            onToast(message);
+          }}
+        />
+      )}
     </div>
   );
 }

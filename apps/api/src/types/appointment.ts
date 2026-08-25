@@ -35,6 +35,7 @@ export interface AppointmentWithDetails extends Appointment {
   rescheduleTime?: string;
   rescheduledAt?: string;
   reopenedAt?: string;
+  bookingSource?: 'scheduled' | 'walk-in';
 }
 
 export interface SlotsResponse {

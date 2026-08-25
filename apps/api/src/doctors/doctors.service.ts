@@ -198,6 +198,12 @@ export class DoctorsService {
       appointmentDuration?: number;
       bufferMinutes?: number;
       patientsPerSlot?: number;
+      acceptWalkIns?: boolean;
+      heldSlotsPerSession?: number;
+      releaseHeldSlotsBeforeMinutes?: number | null;
+      overCapacityPolicy?: 'allow' | 'warn' | 'block';
+      lateArrivalGraceMinutes?: number;
+      noShowReleaseMinutes?: number;
     },
   ) {
     // Check if user exists by email
@@ -256,6 +262,12 @@ export class DoctorsService {
         appointmentDuration: doctorData.appointmentDuration || 30,
         bufferMinutes: doctorData.bufferMinutes || 0,
         patientsPerSlot: doctorData.patientsPerSlot || 1,
+        acceptWalkIns: doctorData.acceptWalkIns !== false,
+        heldSlotsPerSession: doctorData.heldSlotsPerSession ?? 2,
+        releaseHeldSlotsBeforeMinutes: doctorData.releaseHeldSlotsBeforeMinutes ?? 120,
+        overCapacityPolicy: doctorData.overCapacityPolicy || 'warn',
+        lateArrivalGraceMinutes: doctorData.lateArrivalGraceMinutes ?? 10,
+        noShowReleaseMinutes: doctorData.noShowReleaseMinutes ?? 20,
       });
     } else {
       // Update existing membership with specialization, consultationFee, and scheduling fields if provided
@@ -266,6 +278,14 @@ export class DoctorsService {
       if (doctorData.appointmentDuration) updates.appointmentDuration = doctorData.appointmentDuration;
       if (doctorData.bufferMinutes !== undefined) updates.bufferMinutes = doctorData.bufferMinutes;
       if (doctorData.patientsPerSlot) updates.patientsPerSlot = doctorData.patientsPerSlot;
+      if (doctorData.acceptWalkIns !== undefined) updates.acceptWalkIns = doctorData.acceptWalkIns;
+      if (doctorData.heldSlotsPerSession !== undefined) updates.heldSlotsPerSession = doctorData.heldSlotsPerSession;
+      if (doctorData.releaseHeldSlotsBeforeMinutes !== undefined)
+        updates.releaseHeldSlotsBeforeMinutes = doctorData.releaseHeldSlotsBeforeMinutes;
+      if (doctorData.overCapacityPolicy) updates.overCapacityPolicy = doctorData.overCapacityPolicy;
+      if (doctorData.lateArrivalGraceMinutes !== undefined)
+        updates.lateArrivalGraceMinutes = doctorData.lateArrivalGraceMinutes;
+      if (doctorData.noShowReleaseMinutes !== undefined) updates.noShowReleaseMinutes = doctorData.noShowReleaseMinutes;
 
       if (Object.keys(updates).length > 0) {
         await this.membershipRepository.updateHospitalMembership((existingMembership as any).id, updates);
@@ -344,6 +364,12 @@ export class DoctorsService {
       appointmentDuration: membershipData?.appointmentDuration || 30,
       bufferMinutes: membershipData?.bufferMinutes || 0,
       patientsPerSlot: membershipData?.patientsPerSlot || 1,
+      acceptWalkIns: membershipData?.acceptWalkIns !== false,
+      heldSlotsPerSession: membershipData?.heldSlotsPerSession ?? 2,
+      releaseHeldSlotsBeforeMinutes: membershipData?.releaseHeldSlotsBeforeMinutes ?? 120,
+      overCapacityPolicy: membershipData?.overCapacityPolicy || 'warn',
+      lateArrivalGraceMinutes: membershipData?.lateArrivalGraceMinutes ?? 10,
+      noShowReleaseMinutes: membershipData?.noShowReleaseMinutes ?? 20,
       membershipId: membershipData?.id,
       membershipStatus: membershipData?.status,
     };
@@ -440,6 +466,24 @@ export class DoctorsService {
     }
     if (updates.patientsPerSlot !== undefined) {
       membershipUpdates.patientsPerSlot = updates.patientsPerSlot;
+    }
+    if (updates.acceptWalkIns !== undefined) {
+      membershipUpdates.acceptWalkIns = updates.acceptWalkIns;
+    }
+    if (updates.heldSlotsPerSession !== undefined) {
+      membershipUpdates.heldSlotsPerSession = updates.heldSlotsPerSession;
+    }
+    if (updates.releaseHeldSlotsBeforeMinutes !== undefined) {
+      membershipUpdates.releaseHeldSlotsBeforeMinutes = updates.releaseHeldSlotsBeforeMinutes;
+    }
+    if (updates.overCapacityPolicy !== undefined) {
+      membershipUpdates.overCapacityPolicy = updates.overCapacityPolicy;
+    }
+    if (updates.lateArrivalGraceMinutes !== undefined) {
+      membershipUpdates.lateArrivalGraceMinutes = updates.lateArrivalGraceMinutes;
+    }
+    if (updates.noShowReleaseMinutes !== undefined) {
+      membershipUpdates.noShowReleaseMinutes = updates.noShowReleaseMinutes;
     }
 
     // Update the membership if there are any updates
@@ -715,8 +759,12 @@ export class DoctorsService {
       if (dayWindows.length === 0) return [];
 
       // Get existing appointments using repository function
+      // Appointments are keyed by doctorProfileId = membership.userId, NOT the
+      // membership document's own _id (doctor.id) — using the wrong id here
+      // silently returned zero existing appointments, so every slot always
+      // showed full capacity regardless of real bookings.
       // Include legacy 'scheduled' for appointments created before this status migration.
-      const existingAppointments = await this.appointmentRepository.getAppointmentsByDoctorAndDate(doctor.id, date, [
+      const existingAppointments = await this.appointmentRepository.getAppointmentsByDoctorAndDate(doctor.userId, date, [
         ...ACTIVE_APPOINTMENT_STATUSES,
         'scheduled',
       ]);

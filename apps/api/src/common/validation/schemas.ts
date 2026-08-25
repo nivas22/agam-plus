@@ -40,6 +40,14 @@ export const createAppointmentSchema = z.object({
   numberOfOccurrences: z.number().int().positive().default(1),
   selectedDays: z.array(z.string()).default([]),
   notes: z.string().default(''),
+  // Set by the walk-in flow so capacity/held-slot accounting can tell a
+  // front-desk walk-in apart from a normally scheduled booking.
+  bookingSource: z.enum(['scheduled', 'walk-in']).optional(),
+  // Front-desk override: skip the normal slot-capacity search and book
+  // exactly `preferredTime` even if it's outside generated slots or the
+  // session is already at capacity. Only honored for frequency 'once', and
+  // still blocked server-side if the doctor's overCapacityPolicy is 'block'.
+  forceSlot: z.boolean().optional().default(false),
 });
 
 export const updateAppointmentSchema = z.object({
@@ -56,6 +64,7 @@ export const updateAppointmentSchema = z.object({
       rescheduleTime: z.string().optional(),
       cancelReason: z.string().optional(),
       noShowReason: z.string().optional(),
+      notes: z.string().optional(),
     })
     .optional(),
 });
@@ -213,6 +222,13 @@ export const createDoctorSchema = z.object({
   appointmentDuration: z.number().int().positive().optional(),
   bufferMinutes: z.number().int().min(0).optional(),
   patientsPerSlot: z.number().int().positive().optional(),
+  // Walk-in carve-out settings — also hospital-scoped, on HospitalMember.
+  acceptWalkIns: z.boolean().optional(),
+  heldSlotsPerSession: z.number().int().min(0).optional(),
+  releaseHeldSlotsBeforeMinutes: z.number().int().min(0).nullable().optional(),
+  overCapacityPolicy: z.enum(['allow', 'warn', 'block']).optional(),
+  lateArrivalGraceMinutes: z.number().int().min(0).optional(),
+  noShowReleaseMinutes: z.number().int().min(0).optional(),
   // Set once staff have seen the phone-duplicate warning and chosen to create anyway.
   confirmDuplicate: z.boolean().optional().default(false),
 });

@@ -1225,6 +1225,7 @@ export default function AppointmentsPage({
           doctors={doctorsData.doctors}
           allAppointments={appointments}
           patientCode={getPatientCode(actionDialog.appt.patientId)}
+          now={now}
           onClose={() => setActionDialog(null)}
           updateAppointmentStatus={updateAppointmentStatus}
           onSuccess={handleDialogSuccess}

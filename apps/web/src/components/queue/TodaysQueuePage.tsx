@@ -2,8 +2,8 @@
 "use client";
 
 import { format } from "date-fns";
-import { Clock, Phone, Plus, UserPlus } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Clock, Maximize2, Minimize2, Phone, Plus, UserPlus } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   CancelDialog,
   ChangeDoctorDialog,
@@ -32,6 +32,7 @@ import {
   activePatientCount,
   apptDateTime,
   buildLanes,
+  capacityMessage,
   computePresence,
   type DoctorPresence,
   doctorAvailabilityNow,
@@ -40,10 +41,16 @@ import {
   type LaneStatus,
   laneStatus,
   minutesBetween,
+  minutesElapsed,
+  minutesToTimeStr,
   normalizeStatus,
   OVERDUE_GRACE_MINUTES,
   type PresenceOverride,
+  primaryWindowToday,
+  projectFinish,
   type QueueLane,
+  sessionCapacity,
+  stageStart,
   todaysWindows,
   toISODate,
 } from "./queueBoard";
@@ -87,6 +94,22 @@ export default function TodaysQueuePage({
   const openAddWalkIn = useCallback((presetDoctorId?: string) => {
     setWalkInPresetDoctorId(presetDoctorId ?? null);
     setShowAddWalkIn(true);
+  }, []);
+
+  const boardRef = useRef<HTMLDivElement>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  useEffect(() => {
+    const onChange = () =>
+      setIsFullscreen(document.fullscreenElement === boardRef.current);
+    document.addEventListener("fullscreenchange", onChange);
+    return () => document.removeEventListener("fullscreenchange", onChange);
+  }, []);
+  const toggleFullscreen = useCallback(() => {
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    } else {
+      boardRef.current?.requestFullscreen();
+    }
   }, []);
 
   useEffect(() => {
@@ -293,33 +316,89 @@ export default function TodaysQueuePage({
           ),
         )
         .filter(
-          (a) => minutesBetween(apptDateTime(a), now) > OVERDUE_GRACE_MINUTES,
+          (a) => minutesElapsed(apptDateTime(a), now) >= OVERDUE_GRACE_MINUTES,
         ),
     [appointments, now],
   );
   const waitTimes = waitingAll.map((a) =>
-    minutesBetween(new Date(a.updatedAt), now),
+    minutesBetween(stageStart(a, a.waitingAt || a.checkedInAt), now),
   );
   const avgWait = waitTimes.length
     ? Math.round(waitTimes.reduce((s, m) => s + m, 0) / waitTimes.length)
     : 0;
+
+  // A doctor's later-today session that isn't the one already summarized in
+  // their lane's capacity strip — either a second shift for someone already
+  // on the board, or the only session today for a doctor who hasn't started
+  // yet and so has no lane at all (nothing booked, nowhere active to show it).
+  const eveningSessions = useMemo(() => {
+    const nowMins = now.getHours() * 60 + now.getMinutes();
+    const toMins = (t: string) => {
+      const [h, m] = t.split(":").map(Number);
+      return h * 60 + m;
+    };
+    return doctorsData.doctors
+      .map((doctor) => {
+        const windows = todaysWindows(doctor, now);
+        const primary = primaryWindowToday(doctor, now);
+        const later = windows.find(
+          (w) =>
+            w.start > nowMins + 90 && (!primary || w.start !== primary.start),
+        );
+        if (!later) return null;
+        const bookedCount = appointments.filter(
+          (a) =>
+            a.doctorProfileId === doctor.id &&
+            [
+              APPOINTMENT_STATUS.CONFIRMED,
+              APPOINTMENT_STATUS.PENDING,
+              APPOINTMENT_STATUS.CHECKED_IN,
+              APPOINTMENT_STATUS.WAITING,
+              APPOINTMENT_STATUS.IN_CONSULTATION,
+              APPOINTMENT_STATUS.COMPLETED,
+            ].includes(normalizeStatus(a.status) as APPOINTMENT_STATUS) &&
+            toMins(a.time) >= later.start &&
+            toMins(a.time) < later.end,
+        ).length;
+        return { doctor, window: later, bookedCount };
+      })
+      .filter((v): v is { doctor: Doctor; window: { start: number; end: number }; bookedCount: number } => v != null)
+      .sort((a, b) => a.window.start - b.window.start)
+      .slice(0, 2);
+  }, [doctorsData.doctors, appointments, now]);
   const longestWait = waitTimes.length ? Math.max(...waitTimes) : 0;
 
   const isLoadingInitial = isLoading && appointments.length === 0;
 
   return (
-    <div className="pb-16">
+    <div ref={boardRef} className={`pb-16 ${isFullscreen ? "bg-surface-canvas p-4 overflow-y-auto h-screen" : ""}`}>
       <div className="flex flex-wrap items-start gap-4 mb-4">
         <div>
           <h1 className="text-xl font-bold text-ink-900 font-display tracking-tight">Today&apos;s queue</h1>
           <p className="text-sm text-ink-500 mt-1">
-            {format(now, "EEEE, d MMMM yyyy")} · updates every 30s
+            {format(now, "EEEE, d MMMM yyyy")}
           </p>
         </div>
         <div className="ml-auto flex items-center gap-3">
+          <span className="flex items-center gap-1.5 text-xs font-medium text-status-open bg-status-open-soft border border-status-open/20 rounded-full px-3 py-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-status-open" />
+            Live · refreshes every 30s
+          </span>
           <span className="font-mono text-lg font-semibold text-ink-900">
             {format(now, "h:mm a")}
           </span>
+          <button
+            type="button"
+            onClick={toggleFullscreen}
+            className="h-9 px-3 rounded-lg border border-border text-ink-700 hover:bg-surface-canvas text-sm font-medium flex items-center gap-2 transition-colors"
+          >
+            {isFullscreen ? (
+              <Minimize2 className="w-4 h-4" />
+            ) : (
+              <Maximize2 className="w-4 h-4" />
+            )}
+            {isFullscreen ? "Exit full screen" : "Full screen"}
+          </button>
           {canEdit && (
             <button
               type="button"
@@ -491,6 +570,11 @@ export default function TodaysQueuePage({
                         <b className="text-sm text-status-danger">
                           {appt.patientName}
                         </b>
+                        {appt.bookingSource === "walk-in" && (
+                          <span className="shrink-0 rounded-md bg-status-warning-soft text-status-warning border border-status-warning/20 px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-wide">
+                            Walk-in
+                          </span>
+                        )}
                         <span className="ml-auto font-mono text-xs text-ink-500">
                           {lateMins}m late
                         </span>
@@ -530,6 +614,59 @@ export default function TodaysQueuePage({
                 {OVERDUE_GRACE_MINUTES} minutes late.
               </div>
             </div>
+
+            {eveningSessions.length > 0 && (
+              <div className="bg-surface-paper border border-border rounded-xl overflow-hidden">
+                <div className="px-4 py-3 border-b border-border">
+                  <h2 className="text-sm font-bold text-ink-900 font-display tracking-tight">
+                    {eveningSessions.length > 1
+                      ? "Later today"
+                      : "Evening session"}
+                  </h2>
+                </div>
+                {eveningSessions.map(({ doctor, window, bookedCount }) => {
+                  const startsInMins = Math.max(
+                    0,
+                    window.start - (now.getHours() * 60 + now.getMinutes()),
+                  );
+                  const startsInLabel =
+                    startsInMins >= 60
+                      ? `${Math.floor(startsInMins / 60)}h ${startsInMins % 60}m`
+                      : `${startsInMins}m`;
+                  return (
+                    <div
+                      key={doctor.id}
+                      className="px-4 py-3 border-t border-border first:border-t-0"
+                    >
+                      <div className="flex items-baseline gap-2">
+                        <b className="text-sm text-ink-900">
+                          Dr. {doctor.name}
+                        </b>
+                        <span className="ml-auto font-mono text-xs text-ink-500">
+                          {formatTime12h(minutesToTimeStr(window.start))}
+                        </span>
+                      </div>
+                      <div className="text-xs text-ink-500 mt-1">
+                        {doctor.specialization || "General"} ·{" "}
+                        {bookedCount > 0
+                          ? `${bookedCount} booked, `
+                          : "nothing booked yet, "}
+                        starts in {startsInLabel}
+                      </div>
+                      {canEdit && (
+                        <button
+                          type="button"
+                          onClick={() => openAddWalkIn(doctor.id)}
+                          className="mt-2 w-full h-8 rounded-lg bg-brand-violet hover:bg-brand-violet-hover text-white text-xs font-semibold transition-colors"
+                        >
+                          + Add walk-in
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -540,6 +677,9 @@ export default function TodaysQueuePage({
           hospitalId={hospitalId}
           doctor={doctorsData.doctors.find(
             (d) => d.id === selectedAppt.doctorProfileId,
+          )}
+          patient={patientsData.patients.find(
+            (p) => p.id === selectedAppt.patientId,
           )}
           queuePosition={(() => {
             const lane = allLanes.find(
@@ -552,6 +692,8 @@ export default function TodaysQueuePage({
           })()}
           patientCode={getPatientCode(selectedAppt.patientId)}
           now={now}
+          collectedByName={user?.name}
+          onToast={showToast}
           onClose={() => setSelectedAppt(null)}
           onCheckIn={() =>
             quickUpdate(selectedAppt, APPOINTMENT_STATUS.CHECKED_IN)
@@ -578,6 +720,21 @@ export default function TodaysQueuePage({
           onNoShow={() => {
             setActionDialog({ kind: "noShow", appt: selectedAppt });
             setSelectedAppt(null);
+          }}
+          onUpdateReason={async (notes) => {
+            try {
+              await updateAppointmentStatus(
+                selectedAppt.id,
+                selectedAppt.status,
+                undefined,
+                { notes },
+              );
+              await refetchAppointments();
+            } catch (err) {
+              showToast(
+                err instanceof Error ? err.message : "Failed to update reason",
+              );
+            }
           }}
         />
       )}
@@ -606,6 +763,7 @@ export default function TodaysQueuePage({
           doctors={doctorsData.doctors}
           allAppointments={appointments}
           patientCode={getPatientCode(actionDialog.appt.patientId)}
+          now={now}
           onClose={() => setActionDialog(null)}
           updateAppointmentStatus={updateAppointmentStatus}
           onSuccess={handleDialogSuccess}
@@ -802,6 +960,66 @@ function DoctorLane({
         </span>
       </div>
 
+      {windows.length > 0 &&
+        (() => {
+          const cap = sessionCapacity(lane, now);
+          const proj = projectFinish(lane, now);
+          const msg = capacityMessage(cap, proj, windows);
+          if (!cap.window) return null;
+          const pct = (n: number) =>
+            cap.totalCapacity ? (n / cap.totalCapacity) * 100 : 0;
+          const toneCls: Record<string, string> = {
+            ok: "text-status-open",
+            warn: "text-status-warning font-semibold",
+            danger: "text-status-danger font-semibold",
+          };
+          return (
+            <div className="px-4 py-2.5 border-b border-border bg-surface-canvas/30">
+              <div className="flex items-center justify-between text-[11px] text-ink-500 mb-1.5">
+                <span>
+                  Session capacity ·{" "}
+                  {formatTime12h(minutesToTimeStr(cap.window.start))}–
+                  {formatTime12h(minutesToTimeStr(cap.window.end))}
+                </span>
+                <span className="font-mono">
+                  <b className="text-ink-900">{cap.bookedCount}</b> of{" "}
+                  {cap.totalCapacity}
+                </span>
+              </div>
+              {cap.totalCapacity > 0 && (
+                <div className="h-[7px] rounded-full bg-surface-canvas overflow-hidden flex">
+                  <div
+                    className="h-full bg-brand-violet"
+                    style={{ width: `${pct(cap.scheduledCount)}%` }}
+                  />
+                  <div
+                    className="h-full bg-status-warning"
+                    style={{ width: `${pct(cap.walkInCount)}%` }}
+                  />
+                  <div
+                    className="h-full bg-status-open/30"
+                    style={{ width: `${pct(cap.freeCount)}%` }}
+                  />
+                </div>
+              )}
+              <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                {msg && (
+                  <span className={`text-[11px] ${toneCls[msg.tone]}`}>
+                    {msg.text}
+                  </span>
+                )}
+                {cap.heldTotal > 0 && (
+                  <span className="font-mono text-[10px] text-ink-500 border border-dashed border-border rounded px-1.5 py-0.5">
+                    {cap.heldFree > 0
+                      ? `${cap.heldFree} held slot${cap.heldFree === 1 ? "" : "s"} free`
+                      : "0 held slots left"}
+                  </span>
+                )}
+              </div>
+            </div>
+          );
+        })()}
+
       {showNudge && (
         <div className="flex items-center gap-2 px-4 py-2.5 bg-status-warning-soft border-b border-status-warning/20 text-xs text-status-warning">
           <Clock size={13} className="shrink-0" />
@@ -881,6 +1099,7 @@ function DoctorLane({
               now={now}
               tone="waiting"
               queuePosition={index + 1}
+              reason={lane.waitingOrder[index]?.reason}
               patientCode={getPatientCode(appt.patientId)}
               onClick={() => onSelect(appt)}
               action={
@@ -930,6 +1149,7 @@ function QueueCard({
   now,
   tone,
   queuePosition,
+  reason,
   patientCode,
   onClick,
   action,
@@ -938,13 +1158,25 @@ function QueueCard({
   now: Date;
   tone: "now" | "waiting" | "expected";
   queuePosition?: number;
+  // orderQueue's reason for this rank — e.g. "booked 10:45 AM",
+  // "walked in 9:50 AM", "waited 47 min — next regardless". Only meaningful
+  // for tone === "waiting"; the queue board, "call next", and this card must
+  // all read the same orderQueue result rather than each computing their own.
+  reason?: string;
   patientCode?: string;
   onClick: () => void;
   action?: { label: string; onClick: () => void };
 }) {
-  const elapsed = minutesBetween(new Date(appt.updatedAt), now);
+  const elapsed = minutesBetween(
+    tone === "now"
+      ? stageStart(appt, appt.consultationStartedAt)
+      : stageStart(appt, appt.waitingAt || appt.checkedInAt),
+    now,
+  );
   const dueIn = minutesBetween(now, apptDateTime(appt));
-  const overdue = tone === "expected" && dueIn < -OVERDUE_GRACE_MINUTES;
+  const overdue =
+    tone === "expected" &&
+    minutesElapsed(apptDateTime(appt), now) >= OVERDUE_GRACE_MINUTES;
 
   const wrapCls =
     tone === "now"
@@ -961,21 +1193,23 @@ function QueueCard({
       onClick={onClick}
       className={`w-full text-left border rounded-lg px-3 py-2 flex items-center gap-3 transition-colors hover:shadow-sm ${wrapCls}`}
     >
-      <span className="w-9 h-9 rounded-lg bg-surface-canvas flex items-center justify-center font-mono text-xs font-semibold text-ink-700 shrink-0">
-        {patientCode
-          ? patientCode.slice(-3)
-          : formatTime12h(appt.time).replace(" ", "")}
+      <span className="w-9 h-9 rounded-lg bg-surface-canvas flex items-center justify-center font-mono text-sm font-bold text-ink-700 shrink-0">
+        {queuePosition != null
+          ? queuePosition
+          : patientCode
+            ? patientCode.slice(-3)
+            : formatTime12h(appt.time).replace(" ", "")}
       </span>
       <span className="min-w-0 flex-1">
         <span className="flex items-center gap-1.5">
-          {queuePosition != null && (
-            <span className="w-5 h-5 rounded-full bg-brand-violet text-white text-[10px] font-bold flex items-center justify-center shrink-0">
-              {queuePosition}
-            </span>
-          )}
           <span className="block text-sm font-semibold text-ink-900 truncate">
             {appt.patientName}
           </span>
+          {appt.bookingSource === "walk-in" && (
+            <span className="shrink-0 rounded-md bg-status-warning-soft text-status-warning border border-status-warning/20 px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-wide">
+              Walk-in
+            </span>
+          )}
         </span>
         <span className="block text-xs text-ink-500 truncate">
           {[
@@ -983,6 +1217,7 @@ function QueueCard({
               ? `${appt.patientAge}${appt.patientGender ? ` ${appt.patientGender[0]}` : ""}`
               : null,
             tone === "expected" ? `booked ${formatTime12h(appt.time)}` : null,
+            tone === "waiting" ? reason : null,
           ]
             .filter(Boolean)
             .join(" · ")}

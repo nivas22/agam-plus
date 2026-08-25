@@ -41,6 +41,8 @@ interface GenerateAppointmentsParams {
   createdBy: string;
   userRole: string;
   membership: any;
+  bookingSource?: 'scheduled' | 'walk-in';
+  forceSlot?: boolean;
 }
 
 @Injectable()
@@ -182,7 +184,18 @@ export class AppointmentsService {
   }
 
   async createAppointment(hospitalId: string, user: JwtUser, userProfile: HospitalUserProfile, body: CreateAppointmentBody) {
-    const { doctorProfileId, patientId, startDate, preferredTime, frequency, numberOfOccurrences, selectedDays, notes } = body;
+    const {
+      doctorProfileId,
+      patientId,
+      startDate,
+      preferredTime,
+      frequency,
+      numberOfOccurrences,
+      selectedDays,
+      notes,
+      bookingSource,
+      forceSlot,
+    } = body;
 
     // Verify user has access to this hospital
     if (userProfile.role !== 'admin' && userProfile.hospitalId !== hospitalId) {
@@ -221,6 +234,8 @@ export class AppointmentsService {
       createdBy: user.uid,
       userRole: userProfile.role,
       membership,
+      bookingSource,
+      forceSlot,
     });
 
     if (generatedAppointments.length === 0) {
@@ -254,6 +269,8 @@ export class AppointmentsService {
     createdBy,
     userRole,
     membership,
+    bookingSource,
+    forceSlot,
   }: GenerateAppointmentsParams) {
     const appointments: any[] = [];
     const start = new Date(startDate);
@@ -273,6 +290,7 @@ export class AppointmentsService {
       hospitalId,
       frequency,
       notes,
+      bookingSource: bookingSource || 'scheduled',
       status: APPOINTMENT_STATUS.CONFIRMED as const,
       confirmedAt: new Date().toISOString(),
       createdBy,
@@ -282,6 +300,24 @@ export class AppointmentsService {
     };
 
     if (frequency === 'once') {
+      // The walk-in board's "straight into the queue" option: skip the normal
+      // slot search (which would reject once the session is at capacity) and
+      // book the exact time the front desk picked — still subject to the
+      // doctor's overCapacityPolicy below.
+      if (forceSlot && preferredTime) {
+        await this.assertWalkInCapacityAllowed(doctor, membership, startDate);
+        appointments.push({
+          ...baseAppointmentData,
+          date: startDate,
+          // Snap to the doctor's actual slot grid — a walk-in booked at
+          // whatever the clock reads (e.g. 09:14) would otherwise store a
+          // `time` that never matches the "09:00" bucket getAvailableSlots
+          // groups bookings by, so it silently wouldn't count against that
+          // slot's capacity and online booking would still offer it.
+          time: this.snapToSlotGrid(doctor, membership, startDate, preferredTime),
+        });
+        return appointments;
+      }
       const slot = await this.findNextAvailableSlot(doctor, membership, startDate, preferredTime);
       if (slot) {
         appointments.push({
@@ -437,6 +473,85 @@ export class AppointmentsService {
     }
   }
 
+  // Gate for `forceSlot` bookings only — the normal slot search already
+  // enforces capacity by construction, this is the one path that can
+  // deliberately exceed it. A 'block' policy makes that a hard no once the
+  // day's total capacity (regular + walk-in, held slots included — walk-ins
+  // are exactly what those are held for) is used up; 'warn'/'allow' both let
+  // the desk proceed, the difference being front-end friction only.
+  // Rounds an arbitrary time down to the start of whichever slot on the
+  // doctor's grid it falls inside, so a walk-in booked "right now" lands on
+  // the same bucket (e.g. 09:00) that online-booking capacity is counted by,
+  // instead of a bespoke minute (09:14) nothing else ever matches.
+  private snapToSlotGrid(doctor: any, membership: any, date: string, timeStr: string): string {
+    const dayName = new Date(date).toLocaleDateString('en-US', { weekday: 'long' });
+    const windows = (membership?.availability || []).filter((a: any) => a.day === dayName);
+    if (windows.length === 0) return timeStr;
+
+    const duration = membership?.appointmentDuration || doctor.appointmentDuration || 30;
+    const gap = Math.max(0, membership?.bufferMinutes || 0);
+    const step = duration + gap;
+
+    const toMins = (t: string) => {
+      const [h, m] = t.split(':').map(Number);
+      return h * 60 + m;
+    };
+    const toTime = (mins: number) =>
+      `${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`;
+
+    const target = toMins(timeStr);
+    const containingWindow = windows.find((w: any) => target >= toMins(w.startTime) && target < toMins(w.endTime));
+    const window =
+      containingWindow ||
+      [...windows].sort(
+        (a: any, b: any) => Math.abs(toMins(a.startTime) - target) - Math.abs(toMins(b.startTime) - target),
+      )[0];
+
+    const winStart = toMins(window.startTime);
+    const winEnd = toMins(window.endTime);
+    // Clamp into the window so a walk-in just before opening or after
+    // closing still lands on a valid slot rather than one outside it.
+    const clamped = Math.max(winStart, Math.min(target, Math.max(winStart, winEnd - duration)));
+    const stepsElapsed = Math.floor((clamped - winStart) / step);
+    return toTime(winStart + stepsElapsed * step);
+  }
+
+  private async assertWalkInCapacityAllowed(doctor: any, membership: any, date: string) {
+    if ((membership?.overCapacityPolicy || 'warn') !== 'block') return;
+
+    const dayName = new Date(date).toLocaleDateString('en-US', { weekday: 'long' });
+    const windows = (membership?.availability || []).filter((a: any) => a.day === dayName);
+    if (windows.length === 0) return;
+
+    const duration = membership?.appointmentDuration || doctor.appointmentDuration || 30;
+    const gap = Math.max(0, membership?.bufferMinutes || 0);
+    const perSlot = Math.max(1, membership?.patientsPerSlot || 1);
+    const step = duration + gap;
+
+    let totalCapacity = 0;
+    for (const w of windows) {
+      const start = new Date(`${date}T${w.startTime}`);
+      const end = new Date(`${date}T${w.endTime}`);
+      let slotCount = 0;
+      const cur = new Date(start);
+      while (cur.getTime() + duration * 60000 <= end.getTime()) {
+        slotCount++;
+        cur.setMinutes(cur.getMinutes() + step);
+      }
+      totalCapacity += slotCount * perSlot;
+    }
+
+    const existing = await this.appointmentRepository.getAppointmentsByDoctorAndDate(doctor.userId, date, [
+      ...ACTIVE_APPOINTMENT_STATUSES,
+      'scheduled',
+    ]);
+    if (existing.length >= totalCapacity) {
+      throw ApiError.badRequest(
+        `Dr. ${doctor.name} is fully booked today and this hospital's walk-in policy blocks adding more.`,
+      );
+    }
+  }
+
   async updateAppointment(hospitalId: string, user: JwtUser, userProfile: HospitalUserProfile, body: UpdateAppointmentBody) {
     const userRole = userProfile?.role;
 
@@ -511,16 +626,25 @@ export class AppointmentsService {
     }
 
     if (appointmentData?.doctorProfileId) {
-      // Verify the new doctor belongs to this hospital
-      const newDoctor = (await this.doctorRepository.getDoctorProfileById(appointmentData.doctorProfileId)) as any;
-
-      if (!newDoctor || newDoctor.hospitalId !== hospitalId) {
+      // Verify the new doctor belongs to this hospital — membership, not a
+      // hospitalId field on the doctor profile itself, which isn't reliably
+      // populated (see DoctorPresenceService for the same fix).
+      const newDoctorMembership = await this.membershipRepository.getHospitalMembership(
+        hospitalId,
+        appointmentData.doctorProfileId,
+      );
+      if (newDoctorMembership.empty) {
         throw ApiError.notFound('Doctor not found in this hospital');
       }
+      const newDoctor = (await this.doctorRepository.getDoctorProfileById(appointmentData.doctorProfileId)) as any;
 
       updateData.doctorProfileId = appointmentData.doctorProfileId;
-      updateData.doctorName = newDoctor.name || appointmentData.doctorName || existingData.doctorName;
-      updateData.doctorSpecialization = newDoctor.specialization || existingData.doctorSpecialization;
+      updateData.doctorName = newDoctor?.name || appointmentData.doctorName || existingData.doctorName;
+      updateData.doctorSpecialization = newDoctor?.specialization || existingData.doctorSpecialization;
+    }
+
+    if (appointmentData?.notes !== undefined) {
+      updateData.notes = appointmentData.notes;
     }
 
     if (appointmentData?.cancelReason) {

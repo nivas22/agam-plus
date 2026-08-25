@@ -41,6 +41,7 @@ import {
   getInitials,
   laneStatus,
   minutesBetween,
+  stageStart,
   type QueueLane,
   todaysWindows,
   toISODate,
@@ -63,15 +64,6 @@ function formatMMSS(ms: number): string {
   const m = Math.floor(totalSeconds / 60);
   const s = totalSeconds % 60;
   return `${m}:${String(s).padStart(2, "0")}`;
-}
-
-// The backend stamps a dedicated timestamp the moment an appointment enters
-// each lifecycle stage (see STATUS_TIMESTAMP_FIELD in appointments.service.ts),
-// untouched by later same-status saves (e.g. notes autosave) — so these are
-// the right anchors for a live elapsed timer, unlike `updatedAt` which bumps
-// on every save.
-function stageStart(appt: AppointmentWithDetails, iso?: string): Date {
-  return new Date(iso || appt.updatedAt);
 }
 
 // The appointment's denormalized `patientAge` is only ever populated from
