@@ -86,7 +86,6 @@ export class PlatformAdminService {
     await this.membershipRepository.createHospitalMembership({
       hospitalId,
       userId: (user as any).id,
-      firebaseUid: (user as any).firebaseUid,
       role: ROLE.ADMIN,
       status: MEMBERSHIP_STATUS.APPROVED,
       invitedBy: invitedByUserId,

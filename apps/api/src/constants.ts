@@ -1,10 +1,10 @@
 export enum DB_COLLECTIONS {
-  USERS = 'users_new',
-  DOCTOR_PROFILES = 'doctorProfiles_new_1',
-  PATIENTS = 'patients_new_1',
-  APPOINTMENTS = 'appointments_new',
-  HOSPITALS = 'hospitals_new',
-  HOSPITAL_MEMBERS = 'hospitalMembers_new_1',
+  USERS = 'users',
+  DOCTOR_PROFILES = 'doctorProfiles',
+  PATIENTS = 'patients',
+  APPOINTMENTS = 'appointments',
+  HOSPITALS = 'hospitals',
+  HOSPITAL_MEMBERS = 'hospitalMembers',
   REVIEWS = 'reviews',
   DOCTOR_ACTIVIES = 'doctor_activities',
   PAYMENTS = 'payments',
@@ -21,6 +21,7 @@ export enum DB_COLLECTIONS {
   LEAVE_REQUESTS = 'leave_requests',
   COUNTERS = 'counters',
   DOCTOR_PRESENCE = 'doctor_presence',
+  PATIENT_ACCOUNTS = 'patient_accounts',
 }
 
 // FRONT_DESK/NURSE/ACCOUNTANT replace the old unused STAFF value — nothing

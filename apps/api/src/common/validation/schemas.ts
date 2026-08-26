@@ -25,6 +25,15 @@ export const switchHospitalSchema = z.object({
   hospitalId: z.string().min(1, 'Hospital ID is required'),
 });
 
+export const requestOtpSchema = z.object({
+  phone: z.string().min(8, 'A valid phone number is required'),
+});
+
+export const verifyOtpSchema = z.object({
+  phone: z.string().min(8, 'A valid phone number is required'),
+  otp: z.string().regex(/^\d{6}$/, 'OTP must be 6 digits'),
+});
+
 /* -------------------------------------------------------------------------- */
 /*                           APPOINTMENT SCHEMAS                              */
 /* -------------------------------------------------------------------------- */

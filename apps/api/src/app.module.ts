@@ -5,7 +5,9 @@ import { AppService } from './app.service';
 import { DatabaseModule } from './database/database.module';
 import { RepositoriesModule } from './repositories/repositories.module';
 import { EmailModule } from './email/email.module';
+import { SmsModule } from './sms/sms.module';
 import { AuthModule } from './auth/auth.module';
+import { PatientAuthModule } from './patient-auth/patient-auth.module';
 import { HospitalsModule } from './hospitals/hospitals.module';
 import { DoctorsModule } from './doctors/doctors.module';
 import { PatientsModule } from './patients/patients.module';
@@ -32,7 +34,9 @@ import { DoctorPresenceModule } from './doctor-presence/doctor-presence.module';
     DatabaseModule,
     RepositoriesModule,
     EmailModule,
+    SmsModule,
     AuthModule,
+    PatientAuthModule,
     PermissionsModule,
     AuditModule,
     HospitalsModule,

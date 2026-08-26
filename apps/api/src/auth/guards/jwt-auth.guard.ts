@@ -34,7 +34,17 @@ export class JwtAuthGuard implements CanActivate {
         userId: string;
         email: string;
         name: string;
+        scope?: string;
       };
+
+      // Patient-app tokens share JWT_SECRET with staff tokens but carry
+      // scope:'patient' and no staff `userId` — reject them here so a patient
+      // token can never be used against a staff/admin route, symmetric to
+      // PatientAuthGuard requiring scope:'patient'.
+      if (payload.scope === 'patient') {
+        throw new UnauthorizedException('Unauthorized');
+      }
+
       request.user = payload;
       return true;
     } catch {

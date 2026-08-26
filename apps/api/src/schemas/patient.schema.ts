@@ -9,6 +9,13 @@ export class Patient {
   @Prop({ index: true })
   userId?: string;
 
+  // Links this hospital-scoped record to the patient's global, phone-verified
+  // PatientAccount identity (the patient app) — null until the patient
+  // verifies via OTP with a matching phone, or was already verified when
+  // this record was created. See PatientAccount for the account itself.
+  @Prop({ index: true })
+  patientAccountId?: string;
+
   @Prop({ required: true, index: true })
   hospitalId: string;
 

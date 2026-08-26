@@ -66,13 +66,12 @@ export class HospitalsService {
     // Admins are provisioned by email rather than defaulting to the creator —
     // the platform admin creating the hospital isn't necessarily who runs it.
     // A User doc is created up front for anyone who hasn't signed in yet; it
-    // gets linked to their firebaseUid on first Google login (see AuthService.login).
+    // gets linked to their Google account on first login (see AuthService.login).
     for (const email of uniqueAdminEmails) {
       const adminUser = await this.userRepository.getOrCreateUserByEmail(email);
       await this.membershipRepository.createHospitalMembership({
         hospitalId: hospital.id,
         userId: adminUser.id,
-        firebaseUid: adminUser.firebaseUid,
         role: ROLE.ADMIN,
         status: 'approved',
         invitedBy: user.userId,
@@ -129,7 +128,6 @@ export class HospitalsService {
 
     await this.membershipRepository.createHospitalMembership({
       hospitalId,
-      firebaseUid: user.uid,
       userId: user.userId,
       role: role || ROLE.DOCTOR,
       status: 'pending',
@@ -144,7 +142,6 @@ export class HospitalsService {
       await this.doctorRepository.upsertDoctorProfile(user.userId, {
         name: user.name || '',
         email: user.email || '',
-        firebaseUid: user.uid,
         createdAt: new Date(),
         specialties: [],
         bio: '',

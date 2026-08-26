@@ -5,6 +5,7 @@ import { MembershipRepository } from './membership.repository';
 import { HospitalRepository } from './hospital.repository';
 import { DoctorRepository } from './doctor.repository';
 import { PatientRepository } from './patient.repository';
+import { PatientAccountRepository } from './patient-account.repository';
 import { AppointmentRepository } from './appointment.repository';
 import { DashboardRepository } from './dashboard.repository';
 import { PaymentRepository } from './payment.repository';
@@ -31,6 +32,10 @@ import {
   DoctorProfileSchema,
 } from '../schemas/doctor-profile.schema';
 import { Patient, PatientSchema } from '../schemas/patient.schema';
+import {
+  PatientAccount,
+  PatientAccountSchema,
+} from '../schemas/patient-account.schema';
 import { Appointment, AppointmentSchema } from '../schemas/appointment.schema';
 import { Payment, PaymentSchema } from '../schemas/payment.schema';
 import {
@@ -65,6 +70,7 @@ const repositories = [
   HospitalRepository,
   DoctorRepository,
   PatientRepository,
+  PatientAccountRepository,
   AppointmentRepository,
   DashboardRepository,
   PaymentRepository,
@@ -91,6 +97,7 @@ const repositories = [
       { name: HospitalMember.name, schema: HospitalMemberSchema },
       { name: DoctorProfile.name, schema: DoctorProfileSchema },
       { name: Patient.name, schema: PatientSchema },
+      { name: PatientAccount.name, schema: PatientAccountSchema },
       { name: Appointment.name, schema: AppointmentSchema },
       { name: Payment.name, schema: PaymentSchema },
       { name: PaymentDayClose.name, schema: PaymentDayCloseSchema },

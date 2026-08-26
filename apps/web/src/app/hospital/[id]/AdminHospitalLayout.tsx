@@ -716,8 +716,6 @@ export default function AdminHospitalLayout({
             <div className="flex items-center gap-1.5 text-sm min-w-0">
               <span className="text-ink-500 truncate">Agam Plus</span>
               <span className="text-ink-500">/</span>
-              <span className="text-ink-500 truncate">Staff</span>
-              <span className="text-ink-500">/</span>
               <span className="text-ink-900 font-semibold truncate">
                 {currentSection ? currentSection.label : "Dashboard"}
               </span>

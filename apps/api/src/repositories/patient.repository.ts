@@ -85,13 +85,31 @@ export class PatientRepository {
     return toPlainList(docs);
   }
 
-  async getPatientsByUserIds(userIds: string[], hospitalId: string) {
-    if (userIds.length === 0) return [];
-
-    const docs = await this.patientModel
-      .find({ userId: { $in: userIds }, hospitalId })
-      .lean();
+  async getPatientsByAccountId(patientAccountId: string) {
+    const docs = await this.patientModel.find({ patientAccountId }).lean();
     return toPlainList(docs);
+  }
+
+  // Deliberately not hospital-scoped — the one legitimate cross-hospital
+  // write in this repository, backing the patient app's auto-link-by-phone
+  // flow. Only claims records not already linked to some other account.
+  // Returns the distinct hospitalIds touched, for audit logging.
+  async linkPatientsByPhoneToAccount(
+    phone: string,
+    patientAccountId: string,
+  ): Promise<string[]> {
+    const filter: Record<string, any> = {
+      phone,
+      patientAccountId: { $exists: false },
+    };
+    const matched = await this.patientModel.find(filter).select('hospitalId').lean();
+    if (matched.length === 0) return [];
+
+    await this.patientModel.updateMany(filter, {
+      $set: { patientAccountId, updatedAt: new Date() },
+    });
+
+    return Array.from(new Set(matched.map((doc: any) => doc.hospitalId)));
   }
 
   async getPatientsByIds(patientIds: string[], hospitalId?: string) {
