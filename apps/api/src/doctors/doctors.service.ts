@@ -5,6 +5,7 @@ import { DoctorRepository } from '../repositories/doctor.repository';
 import { UserRepository } from '../repositories/user.repository';
 import { AppointmentRepository } from '../repositories/appointment.repository';
 import { HospitalHolidayRepository } from '../repositories/hospital-holiday.repository';
+import { DoctorPresenceRepository } from '../repositories/doctor-presence.repository';
 import { EmailService } from '../email/email.service';
 import { ApiError } from '../common/errors/api-error';
 import { DoctorProfile, TimeSlot } from '../types/doctor';
@@ -19,6 +20,7 @@ export class DoctorsService {
     private readonly userRepository: UserRepository,
     private readonly appointmentRepository: AppointmentRepository,
     private readonly hospitalHolidayRepository: HospitalHolidayRepository,
+    private readonly doctorPresenceRepository: DoctorPresenceRepository,
     private readonly emailService: EmailService,
     private readonly config: ConfigService,
   ) {}
@@ -780,6 +782,20 @@ export class DoctorsService {
       const today = new Date();
       const isToday = dateObj.toDateString() === today.toDateString();
       const currentTime = isToday ? today : null;
+
+      // A doctor marked "left for the day" is done seeing patients — today's
+      // remaining slots stop being bookable the moment that's set. Only
+      // today: the override is a same-day dashboard signal, not a standing
+      // closure. Mirrors the same check in appointments.service.ts so the
+      // slots offered here match what actually gets booked.
+      if (isToday && doctor?.hospitalId) {
+        const presence = await this.doctorPresenceRepository.getForDoctorAndDate(
+          doctor.hospitalId,
+          doctor.userId,
+          date,
+        );
+        if ((presence as any)?.kind === 'leftForDay') return [];
+      }
 
       // Build available slots across every window for this day
       const slots: { time: string; remaining: number; capacity: number }[] = [];

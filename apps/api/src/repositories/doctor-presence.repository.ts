@@ -19,6 +19,11 @@ export class DoctorPresenceRepository {
     return toPlainList(docs);
   }
 
+  async getForDoctorAndDate(hospitalId: string, doctorId: string, date: string) {
+    const doc = await this.model.findOne({ hospitalId, doctorId, date }).lean();
+    return toPlain(doc);
+  }
+
   // One doc per hospital+doctor+date — each call replaces whatever was
   // there before, since only the latest state matters here (history is the
   // audit log's job, not this collection's).

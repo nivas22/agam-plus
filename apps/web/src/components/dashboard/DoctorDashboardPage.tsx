@@ -8,9 +8,7 @@ import {
   computePresence,
   formatTime12h,
   minutesToTimeStr,
-  nextWorkingDate,
   type QueueLane,
-  todaysWindows,
   toISODate,
 } from "@/components/queue/queueBoard";
 import { useAuth } from "@/hooks/useAuth";
@@ -22,6 +20,7 @@ import {
   useDoctorDashboardWeekOverview,
   useDoctorDashboardYesterdaySummary,
 } from "@/hooks/useDoctorDashboardApi";
+import { useHospitalHolidays } from "@/hooks/useHospitalHolidaysApi";
 import {
   useApplyForLeave,
   useNudgeLeaveRequest,
@@ -36,6 +35,7 @@ import type {
   WeekOverviewDay,
 } from "@/types/doctorDashboard";
 import type { Doctor } from "@/types/doctorNew";
+import type { HospitalHoliday } from "@/types/hospitalHoliday";
 import type { PackageRecord } from "@/types/package";
 
 interface DoctorDashboardPageProps {
@@ -83,6 +83,49 @@ function windowsForDayName(
     .filter((w) => w.day === dayName)
     .slice()
     .sort((a, b) => a.startTime.localeCompare(b.startTime));
+}
+
+function toMinutes(time: string): number {
+  const [h, m] = time.split(":").map(Number);
+  return h * 60 + m;
+}
+
+// A holiday active on `dateIso` and not excepted for this doctor closes OPD
+// entirely (full/opd_closed) or truncates the day's windows to before its
+// cutoff (half_day) — mirrors doctor-dashboard.service.ts's getWeekOverview
+// so "next session" never lands on a day the clinic is actually closed.
+function effectiveWindowsForDate(
+  doctor: Doctor,
+  dateIso: string,
+  holidays: HospitalHoliday[],
+): { start: number; end: number }[] {
+  const dayName = format(new Date(`${dateIso}T00:00:00`), "EEEE");
+  const raw = windowsForDayName(doctor, dayName);
+  if (raw.length === 0) return [];
+
+  const holiday = holidays.find(
+    (h) =>
+      h.status === "active" &&
+      h.startsOn <= dateIso &&
+      h.endsOn >= dateIso &&
+      !h.exceptionDoctorIds?.includes(doctor.id),
+  );
+  const toRange = (w: { startTime: string; endTime: string }) => ({
+    start: toMinutes(w.startTime),
+    end: toMinutes(w.endTime),
+  });
+  if (!holiday) return raw.map(toRange);
+  if (holiday.closureType === "full" || holiday.closureType === "opd_closed") {
+    return [];
+  }
+  if (holiday.closureType === "half_day" && holiday.halfDayUntil) {
+    const cutoff = toMinutes(holiday.halfDayUntil);
+    return raw
+      .map(toRange)
+      .map((w) => ({ start: w.start, end: Math.min(w.end, cutoff) }))
+      .filter((w) => w.start < w.end);
+  }
+  return raw.map(toRange);
 }
 
 export default function DoctorDashboardPage({
@@ -145,6 +188,22 @@ export default function DoctorDashboardPage({
     doctorId,
   );
 
+  // Both years so a 30-day "next session" search never falls off the edge
+  // of the fetched calendar when today is late in the year.
+  const currentYear = now.getFullYear();
+  const { data: holidaysThisYear } = useHospitalHolidays(
+    currentYear,
+    hospitalId,
+  );
+  const { data: holidaysNextYear } = useHospitalHolidays(
+    currentYear + 1,
+    hospitalId,
+  );
+  const holidays: HospitalHoliday[] = [
+    ...(holidaysThisYear?.holidays || []),
+    ...(holidaysNextYear?.holidays || []),
+  ];
+
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
 
   const isLoading = !doctor || appointmentsLoading || pendingLoading;
@@ -157,7 +216,7 @@ export default function DoctorDashboardPage({
   }
 
   const lane: QueueLane = buildLanes([doctor], appointments, now)[0];
-  const windows = todaysWindows(doctor, now);
+  const windows = effectiveWindowsForDate(doctor, today, holidays);
   const presence = computePresence(lane, presenceOverrides[doctorId], now);
 
   const nowMins = now.getHours() * 60 + now.getMinutes();
@@ -189,11 +248,13 @@ export default function DoctorDashboardPage({
 
   const sessionEnd = windows.length ? windows[windows.length - 1].end : null;
 
-  // "Next session" must roll forward once today's windows have all passed —
-  // todaysWindows()/sessionEnd only describe today, they don't know whether
-  // "today" is still ahead of us.
+  // "Next session" must roll forward once today has nothing genuinely ahead
+  // of us — either every window today has already passed, or we're sitting
+  // inside the last one right now. currentWindow is deliberately excluded:
+  // a session already in progress isn't "next", it's the one the live
+  // banner above is already describing.
   const nextSession = (() => {
-    const upcomingWindow = nextWindow ?? currentWindow;
+    const upcomingWindow = nextWindow;
     if (upcomingWindow) {
       return {
         dateLabel: "Today",
@@ -206,18 +267,29 @@ export default function DoctorDashboardPage({
         firstVisits: newPatientAppts.length,
       };
     }
-    const nextDateIso = nextWorkingDate(doctor, now);
-    if (!nextDateIso) return null;
-    const nextDate = new Date(`${nextDateIso}T00:00:00`);
-    const dayWindows = windowsForDayName(doctor, format(nextDate, "EEEE"));
-    if (dayWindows.length === 0) return null;
-    return {
-      dateLabel: format(nextDate, "EEE, d MMM"),
-      startLabel: formatTime12h(dayWindows[0].startTime),
-      endLabel: formatTime12h(dayWindows[dayWindows.length - 1].endTime),
-      patients: null as number | null,
-      firstVisits: null as number | null,
-    };
+    // Walk forward day by day (skipping full/opd_closed holidays, and
+    // truncating half-days) rather than only checking weekly availability —
+    // otherwise a holiday tomorrow gets shown as tomorrow's session.
+    const cursor = new Date(now);
+    cursor.setDate(cursor.getDate() + 1);
+    for (let i = 0; i < 30; i++) {
+      const dateIso = toLocalISODate(cursor);
+      const dayWindows = effectiveWindowsForDate(doctor, dateIso, holidays);
+      if (dayWindows.length > 0) {
+        const nextDate = new Date(`${dateIso}T00:00:00`);
+        return {
+          dateLabel: format(nextDate, "EEE, d MMM"),
+          startLabel: formatTime12h(minutesToTimeStr(dayWindows[0].start)),
+          endLabel: formatTime12h(
+            minutesToTimeStr(dayWindows[dayWindows.length - 1].end),
+          ),
+          patients: null as number | null,
+          firstVisits: null as number | null,
+        };
+      }
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    return null;
   })();
 
   return (

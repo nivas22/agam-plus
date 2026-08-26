@@ -4,10 +4,11 @@ import { DoctorRepository } from '../repositories/doctor.repository';
 import { PatientRepository } from '../repositories/patient.repository';
 import { MembershipRepository } from '../repositories/membership.repository';
 import { HospitalHolidayRepository } from '../repositories/hospital-holiday.repository';
+import { DoctorPresenceRepository } from '../repositories/doctor-presence.repository';
 import { PermissionsService } from '../permissions/permissions.service';
 import { AuditService } from '../audit/audit.service';
 import { ApiError } from '../common/errors/api-error';
-import { AppointmentWithDetails } from '../types/appointment';
+import { AppointmentWithDetails, Vitals } from '../types/appointment';
 import { JwtUser, HospitalUserProfile } from '../auth/decorators/current-user.decorator';
 import { CreateAppointmentBody, UpdateAppointmentBody, AppointmentListQuery } from './appointments.types';
 import { findHolidayForDate, filterSlotsForHoliday } from '../hospital-holidays/holiday-availability.util';
@@ -43,6 +44,7 @@ interface GenerateAppointmentsParams {
   membership: any;
   bookingSource?: 'scheduled' | 'walk-in';
   forceSlot?: boolean;
+  vitals?: Vitals;
 }
 
 @Injectable()
@@ -53,6 +55,7 @@ export class AppointmentsService {
     private readonly patientRepository: PatientRepository,
     private readonly membershipRepository: MembershipRepository,
     private readonly hospitalHolidayRepository: HospitalHolidayRepository,
+    private readonly doctorPresenceRepository: DoctorPresenceRepository,
     private readonly permissionsService: PermissionsService,
     private readonly auditService: AuditService,
   ) {}
@@ -195,6 +198,7 @@ export class AppointmentsService {
       notes,
       bookingSource,
       forceSlot,
+      vitals,
     } = body;
 
     // Verify user has access to this hospital
@@ -236,6 +240,7 @@ export class AppointmentsService {
       membership,
       bookingSource,
       forceSlot,
+      vitals,
     });
 
     if (generatedAppointments.length === 0) {
@@ -271,6 +276,7 @@ export class AppointmentsService {
     membership,
     bookingSource,
     forceSlot,
+    vitals,
   }: GenerateAppointmentsParams) {
     const appointments: any[] = [];
     const start = new Date(startDate);
@@ -278,6 +284,13 @@ export class AppointmentsService {
     const maxOccurrences = frequency === 'once' ? 1 : Math.max(1, numberOfOccurrences);
     let attempts = 0;
     const SAFETY_LIMIT = 1000;
+
+    // Drop keys the desk left blank rather than persisting an object full of
+    // undefineds — same reasoning as the vitalsSchema fields all being
+    // optional (not every desk has every instrument to hand).
+    const cleanedVitals = vitals
+      ? Object.fromEntries(Object.entries(vitals).filter(([, v]) => v != null))
+      : undefined;
 
     // All appointments created here are admin/staff-booked (Flow 2), so they
     // start CONFIRMED directly. PENDING is reserved for a future patient
@@ -297,6 +310,9 @@ export class AppointmentsService {
       userRole,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
+      ...(cleanedVitals && Object.keys(cleanedVitals).length > 0
+        ? { vitals: cleanedVitals }
+        : {}),
     };
 
     if (frequency === 'once') {
@@ -420,6 +436,19 @@ export class AppointmentsService {
       const today = new Date();
       const isToday = dateObj.toDateString() === today.toDateString();
       const currentTime = isToday ? today : null;
+
+      // A doctor marked "left for the day" is done seeing patients — today's
+      // remaining slots stop being bookable the moment that's set, same as
+      // they'd stop for a walk-in at the front desk. Only today: the
+      // override is a same-day dashboard signal, not a standing closure.
+      if (isToday && membership?.hospitalId) {
+        const presence = await this.doctorPresenceRepository.getForDoctorAndDate(
+          membership.hospitalId,
+          membership.userId,
+          date,
+        );
+        if ((presence as any)?.kind === 'leftForDay') return [];
+      }
 
       // Generate all possible slots across every window for this day
       // Booking-rule fields (appointmentDuration/bufferMinutes/patientsPerSlot) are

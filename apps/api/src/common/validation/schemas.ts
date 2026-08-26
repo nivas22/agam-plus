@@ -29,6 +29,18 @@ export const switchHospitalSchema = z.object({
 /*                           APPOINTMENT SCHEMAS                              */
 /* -------------------------------------------------------------------------- */
 
+// Front-desk-recorded vitals, taken at walk-in time — every field optional
+// since not every desk has every instrument to hand.
+export const vitalsSchema = z.object({
+  bpSystolic: z.number().positive().optional(),
+  bpDiastolic: z.number().positive().optional(),
+  spo2: z.number().min(0).max(100).optional(),
+  pulse: z.number().positive().optional(),
+  weight: z.number().positive().optional(),
+  temperature: z.number().positive().optional(),
+  height: z.number().positive().optional(),
+});
+
 // NOTE: Status is NOT included in creation schema - all appointments are created as 'confirmed'
 // (admin/staff booking). The update endpoint moves status through the queue lifecycle from there.
 export const createAppointmentSchema = z.object({
@@ -48,6 +60,7 @@ export const createAppointmentSchema = z.object({
   // session is already at capacity. Only honored for frequency 'once', and
   // still blocked server-side if the doctor's overCapacityPolicy is 'block'.
   forceSlot: z.boolean().optional().default(false),
+  vitals: vitalsSchema.optional(),
 });
 
 export const updateAppointmentSchema = z.object({

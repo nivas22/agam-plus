@@ -91,6 +91,8 @@ export class PatientsService {
         gender: prof.gender || null,
         address: prof.address || '',
         medicalHistory: prof.medicalHistory || '',
+        bloodGroup: prof.bloodGroup || null,
+        allergies: Array.isArray(prof.allergies) ? prof.allergies : [],
         createdAt: prof.createdAt || null,
       });
     }

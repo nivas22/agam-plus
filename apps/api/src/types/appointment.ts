@@ -7,6 +7,16 @@ export interface TimeSlot {
   endTime: string;
 }
 
+export interface Vitals {
+  bpSystolic?: number;
+  bpDiastolic?: number;
+  spo2?: number;
+  pulse?: number;
+  weight?: number;
+  temperature?: number;
+  height?: number;
+}
+
 export interface Appointment {
   id: string;
   hospitalId: string;
@@ -17,6 +27,7 @@ export interface Appointment {
   status: 'scheduled' | 'completed' | 'cancelled' | 'no-show';
   notes?: string;
   sessionNotes?: string;
+  vitals?: Vitals;
   createdAt: string;
   updatedAt: string;
   completedAt?: string;

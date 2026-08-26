@@ -6,6 +6,7 @@ import {
   Calendar,
   Check,
   ChevronDown,
+  ChevronLeft,
   ChevronRight,
   IndianRupee,
   LayoutDashboard,
@@ -270,19 +271,30 @@ export default function AdminHospitalLayout({
       <div className="flex min-h-screen bg-surface-canvas">
         {/* Desktop Sidebar */}
         <aside
-          className="hidden md:flex md:flex-col md:flex-shrink-0 bg-night-bg text-white sticky top-0 self-start h-screen transition-all duration-300 ease-in-out shadow-2xl border-r border-night-border z-50"
+          className="hidden md:flex md:flex-col md:flex-shrink-0 bg-night-bg text-white sticky top-0 self-start h-screen transition-all duration-300 ease-in-out shadow-2xl border-r border-night-border z-50 relative"
           style={{ width: sidebarExpanded ? "240px" : "72px" }}
         >
+          {/* Collapse/expand toggle — a dedicated control, not overloaded
+              onto the logo, so clicking the brand mark never surprises
+              someone by resizing the whole sidebar. */}
+          <button
+            type="button"
+            onClick={() => setSidebarExpanded(!sidebarExpanded)}
+            className="absolute -right-3 top-6 z-10 w-6 h-6 rounded-full bg-night-bg border border-night-border text-night-muted hover:text-white hover:bg-night-hover flex items-center justify-center shadow-md transition-colors"
+            aria-label={sidebarExpanded ? "Collapse sidebar" : "Expand sidebar"}
+          >
+            <ChevronLeft
+              size={14}
+              className={`transition-transform duration-300 ${sidebarExpanded ? "" : "rotate-180"}`}
+            />
+          </button>
+
           {/* Logo/Brand Section */}
           <div className="p-4 border-b border-night-border">
-            <button
-              onClick={() => setSidebarExpanded(!sidebarExpanded)}
+            <div
               className={`flex items-center gap-3 w-full ${sidebarExpanded ? "" : "justify-center"}`}
-              aria-label={
-                sidebarExpanded ? "Collapse sidebar" : "Expand sidebar"
-              }
             >
-              <div className="w-9 h-9 bg-status-open hover:bg-status-open-hover rounded-lg flex items-center justify-center flex-shrink-0 shadow-md transition-colors">
+              <div className="w-9 h-9 bg-status-open rounded-lg flex items-center justify-center flex-shrink-0 shadow-md">
                 <Plus className="text-white" size={18} />
               </div>
               {sidebarExpanded && (
@@ -295,7 +307,7 @@ export default function AdminHospitalLayout({
                   </p>
                 </div>
               )}
-            </button>
+            </div>
           </div>
 
           {/* Navigation Links */}

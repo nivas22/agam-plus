@@ -189,9 +189,22 @@ export default function TodaysQueuePage({
   );
 
   const [boardTab, setBoardTab] = useState<"active" | "sessionOver">("active");
+  // A doctor marked "left for the day" always reads as session-over —
+  // handleLeftForDay only lets that override land once the queue's already
+  // empty (or resolved via the absent modal), so laneStatus's own read of
+  // the doctor's nominal hours (which knows nothing about this override)
+  // would otherwise still show them as "on time"/"available" for a window
+  // later today.
   const lanesWithStatus = useMemo(
-    () => lanes.map((lane) => ({ lane, status: laneStatus(lane, now) })),
-    [lanes, now],
+    () =>
+      lanes.map((lane) => ({
+        lane,
+        status:
+          presenceOverrides[lane.doctor.id]?.kind === "leftForDay"
+            ? ({ label: "Session over", tone: "off" } as const)
+            : laneStatus(lane, now),
+      })),
+    [lanes, now, presenceOverrides],
   );
   const activeLanes = lanesWithStatus.filter(
     (l) => l.status.label !== "Session over",

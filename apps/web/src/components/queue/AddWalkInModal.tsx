@@ -9,6 +9,7 @@ import { paletteFor } from "@/lib/avatarPalette";
 import type {
   AppointmentFormData,
   AppointmentWithDetails,
+  Vitals,
 } from "@/types/appointment";
 import type { Patient } from "@/types/patientNew";
 import {
@@ -32,6 +33,50 @@ const TILE_TONE_CLS: Record<"ok" | "mid" | "bad" | "muted", string> = {
 };
 
 type FitMode = "direct" | "scheduled";
+
+type VitalsDraft = Record<keyof Vitals, string>;
+
+const EMPTY_VITALS: VitalsDraft = {
+  bpSystolic: "",
+  bpDiastolic: "",
+  spo2: "",
+  pulse: "",
+  weight: "",
+  temperature: "",
+  height: "",
+};
+
+// Rendered as one grid of small inputs — key drives both the draft-state
+// field and the payload key, so adding a vital only means adding a row here.
+const VITALS_FIELDS: {
+  key: keyof Vitals;
+  label: string;
+  unit: string;
+  placeholder: string;
+}[] = [
+  { key: "bpSystolic", label: "BP systolic", unit: "mmHg", placeholder: "120" },
+  { key: "bpDiastolic", label: "BP diastolic", unit: "mmHg", placeholder: "80" },
+  { key: "spo2", label: "SpO2", unit: "%", placeholder: "98" },
+  { key: "pulse", label: "Pulse", unit: "bpm", placeholder: "72" },
+  { key: "weight", label: "Weight", unit: "kg", placeholder: "65" },
+  { key: "temperature", label: "Temp", unit: "°F", placeholder: "98.6" },
+  { key: "height", label: "Height", unit: "cm", placeholder: "170" },
+];
+
+// Blank fields are simply omitted rather than sent as 0/NaN — not every
+// desk has every instrument to hand, and a missing reading shouldn't look
+// like a recorded zero.
+function buildVitalsPayload(draft: VitalsDraft): Vitals | undefined {
+  const result: Vitals = {};
+  for (const { key } of VITALS_FIELDS) {
+    const raw = draft[key].trim();
+    if (raw === "") continue;
+    const n = Number(raw);
+    if (Number.isNaN(n)) continue;
+    result[key] = n;
+  }
+  return Object.keys(result).length > 0 ? result : undefined;
+}
 
 interface AddWalkInModalProps {
   hospitalId: string;
@@ -69,19 +114,32 @@ export default function AddWalkInModal({
 
   const doctorOptions = useMemo(
     () =>
-      lanes.map((lane) => {
-        const availability = doctorAvailabilityNow(lane.doctor, now);
-        const presence = computePresence(
-          lane,
-          presenceOverrides[lane.doctor.id],
-          now,
-        );
-        const cap = sessionCapacity(lane, now);
-        // Projected with +1 patient — "if we add this walk-in, how does the
-        // session end up" is what the overrun warning needs.
-        const proj = projectFinish(lane, now, 1);
-        return { lane, doctor: lane.doctor, availability, presence, cap, proj };
-      }),
+      lanes
+        .map((lane) => {
+          const availability = doctorAvailabilityNow(lane.doctor, now);
+          const presence = computePresence(
+            lane,
+            presenceOverrides[lane.doctor.id],
+            now,
+          );
+          const cap = sessionCapacity(lane, now);
+          // Projected with +1 patient — "if we add this walk-in, how does the
+          // session end up" is what the overrun warning needs.
+          const proj = projectFinish(lane, now, 1);
+          return { lane, doctor: lane.doctor, availability, presence, cap, proj };
+        })
+        // A doctor who's confirmed gone for the day, whose last window
+        // already closed, or who has no session scheduled today at all has
+        // nowhere left to put a walk-in — drop them instead of offering a
+        // tile that can only ever fail to book. Doctors who simply haven't
+        // started yet (or are on a break) stay, since they're still
+        // schedulable later today.
+        .filter(
+          (o) =>
+            presenceOverrides[o.doctor.id]?.kind !== "leftForDay" &&
+            o.availability.label !== "Session over" &&
+            o.availability.label !== "Not consulting today",
+        ),
     [lanes, now, presenceOverrides],
   );
 
@@ -130,6 +188,10 @@ export default function AddWalkInModal({
   );
   const [fitMode, setFitMode] = useState<FitMode>("direct");
   const [reason, setReason] = useState("");
+  // Kept as raw strings while editing (empty string is a valid "not taken
+  // yet" state a number field can't represent) — parsed to numbers, with
+  // blanks dropped, only at submit time.
+  const [vitals, setVitals] = useState<VitalsDraft>(EMPTY_VITALS);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -228,6 +290,8 @@ export default function AddWalkInModal({
         checkInAfter = false;
       }
 
+      const vitalsPayload = buildVitalsPayload(vitals);
+
       const created = await addAppointment({
         doctorProfileId: doctorId,
         patientId: selectedPatient.id,
@@ -238,6 +302,7 @@ export default function AddWalkInModal({
         notes: reason || undefined,
         bookingSource: "walk-in",
         forceSlot,
+        vitals: vitalsPayload,
       });
       // The create endpoint replies with a batch — { appointments: [...] } —
       // even for a single "once" booking, not a bare appointment object.
@@ -409,7 +474,9 @@ export default function AddWalkInModal({
               })}
               {doctorOptions.length === 0 && (
                 <p className="text-sm text-ink-500 col-span-3">
-                  No doctors on the roster yet.
+                  {lanes.length > 0
+                    ? "No doctors available right now — everyone's session is over or they've left for the day."
+                    : "No doctors on the roster yet."}
                 </p>
               )}
             </div>
@@ -533,6 +600,33 @@ export default function AddWalkInModal({
               placeholder="Fever and body ache, 2 days"
               className={inputClass}
             />
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold text-ink-700 mb-1.5 block">
+              Vitals <span className="font-normal text-ink-500">optional</span>
+            </label>
+            <div className="grid grid-cols-4 gap-2">
+              {VITALS_FIELDS.map((f) => (
+                <div key={f.key} className="min-w-0">
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    min={0}
+                    value={vitals[f.key]}
+                    onChange={(e) =>
+                      setVitals((cur) => ({ ...cur, [f.key]: e.target.value }))
+                    }
+                    placeholder={f.placeholder}
+                    aria-label={`${f.label} (${f.unit})`}
+                    className="w-full px-2 py-2 rounded-lg border border-border bg-surface-paper text-sm text-ink-900 placeholder:text-ink-500/60 focus:outline-none focus:ring-2 focus:ring-brand-violet/30 focus:border-brand-violet"
+                  />
+                  <span className="block text-[10.5px] text-ink-500 mt-0.5 truncate">
+                    {f.label} · {f.unit}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
 
           {showOverrun && target?.proj && (
