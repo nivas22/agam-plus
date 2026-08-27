@@ -1,17 +1,30 @@
 export enum DB_COLLECTIONS {
-  USERS = "users_new",
-  DOCTOR_PROFILES = "doctorProfiles_new_1",
-  PATIENTS = "patients_new_1",
-  APPOINTMENTS = "appointments_new",
-  HOSPITALS = "hospitals_new",
-  HOSPITAL_MEMBERS = "hospitalMembers_new_1",
+  USERS = "users",
+  DOCTOR_PROFILES = "doctorProfiles",
+  PATIENTS = "patients",
+  APPOINTMENTS = "appointments",
+  HOSPITALS = "hospitals",
+  HOSPITAL_MEMBERS = "hospitalMembers",
   REVIEWS = "reviews",
   DOCTOR_ACTIVIES = "doctor_activities",
   PAYMENTS = "payments",
   PAYMENT_DAY_CLOSES = "payment_day_closes",
   PACKAGES = "packages",
+  TEAM_MEMBER_PROFILES = "team_member_profiles",
+  ROLE_PERMISSIONS = "role_permissions",
+  AUDIT_LOG = "audit_log",
+  APPROVAL_REQUESTS = "approval_requests",
   CHARGE_CATALOG_ITEMS = "charge_catalog_items",
+  HOSPITAL_HOLIDAYS = "hospital_holidays",
+  MEDICINES = "medicines",
+  PRESCRIPTIONS = "prescriptions",
+  LEAVE_REQUESTS = "leave_requests",
+  COUNTERS = "counters",
+  DOCTOR_PRESENCE = "doctor_presence",
+  PATIENT_ACCOUNTS = "patient_accounts",
+  SESSIONS = "sessions",
 }
+
 
 export enum ROLE {
   ADMIN = "admin",
@@ -58,7 +71,7 @@ export enum APPOINTMENT_STATUS {
 
 export const APPOINTMENT_STATUS_VALUES = Object.values(APPOINTMENT_STATUS);
 
-// Statuses that still hold a claim on the doctor's schedule for that slot.
+// Statuses that still hold a claim on the doctor"s schedule for that slot.
 export const ACTIVE_APPOINTMENT_STATUSES: APPOINTMENT_STATUS[] = [
   APPOINTMENT_STATUS.PENDING,
   APPOINTMENT_STATUS.CONFIRMED,
@@ -68,8 +81,8 @@ export const ACTIVE_APPOINTMENT_STATUSES: APPOINTMENT_STATUS[] = [
 ];
 
 // Legacy documents predate this state machine and were all written as
-// 'scheduled'. Normalize them to CONFIRMED for transition checks only —
-// the stored value is left untouched until the appointment's next update.
+// "scheduled". Normalize them to CONFIRMED for transition checks only —
+// the stored value is left untouched until the appointment"s next update.
 export function normalizeAppointmentStatus(
   status: string | undefined | null,
 ): APPOINTMENT_STATUS {
@@ -90,7 +103,7 @@ export const APPOINTMENT_STATUS_TRANSITIONS: Record<
   ],
   [APPOINTMENT_STATUS.CONFIRMED]: [
     APPOINTMENT_STATUS.CHECKED_IN,
-    APPOINTMENT_STATUS.IN_CONSULTATION, // doctor-direct fast path when front-desk check-in isn't used
+    APPOINTMENT_STATUS.IN_CONSULTATION, // doctor-direct fast path when front-desk check-in isn"t used
     APPOINTMENT_STATUS.CANCELLED,
     APPOINTMENT_STATUS.NO_SHOW,
     APPOINTMENT_STATUS.RESCHEDULED,
@@ -162,7 +175,7 @@ export enum PACKAGE_DISPLAY_STATUS {
   CANCELLED = "cancelled",
 }
 
-// A package still holding unused visits gets flagged once it's this many
+// A package still holding unused visits gets flagged once it"s this many
 // days (or fewer) from validUntil.
 export const PACKAGE_LAPSING_WINDOW_DAYS = 30;
 
@@ -179,10 +192,10 @@ export const PACKAGE_PAYMENT_METHOD_VALUES = Object.values(
 // Fixed bundle sizes offered for a prepaid package.
 export const PACKAGE_VISIT_TIERS = [5, 10, 20];
 
-// A package stays redeemable for 6 months from the date it's sold.
+// A package stays redeemable for 6 months from the date it"s sold.
 export const PACKAGE_VALIDITY_MONTHS = 6;
 
-// Per-visit price for a prepaid package — roughly 5/6 of the doctor's normal
+// Per-visit price for a prepaid package — roughly 5/6 of the doctor"s normal
 // consultation fee, rounded to the nearest ₹5 so bulk pricing reads clean.
 export function computePackagePricePerVisit(consultationFee: number): number {
   return Math.round((consultationFee * 0.8333) / 5) * 5;
@@ -208,7 +221,7 @@ export enum PAYMENT_STATUS {
 export const PAYMENT_STATUS_VALUES = Object.values(PAYMENT_STATUS);
 
 // Offsets for the optional draft follow-up appointment created alongside a
-// completed visit. 'none' skips it — value keys double as the select's option value.
+// completed visit. "none" skips it — value keys double as the select"s option value.
 export const FOLLOW_UP_OPTIONS = [
   { value: "none", label: "No follow-up needed" },
   { value: "3-days", label: "In 3 days" },
@@ -231,7 +244,7 @@ export const PAYMENT_DUE_REASONS = [
   "Other",
 ] as const;
 
-// Groups every billable item that isn't a doctor's consultation fee (that
+// Groups every billable item that isn"t a doctor"s consultation fee (that
 // stays hospital-member-scoped). Drives the Settings > Charge catalog
 // sidebar and the bill line-item picker.
 export enum CHARGE_CATALOG_CATEGORY {
