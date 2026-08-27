@@ -89,4 +89,13 @@ export class TeamController {
   ) {
     return this.teamService.resetPin(hospitalId, memberId, userProfile);
   }
+
+  @Post(':memberId/password/reset')
+  resetPassword(
+    @Param('id') hospitalId: string,
+    @Param('memberId') memberId: string,
+    @CurrentHospitalUser() userProfile: HospitalUserProfile,
+  ) {
+    return this.teamService.resetPassword(hospitalId, memberId, userProfile);
+  }
 }

@@ -10,6 +10,8 @@ import { Field, inputClass, ToggleSwitch } from "@/components/common/EditFormCon
 import DuplicateWarningModal, { type DuplicateMatch } from "@/components/common/DuplicateWarningModal";
 import { SHIFT_OPTIONS, TEAM_ROLE_OPTIONS, type TeamRole } from "@/types/team";
 
+const USERNAME_FORMAT_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 interface AddTeamMemberDrawerProps {
   hospitalId: string;
   onClose: () => void;
@@ -19,6 +21,9 @@ export default function AddTeamMemberDrawer({ hospitalId, onClose }: AddTeamMemb
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
+  const [usernameSameAsEmail, setUsernameSameAsEmail] = useState(true);
+  const [password, setPassword] = useState("");
   const [role, setRole] = useState<TeamRole>("front_desk");
   const [shift, setShift] = useState("");
   const [startDate, setStartDate] = useState("");
@@ -37,10 +42,20 @@ export default function AddTeamMemberDrawer({ hospitalId, onClose }: AddTeamMemb
       setError("Name, mobile number and email are required");
       return;
     }
+    if (!USERNAME_FORMAT_REGEX.test(username.trim())) {
+      setError("Username must be in email format (e.g. name@example.com)");
+      return;
+    }
+    if (password.length < 8) {
+      setError("Temporary password must be at least 8 characters");
+      return;
+    }
     try {
       await createMember.mutateAsync({
         name: name.trim(),
         email: email.trim(),
+        username: username.trim(),
+        password,
         phone: phone.trim(),
         role,
         shift: shift || undefined,
@@ -66,7 +81,7 @@ export default function AddTeamMemberDrawer({ hospitalId, onClose }: AddTeamMemb
         <div className="px-6 pt-5 pb-4 border-b border-border flex items-start justify-between">
           <div>
             <h2 className="text-lg font-bold text-ink-900 font-display tracking-tight">Add a team member</h2>
-            <p className="text-xs text-ink-500 mt-1">They&apos;ll get an invite and set their own password on first sign-in.</p>
+            <p className="text-xs text-ink-500 mt-1">Set a temporary password for them — they&apos;ll be asked to change it on first sign-in.</p>
           </div>
           <button type="button" onClick={onClose} className="p-1 rounded-lg hover:bg-surface-canvas text-ink-500">
             <X size={18} />
@@ -80,7 +95,7 @@ export default function AddTeamMemberDrawer({ hospitalId, onClose }: AddTeamMemb
             <input type="text" className={inputClass} value={name} onChange={(e) => setName(e.target.value)} />
           </Field>
 
-          <Field label="Mobile number" hint="Must be unique. Staff sign in with their email — this is for records and duplicate checks.">
+          <Field label="Mobile number" hint="Must be unique. Staff sign in with their username — this is for records and duplicate checks.">
             <div className="flex">
               <span className="grid place-items-center px-3 border border-r-0 border-border rounded-l-lg bg-surface-canvas text-sm font-mono text-ink-700">
                 +91
@@ -94,8 +109,51 @@ export default function AddTeamMemberDrawer({ hospitalId, onClose }: AddTeamMemb
             </div>
           </Field>
 
-          <Field label="Email" required hint="Used to sign in — an invite link is sent here.">
-            <input type="email" className={inputClass} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@cityhospital.in" />
+          <Field label="Email" required hint="Used for communication — the welcome message is sent here.">
+            <input
+              type="email"
+              className={inputClass}
+              value={email}
+              onChange={(e) => {
+                const value = e.target.value;
+                setEmail(value);
+                if (usernameSameAsEmail) setUsername(value);
+              }}
+              placeholder="name@cityhospital.in"
+            />
+          </Field>
+
+          <Field label="Username" required hint="Used to log in. Must look like an email but doesn't have to be a real one.">
+            <input
+              type="text"
+              className={inputClass}
+              value={username}
+              disabled={usernameSameAsEmail}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="name@cityhospital.in"
+            />
+            <label className="mt-1.5 flex items-center gap-2 text-xs text-ink-500">
+              <input
+                type="checkbox"
+                checked={usernameSameAsEmail}
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  setUsernameSameAsEmail(checked);
+                  if (checked) setUsername(email);
+                }}
+              />
+              Username same as email
+            </label>
+          </Field>
+
+          <Field label="Temporary password" required hint="Share this with them. They'll be asked to change it on first sign-in.">
+            <input
+              type="text"
+              className={inputClass}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="At least 8 characters"
+            />
           </Field>
 
           <Field label="Role">

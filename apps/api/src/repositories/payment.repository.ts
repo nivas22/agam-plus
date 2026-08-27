@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Payment, PaymentDocument } from '../schemas/payment.schema';
+import { Counter, CounterDocument } from '../schemas/counter.schema';
 import { toPlain, toPlainList } from './mongo.util';
 import { PAYMENT_METHOD, PAYMENT_STATUS } from '../constants';
 
@@ -32,6 +33,8 @@ export class PaymentRepository {
   constructor(
     @InjectModel(Payment.name)
     private readonly paymentModel: Model<PaymentDocument>,
+    @InjectModel(Counter.name)
+    private readonly counterModel: Model<CounterDocument>,
   ) {}
 
   async getPaymentByAppointmentId(hospitalId: string, appointmentId: string) {
@@ -78,8 +81,59 @@ export class PaymentRepository {
     return toPlainList(docs);
   }
 
-  async countPaymentsForYear(hospitalId: string, invoiceYear: number) {
-    return this.paymentModel.countDocuments({ hospitalId, invoiceYear });
+  // Atomic per-hospital-per-year sequence for invoice numbers. A plain
+  // countDocuments()-then-+1 lets two concurrent completeVisit calls (e.g. a
+  // double-clicked "Complete visit", or two staff finishing different
+  // appointments in the same instant) both read the same count and generate
+  // the same invoiceNumber, which then collides on the unique index.
+  //
+  // Every payment made before this counter existed was numbered by that old
+  // countDocuments()-based scheme, so a fresh counter starting at 0 would
+  // reissue numbers that are already taken. Reconciling against a *count* of
+  // existing documents isn't enough either — any hospital with a gap in its
+  // history (a payment deleted or never persisted, e.g. from this very race
+  // condition) has fewer documents than its highest issued number, so count
+  // undercounts and still reissues an already-used one. The real invariant
+  // is the highest sequence number ever put on an invoice, parsed back out
+  // of invoiceNumber — every call reconciles the counter up to at least
+  // that before claiming a number, a no-op once the counter has caught up
+  // for good. The final $inc is what actually guarantees uniqueness: it's a
+  // single atomic operation, so concurrent callers can never be handed the
+  // same number even though the reconciliation step above it isn't atomic.
+  async getNextInvoiceSequence(
+    hospitalId: string,
+    invoiceYear: number,
+  ): Promise<number> {
+    const key = `invoice:${hospitalId}:${invoiceYear}`;
+
+    await this.counterModel.updateOne(
+      { _id: key },
+      { $setOnInsert: { seq: 0 } },
+      { upsert: true },
+    );
+
+    // invoiceNumber is "INV-{year}-{4-digit zero-padded sequence}", so for a
+    // fixed year, sorting the string descending also sorts the sequence
+    // descending (as long as it stays within 4 digits).
+    const highest = await this.paymentModel
+      .findOne({ hospitalId, invoiceYear })
+      .sort({ invoiceNumber: -1 })
+      .select('invoiceNumber')
+      .lean();
+    const highestSeq = highest
+      ? parseInt(highest.invoiceNumber.split('-').pop() || '0', 10) || 0
+      : 0;
+    await this.counterModel.updateOne(
+      { _id: key, seq: { $lt: highestSeq } },
+      { $set: { seq: highestSeq } },
+    );
+
+    const bumped = await this.counterModel.findOneAndUpdate(
+      { _id: key },
+      { $inc: { seq: 1 } },
+      { new: true },
+    );
+    return bumped!.seq;
   }
 
   async getPaymentsForDateRange(hospitalId: string, start: Date, end: Date) {

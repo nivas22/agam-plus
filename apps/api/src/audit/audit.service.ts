@@ -6,7 +6,7 @@ export interface LogAuditEntryParams {
   hospitalId: string;
   actor: { userId: string; name: string; role: string };
   action: string;
-  area: 'money' | 'appointments' | 'settings' | 'access' | 'patients';
+  area: 'money' | 'appointments' | 'settings' | 'access' | 'patients' | 'doctors';
   summary: string;
   detail?: Record<string, any>;
   amount?: number;

@@ -34,6 +34,15 @@ export interface Doctor {
   appointmentDuration?: number;
   bufferMinutes?: number;
   patientsPerSlot?: number;
+  acceptWalkIns?: boolean;
+  heldSlotsPerSession?: number;
+  releaseHeldSlotsBeforeMinutes?: number | null;
+  overCapacityPolicy?: "allow" | "warn" | "block";
+  lateArrivalGraceMinutes?: number;
+  noShowReleaseMinutes?: number;
+  // Minutes a walk-in waits before jumping the base queue order — see
+  // orderQueue/DEFAULT_WALKIN_FAIRNESS_MINUTES in queueBoard.ts.
+  walkinFairnessMinutes?: number;
   address?: string;
   membershipId?: string | undefined;
   userId?: string;
@@ -85,12 +94,20 @@ export interface DoctorsResponse {
 export interface CreateDoctorData {
   name: string;
   email: string;
+  username?: string;
+  password?: string;
   location?: string;
   gender?: string;
   maritalStatus?: string;
   appointmentDuration?: number;
   bufferMinutes?: number;
   patientsPerSlot?: number;
+  acceptWalkIns?: boolean;
+  heldSlotsPerSession?: number;
+  releaseHeldSlotsBeforeMinutes?: number | null;
+  overCapacityPolicy?: "allow" | "warn" | "block";
+  lateArrivalGraceMinutes?: number;
+  noShowReleaseMinutes?: number;
   hospitalId: string;
   specialization?: string;
   qualification?: string;
@@ -115,6 +132,15 @@ export interface UpdateDoctorData {
   qualification?: string;
   consultationFee?: number;
   availability?: TimeSlot[];
+  appointmentDuration?: number;
+  bufferMinutes?: number;
+  patientsPerSlot?: number;
+  acceptWalkIns?: boolean;
+  heldSlotsPerSession?: number;
+  releaseHeldSlotsBeforeMinutes?: number | null;
+  overCapacityPolicy?: "allow" | "warn" | "block";
+  lateArrivalGraceMinutes?: number;
+  noShowReleaseMinutes?: number;
   bio?: string;
   experience?: string; // Changed from number to string
   phone?: string;

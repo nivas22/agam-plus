@@ -8,6 +8,18 @@ export interface TimeSlot {
   endTime: string;
 }
 
+// Front-desk-recorded vitals, taken at walk-in time — every field optional
+// since not every desk has every instrument to hand.
+export interface Vitals {
+  bpSystolic?: number;
+  bpDiastolic?: number;
+  spo2?: number;
+  pulse?: number;
+  weight?: number;
+  temperature?: number;
+  height?: number;
+}
+
 export interface Appointment {
   id: string;
   hospitalId: string;
@@ -28,12 +40,17 @@ export interface Appointment {
     | "scheduled";
   notes?: string;
   sessionNotes?: string;
+  vitals?: Vitals;
   createdAt: string;
   updatedAt: string;
   checkedInAt?: string;
   waitingAt?: string;
   consultationStartedAt?: string;
   completedAt?: string; // Timestamp when appointment was marked as completed
+  bookingSource?: "scheduled" | "walk-in";
+  // Desk-triggered queue priority override — see orderQueue in queueBoard.ts.
+  urgentOverrideAt?: string;
+  urgentOverrideReason?: string;
   patient?: Patient;
   doctor?: Doctor;
 }
@@ -78,6 +95,11 @@ export interface AppointmentFormData {
   numberOfOccurrences?: number;
   selectedDays?: string[];
   recurringDates?: number[];
+  bookingSource?: "scheduled" | "walk-in";
+  // Front-desk override for the walk-in board: book `preferredTime` exactly,
+  // skipping the normal slot-capacity search. See appointments.service.ts.
+  forceSlot?: boolean;
+  vitals?: Vitals;
 }
 
 export interface AvailableSlot {

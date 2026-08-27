@@ -2,11 +2,12 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { FirebaseModule } from './firebase/firebase.module';
 import { DatabaseModule } from './database/database.module';
 import { RepositoriesModule } from './repositories/repositories.module';
 import { EmailModule } from './email/email.module';
+import { SmsModule } from './sms/sms.module';
 import { AuthModule } from './auth/auth.module';
+import { PatientAuthModule } from './patient-auth/patient-auth.module';
 import { HospitalsModule } from './hospitals/hospitals.module';
 import { DoctorsModule } from './doctors/doctors.module';
 import { PatientsModule } from './patients/patients.module';
@@ -25,15 +26,17 @@ import { MedicinesModule } from './medicines/medicines.module';
 import { PrescriptionsModule } from './prescriptions/prescriptions.module';
 import { LeaveRequestsModule } from './leave-requests/leave-requests.module';
 import { DoctorDashboardModule } from './doctor-dashboard/doctor-dashboard.module';
+import { DoctorPresenceModule } from './doctor-presence/doctor-presence.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
-    FirebaseModule,
     DatabaseModule,
     RepositoriesModule,
     EmailModule,
+    SmsModule,
     AuthModule,
+    PatientAuthModule,
     PermissionsModule,
     AuditModule,
     HospitalsModule,
@@ -51,6 +54,7 @@ import { DoctorDashboardModule } from './doctor-dashboard/doctor-dashboard.modul
     PrescriptionsModule,
     LeaveRequestsModule,
     DoctorDashboardModule,
+    DoctorPresenceModule,
     PlatformAdminModule,
   ],
   controllers: [AppController],

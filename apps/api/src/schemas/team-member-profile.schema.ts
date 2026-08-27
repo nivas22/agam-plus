@@ -45,7 +45,7 @@ export class TeamMemberProfile {
   handlesCash: boolean;
 
   // Confirmation PIN for approvals/day-close — never a login credential (see
-  // the Team feature's "known deviations" note: sign-in stays Firebase-email-based).
+  // the Team feature's "known deviations" note: sign-in stays Google-based).
   @Prop()
   pinHash?: string;
 
@@ -68,5 +68,6 @@ export class TeamMemberProfile {
   updatedAt?: Date;
 }
 
-export const TeamMemberProfileSchema = SchemaFactory.createForClass(TeamMemberProfile);
+export const TeamMemberProfileSchema =
+  SchemaFactory.createForClass(TeamMemberProfile);
 TeamMemberProfileSchema.index({ hospitalId: 1 });

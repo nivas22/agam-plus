@@ -5,6 +5,7 @@ import { MembershipRepository } from './membership.repository';
 import { HospitalRepository } from './hospital.repository';
 import { DoctorRepository } from './doctor.repository';
 import { PatientRepository } from './patient.repository';
+import { PatientAccountRepository } from './patient-account.repository';
 import { AppointmentRepository } from './appointment.repository';
 import { DashboardRepository } from './dashboard.repository';
 import { PaymentRepository } from './payment.repository';
@@ -19,6 +20,8 @@ import { HospitalHolidayRepository } from './hospital-holiday.repository';
 import { MedicineRepository } from './medicine.repository';
 import { PrescriptionRepository } from './prescription.repository';
 import { LeaveRequestRepository } from './leave-request.repository';
+import { DoctorPresenceRepository } from './doctor-presence.repository';
+import { SessionRepository } from './session.repository';
 import { User, UserSchema } from '../schemas/user.schema';
 import { Hospital, HospitalSchema } from '../schemas/hospital.schema';
 import {
@@ -30,6 +33,10 @@ import {
   DoctorProfileSchema,
 } from '../schemas/doctor-profile.schema';
 import { Patient, PatientSchema } from '../schemas/patient.schema';
+import {
+  PatientAccount,
+  PatientAccountSchema,
+} from '../schemas/patient-account.schema';
 import { Appointment, AppointmentSchema } from '../schemas/appointment.schema';
 import { Payment, PaymentSchema } from '../schemas/payment.schema';
 import {
@@ -52,6 +59,12 @@ import {
 import { Medicine, MedicineSchema } from '../schemas/medicine.schema';
 import { Prescription, PrescriptionSchema } from '../schemas/prescription.schema';
 import { LeaveRequest, LeaveRequestSchema } from '../schemas/leave-request.schema';
+import { Counter, CounterSchema } from '../schemas/counter.schema';
+import {
+  DoctorPresence,
+  DoctorPresenceSchema,
+} from '../schemas/doctor-presence.schema';
+import { Session, SessionSchema } from '../schemas/session.schema';
 
 const repositories = [
   UserRepository,
@@ -59,6 +72,7 @@ const repositories = [
   HospitalRepository,
   DoctorRepository,
   PatientRepository,
+  PatientAccountRepository,
   AppointmentRepository,
   DashboardRepository,
   PaymentRepository,
@@ -73,6 +87,8 @@ const repositories = [
   MedicineRepository,
   PrescriptionRepository,
   LeaveRequestRepository,
+  DoctorPresenceRepository,
+  SessionRepository,
 ];
 
 @Global()
@@ -84,6 +100,7 @@ const repositories = [
       { name: HospitalMember.name, schema: HospitalMemberSchema },
       { name: DoctorProfile.name, schema: DoctorProfileSchema },
       { name: Patient.name, schema: PatientSchema },
+      { name: PatientAccount.name, schema: PatientAccountSchema },
       { name: Appointment.name, schema: AppointmentSchema },
       { name: Payment.name, schema: PaymentSchema },
       { name: PaymentDayClose.name, schema: PaymentDayCloseSchema },
@@ -97,6 +114,9 @@ const repositories = [
       { name: Medicine.name, schema: MedicineSchema },
       { name: Prescription.name, schema: PrescriptionSchema },
       { name: LeaveRequest.name, schema: LeaveRequestSchema },
+      { name: Counter.name, schema: CounterSchema },
+      { name: DoctorPresence.name, schema: DoctorPresenceSchema },
+      { name: Session.name, schema: SessionSchema },
     ]),
   ],
   providers: repositories,

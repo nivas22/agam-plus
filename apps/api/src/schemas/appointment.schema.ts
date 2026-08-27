@@ -50,6 +50,21 @@ export class Appointment {
   @Prop()
   sessionNotes?: string;
 
+  // Recorded by the front desk at walk-in time — plain object (not a
+  // sub-schema) since every field is optional and there's nothing to
+  // validate/index at the Mongoose layer beyond what createAppointmentSchema
+  // already enforces on the way in.
+  @Prop({ type: Object })
+  vitals?: {
+    bpSystolic?: number;
+    bpDiastolic?: number;
+    spo2?: number;
+    pulse?: number;
+    weight?: number;
+    temperature?: number;
+    height?: number;
+  };
+
   // Denormalized display copies — kept as-is rather than $lookup, matching
   // the existing Firestore repository's write-time denormalization.
   @Prop()

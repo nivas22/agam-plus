@@ -8,20 +8,28 @@ import CompleteVisitDialog from "@/components/appointments/CompleteVisitDialog";
 import { useAuth } from "@/hooks/useAuth";
 import { useChargeCatalogItems } from "@/hooks/useChargeCatalogApi";
 import {
+  useDoctorPresence,
+  useSetDoctorPresence,
+} from "@/hooks/useDoctorPresenceApi";
+import {
   useHospitalAppointmentsApi,
   usePatientHospitalAppointments,
 } from "@/hooks/useNewAppointmentsApi";
 import { useHospitalDoctors } from "@/hooks/useNewDoctorApi";
 import { useHospitalPatients } from "@/hooks/useNewPatientApi";
-import { useHospitalPayments } from "@/hooks/useNewPaymentApi";
+import {
+  useHospitalPayments,
+  usePaymentForAppointment,
+} from "@/hooks/useNewPaymentApi";
 import {
   usePrescription,
   useSetPrescriptionStatus,
 } from "@/hooks/usePrescriptionApi";
 import { paletteFor } from "@/lib/avatarPalette";
-import type { AppointmentWithDetails } from "@/types/appointment";
+import type { AppointmentWithDetails, Vitals } from "@/types/appointment";
 import type { Patient } from "@/types/patientNew";
 import type { FollowUpOption, PaymentItem } from "@/types/payment";
+import type { Prescription } from "@/types/prescription";
 import { calculateAge } from "@/utils/dateUtils";
 import {
   APPOINTMENT_STATUS,
@@ -37,13 +45,28 @@ import {
   getInitials,
   laneStatus,
   minutesBetween,
-  type PresenceOverride,
-  presenceStorageKey,
+  minutesToTimeStr,
+  projectFinish,
   type QueueLane,
-  readPresenceOverrides,
+  sessionCapacity,
+  stageStart,
   todaysWindows,
   toISODate,
 } from "./queueBoard";
+
+// Drops the AM/PM suffix left over from formatTime12h — used only where the
+// surrounding label ("Evening · ") already makes the period obvious.
+function stripMeridiem(label: string): string {
+  return label.replace(/\s?[AP]M$/i, "");
+}
+
+function formatAgo(now: Date, then: Date): string {
+  const seconds = Math.max(0, Math.floor((now.getTime() - then.getTime()) / 1000));
+  if (seconds < 5) return "just now";
+  if (seconds < 60) return `${seconds}s ago`;
+  const minutes = Math.floor(seconds / 60);
+  return `${minutes} min ago`;
+}
 
 interface DoctorTodayPageProps {
   hospitalId: string;
@@ -62,15 +85,6 @@ function formatMMSS(ms: number): string {
   const m = Math.floor(totalSeconds / 60);
   const s = totalSeconds % 60;
   return `${m}:${String(s).padStart(2, "0")}`;
-}
-
-// The backend stamps a dedicated timestamp the moment an appointment enters
-// each lifecycle stage (see STATUS_TIMESTAMP_FIELD in appointments.service.ts),
-// untouched by later same-status saves (e.g. notes autosave) — so these are
-// the right anchors for a live elapsed timer, unlike `updatedAt` which bumps
-// on every save.
-function stageStart(appt: AppointmentWithDetails, iso?: string): Date {
-  return new Date(iso || appt.updatedAt);
 }
 
 // The appointment's denormalized `patientAge` is only ever populated from
@@ -113,7 +127,7 @@ function Chip({
   tone,
   children,
 }: {
-  tone: "alg" | "pk" | "due" | "new";
+  tone: "alg" | "pk" | "due" | "new" | "walk" | "missing";
   children: React.ReactNode;
 }) {
   const cls = {
@@ -121,6 +135,8 @@ function Chip({
     pk: "bg-brand-violet-soft text-brand-violet border-brand-violet/20",
     due: "bg-status-warning-soft text-status-warning border-status-warning/20",
     new: "bg-brand-violet-soft text-brand-violet border-brand-violet/20",
+    walk: "bg-brand-violet-soft text-brand-violet border-brand-violet/20",
+    missing: "bg-status-warning-soft text-status-warning border-status-warning/20",
   }[tone];
   return (
     <span
@@ -135,6 +151,7 @@ function patientChips(
   patient: Patient | undefined,
   isDue: boolean,
   isNew: boolean,
+  isWalkIn: boolean,
 ) {
   const chips: React.ReactNode[] = [];
   if (patient?.allergies && patient.allergies.length > 0) {
@@ -144,6 +161,13 @@ function patientChips(
         {patient.allergies.length > 1
           ? ` +${patient.allergies.length - 1}`
           : ""}
+      </Chip>,
+    );
+  }
+  if (isWalkIn) {
+    chips.push(
+      <Chip key="walk" tone="walk">
+        WALK-IN
       </Chip>,
     );
   }
@@ -162,6 +186,49 @@ function patientChips(
     );
   }
   return chips;
+}
+
+// `allergies` is undefined when nobody has ever asked the patient, and `[]`
+// once someone has asked and confirmed there are none — worth telling apart
+// so the doctor knows whether "no allergies" is a fact or just a gap.
+function allergySummary(patient: Patient | undefined): {
+  text: string;
+  tone: "danger" | "warning" | "default";
+} {
+  if (!patient || patient.allergies == null) {
+    return { text: "Never asked", tone: "warning" };
+  }
+  if (patient.allergies.length === 0) {
+    return { text: "None recorded", tone: "default" };
+  }
+  return { text: `${patient.allergies.join(", ")} — confirmed`, tone: "danger" };
+}
+
+// Front-desk-recorded vitals, taken at walk-in time — every field optional,
+// so only present ones render. BP folds systolic+diastolic into one row
+// when both were taken; either alone still shows, labeled which it is.
+function vitalsRows(
+  vitals: Vitals | undefined,
+): { label: string; value: string }[] {
+  if (!vitals) return [];
+  const rows: { label: string; value: string }[] = [];
+  if (vitals.bpSystolic != null && vitals.bpDiastolic != null) {
+    rows.push({
+      label: "BP",
+      value: `${vitals.bpSystolic}/${vitals.bpDiastolic} mmHg`,
+    });
+  } else if (vitals.bpSystolic != null) {
+    rows.push({ label: "BP systolic", value: `${vitals.bpSystolic} mmHg` });
+  } else if (vitals.bpDiastolic != null) {
+    rows.push({ label: "BP diastolic", value: `${vitals.bpDiastolic} mmHg` });
+  }
+  if (vitals.spo2 != null) rows.push({ label: "SpO2", value: `${vitals.spo2}%` });
+  if (vitals.pulse != null) rows.push({ label: "Pulse", value: `${vitals.pulse} bpm` });
+  if (vitals.weight != null) rows.push({ label: "Weight", value: `${vitals.weight} kg` });
+  if (vitals.temperature != null)
+    rows.push({ label: "Temp", value: `${vitals.temperature}°F` });
+  if (vitals.height != null) rows.push({ label: "Height", value: `${vitals.height} cm` });
+  return rows;
 }
 
 export default function DoctorTodayPage({
@@ -217,23 +284,23 @@ export default function DoctorTodayPage({
     () => new Set((duePaymentsData?.payments ?? []).map((p) => p.patientId)),
     [duePaymentsData],
   );
-
-  // Presence has no backend field yet — same session-local convention
-  // TodaysQueuePage already uses, scoped per hospital+day.
-  const [presenceOverrides, setPresenceOverrides] = useState<
-    Record<string, PresenceOverride>
-  >(() => readPresenceOverrides(hospitalId, toISODate(new Date())));
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      window.localStorage.setItem(
-        presenceStorageKey(hospitalId, today),
-        JSON.stringify(presenceOverrides),
-      );
-    } catch {
-      // Private browsing / quota exceeded — presence just won't survive a reload.
+  const dueAmountByPatient = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const p of duePaymentsData?.payments ?? []) {
+      map[p.patientId] = (map[p.patientId] || 0) + p.total;
     }
-  }, [presenceOverrides, hospitalId, today]);
+    return map;
+  }, [duePaymentsData]);
+
+  // Backed by the DB (see useDoctorPresenceApi) — same source TodaysQueuePage
+  // reads/writes, so a doctor marking themself "here" here shows up
+  // immediately on the front desk's board too, with the change recorded in
+  // the audit trail (area "doctors").
+  const { data: presenceOverrides = {} } = useDoctorPresence(
+    hospitalId,
+    today,
+  );
+  const setDoctorPresence = useSetDoctorPresence(hospitalId);
 
   const lane: QueueLane | null = useMemo(
     () => (doctor ? buildLanes([doctor], appointments, now)[0] : null),
@@ -241,7 +308,6 @@ export default function DoctorTodayPage({
   );
 
   const [selectedApptId, setSelectedApptId] = useState<string | null>(null);
-  const [showAllUpcoming, setShowAllUpcoming] = useState(false);
   const [showAllDone, setShowAllDone] = useState(false);
   const [completeAppt, setCompleteAppt] =
     useState<AppointmentWithDetails | null>(null);
@@ -250,6 +316,14 @@ export default function DoctorTodayPage({
     setToast(message);
     setTimeout(() => setToast(null), 3000);
   }, []);
+
+  // "Write" on a completed visit with no session notes opens this modal
+  // instead of changing the main selection/detail panel — the queue list
+  // and the right-hand panel stay exactly as they were.
+  const [notesModalAppt, setNotesModalAppt] =
+    useState<AppointmentWithDetails | null>(null);
+  const [notesModalDraft, setNotesModalDraft] = useState("");
+  const [notesModalSaving, setNotesModalSaving] = useState(false);
 
   // Keep a selection alive: prefer whoever's in consultation, else the next
   // waiting patient, else whoever's up next — but never fight a doctor who
@@ -274,10 +348,12 @@ export default function DoctorTodayPage({
   // already relies on (same status = no re-stamp of consultationStartedAt).
   const [notesDraft, setNotesDraft] = useState("");
   const notesApptIdRef = useRef<string | null>(null);
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   useEffect(() => {
     if (selectedAppt && notesApptIdRef.current !== selectedAppt.id) {
       notesApptIdRef.current = selectedAppt.id;
       setNotesDraft(selectedAppt.sessionNotes || "");
+      setLastSavedAt(null);
     }
     if (!selectedAppt) notesApptIdRef.current = null;
   }, [selectedAppt]);
@@ -286,14 +362,20 @@ export default function DoctorTodayPage({
     if (!selectedAppt) return;
     if (notesDraft === (selectedAppt.sessionNotes || "")) return;
     const t = setTimeout(() => {
-      updateAppointmentStatus(
-        selectedAppt.id,
-        selectedAppt.status,
-        notesDraft,
-      ).catch(() => showToast("Couldn't save session notes"));
+      updateAppointmentStatus(selectedAppt.id, selectedAppt.status, notesDraft)
+        .then(() => setLastSavedAt(new Date()))
+        .catch(() => showToast("Couldn't save session notes"));
     }, 900);
     return () => clearTimeout(t);
   }, [notesDraft, selectedAppt, updateAppointmentStatus, showToast]);
+
+  // "+10 min" is a display-only nudge the doctor uses when a visit is
+  // legitimately running long — it stretches the on-screen timer budget per
+  // appointment, nothing is persisted or billed differently.
+  const [extendedMinutes, setExtendedMinutes] = useState<Record<string, number>>(
+    {},
+  );
+  const [showEvening, setShowEvening] = useState(false);
 
   // Given during the visit — local until the visit is completed, then it
   // flows into CompleteVisitDialog's bill as pre-added items.
@@ -337,6 +419,30 @@ export default function DoctorTodayPage({
     hospitalId,
   );
 
+  const { data: selectedPayment } = usePaymentForAppointment(
+    hospitalId,
+    selectedAppt?.id,
+  );
+  const selectedGivenItems = (selectedPayment?.items || []).filter(
+    (item) => !item.isAuto,
+  );
+
+  const { data: notesModalPrescriptionResult } = usePrescription(
+    notesModalAppt?.id || "",
+    hospitalId,
+  );
+  const notesModalPrescription = notesModalPrescriptionResult?.prescription;
+  const { data: notesModalPayment } = usePaymentForAppointment(
+    hospitalId,
+    notesModalAppt?.id,
+  );
+  // The consultation fee is billed automatically on every visit — only the
+  // extra items a doctor adds during the visit (injections, tests, etc.)
+  // belong under "Given during the visit".
+  const notesModalGivenItems = (notesModalPayment?.items || []).filter(
+    (item) => !item.isAuto,
+  );
+
   const { data: historyData } = usePatientHospitalAppointments(
     hospitalId,
     selectedAppt?.patientId || "",
@@ -359,6 +465,32 @@ export default function DoctorTodayPage({
   );
   const lastPrescription = lastPrescriptionResult?.prescription;
 
+  const handleSaveNotes = useCallback(() => {
+    if (!selectedAppt) return;
+    updateAppointmentStatus(selectedAppt.id, selectedAppt.status, notesDraft)
+      .then(() => {
+        setLastSavedAt(new Date());
+        showToast("Notes saved");
+      })
+      .catch(() => showToast("Couldn't save session notes"));
+  }, [selectedAppt, notesDraft, updateAppointmentStatus, showToast]);
+
+  const handleSaveNotesModal = useCallback(() => {
+    if (!notesModalAppt) return;
+    setNotesModalSaving(true);
+    updateAppointmentStatus(
+      notesModalAppt.id,
+      notesModalAppt.status,
+      notesModalDraft,
+    )
+      .then(() => {
+        showToast("Notes saved");
+        setNotesModalAppt(null);
+      })
+      .catch(() => showToast("Couldn't save session notes"))
+      .finally(() => setNotesModalSaving(false));
+  }, [notesModalAppt, notesModalDraft, updateAppointmentStatus, showToast]);
+
   const handleCallIn = useCallback(
     (appt: AppointmentWithDetails) => {
       updateAppointmentStatus(
@@ -380,6 +512,27 @@ export default function DoctorTodayPage({
     },
     [showToast, lane],
   );
+
+  // The doctor's overall order of the day — 1st, 2nd, 3rd... patient seen —
+  // based on when each visit actually got going (or, before that, checked in
+  // / was booked for), independent of the "most recent first" order the Done
+  // list displays in.
+  const queuePositionByApptId = useMemo(() => {
+    const withTime = (lane?.all || []).map((a) => ({
+      id: a.id,
+      t: new Date(
+        a.consultationStartedAt ||
+          a.checkedInAt ||
+          a.waitingAt ||
+          `${a.date}T${a.time}`,
+      ).getTime(),
+    }));
+    const map = new Map<string, number>();
+    [...withTime]
+      .sort((a, b) => a.t - b.t)
+      .forEach((entry, i) => map.set(entry.id, i + 1));
+    return map;
+  }, [lane]);
 
   if (isLoading || !doctor || !lane) {
     return (
@@ -427,9 +580,16 @@ export default function DoctorTodayPage({
     return toISODate(new Date(p.createdAt)) === today;
   };
 
-  const upcomingShown = showAllUpcoming
-    ? lane.yetToArrive
-    : lane.yetToArrive.slice(0, 3);
+  // A second window (e.g. an evening session) splits the upcoming list into
+  // "later this morning" (always shown) and a folded "evening" group —
+  // single-session doctors have nothing to fold, so everything just shows.
+  const eveningWindow = windows.length > 1 ? windows[1] : null;
+  const morningUpcoming = eveningWindow
+    ? lane.yetToArrive.filter((a) => a.time < "13:00")
+    : lane.yetToArrive;
+  const eveningUpcoming = eveningWindow
+    ? lane.yetToArrive.filter((a) => a.time >= "13:00")
+    : [];
   const doneSorted = [...lane.done].sort((a, b) =>
     (b.completedAt || b.updatedAt).localeCompare(a.completedAt || a.updatedAt),
   );
@@ -461,54 +621,39 @@ export default function DoctorTodayPage({
               canEdit={true}
               now={now}
               onMarkHere={() =>
-                setPresenceOverrides((cur) => ({
-                  ...cur,
-                  [doctorId]: { kind: "here", setAt: new Date().toISOString() },
-                }))
+                setDoctorPresence.mutate({ doctorId, date: today, kind: "here" })
               }
               onMarkRunningLate={(t) =>
-                setPresenceOverrides((cur) => ({
-                  ...cur,
-                  [doctorId]: {
-                    kind: "runningLate",
-                    expectedTime: t,
-                    setBy: user?.name || "Doctor",
-                    setAt: new Date().toISOString(),
-                  },
-                }))
+                setDoctorPresence.mutate({
+                  doctorId,
+                  date: today,
+                  kind: "runningLate",
+                  expectedTime: t,
+                })
               }
               onMarkOnBreak={(t) =>
-                setPresenceOverrides((cur) => ({
-                  ...cur,
-                  [doctorId]: {
-                    kind: "onBreak",
-                    returnTime: t,
-                    setBy: user?.name || "Doctor",
-                    setAt: new Date().toISOString(),
-                  },
-                }))
+                setDoctorPresence.mutate({
+                  doctorId,
+                  date: today,
+                  kind: "onBreak",
+                  returnTime: t,
+                })
               }
               onOpenNotComing={() =>
-                setPresenceOverrides((cur) => ({
-                  ...cur,
-                  [doctorId]: {
-                    kind: "notIn",
-                    reason: "Not coming today",
-                    toldBy: user?.name || "Doctor",
-                    setBy: user?.name || "Doctor",
-                    setAt: new Date().toISOString(),
-                  },
-                }))
+                setDoctorPresence.mutate({
+                  doctorId,
+                  date: today,
+                  kind: "notIn",
+                  reason: "Not coming today",
+                  toldBy: user?.name || "Doctor",
+                })
               }
               onLeftForDay={() =>
-                setPresenceOverrides((cur) => ({
-                  ...cur,
-                  [doctorId]: {
-                    kind: "leftForDay",
-                    setBy: user?.name || "Doctor",
-                    setAt: new Date().toISOString(),
-                  },
-                }))
+                setDoctorPresence.mutate({
+                  doctorId,
+                  date: today,
+                  kind: "leftForDay",
+                })
               }
             />
             <span className="font-mono text-base font-semibold text-ink-900">
@@ -517,11 +662,30 @@ export default function DoctorTodayPage({
           </span>
         </div>
 
-        {/* session stats — when nobody's in consultation the room is free, so
-          "Average so far"/"Session" give way to a single "Room" cell instead */}
+        {/* session stats — Room replaces Session once nobody's in
+          consultation; every other cell (including the finish projection)
+          stays put regardless */}
         {(() => {
           const roomFree = lane.inConsultation.length === 0;
-          const baseStats = [
+          const cap = sessionCapacity(lane, now);
+          const proj = projectFinish(lane, now);
+          const finishTone =
+            proj && proj.overMinutes > 20
+              ? "text-status-danger"
+              : proj && proj.overMinutes > 0
+                ? "text-status-warning"
+                : "text-ink-900";
+          const finishSub = !proj
+            ? ""
+            : proj.overMinutes > 0
+              ? `${proj.overMinutes} min past ${formatTime12h(minutesToTimeStr(proj.window.end))}${cap.walkInCount ? ` · ${cap.walkInCount} walk-in${cap.walkInCount > 1 ? "s" : ""} today` : ""}`
+              : `${-proj.overMinutes} min to spare`;
+          const statCells: {
+            label: string;
+            n: React.ReactNode;
+            sub: string;
+            tone?: string;
+          }[] = [
             {
               label: "Seen",
               n: lane.done.length,
@@ -537,37 +701,35 @@ export default function DoctorTodayPage({
               n: lane.yetToArrive.length,
               sub: morningCount ? `${morningCount} this morning` : "",
             },
+            {
+              label: "Likely to finish",
+              n: proj
+                ? formatTime12h(minutesToTimeStr(proj.finishMinutes))
+                : "—",
+              sub: finishSub,
+              tone: finishTone,
+            },
+            {
+              label: "Average so far",
+              n: avgSoFar != null ? `${avgSoFar} min` : "—",
+              sub: doctor.appointmentDuration
+                ? `slots are ${doctor.appointmentDuration} min`
+                : "",
+            },
+            roomFree
+              ? { label: "Room", n: "Free", sub: "between patients" }
+              : { label: "Session", n: sessionLabel, sub: sessionSub },
           ];
-          const statCells = roomFree
-            ? [
-                ...baseStats,
-                {
-                  label: "Room",
-                  n: "Free",
-                  sub: "between patients",
-                },
-              ]
-            : [
-                ...baseStats,
-                {
-                  label: "Average so far",
-                  n: avgSoFar != null ? `${avgSoFar} min` : "—",
-                  sub: doctor.appointmentDuration
-                    ? `slots are ${doctor.appointmentDuration} min`
-                    : "",
-                },
-                { label: "Session", n: sessionLabel, sub: sessionSub },
-              ];
           return (
-            <div
-              className={`grid grid-cols-2 sm:grid-cols-3 ${roomFree ? "lg:grid-cols-4" : "lg:grid-cols-5"} divide-x divide-border`}
-            >
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 divide-x divide-border">
               {statCells.map((s) => (
                 <div key={s.label} className="px-5 py-3">
                   <div className="text-[11.5px] uppercase tracking-wide text-ink-500 font-bold">
                     {s.label}
                   </div>
-                  <div className="font-mono text-xl font-bold mt-1 text-ink-900">
+                  <div
+                    className={`font-mono text-xl font-bold mt-1 ${s.tone || "text-ink-900"}`}
+                  >
                     {s.n}
                   </div>
                   {s.sub && (
@@ -613,7 +775,7 @@ export default function DoctorTodayPage({
           {lane.waiting.length === 0 ? (
             <div className="px-4 py-3 text-xs text-ink-500">Nobody waiting</div>
           ) : (
-            lane.waiting.map((appt) => (
+            lane.waiting.map((appt, index) => (
               <PatientRow
                 key={appt.id}
                 appt={appt}
@@ -623,17 +785,19 @@ export default function DoctorTodayPage({
                 selected={appt.id === selectedApptId}
                 isDue={isPatientDue(appt.patientId)}
                 isNew={isPatientNew(appt.patientId)}
+                isNext={index === 0}
+                reason={lane.waitingOrder[index]?.reason}
                 onClick={() => setSelectedApptId(appt.id)}
               />
             ))
           )}
 
-          {lane.yetToArrive.length > 0 && (
+          {morningUpcoming.length > 0 && (
             <>
               <SectionLabel>
-                Later today · {lane.yetToArrive.length}
+                Later this morning · {morningUpcoming.length}
               </SectionLabel>
-              {upcomingShown.map((appt) => (
+              {morningUpcoming.map((appt) => (
                 <PatientRow
                   key={appt.id}
                   appt={appt}
@@ -646,14 +810,41 @@ export default function DoctorTodayPage({
                   onClick={() => setSelectedApptId(appt.id)}
                 />
               ))}
-              {lane.yetToArrive.length > upcomingShown.length && (
+            </>
+          )}
+
+          {eveningUpcoming.length > 0 && (
+            <>
+              <SectionLabel>
+                Evening
+                {eveningWindow
+                  ? ` · ${stripMeridiem(formatTime12h(minutesToTimeStr(eveningWindow.start)))}–${formatTime12h(minutesToTimeStr(eveningWindow.end))}`
+                  : ""}
+                <span className="ml-auto font-mono normal-case">
+                  {eveningUpcoming.length}
+                </span>
+              </SectionLabel>
+              {showEvening ? (
+                eveningUpcoming.map((appt) => (
+                  <PatientRow
+                    key={appt.id}
+                    appt={appt}
+                    patient={patientsById[appt.patientId]}
+                    tone="upcoming"
+                    now={now}
+                    selected={appt.id === selectedApptId}
+                    isDue={isPatientDue(appt.patientId)}
+                    isNew={isPatientNew(appt.patientId)}
+                    onClick={() => setSelectedApptId(appt.id)}
+                  />
+                ))
+              ) : (
                 <button
                   type="button"
-                  onClick={() => setShowAllUpcoming(true)}
+                  onClick={() => setShowEvening(true)}
                   className="w-full text-center px-4 py-3 text-xs font-semibold text-brand-violet border-t border-lineSoft bg-surface-canvas/40"
                 >
-                  {lane.yetToArrive.length - upcomingShown.length} more this
-                  evening
+                  Show the evening list ▾
                 </button>
               )}
             </>
@@ -668,11 +859,16 @@ export default function DoctorTodayPage({
                   appt={appt}
                   patient={patientsById[appt.patientId]}
                   tone="done"
+                  queuePosition={queuePositionByApptId.get(appt.id)}
                   now={now}
                   selected={appt.id === selectedApptId}
                   isDue={isPatientDue(appt.patientId)}
                   isNew={isPatientNew(appt.patientId)}
                   onClick={() => setSelectedApptId(appt.id)}
+                  onWriteNotes={() => {
+                    setNotesModalAppt(appt);
+                    setNotesModalDraft(appt.sessionNotes || "");
+                  }}
                 />
               ))}
               {lane.done.length > doneShown.length && (
@@ -729,30 +925,35 @@ export default function DoctorTodayPage({
             noShowCount={noShowCount}
             pastVisitsCount={pastVisits.length}
             isDue={isPatientDue(selectedAppt.patientId)}
+            dueAmount={dueAmountByPatient[selectedAppt.patientId] || 0}
             followUp={followUp}
             setFollowUp={setFollowUp}
-            onSaveAndComeBack={() => {
-              updateAppointmentStatus(
-                selectedAppt.id,
-                selectedAppt.status,
-                notesDraft,
-              )
-                .then(() => showToast("Notes saved"))
-                .catch(() => showToast("Couldn't save session notes"));
-            }}
+            onSaveAndComeBack={handleSaveNotes}
             onCompleteAndCallNext={() => setCompleteAppt(selectedAppt)}
+            lastSavedAt={lastSavedAt}
+            extendedMinutes={extendedMinutes[selectedAppt.id] || 0}
+            onExtend={() =>
+              setExtendedMinutes((cur) => ({
+                ...cur,
+                [selectedAppt.id]: (cur[selectedAppt.id] || 0) + 10,
+              }))
+            }
           />
         ) : (
           <PreCallPanel
             appt={selectedAppt}
             patient={selectedPatient}
             patientCode={getPatientCode(selectedAppt.patientId)}
+            hospitalId={hospitalId}
             now={now}
             lastVisit={lastVisit}
             lastPrescription={lastPrescription}
+            prescription={prescription}
+            givenItems={selectedGivenItems}
             noShowCount={noShowCount}
             pastVisitsCount={pastVisits.length}
             isDue={isPatientDue(selectedAppt.patientId)}
+            dueAmount={dueAmountByPatient[selectedAppt.patientId] || 0}
             isYetToArrive={
               selectedAppt.status === APPOINTMENT_STATUS.CONFIRMED ||
               selectedAppt.status === APPOINTMENT_STATUS.PENDING ||
@@ -780,6 +981,21 @@ export default function DoctorTodayPage({
         />
       )}
 
+      {notesModalAppt && (
+        <NotesModal
+          appt={notesModalAppt}
+          patient={patientsById[notesModalAppt.patientId]}
+          hospitalId={hospitalId}
+          prescription={notesModalPrescription}
+          givenItems={notesModalGivenItems}
+          draft={notesModalDraft}
+          setDraft={setNotesModalDraft}
+          saving={notesModalSaving}
+          onSave={handleSaveNotesModal}
+          onClose={() => setNotesModalAppt(null)}
+        />
+      )}
+
       {toast && (
         <div className="fixed bottom-5 right-5 bg-ink-900 text-white px-4 py-3 rounded-lg shadow-lg z-50">
           {toast}
@@ -791,7 +1007,7 @@ export default function DoctorTodayPage({
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <div className="px-4 py-2 text-[11px] uppercase tracking-wide font-bold text-ink-500 bg-surface-canvas/40 border-t border-b border-lineSoft first:border-t-0">
+    <div className="flex items-center px-4 py-2 text-[11px] uppercase tracking-wide font-bold text-ink-500 bg-surface-canvas/40 border-t border-b border-lineSoft first:border-t-0">
       {children}
     </div>
   );
@@ -801,22 +1017,37 @@ function PatientRow({
   appt,
   patient,
   tone,
+  queuePosition,
   now,
   selected,
   isDue,
   isNew,
+  isNext,
+  reason,
   onClick,
+  onWriteNotes,
 }: {
   appt: AppointmentWithDetails;
   patient: Patient | undefined;
   tone: "now" | "waiting" | "upcoming" | "done";
+  // This patient's position in today's overall queue (1st, 2nd, 3rd... seen)
+  // — only meaningful for tone==="done".
+  queuePosition?: number;
   now: Date;
   selected: boolean;
   isDue: boolean;
   isNew: boolean;
+  isNext?: boolean;
+  // orderQueue's reason for this rank — only meaningful for tone==="waiting".
+  reason?: string;
   onClick: () => void;
+  // Opens the notes modal instead of selecting the row — only used by the
+  // "Write" action on a done row missing its session notes.
+  onWriteNotes?: () => void;
 }) {
   const age = resolveAge(appt, patient);
+  const isWalkIn = appt.bookingSource === "walk-in";
+  const noteMissing = tone === "done" && !appt.sessionNotes;
   const elapsed =
     tone === "now"
       ? minutesBetween(stageStart(appt, appt.consultationStartedAt), now)
@@ -831,63 +1062,110 @@ function PatientRow({
     tone === "now"
       ? "bg-brand-violet text-white"
       : tone === "done"
-        ? "bg-status-open-soft text-status-open"
-        : "bg-surface-canvas text-ink-700";
+        ? noteMissing
+          ? "bg-status-warning-soft text-status-warning"
+          : "bg-status-open-soft text-status-open"
+        : tone === "waiting" && elapsed != null && elapsed > 25
+          ? "bg-status-danger-soft text-status-danger"
+          : tone === "waiting" && elapsed != null && elapsed > 15
+            ? "bg-status-warning-soft text-status-warning"
+            : "bg-surface-canvas text-ink-700";
 
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`w-full grid grid-cols-[34px_1fr_auto] gap-3 items-center text-left px-4 py-3 border-t border-lineSoft first:border-t-0 ${
+      className={`w-full grid ${tone === "done" ? "grid-cols-[48px_1fr_auto]" : "grid-cols-[34px_1fr_auto]"} gap-3 items-center text-left px-4 py-3 border-t border-lineSoft first:border-t-0 ${
         selected
           ? "bg-brand-violet-soft shadow-[inset_3px_0_0_theme(colors.brand.violet)]"
           : ""
       }`}
     >
       <span
-        className={`w-8.5 h-8.5 rounded-lg grid place-items-center font-mono text-[13px] font-semibold ${badgeCls}`}
+        className={
+          tone === "done"
+            ? `w-11 h-11 rounded-xl grid place-items-center font-mono text-lg font-bold ${badgeCls}`
+            : `w-8.5 h-8.5 rounded-lg grid place-items-center font-mono text-[13px] font-semibold ${badgeCls}`
+        }
       >
         {tone === "done"
-          ? "✓"
+          ? queuePosition != null
+            ? String(queuePosition).padStart(2, "0")
+            : "✓"
           : formatTime12h(appt.time).replace(" ", "").slice(0, -2)}
       </span>
       <span className="min-w-0">
         <span className="block text-[14px] font-semibold text-ink-900 truncate">
           {appt.patientName}
+          {isNext && (
+            <span className="ml-1.5 rounded bg-brand-violet px-1.5 py-0.5 text-[9px] font-extrabold tracking-wide text-white align-middle">
+              NEXT
+            </span>
+          )}
         </span>
         <span className="block text-[12px] text-ink-500 truncate">
-          {tone === "upcoming"
-            ? `${formatTime12h(appt.time)} · not arrived`
-            : tone === "done"
-              ? `${formatTime12h(appt.time)} · notes saved`
-              : [
-                  age != null ? `${age}` : null,
-                  appt.patientGender ? appt.patientGender[0] : null,
-                ]
-                  .filter(Boolean)
-                  .join(" ")}
+          {tone === "waiting" && reason
+            ? reason
+            : tone === "upcoming"
+              ? `${formatTime12h(appt.time)} · not arrived`
+              : tone === "done"
+                ? `${formatTime12h(appt.time)} · ${noteMissing ? "notes missing" : "notes saved"}`
+                : [
+                    age != null ? `${age}` : null,
+                    appt.patientGender ? appt.patientGender[0] : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
         </span>
         <span className="flex gap-1 flex-wrap mt-1">
-          {patientChips(patient, isDue, isNew)}
+          {patientChips(patient, isDue, isNew, isWalkIn)}
           {appt.type === APPOINTMENT_TYPE.PACKAGE &&
             appt.packageVisitNumber != null && <Chip tone="pk">PACKAGE</Chip>}
+          {noteMissing && <Chip tone="missing">NOTE MISSING</Chip>}
         </span>
       </span>
-      {elapsed != null && (
-        <span className="text-right shrink-0">
-          <span
-            className={`block font-mono text-xs font-semibold ${
-              tone === "waiting" && elapsed > 15
-                ? "text-status-warning"
-                : "text-ink-700"
-            }`}
-          >
-            {Math.max(0, elapsed)}m
-          </span>
-          <span className="block text-[10px] text-ink-500 uppercase">
-            {tone === "now" ? "elapsed" : "waiting"}
-          </span>
+      {noteMissing ? (
+        <span
+          role="button"
+          tabIndex={0}
+          onClick={(e) => {
+            e.stopPropagation();
+            onWriteNotes?.();
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.stopPropagation();
+              onWriteNotes?.();
+            }
+          }}
+          className="h-7 px-3 rounded-md border border-border bg-surface-paper text-xs font-medium text-ink-700 hover:bg-surface-canvas shrink-0"
+        >
+          Write
         </span>
+      ) : tone === "done" ? (
+        <span
+          className="w-6 h-6 rounded-full grid place-items-center text-xs font-bold bg-status-open-soft text-status-open shrink-0"
+          aria-label="Completed"
+        >
+          ✓
+        </span>
+      ) : (
+        elapsed != null && (
+          <span className="text-right shrink-0">
+            <span
+              className={`block font-mono text-xs font-semibold ${
+                tone === "waiting" && elapsed > 15
+                  ? "text-status-warning"
+                  : "text-ink-700"
+              }`}
+            >
+              {Math.max(0, elapsed)}m
+            </span>
+            <span className="block text-[10px] text-ink-500 uppercase">
+              {tone === "now" ? "elapsed" : "waiting"}
+            </span>
+          </span>
+        )
       )}
     </button>
   );
@@ -942,10 +1220,14 @@ function ConsultationPanel({
   noShowCount,
   pastVisitsCount,
   isDue,
+  dueAmount,
   followUp,
   setFollowUp,
   onSaveAndComeBack,
   onCompleteAndCallNext,
+  lastSavedAt,
+  extendedMinutes,
+  onExtend,
 }: {
   appt: AppointmentWithDetails;
   patient: Patient | undefined;
@@ -976,15 +1258,25 @@ function ConsultationPanel({
   noShowCount: number;
   pastVisitsCount: number;
   isDue: boolean;
+  dueAmount: number;
   followUp: FollowUpOption;
   setFollowUp: (v: FollowUpOption) => void;
   onSaveAndComeBack: () => void;
   onCompleteAndCallNext: () => void;
+  lastSavedAt: Date | null;
+  extendedMinutes: number;
+  onExtend: () => void;
 }) {
   const age = resolveAge(appt, patient);
-  const durationMin = doctorAppointmentDuration || 30;
+  const durationMin = (doctorAppointmentDuration || 30) + extendedMinutes;
   const elapsedMs =
     now.getTime() - stageStart(appt, appt.consultationStartedAt).getTime();
+  const isOver = elapsedMs > durationMin * 60000;
+  const allergy = allergySummary(patient);
+  const vRows = vitalsRows(appt.vitals);
+  const prescriptionItemCount = prescription?.items.length ?? 0;
+  const unsignedPrescription =
+    prescriptionItemCount > 0 && prescription?.status !== "signed";
 
   return (
     <div className="bg-surface-paper border border-border rounded-xl overflow-hidden">
@@ -1006,14 +1298,31 @@ function ConsultationPanel({
           </div>
         </div>
         <span className="ml-auto flex items-center gap-2 shrink-0">
-          <span className="flex items-baseline gap-2 bg-brand-violet-soft border border-brand-violet/25 rounded-xl px-4 py-2">
-            <b className="font-mono text-xl font-semibold text-brand-violet">
+          <span
+            className={`flex items-baseline gap-2 border rounded-xl px-4 py-2 ${
+              isOver
+                ? "bg-status-warning-soft border-status-warning/30"
+                : "bg-brand-violet-soft border-brand-violet/25"
+            }`}
+          >
+            <b
+              className={`font-mono text-xl font-semibold ${isOver ? "text-status-warning" : "text-brand-violet"}`}
+            >
               {formatMMSS(elapsedMs)}
             </b>
-            <span className="text-[12px] text-brand-violet">
+            <span
+              className={`text-[12px] ${isOver ? "text-status-warning" : "text-brand-violet"}`}
+            >
               of {durationMin} min
             </span>
           </span>
+          <button
+            type="button"
+            onClick={onExtend}
+            className="h-9 px-3 rounded-lg border border-border text-sm font-medium text-ink-700 hover:bg-surface-canvas"
+          >
+            +10 min
+          </button>
         </span>
       </div>
 
@@ -1031,7 +1340,7 @@ function ConsultationPanel({
           )}
         {isDue && (
           <span className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold bg-status-warning-soft text-status-warning border border-status-warning/20">
-            Has an unpaid balance
+            {dueAmount > 0 ? `₹${dueAmount.toLocaleString()} unpaid` : "Has an unpaid balance"}
           </span>
         )}
       </div>
@@ -1242,12 +1551,27 @@ function ConsultationPanel({
             </>
           )}
 
-          <div className="text-[12px] uppercase tracking-wide text-ink-500 font-bold mb-2 mt-4">
+          {vRows.length > 0 && (
+            <>
+              <div className="text-[12px] uppercase tracking-wide text-ink-500 font-bold mb-2">
+                Vitals
+              </div>
+              {vRows.map((r) => (
+                <KeyValue key={r.label} label={r.label} value={r.value} />
+              ))}
+            </>
+          )}
+
+          <div
+            className={`text-[12px] uppercase tracking-wide text-ink-500 font-bold mb-2 ${vRows.length > 0 ? "mt-4" : ""}`}
+          >
             Background
           </div>
           <KeyValue
             label="Allergies"
-            value={patient?.allergies?.join(", ") || "None recorded"}
+            value={allergy.text}
+            danger={allergy.tone === "danger"}
+            warning={allergy.tone === "warning"}
           />
           <KeyValue label="Visits with you" value={`${pastVisitsCount}`} />
           <KeyValue
@@ -1257,7 +1581,13 @@ function ConsultationPanel({
           />
           <KeyValue
             label="Unpaid"
-            value={isDue ? "Has a due balance" : "None"}
+            value={
+              isDue
+                ? dueAmount > 0
+                  ? `₹${dueAmount.toLocaleString()} due`
+                  : "Has a due balance"
+                : "None"
+            }
             danger={isDue}
           />
 
@@ -1285,6 +1615,28 @@ function ConsultationPanel({
         </div>
       </div>
 
+      {unsignedPrescription && (
+        <div className="px-5 pb-3">
+          <div className="flex items-center gap-3 rounded-lg border border-status-warning/30 bg-status-warning-soft px-4 py-3 text-sm text-status-warning">
+            <span>
+              <b>
+                {prescriptionItemCount} medicine
+                {prescriptionItemCount > 1 ? "s" : ""} aren't signed yet.
+              </b>{" "}
+              {appt.patientName.split(" ")[0]} can't collect them from the
+              pharmacy until you sign.
+            </span>
+            <button
+              type="button"
+              onClick={onSignPrescription}
+              className="ml-auto h-8 px-3 rounded-lg border border-status-warning/40 bg-surface-paper text-xs font-semibold text-status-warning shrink-0 hover:bg-status-warning-soft"
+            >
+              Sign now
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center gap-3 px-5 py-4 border-t border-lineSoft">
         <button
           type="button"
@@ -1293,22 +1645,31 @@ function ConsultationPanel({
         >
           Save and come back
         </button>
-        <span className="text-[12px] text-ink-500">Notes save as you type</span>
+        {lastSavedAt ? (
+          <span className="inline-flex items-center gap-1.5 rounded-md border border-status-open/30 bg-status-open-soft px-2.5 py-1 text-[11px] font-semibold text-status-open">
+            <span className="w-1.5 h-1.5 rounded-full bg-status-open" />
+            Saved · {formatAgo(now, lastSavedAt)}
+          </span>
+        ) : (
+          <span className="text-[12px] text-ink-500">Notes save as you type</span>
+        )}
         <span className="flex-1" />
         <button
           type="button"
-          onClick={onSignPrescription}
-          disabled={!prescription || prescription.items.length === 0}
-          className="h-9 px-4 rounded-lg border border-border text-sm font-medium text-ink-700 hover:bg-surface-canvas disabled:opacity-50"
+          onClick={onCompleteAndCallNext}
+          className="h-9 px-4 rounded-lg border border-border text-sm font-medium text-ink-700 hover:bg-surface-canvas"
         >
-          Sign prescription
+          Complete without signing
         </button>
         <button
           type="button"
-          onClick={onCompleteAndCallNext}
+          onClick={() => {
+            if (unsignedPrescription) onSignPrescription();
+            onCompleteAndCallNext();
+          }}
           className="h-9 px-4 rounded-lg bg-status-open hover:bg-status-open-hover text-white text-sm font-semibold"
         >
-          Complete &amp; call next
+          Sign &amp; complete
         </button>
       </div>
     </div>
@@ -1319,24 +1680,32 @@ function PreCallPanel({
   appt,
   patient,
   patientCode,
+  hospitalId,
   now,
   lastVisit,
   lastPrescription,
+  prescription,
+  givenItems,
   noShowCount,
   pastVisitsCount,
   isDue,
+  dueAmount,
   isYetToArrive,
   onCallIn,
 }: {
   appt: AppointmentWithDetails;
   patient: Patient | undefined;
   patientCode: string | undefined;
+  hospitalId: string;
   now: Date;
   lastVisit: AppointmentWithDetails | undefined;
   lastPrescription: { items: { medicineName: string }[] } | null | undefined;
+  prescription: Prescription | null | undefined;
+  givenItems: PaymentItem[];
   noShowCount: number;
   pastVisitsCount: number;
   isDue: boolean;
+  dueAmount: number;
   isYetToArrive: boolean;
   onCallIn: () => void;
 }) {
@@ -1344,7 +1713,9 @@ function PreCallPanel({
   const waitStart = stageStart(appt, appt.waitingAt || appt.checkedInAt);
   const waitMinutes = minutesBetween(waitStart, now);
   const dueIn = minutesBetween(now, apptDateTime(appt));
-
+  const allergy = allergySummary(patient);
+  const vRows = vitalsRows(appt.vitals);
+ 
   return (
     <div className="bg-surface-paper border border-border rounded-xl overflow-hidden">
       <div className="flex items-start gap-3 px-5 py-4 border-b border-lineSoft">
@@ -1365,7 +1736,12 @@ function PreCallPanel({
           </div>
         </div>
         <span className="ml-auto shrink-0">
-          {isYetToArrive ? (
+        
+          {appt.status === APPOINTMENT_STATUS.COMPLETED ? (
+            <span className="flex items-baseline gap-2 rounded-xl px-4 py-2 border border-status-open/30 bg-status-open-soft text-status-open">
+              <b className="font-mono text-lg">Completed</b>
+            </span>
+          ) : isYetToArrive ? (
             <span className="flex items-baseline gap-2 rounded-xl px-4 py-2 border border-border bg-surface-canvas text-ink-700">
               <b className="font-mono text-lg">
                 {dueIn > 0
@@ -1396,24 +1772,94 @@ function PreCallPanel({
         )}
         {isDue && (
           <span className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold bg-status-warning-soft text-status-warning border border-status-warning/20">
-            Has an unpaid balance
+            {dueAmount > 0
+              ? `₹${dueAmount.toLocaleString()} unpaid — the desk knows`
+              : "Has an unpaid balance"}
           </span>
         )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-[1.2fr_0.8fr]">
         <div className="p-5 min-w-0">
-          <div className="text-[12px] uppercase tracking-wide text-ink-500 font-bold mb-2">
-            Why they're here today
-          </div>
-          <div className="bg-surface-paper border border-border rounded-xl px-3 py-3 text-[13px] text-ink-700">
-            {appt.notes && (
-              <div className="text-[11px] uppercase tracking-wide text-ink-500 font-bold mb-1">
-                Told to the desk at booking
+          {appt.status === APPOINTMENT_STATUS.COMPLETED ? (
+            <>
+              <div className="text-[12px] uppercase tracking-wide text-ink-500 font-bold mb-2">
+                Session notes
               </div>
-            )}
-            {appt.notes || "No reason recorded at booking."}
-          </div>
+              <div className="bg-surface-paper border border-border rounded-xl px-3 py-3 text-[13px] text-ink-700 leading-relaxed whitespace-pre-wrap">
+                {appt.sessionNotes || "No session notes were recorded."}
+              </div>
+
+              <div className="text-[12px] uppercase tracking-wide text-ink-500 font-bold mb-2 mt-4">
+                Given during the visit
+              </div>
+              <div className="border border-border rounded-xl bg-surface-paper overflow-hidden">
+                {givenItems.length === 0 ? (
+                  <div className="px-3 py-3 text-xs text-ink-500">
+                    Nothing added during this visit
+                  </div>
+                ) : (
+                  givenItems.map((item, i) => (
+                    <div
+                      key={`${item.name}-${i}`}
+                      className="flex items-center justify-between gap-2 px-3 py-2 text-[13px] border-t border-border first:border-t-0"
+                    >
+                      <span>
+                        {item.name}
+                        {item.quantity > 1 ? ` × ${item.quantity}` : ""}
+                      </span>
+                      <span className="font-mono">
+                        ₹{item.unitPrice * item.quantity}
+                      </span>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <div className="text-[12px] uppercase tracking-wide text-ink-500 font-bold mb-2 mt-4">
+                Prescription
+              </div>
+              {!prescription || prescription.items.length === 0 ? (
+                <div className="border border-border rounded-xl bg-surface-canvas/30 px-3 py-3 text-xs text-ink-500">
+                  No medicines were prescribed for this visit.
+                </div>
+              ) : (
+                <div className="border border-border rounded-xl bg-surface-paper overflow-hidden">
+                  {prescription.items.map((item, i) => (
+                    <div
+                      key={`${item.medicineId}-${i}`}
+                      className="px-3 py-2 text-[13px] border-t border-border first:border-t-0"
+                    >
+                      <div className="font-semibold text-ink-900">
+                        {item.medicineName}
+                        {item.strength ? ` ${item.strength}` : ""}
+                        {item.form ? ` · ${item.form}` : ""}
+                      </div>
+                      <div className="text-ink-500 text-xs mt-0.5">
+                        {[item.dose, item.frequency, item.duration]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              <div className="text-[12px] uppercase tracking-wide text-ink-500 font-bold mb-2">
+                Why they're here today
+              </div>
+              <div className="bg-surface-paper border border-border rounded-xl px-3 py-3 text-[13px] text-ink-700">
+                {appt.notes && (
+                  <div className="text-[11px] uppercase tracking-wide text-ink-500 font-bold mb-1">
+                    Told to the desk at booking
+                  </div>
+                )}
+                {appt.notes || "No reason recorded at booking."}
+              </div>
+            </>
+          )}
 
           <div className="text-[12px] uppercase tracking-wide text-ink-500 font-bold mb-2 mt-4">
             Last visit{" "}
@@ -1452,12 +1898,27 @@ function PreCallPanel({
         </div>
 
         <div className="p-5 border-t md:border-t-0 md:border-l border-lineSoft bg-surface-canvas/30 min-w-0">
-          <div className="text-[12px] uppercase tracking-wide text-ink-500 font-bold mb-2">
+          {vRows.length > 0 && (
+            <>
+              <div className="text-[12px] uppercase tracking-wide text-ink-500 font-bold mb-2">
+                Vitals
+              </div>
+              {vRows.map((r) => (
+                <KeyValue key={r.label} label={r.label} value={r.value} />
+              ))}
+            </>
+          )}
+
+          <div
+            className={`text-[12px] uppercase tracking-wide text-ink-500 font-bold mb-2 ${vRows.length > 0 ? "mt-4" : ""}`}
+          >
             Background
           </div>
           <KeyValue
             label="Allergies"
-            value={patient?.allergies?.join(", ") || "None recorded"}
+            value={allergy.text}
+            danger={allergy.tone === "danger"}
+            warning={allergy.tone === "warning"}
           />
           <KeyValue label="Visits" value={`${pastVisitsCount}`} />
           <KeyValue
@@ -1486,6 +1947,12 @@ function PreCallPanel({
             <Phone size={14} /> Call
           </a>
         )}
+        <a
+          href={`/hospital/${hospitalId}/patients/${appt.patientId}`}
+          className="h-9 px-4 rounded-lg border border-border text-sm font-medium text-ink-700 hover:bg-surface-canvas flex items-center"
+        >
+          Full history
+        </a>
         <span className="flex-1" />
         <span className="text-[12px] text-ink-500 hidden md:inline">
           Calling them in starts the clock and updates the waiting room board
@@ -1502,20 +1969,198 @@ function PreCallPanel({
   );
 }
 
+// Opened by "Write" on a done row missing its session notes — a focused
+// modal rather than swapping out the main detail panel, so the existing
+// queue/detail layout is untouched for every other row the doctor selects.
+function NotesModal({
+  appt,
+  patient,
+  hospitalId,
+  prescription,
+  givenItems,
+  draft,
+  setDraft,
+  saving,
+  onSave,
+  onClose,
+}: {
+  appt: AppointmentWithDetails;
+  patient: Patient | undefined;
+  hospitalId: string;
+  prescription: Prescription | null | undefined;
+  givenItems: PaymentItem[];
+  draft: string;
+  setDraft: (v: string) => void;
+  saving: boolean;
+  onSave: () => void;
+  onClose: () => void;
+}) {
+  const age = resolveAge(appt, patient);
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink-900/35 px-4">
+      <div className="w-full max-w-lg bg-surface-paper border border-border rounded-xl overflow-hidden shadow-xl">
+        <div className="flex items-center gap-3 px-5 py-4 border-b border-lineSoft">
+          <Avatar name={appt.patientName} size="w-9 h-9 text-xs" />
+          <div className="min-w-0">
+            <div className="text-sm font-bold text-ink-900 truncate font-display tracking-tight">
+              {appt.patientName}
+            </div>
+            <div className="text-xs text-ink-500 truncate">
+              {[
+                age != null ? `${age}` : null,
+                appt.patientGender,
+                `seen ${formatTime12h(appt.time)}`,
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="ml-auto h-8 w-8 shrink-0 rounded-lg text-ink-500 hover:bg-surface-canvas grid place-items-center"
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+
+        <div className="p-5 max-h-[70vh] overflow-y-auto">
+          <div className="text-[12px] uppercase tracking-wide text-ink-500 font-bold mb-2">
+            Session notes
+          </div>
+          <textarea
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder="Details about the session, treatment provided, observations, etc."
+            rows={7}
+            className="w-full p-3 border border-border rounded-lg text-[14px] leading-relaxed resize-y focus:outline-none focus:ring-2 focus:ring-brand-violet/20 focus:border-brand-violet"
+          />
+
+          <div className="text-[12px] uppercase tracking-wide text-ink-500 font-bold mb-2 mt-4">
+            Given during the visit
+          </div>
+          <div className="border border-border rounded-xl bg-surface-paper overflow-hidden">
+            {givenItems.length === 0 ? (
+              <div className="px-3 py-3 text-xs text-ink-500">
+                Nothing added during this visit
+              </div>
+            ) : (
+              givenItems.map((item, i) => (
+                <div
+                  key={`${item.name}-${i}`}
+                  className="flex items-center justify-between gap-2 px-3 py-2 text-[13px] border-t border-border first:border-t-0"
+                >
+                  <span>
+                    {item.name}
+                    {item.quantity > 1 ? ` × ${item.quantity}` : ""}
+                  </span>
+                  <span className="font-mono">
+                    ₹{item.unitPrice * item.quantity}
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="flex items-center gap-2 mb-2 mt-4">
+            <div className="text-[12px] uppercase tracking-wide text-ink-500 font-bold">
+              Prescription
+            </div>
+            {prescription && prescription.items.length > 0 && (
+              <span
+                className={`rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                  prescription.status === "signed"
+                    ? "bg-status-open-soft text-status-open"
+                    : "bg-status-warning-soft text-status-warning"
+                }`}
+              >
+                {prescription.status === "signed" ? "Signed" : "Not signed"}
+              </span>
+            )}
+          </div>
+          {!prescription || prescription.items.length === 0 ? (
+            <div className="border border-border rounded-xl bg-surface-canvas/30 px-3 py-3 text-xs text-ink-500">
+              No medicines were prescribed for this visit.
+            </div>
+          ) : (
+            <div className="border border-border rounded-xl bg-surface-paper overflow-hidden">
+              {prescription.items.map((item, i) => (
+                <div
+                  key={`${item.medicineId}-${i}`}
+                  className="px-3 py-2 text-[13px] border-t border-border first:border-t-0"
+                >
+                  <div className="font-semibold text-ink-900">
+                    {item.medicineName}
+                    {item.strength ? ` ${item.strength}` : ""}
+                    {item.form ? ` · ${item.form}` : ""}
+                  </div>
+                  <div className="text-ink-500 text-xs mt-0.5">
+                    {[item.dose, item.frequency, item.duration]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </div>
+                  {item.note && (
+                    <div className="text-ink-500 text-xs mt-0.5 italic">
+                      {item.note}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+          {prescription?.advice && (
+            <div className="mt-2 text-xs text-ink-500">
+              <span className="font-semibold text-ink-700">Advice: </span>
+              {prescription.advice}
+            </div>
+          )}
+          <a
+            href={`/hospital/${hospitalId}/appointments/${appt.id}/prescription`}
+            className="inline-flex items-center mt-3 h-8 px-3 rounded-lg border border-border text-xs font-medium text-ink-700 hover:bg-surface-canvas"
+          >
+            Open prescription
+          </a>
+        </div>
+
+        <div className="flex items-center justify-end gap-3 px-5 py-4 border-t border-lineSoft">
+          <button
+            type="button"
+            onClick={onClose}
+            className="h-9 px-4 rounded-lg border border-border text-sm font-medium text-ink-700 hover:bg-surface-canvas"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onSave}
+            disabled={saving}
+            className="h-9 px-4 rounded-lg bg-brand-violet hover:bg-brand-violet-hover text-white text-sm font-semibold disabled:opacity-60"
+          >
+            {saving ? "Saving…" : "Save notes"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function KeyValue({
   label,
   value,
   danger,
+  warning,
 }: {
   label: string;
   value: string;
   danger?: boolean;
+  warning?: boolean;
 }) {
   return (
     <div className="flex justify-between py-2 border-t border-lineSoft first:border-t-0 text-[13px]">
       <span className="text-ink-500">{label}</span>
       <span
-        className={`font-medium ${danger ? "text-status-danger" : "text-ink-900"}`}
+        className={`font-medium ${danger ? "text-status-danger" : warning ? "text-status-warning" : "text-ink-900"}`}
       >
         {value}
       </span>

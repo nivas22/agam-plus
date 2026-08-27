@@ -13,8 +13,8 @@ export class ApiError extends Error {
     return new ApiError(400, message, details);
   }
 
-  static unauthorized(message: string = 'Unauthorized') {
-    return new ApiError(401, message);
+  static unauthorized(message: string = 'Unauthorized', details?: any) {
+    return new ApiError(401, message, details);
   }
 
   static forbidden(message: string = 'Forbidden') {

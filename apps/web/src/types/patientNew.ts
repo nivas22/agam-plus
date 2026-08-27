@@ -2,7 +2,7 @@ import type { GENDER } from "../constants";
 
 export interface Patient {
   id: string;
-  userId: string;
+  userId?: string;
   hospitalId: string;
   patientId?: string;
   name: string;

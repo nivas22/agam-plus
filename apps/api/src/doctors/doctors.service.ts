@@ -1,12 +1,17 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import * as bcrypt from 'bcryptjs';
 import { MembershipRepository } from '../repositories/membership.repository';
 import { DoctorRepository } from '../repositories/doctor.repository';
 import { UserRepository } from '../repositories/user.repository';
 import { AppointmentRepository } from '../repositories/appointment.repository';
 import { HospitalHolidayRepository } from '../repositories/hospital-holiday.repository';
+import { DoctorPresenceRepository } from '../repositories/doctor-presence.repository';
 import { EmailService } from '../email/email.service';
+import { AuditService } from '../audit/audit.service';
 import { ApiError } from '../common/errors/api-error';
+import { generateTempPassword } from '../common/password.util';
+import { HospitalUserProfile } from '../auth/decorators/current-user.decorator';
 import { DoctorProfile, TimeSlot } from '../types/doctor';
 import { ACTIVE_APPOINTMENT_STATUSES, ROLE } from '../constants';
 import { findHolidayForDate, filterSlotsForHoliday } from '../hospital-holidays/holiday-availability.util';
@@ -19,7 +24,9 @@ export class DoctorsService {
     private readonly userRepository: UserRepository,
     private readonly appointmentRepository: AppointmentRepository,
     private readonly hospitalHolidayRepository: HospitalHolidayRepository,
+    private readonly doctorPresenceRepository: DoctorPresenceRepository,
     private readonly emailService: EmailService,
+    private readonly auditService: AuditService,
     private readonly config: ConfigService,
   ) {}
 
@@ -184,6 +191,8 @@ export class DoctorsService {
     doctorData: {
       name: string;
       email: string;
+      username: string;
+      password: string;
       phone: string;
       specialization?: string;
       qualification?: string;
@@ -198,6 +207,12 @@ export class DoctorsService {
       appointmentDuration?: number;
       bufferMinutes?: number;
       patientsPerSlot?: number;
+      acceptWalkIns?: boolean;
+      heldSlotsPerSession?: number;
+      releaseHeldSlotsBeforeMinutes?: number | null;
+      overCapacityPolicy?: 'allow' | 'warn' | 'block';
+      lateArrivalGraceMinutes?: number;
+      noShowReleaseMinutes?: number;
     },
   ) {
     // Check if user exists by email
@@ -213,15 +228,35 @@ export class DoctorsService {
       }
     }
 
+    // Username is the login handle and must be globally unique across all users.
+    const existingUsernameOwner = await this.userRepository.getUserByUsername(doctorData.username);
+    if (existingUsernameOwner && (!existingUser || (existingUsernameOwner as any).id !== (existingUser as any).id)) {
+      throw ApiError.conflict(`Username ${doctorData.username} is already in use`);
+    }
+
     let doctorUserId: string;
     if (!existingUser) {
       // Create new user
+      const passwordHash = await bcrypt.hash(doctorData.password, 10);
       doctorUserId = await this.userRepository.createUser({
         email: doctorData.email,
         name: doctorData.name,
+        username: doctorData.username,
+        passwordHash,
+        mustChangePassword: true,
       });
     } else {
       doctorUserId = (existingUser as any).id;
+      // Same person already has a User doc (e.g. added at another hospital first) —
+      // only set their login credentials if they don't already have one.
+      if (!(existingUser as any).username) {
+        const passwordHash = await bcrypt.hash(doctorData.password, 10);
+        await this.userRepository.updateUser(doctorUserId, {
+          username: doctorData.username,
+          passwordHash,
+          mustChangePassword: true,
+        });
+      }
     }
 
     // Check if membership already exists
@@ -256,6 +291,12 @@ export class DoctorsService {
         appointmentDuration: doctorData.appointmentDuration || 30,
         bufferMinutes: doctorData.bufferMinutes || 0,
         patientsPerSlot: doctorData.patientsPerSlot || 1,
+        acceptWalkIns: doctorData.acceptWalkIns !== false,
+        heldSlotsPerSession: doctorData.heldSlotsPerSession ?? 2,
+        releaseHeldSlotsBeforeMinutes: doctorData.releaseHeldSlotsBeforeMinutes ?? 120,
+        overCapacityPolicy: doctorData.overCapacityPolicy || 'warn',
+        lateArrivalGraceMinutes: doctorData.lateArrivalGraceMinutes ?? 10,
+        noShowReleaseMinutes: doctorData.noShowReleaseMinutes ?? 20,
       });
     } else {
       // Update existing membership with specialization, consultationFee, and scheduling fields if provided
@@ -266,6 +307,14 @@ export class DoctorsService {
       if (doctorData.appointmentDuration) updates.appointmentDuration = doctorData.appointmentDuration;
       if (doctorData.bufferMinutes !== undefined) updates.bufferMinutes = doctorData.bufferMinutes;
       if (doctorData.patientsPerSlot) updates.patientsPerSlot = doctorData.patientsPerSlot;
+      if (doctorData.acceptWalkIns !== undefined) updates.acceptWalkIns = doctorData.acceptWalkIns;
+      if (doctorData.heldSlotsPerSession !== undefined) updates.heldSlotsPerSession = doctorData.heldSlotsPerSession;
+      if (doctorData.releaseHeldSlotsBeforeMinutes !== undefined)
+        updates.releaseHeldSlotsBeforeMinutes = doctorData.releaseHeldSlotsBeforeMinutes;
+      if (doctorData.overCapacityPolicy) updates.overCapacityPolicy = doctorData.overCapacityPolicy;
+      if (doctorData.lateArrivalGraceMinutes !== undefined)
+        updates.lateArrivalGraceMinutes = doctorData.lateArrivalGraceMinutes;
+      if (doctorData.noShowReleaseMinutes !== undefined) updates.noShowReleaseMinutes = doctorData.noShowReleaseMinutes;
 
       if (Object.keys(updates).length > 0) {
         await this.membershipRepository.updateHospitalMembership((existingMembership as any).id, updates);
@@ -314,6 +363,27 @@ export class DoctorsService {
     };
   }
 
+  async resetPassword(hospitalId: string, doctorId: string, actor: HospitalUserProfile) {
+    const profile = await this.doctorRepository.getDoctorProfileByUserId(doctorId);
+    if (!profile) {
+      throw ApiError.notFound('Doctor not found');
+    }
+
+    const tempPassword = generateTempPassword();
+    const passwordHash = await bcrypt.hash(tempPassword, 10);
+    await this.userRepository.updateUser(doctorId, { passwordHash, mustChangePassword: true });
+
+    await this.auditService.log({
+      hospitalId,
+      actor: { userId: actor.userId, name: actor.name, role: actor.role },
+      action: 'doctor.password_reset',
+      area: 'settings',
+      summary: `Reset ${(profile as any).name}'s password — they'll be asked to change it at next sign-in`,
+    });
+
+    return { success: true, tempPassword };
+  }
+
   async getDoctorById(hospitalId: string, doctorId: string) {
     const doctor = await this.doctorRepository.getDoctorProfileWithUser(doctorId);
 
@@ -344,6 +414,12 @@ export class DoctorsService {
       appointmentDuration: membershipData?.appointmentDuration || 30,
       bufferMinutes: membershipData?.bufferMinutes || 0,
       patientsPerSlot: membershipData?.patientsPerSlot || 1,
+      acceptWalkIns: membershipData?.acceptWalkIns !== false,
+      heldSlotsPerSession: membershipData?.heldSlotsPerSession ?? 2,
+      releaseHeldSlotsBeforeMinutes: membershipData?.releaseHeldSlotsBeforeMinutes ?? 120,
+      overCapacityPolicy: membershipData?.overCapacityPolicy || 'warn',
+      lateArrivalGraceMinutes: membershipData?.lateArrivalGraceMinutes ?? 10,
+      noShowReleaseMinutes: membershipData?.noShowReleaseMinutes ?? 20,
       membershipId: membershipData?.id,
       membershipStatus: membershipData?.status,
     };
@@ -440,6 +516,24 @@ export class DoctorsService {
     }
     if (updates.patientsPerSlot !== undefined) {
       membershipUpdates.patientsPerSlot = updates.patientsPerSlot;
+    }
+    if (updates.acceptWalkIns !== undefined) {
+      membershipUpdates.acceptWalkIns = updates.acceptWalkIns;
+    }
+    if (updates.heldSlotsPerSession !== undefined) {
+      membershipUpdates.heldSlotsPerSession = updates.heldSlotsPerSession;
+    }
+    if (updates.releaseHeldSlotsBeforeMinutes !== undefined) {
+      membershipUpdates.releaseHeldSlotsBeforeMinutes = updates.releaseHeldSlotsBeforeMinutes;
+    }
+    if (updates.overCapacityPolicy !== undefined) {
+      membershipUpdates.overCapacityPolicy = updates.overCapacityPolicy;
+    }
+    if (updates.lateArrivalGraceMinutes !== undefined) {
+      membershipUpdates.lateArrivalGraceMinutes = updates.lateArrivalGraceMinutes;
+    }
+    if (updates.noShowReleaseMinutes !== undefined) {
+      membershipUpdates.noShowReleaseMinutes = updates.noShowReleaseMinutes;
     }
 
     // Update the membership if there are any updates
@@ -715,8 +809,12 @@ export class DoctorsService {
       if (dayWindows.length === 0) return [];
 
       // Get existing appointments using repository function
+      // Appointments are keyed by doctorProfileId = membership.userId, NOT the
+      // membership document's own _id (doctor.id) — using the wrong id here
+      // silently returned zero existing appointments, so every slot always
+      // showed full capacity regardless of real bookings.
       // Include legacy 'scheduled' for appointments created before this status migration.
-      const existingAppointments = await this.appointmentRepository.getAppointmentsByDoctorAndDate(doctor.id, date, [
+      const existingAppointments = await this.appointmentRepository.getAppointmentsByDoctorAndDate(doctor.userId, date, [
         ...ACTIVE_APPOINTMENT_STATUSES,
         'scheduled',
       ]);
@@ -732,6 +830,20 @@ export class DoctorsService {
       const today = new Date();
       const isToday = dateObj.toDateString() === today.toDateString();
       const currentTime = isToday ? today : null;
+
+      // A doctor marked "left for the day" is done seeing patients — today's
+      // remaining slots stop being bookable the moment that's set. Only
+      // today: the override is a same-day dashboard signal, not a standing
+      // closure. Mirrors the same check in appointments.service.ts so the
+      // slots offered here match what actually gets booked.
+      if (isToday && doctor?.hospitalId) {
+        const presence = await this.doctorPresenceRepository.getForDoctorAndDate(
+          doctor.hospitalId,
+          doctor.userId,
+          date,
+        );
+        if ((presence as any)?.kind === 'leftForDay') return [];
+      }
 
       // Build available slots across every window for this day
       const slots: { time: string; remaining: number; capacity: number }[] = [];

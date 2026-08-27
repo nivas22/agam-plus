@@ -2,8 +2,8 @@ import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query, UseGuard
 import { DoctorsService } from './doctors.service';
 import { HospitalContextGuard } from '../auth/guards/hospital-context.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
-import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import type { JwtUser } from '../auth/decorators/current-user.decorator';
+import { CurrentUser, CurrentHospitalUser } from '../auth/decorators/current-user.decorator';
+import type { JwtUser, HospitalUserProfile } from '../auth/decorators/current-user.decorator';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import { createDoctorSchema, updateDoctorAvailabilitySchema } from '../common/validation/schemas';
 
@@ -66,6 +66,16 @@ export class DoctorsController {
   @Roles('admin')
   remove(@Param('id') hospitalId: string, @Param('doctorId') doctorId: string) {
     return this.doctorsService.deleteDoctor(hospitalId, doctorId);
+  }
+
+  @Post(':doctorId/password/reset')
+  @Roles('admin')
+  resetPassword(
+    @Param('id') hospitalId: string,
+    @Param('doctorId') doctorId: string,
+    @CurrentHospitalUser() userProfile: HospitalUserProfile,
+  ) {
+    return this.doctorsService.resetPassword(hospitalId, doctorId, userProfile);
   }
 
   @Patch(':doctorId/status')

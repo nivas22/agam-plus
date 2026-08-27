@@ -18,6 +18,7 @@ import {
 } from "@/components/common/EditFormControls";
 import DoctorAvatar from "@/components/doctors/DoctorAvatar";
 import { useAuth } from "@/hooks/useAuth";
+import { useDoctorDashboardPracticeStats } from "@/hooks/useDoctorDashboardApi";
 import { useHospitalDoctor, useNewDoctorApi } from "@/hooks/useNewDoctorApi";
 import { ApiRequestError } from "@/lib/api";
 import type { TimeSlot } from "@/types/appointment";
@@ -44,6 +45,23 @@ const DAYS = [
 const DURATIONS = [15, 20, 30, 45, 60];
 const GAPS = [0, 5, 10, 15, 20, 30];
 const PATIENTS_PER_SLOT = [1, 2, 3, 4, 5];
+const HELD_SLOT_OPTIONS = [0, 1, 2, 3, 4, 5];
+const RELEASE_HELD_OPTIONS: { value: number | null; label: string }[] = [
+  { value: null, label: "Never" },
+  { value: 240, label: "4 hours before" },
+  { value: 120, label: "2 hours before" },
+  { value: 60, label: "1 hour before" },
+];
+const OVER_CAPACITY_OPTIONS: {
+  value: "allow" | "warn" | "block";
+  label: string;
+}[] = [
+  { value: "allow", label: "Allow" },
+  { value: "warn", label: "Warn the desk" },
+  { value: "block", label: "Block" },
+];
+const GRACE_MINUTE_OPTIONS = [5, 10, 15];
+const NO_SHOW_RELEASE_OPTIONS = [15, 20, 30];
 const GENDERS = [GENDER.MALE, GENDER.FEMALE, GENDER.OTHER];
 const MARITAL_STATUSES = ["Single", "Married"];
 const SPECIALIZATIONS = [
@@ -67,6 +85,8 @@ const SPECIALIZATIONS = [
   "ENT Specialist",
 ];
 
+const USERNAME_FORMAT_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 const DAY_START = 7 * 60;
 const DAY_END = 22 * 60;
 const DAY_SPAN = DAY_END - DAY_START;
@@ -74,6 +94,9 @@ const DAY_SPAN = DAY_END - DAY_START;
 type FormState = {
   name: string;
   email: string;
+  username: string;
+  usernameSameAsEmail: boolean;
+  password: string;
   phone: string;
   specialization: string;
   experience: string;
@@ -87,11 +110,20 @@ type FormState = {
   appointmentDuration: number;
   bufferMinutes: number;
   patientsPerSlot: number;
+  acceptWalkIns: boolean;
+  heldSlotsPerSession: number;
+  releaseHeldSlotsBeforeMinutes: number | null;
+  overCapacityPolicy: "allow" | "warn" | "block";
+  lateArrivalGraceMinutes: number;
+  noShowReleaseMinutes: number;
 };
 
 const EMPTY_FORM: FormState = {
   name: "",
   email: "",
+  username: "",
+  usernameSameAsEmail: true,
+  password: "",
   phone: "",
   specialization: "",
   experience: "",
@@ -105,6 +137,12 @@ const EMPTY_FORM: FormState = {
   appointmentDuration: 30,
   bufferMinutes: 0,
   patientsPerSlot: 1,
+  acceptWalkIns: true,
+  heldSlotsPerSession: 2,
+  releaseHeldSlotsBeforeMinutes: 120,
+  overCapacityPolicy: "warn",
+  lateArrivalGraceMinutes: 10,
+  noShowReleaseMinutes: 20,
 };
 
 function minutesSinceMidnight(time: string): number {
@@ -140,6 +178,20 @@ function slotCapacity(
   );
   if (span < duration) return 0;
   return Math.floor((span - duration) / (duration + gap)) + 1;
+}
+
+// Slots held back per contiguous booking window, always leaving at least one
+// online-bookable slot in that window.
+function blockHeldSlots(
+  slot: TimeSlot,
+  duration: number,
+  gap: number,
+  heldSlotsPerSession: number,
+  acceptWalkIns: boolean,
+): number {
+  if (!acceptWalkIns || heldSlotsPerSession <= 0) return 0;
+  const total = slotCapacity(slot, duration, gap);
+  return Math.min(heldSlotsPerSession, Math.max(total - 1, 0));
 }
 
 function weekCapacity(
@@ -231,6 +283,26 @@ function formatAdded(createdAt: any): string {
   }
 }
 
+function RuleRow({
+  label,
+  hint,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 py-3 border-t border-border first:border-t-0 first:pt-0">
+      <div className="min-w-0 max-w-md">
+        <div className="text-sm font-semibold text-ink-900">{label}</div>
+        {hint && <div className="text-xs text-ink-500 mt-0.5">{hint}</div>}
+      </div>
+      <div className="shrink-0">{children}</div>
+    </div>
+  );
+}
+
 export default function AddEditDoctor({
   isNew = false,
   id,
@@ -269,6 +341,9 @@ export default function AddEditDoctor({
       const next: FormState = {
         name: d.name || "",
         email: d.email || "",
+        username: "",
+        usernameSameAsEmail: true,
+        password: "",
         phone: d.phone || "",
         specialization: d.specialization || "",
         experience: d.experience || "",
@@ -282,6 +357,12 @@ export default function AddEditDoctor({
         appointmentDuration: d.appointmentDuration || 30,
         bufferMinutes: d.bufferMinutes ?? 0,
         patientsPerSlot: d.patientsPerSlot || 1,
+        acceptWalkIns: d.acceptWalkIns !== false,
+        heldSlotsPerSession: d.heldSlotsPerSession ?? 2,
+        releaseHeldSlotsBeforeMinutes: d.releaseHeldSlotsBeforeMinutes ?? 120,
+        overCapacityPolicy: d.overCapacityPolicy || "warn",
+        lateArrivalGraceMinutes: d.lateArrivalGraceMinutes ?? 10,
+        noShowReleaseMinutes: d.noShowReleaseMinutes ?? 20,
       };
       setFormData(next);
       setInitialData(next);
@@ -340,6 +421,29 @@ export default function AddEditDoctor({
     formData.patientsPerSlot,
   );
   const workingDays = new Set(formData.availability.map((s) => s.day)).size;
+  const heldWeeklyCapacity = formData.availability.reduce(
+    (sum, slot) =>
+      sum +
+      blockHeldSlots(
+        slot,
+        formData.appointmentDuration,
+        formData.bufferMinutes,
+        formData.heldSlotsPerSession,
+        formData.acceptWalkIns,
+      ) *
+        Math.max(1, formData.patientsPerSlot),
+    0,
+  );
+  const onlineWeeklyCapacity = weeklyCapacity - heldWeeklyCapacity;
+
+  const statsMonth =
+    !isNew && id ? format(new Date(), "yyyy-MM") : undefined;
+  const { data: practiceStats } = useDoctorDashboardPracticeStats(
+    statsMonth || "",
+    hospitalId,
+    id,
+  );
+  const avgConsultationMinutes = practiceStats?.avgConsultationMinutes ?? null;
 
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
     setFormData((prev) => ({ ...prev, [key]: value }));
@@ -477,12 +581,26 @@ export default function AddEditDoctor({
       toast.error("Please fill in Name and Email");
       return;
     }
+    if (isNew) {
+      if (!USERNAME_FORMAT_REGEX.test(formData.username.trim())) {
+        toast.error("Username must be in email format (e.g. name@example.com)");
+        return;
+      }
+      if (formData.password.length < 8) {
+        toast.error("Temporary password must be at least 8 characters");
+        return;
+      }
+    }
 
     setSaving(true);
     try {
       const payload: Partial<CreateDoctorData> = {
         name: formData.name,
         email: formData.email,
+        ...(isNew && {
+          username: formData.username.trim(),
+          password: formData.password,
+        }),
         phone: formData.phone,
         specialization: formData.specialization,
         experience: formData.experience,
@@ -496,6 +614,12 @@ export default function AddEditDoctor({
         appointmentDuration: formData.appointmentDuration,
         bufferMinutes: formData.bufferMinutes,
         patientsPerSlot: formData.patientsPerSlot,
+        acceptWalkIns: formData.acceptWalkIns,
+        heldSlotsPerSession: formData.heldSlotsPerSession,
+        releaseHeldSlotsBeforeMinutes: formData.releaseHeldSlotsBeforeMinutes,
+        overCapacityPolicy: formData.overCapacityPolicy,
+        lateArrivalGraceMinutes: formData.lateArrivalGraceMinutes,
+        noShowReleaseMinutes: formData.noShowReleaseMinutes,
       };
 
       if (isNew) {
@@ -669,7 +793,10 @@ export default function AddEditDoctor({
                 key: "availability" as const,
                 ref: availabilityRef,
                 label: "Availability",
-                value: `${weeklyCapacity} slots`,
+                value:
+                  heldWeeklyCapacity > 0
+                    ? `${onlineWeeklyCapacity} + ${heldWeeklyCapacity} held`
+                    : `${weeklyCapacity} slots`,
                 done: weeklyCapacity > 0,
               },
             ].map((item) => (
@@ -741,17 +868,65 @@ export default function AddEditDoctor({
               <Field
                 label="Email"
                 required
-                hint="Used for login and appointment alerts."
+                hint="Used for communication, e.g. appointment alerts."
               >
                 <input
                   type="email"
                   value={formData.email}
                   disabled={!canEdit}
-                  onChange={(e) => update("email", e.target.value)}
+                  onChange={(e) => {
+                    const email = e.target.value;
+                    update("email", email);
+                    if (formData.usernameSameAsEmail) update("username", email);
+                  }}
                   placeholder="doctor@example.com"
                   className={inputClass}
                 />
               </Field>
+              {isNew && (
+                <>
+                  <Field
+                    label="Username"
+                    required
+                    hint="Used to log in. Must look like an email but doesn't have to be a real one."
+                  >
+                    <input
+                      value={formData.username}
+                      disabled={!canEdit || formData.usernameSameAsEmail}
+                      onChange={(e) => update("username", e.target.value)}
+                      placeholder="doctor@example.com"
+                      className={inputClass}
+                    />
+                    <label className="mt-1.5 flex items-center gap-2 text-xs text-ink-500">
+                      <input
+                        type="checkbox"
+                        checked={formData.usernameSameAsEmail}
+                        disabled={!canEdit}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          update("usernameSameAsEmail", checked);
+                          if (checked) update("username", formData.email);
+                        }}
+                      />
+                      Username same as email
+                    </label>
+                  </Field>
+                  <Field
+                    label="Temporary password"
+                    required
+                    hint="Share this with the doctor. They'll be asked to change it on first sign-in."
+                  >
+                    <input
+                      type="text"
+                      value={formData.password}
+                      disabled={!canEdit}
+                      onChange={(e) => update("password", e.target.value)}
+                      placeholder="At least 8 characters"
+                      className={inputClass}
+                    />
+                  </Field>
+                </>
+              )}
               <Field label="Phone" hint="10 digits, no country code.">
                 <div className="flex gap-2">
                   <span className="font-mono tabular flex items-center px-3 rounded-lg border border-border bg-surface-canvas text-sm text-ink-700 shrink-0">
@@ -969,6 +1144,142 @@ export default function AddEditDoctor({
                   </select>
                 </Field>
               </div>
+
+              <RuleRow
+                label="How long visits actually take"
+                hint="Measured from this month's completed visits — drives the wait estimate patients see."
+              >
+                <span className="rounded-lg bg-status-open-soft border border-status-open/20 px-3 py-1.5 text-xs font-mono tabular font-semibold text-status-open whitespace-nowrap">
+                  {avgConsultationMinutes != null
+                    ? `${avgConsultationMinutes} min average`
+                    : "Not enough data yet"}
+                </span>
+              </RuleRow>
+
+              <RuleRow
+                label="Accept walk-ins"
+                hint="Off means the desk can only book them into a future slot."
+              >
+                <ToggleSwitch
+                  checked={formData.acceptWalkIns}
+                  disabled={!canEdit}
+                  onChange={(v) => update("acceptWalkIns", v)}
+                />
+              </RuleRow>
+
+              {formData.acceptWalkIns && (
+                <>
+                  <RuleRow
+                    label="Slots held back for walk-ins"
+                    hint="Per session. Patients booking online never see these."
+                  >
+                    <select
+                      value={formData.heldSlotsPerSession}
+                      disabled={!canEdit}
+                      onChange={(e) =>
+                        update("heldSlotsPerSession", Number(e.target.value))
+                      }
+                      className={`${inputClass} !w-auto`}
+                    >
+                      {HELD_SLOT_OPTIONS.map((n) => (
+                        <option key={n} value={n}>
+                          {n === 0 ? "None" : `${n} slot${n > 1 ? "s" : ""}`}
+                        </option>
+                      ))}
+                    </select>
+                  </RuleRow>
+
+                  <RuleRow
+                    label="Release unused held slots"
+                    hint="If nobody has walked in by then, open them to online booking."
+                  >
+                    <select
+                      value={formData.releaseHeldSlotsBeforeMinutes ?? "never"}
+                      disabled={!canEdit}
+                      onChange={(e) =>
+                        update(
+                          "releaseHeldSlotsBeforeMinutes",
+                          e.target.value === "never"
+                            ? null
+                            : Number(e.target.value),
+                        )
+                      }
+                      className={`${inputClass} !w-auto`}
+                    >
+                      {RELEASE_HELD_OPTIONS.map((o) => (
+                        <option key={o.label} value={o.value ?? "never"}>
+                          {o.label}
+                        </option>
+                      ))}
+                    </select>
+                  </RuleRow>
+
+                  <RuleRow
+                    label="When the session is already full"
+                    hint="A walk-in beyond capacity pushes the session past its end time."
+                  >
+                    <select
+                      value={formData.overCapacityPolicy}
+                      disabled={!canEdit}
+                      onChange={(e) =>
+                        update(
+                          "overCapacityPolicy",
+                          e.target.value as FormState["overCapacityPolicy"],
+                        )
+                      }
+                      className={`${inputClass} !w-auto`}
+                    >
+                      {OVER_CAPACITY_OPTIONS.map((o) => (
+                        <option key={o.value} value={o.value}>
+                          {o.label}
+                        </option>
+                      ))}
+                    </select>
+                  </RuleRow>
+
+                  <RuleRow
+                    label="Late arrival & no-show"
+                    hint="Within the grace period a booked patient keeps their place ahead of walk-ins; after the release time the slot becomes free capacity."
+                  >
+                    <div className="flex items-center gap-2">
+                      <select
+                        value={formData.lateArrivalGraceMinutes}
+                        disabled={!canEdit}
+                        onChange={(e) =>
+                          update(
+                            "lateArrivalGraceMinutes",
+                            Number(e.target.value),
+                          )
+                        }
+                        className={`${inputClass} !w-auto`}
+                      >
+                        {GRACE_MINUTE_OPTIONS.map((m) => (
+                          <option key={m} value={m}>
+                            {m} min grace
+                          </option>
+                        ))}
+                      </select>
+                      <select
+                        value={formData.noShowReleaseMinutes}
+                        disabled={!canEdit}
+                        onChange={(e) =>
+                          update(
+                            "noShowReleaseMinutes",
+                            Number(e.target.value),
+                          )
+                        }
+                        className={`${inputClass} !w-auto`}
+                      >
+                        {NO_SHOW_RELEASE_OPTIONS.map((m) => (
+                          <option key={m} value={m}>
+                            release at {m} min
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </RuleRow>
+                </>
+              )}
             </div>
 
             {canEdit && (
@@ -1022,42 +1333,95 @@ export default function AddEditDoctor({
                       ) : (
                         <div className="space-y-2">
                           <div className="relative h-6 rounded-md bg-surface-canvas overflow-hidden">
-                            {slots.map((slot, i) => (
-                              <div
-                                key={i}
-                                className="absolute top-0 h-full bg-status-open/70 rounded"
-                                style={barStyle(slot)}
-                              />
-                            ))}
+                            {slots.map((slot, i) => {
+                              const { left, width } = barStyle(slot);
+                              const total = slotCapacity(
+                                slot,
+                                formData.appointmentDuration,
+                                formData.bufferMinutes,
+                              );
+                              const held = blockHeldSlots(
+                                slot,
+                                formData.appointmentDuration,
+                                formData.bufferMinutes,
+                                formData.heldSlotsPerSession,
+                                formData.acceptWalkIns,
+                              );
+                              const heldFrac = total ? held / total : 0;
+                              const widthNum = parseFloat(width);
+                              const heldWidth = widthNum * heldFrac;
+                              const bookableWidth = widthNum - heldWidth;
+                              return [
+                                <div
+                                  key={`${i}-bookable`}
+                                  className="absolute top-0 h-full bg-status-open/70 rounded-l"
+                                  style={{ left, width: `${bookableWidth}%` }}
+                                />,
+                                held > 0 ? (
+                                  <div
+                                    key={`${i}-held`}
+                                    className="absolute top-0 h-full rounded-r bg-[repeating-linear-gradient(135deg,rgba(125,132,158,0.35)_0px,rgba(125,132,158,0.35)_5px,transparent_5px,transparent_10px)]"
+                                    style={{
+                                      left: `calc(${left} + ${bookableWidth}%)`,
+                                      width: `${heldWidth}%`,
+                                    }}
+                                  />
+                                ) : null,
+                              ];
+                            })}
                           </div>
                           <div className="flex flex-wrap items-center gap-2">
-                            {slots.map((slot, i) => (
-                              <span
-                                key={i}
-                                className="inline-flex items-center gap-2 rounded-lg border border-status-open/30 bg-status-open-soft px-2.5 py-1 text-xs font-medium text-ink-900"
-                              >
-                                {formatTime(slot.startTime)} –{" "}
-                                {formatTime(slot.endTime)}
-                                <span className="text-ink-500 font-normal">
-                                  {slotCapacity(
-                                    slot,
-                                    formData.appointmentDuration,
-                                    formData.bufferMinutes,
-                                  ) * formData.patientsPerSlot}{" "}
-                                  appts
-                                </span>
-                                {canEdit && (
-                                  <button
-                                    type="button"
-                                    onClick={() => removeSlot(day, slot)}
-                                    className="text-ink-500 hover:text-status-danger"
-                                    aria-label="Remove slot"
+                            {slots.map((slot, i) => {
+                              const total = slotCapacity(
+                                slot,
+                                formData.appointmentDuration,
+                                formData.bufferMinutes,
+                              );
+                              const held = blockHeldSlots(
+                                slot,
+                                formData.appointmentDuration,
+                                formData.bufferMinutes,
+                                formData.heldSlotsPerSession,
+                                formData.acceptWalkIns,
+                              );
+                              const bookableAppts =
+                                (total - held) * formData.patientsPerSlot;
+                              const heldAppts = held * formData.patientsPerSlot;
+                              return [
+                                <span
+                                  key={`${i}-slot`}
+                                  className="inline-flex items-center gap-0 rounded-lg border border-status-open/30 bg-status-open-soft pl-2.5 pr-1 py-1 text-xs font-medium text-ink-900"
+                                >
+                                  {formatTime(slot.startTime)} –{" "}
+                                  {formatTime(slot.endTime)}
+                                  <span className="ml-2 pl-2 border-l border-status-open/30 text-ink-500 font-normal whitespace-nowrap">
+                                    {bookableAppts} online
+                                  </span>
+                                  {canEdit && (
+                                    <button
+                                      type="button"
+                                      onClick={() => removeSlot(day, slot)}
+                                      className="ml-1 rounded-md p-0.5 text-ink-500 hover:text-status-danger hover:bg-status-danger-soft"
+                                      aria-label="Remove slot"
+                                    >
+                                      <X className="w-3 h-3" />
+                                    </button>
+                                  )}
+                                </span>,
+                                heldAppts > 0 ? (
+                                  <span
+                                    key={`${i}-held`}
+                                    className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-border px-2.5 py-1 text-xs text-ink-500 whitespace-nowrap"
                                   >
-                                    <X className="w-3 h-3" />
-                                  </button>
-                                )}
-                              </span>
-                            ))}
+                                    <span
+                                      className="inline-block h-2.5 w-2.5 rounded-sm bg-[repeating-linear-gradient(135deg,rgba(125,132,158,0.5)_0px,rgba(125,132,158,0.5)_2px,transparent_2px,transparent_4px)]"
+                                      aria-hidden="true"
+                                    />
+                                    {heldAppts} held for walk-ins
+                                  </span>
+                                ) : null,
+                              ];
+                            })}
                             {canEdit &&
                               (addingDay === day ? (
                                 <div className="flex items-center gap-2 rounded-lg border border-border bg-surface-paper px-2 py-1">
@@ -1111,6 +1475,52 @@ export default function AddEditDoctor({
                                 </button>
                               ))}
                           </div>
+                          {(() => {
+                            const dayHeld = slots.reduce(
+                              (sum, slot) =>
+                                sum +
+                                blockHeldSlots(
+                                  slot,
+                                  formData.appointmentDuration,
+                                  formData.bufferMinutes,
+                                  formData.heldSlotsPerSession,
+                                  formData.acceptWalkIns,
+                                ),
+                              0,
+                            );
+                            if (!formData.acceptWalkIns || dayHeld <= 0)
+                              return null;
+                            const dayTotal = slots.reduce(
+                              (sum, slot) =>
+                                sum +
+                                slotCapacity(
+                                  slot,
+                                  formData.appointmentDuration,
+                                  formData.bufferMinutes,
+                                ),
+                              0,
+                            );
+                            const perSlot = Math.max(
+                              1,
+                              formData.patientsPerSlot,
+                            );
+                            return (
+                              <p className="text-xs text-ink-500">
+                                <span className="font-mono tabular font-semibold text-ink-700">
+                                  {dayTotal * perSlot}
+                                </span>{" "}
+                                slots ·{" "}
+                                <span className="font-mono tabular font-semibold text-ink-700">
+                                  {(dayTotal - dayHeld) * perSlot}
+                                </span>{" "}
+                                bookable online ·{" "}
+                                <span className="font-mono tabular font-semibold text-ink-700">
+                                  {dayHeld * perSlot}
+                                </span>{" "}
+                                held for walk-ins
+                              </p>
+                            );
+                          })()}
                           {canEdit && (
                             <button
                               type="button"
@@ -1138,12 +1548,24 @@ export default function AddEditDoctor({
                 </div>
                 <div>
                   <div className="text-xl font-bold text-status-open">
-                    {weeklyCapacity}
+                    {heldWeeklyCapacity > 0
+                      ? onlineWeeklyCapacity
+                      : weeklyCapacity}
                   </div>
                   <div className="text-xs text-ink-500">
-                    Bookable appointments
+                    Bookable {heldWeeklyCapacity > 0 ? "online" : "appointments"}
                   </div>
                 </div>
+                {heldWeeklyCapacity > 0 && (
+                  <div>
+                    <div className="text-xl font-bold text-status-open">
+                      {heldWeeklyCapacity}
+                    </div>
+                    <div className="text-xs text-ink-500">
+                      Held for walk-ins
+                    </div>
+                  </div>
+                )}
                 <div>
                   <div className="text-xl font-bold text-status-open">
                     {workingDays}
@@ -1152,8 +1574,9 @@ export default function AddEditDoctor({
                 </div>
               </div>
               <p className="text-xs text-ink-500 max-w-xs text-right">
-                At {formData.appointmentDuration} minutes each, that&apos;s
-                about {weeklyCapacity} patients a week.
+                {heldWeeklyCapacity > 0
+                  ? `${onlineWeeklyCapacity} bookable online, ${heldWeeklyCapacity} kept back for people who walk in — about ${weeklyCapacity} patients a week.`
+                  : `At ${formData.appointmentDuration} minutes each, that's about ${weeklyCapacity} patients a week.`}
               </p>
             </div>
           </section>

@@ -2,8 +2,8 @@
 "use client";
 
 import { format } from "date-fns";
-import { Clock, Phone, Plus, UserPlus } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Clock, Maximize2, Minimize2, Phone, Plus, UserPlus } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   CancelDialog,
   ChangeDoctorDialog,
@@ -11,7 +11,12 @@ import {
   RescheduleDialog,
 } from "@/components/appointments/AppointmentActionDialogs";
 import CompleteVisitDialog from "@/components/appointments/CompleteVisitDialog";
+import DoctorDetailSidebar from "@/components/doctors/DoctorDetailSidebar";
 import { useAuth } from "@/hooks/useAuth";
+import {
+  useDoctorPresence,
+  useSetDoctorPresence,
+} from "@/hooks/useDoctorPresenceApi";
 import { useHospitalAppointmentsApi } from "@/hooks/useNewAppointmentsApi";
 import { useHospitalDoctors } from "@/hooks/useNewDoctorApi";
 import { useHospitalPatients } from "@/hooks/useNewPatientApi";
@@ -27,6 +32,7 @@ import {
   activePatientCount,
   apptDateTime,
   buildLanes,
+  capacityMessage,
   computePresence,
   type DoctorPresence,
   doctorAvailabilityNow,
@@ -35,12 +41,16 @@ import {
   type LaneStatus,
   laneStatus,
   minutesBetween,
+  minutesElapsed,
+  minutesToTimeStr,
   normalizeStatus,
   OVERDUE_GRACE_MINUTES,
   type PresenceOverride,
-  presenceStorageKey,
+  primaryWindowToday,
+  projectFinish,
   type QueueLane,
-  readPresenceOverrides,
+  sessionCapacity,
+  stageStart,
   todaysWindows,
   toISODate,
 } from "./queueBoard";
@@ -74,23 +84,32 @@ export default function TodaysQueuePage({
   const [walkInPresetDoctorId, setWalkInPresetDoctorId] = useState<
     string | null
   >(null);
-  // Presence has no backend field yet (see PresenceOverride in queueBoard.ts),
-  // so it's kept in localStorage instead of plain component state — survives
-  // a reload on this device, scoped per hospital+day so it can't leak into
-  // tomorrow. It still won't sync to a different front-desk terminal; that
-  // needs a real backend field.
-  const [presenceOverrides, setPresenceOverrides] = useState<
-    Record<string, PresenceOverride>
-  >(() => readPresenceOverrides(hospitalId, toISODate(new Date())));
   const [absentModal, setAbsentModal] = useState<{
     doctor: Doctor;
     variant: "notComing" | "leftForDay";
   } | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [activeDoctor, setActiveDoctor] = useState<Doctor | null>(null);
 
   const openAddWalkIn = useCallback((presetDoctorId?: string) => {
     setWalkInPresetDoctorId(presetDoctorId ?? null);
     setShowAddWalkIn(true);
+  }, []);
+
+  const boardRef = useRef<HTMLDivElement>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  useEffect(() => {
+    const onChange = () =>
+      setIsFullscreen(document.fullscreenElement === boardRef.current);
+    document.addEventListener("fullscreenchange", onChange);
+    return () => document.removeEventListener("fullscreenchange", onChange);
+  }, []);
+  const toggleFullscreen = useCallback(() => {
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    } else {
+      boardRef.current?.requestFullscreen();
+    }
   }, []);
 
   useEffect(() => {
@@ -100,17 +119,16 @@ export default function TodaysQueuePage({
 
   const today = toISODate(now);
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      window.localStorage.setItem(
-        presenceStorageKey(hospitalId, today),
-        JSON.stringify(presenceOverrides),
-      );
-    } catch {
-      // Private browsing / quota exceeded — presence just won't survive a reload.
-    }
-  }, [presenceOverrides, hospitalId, today]);
+  // Backed by the DB (see useDoctorPresenceApi) — shared across every
+  // front-desk terminal and the doctor's own device, with every change
+  // recorded in the audit trail (area "doctors"). Replaces the old
+  // localStorage-only version of this, which also had a bug where a tab
+  // left open across midnight would carry yesterday's overrides into today.
+  const { data: presenceOverrides = {} } = useDoctorPresence(
+    hospitalId,
+    today,
+  );
+  const setDoctorPresence = useSetDoctorPresence(hospitalId);
 
   const params = useMemo(() => {
     const p = new URLSearchParams();
@@ -171,9 +189,22 @@ export default function TodaysQueuePage({
   );
 
   const [boardTab, setBoardTab] = useState<"active" | "sessionOver">("active");
+  // A doctor marked "left for the day" always reads as session-over —
+  // handleLeftForDay only lets that override land once the queue's already
+  // empty (or resolved via the absent modal), so laneStatus's own read of
+  // the doctor's nominal hours (which knows nothing about this override)
+  // would otherwise still show them as "on time"/"available" for a window
+  // later today.
   const lanesWithStatus = useMemo(
-    () => lanes.map((lane) => ({ lane, status: laneStatus(lane, now) })),
-    [lanes, now],
+    () =>
+      lanes.map((lane) => ({
+        lane,
+        status:
+          presenceOverrides[lane.doctor.id]?.kind === "leftForDay"
+            ? ({ label: "Session over", tone: "off" } as const)
+            : laneStatus(lane, now),
+      })),
+    [lanes, now, presenceOverrides],
   );
   const activeLanes = lanesWithStatus.filter(
     (l) => l.status.label !== "Session over",
@@ -211,41 +242,35 @@ export default function TodaysQueuePage({
     [updateAppointmentStatus, refetchAppointments, showToast],
   );
 
-  const handleMarkHere = useCallback((doctorId: string) => {
-    setPresenceOverrides((cur) => ({
-      ...cur,
-      [doctorId]: { kind: "here", setAt: new Date().toISOString() },
-    }));
-  }, []);
+  const handleMarkHere = useCallback(
+    (doctorId: string) => {
+      setDoctorPresence.mutate({ doctorId, date: today, kind: "here" });
+    },
+    [setDoctorPresence, today],
+  );
 
   const handleMarkRunningLate = useCallback(
     (doctorId: string, expectedTime: string) => {
-      setPresenceOverrides((cur) => ({
-        ...cur,
-        [doctorId]: {
-          kind: "runningLate",
-          expectedTime,
-          setBy: user?.name || "Front desk",
-          setAt: new Date().toISOString(),
-        },
-      }));
+      setDoctorPresence.mutate({
+        doctorId,
+        date: today,
+        kind: "runningLate",
+        expectedTime,
+      });
     },
-    [user?.name],
+    [setDoctorPresence, today],
   );
 
   const handleMarkOnBreak = useCallback(
     (doctorId: string, returnTime: string) => {
-      setPresenceOverrides((cur) => ({
-        ...cur,
-        [doctorId]: {
-          kind: "onBreak",
-          returnTime,
-          setBy: user?.name || "Front desk",
-          setAt: new Date().toISOString(),
-        },
-      }));
+      setDoctorPresence.mutate({
+        doctorId,
+        date: today,
+        kind: "onBreak",
+        returnTime,
+      });
     },
-    [user?.name],
+    [setDoctorPresence, today],
   );
 
   // "Not coming today" always opens the bulk modal, even with nothing
@@ -258,33 +283,34 @@ export default function TodaysQueuePage({
   const handleLeftForDay = useCallback(
     (lane: QueueLane) => {
       if (lane.waiting.length === 0 && lane.yetToArrive.length === 0) {
-        setPresenceOverrides((cur) => ({
-          ...cur,
-          [lane.doctor.id]: {
-            kind: "leftForDay",
-            setBy: user?.name || "Front desk",
-            setAt: new Date().toISOString(),
-          },
-        }));
+        setDoctorPresence.mutate({
+          doctorId: lane.doctor.id,
+          date: today,
+          kind: "leftForDay",
+        });
         showToast(`Dr. ${lane.doctor.name} marked as left for the day`);
         return;
       }
       setAbsentModal({ doctor: lane.doctor, variant: "leftForDay" });
     },
-    [user?.name, showToast],
+    [setDoctorPresence, today, showToast],
   );
 
   const handleAbsentApplied = useCallback(
     async (override: PresenceOverride, message: string) => {
       if (!absentModal) return;
-      setPresenceOverrides((cur) => ({
-        ...cur,
-        [absentModal.doctor.id]: override,
-      }));
+      setDoctorPresence.mutate({
+        doctorId: absentModal.doctor.id,
+        date: today,
+        kind: override.kind,
+        reason: "reason" in override ? override.reason : undefined,
+        toldBy: "toldBy" in override ? override.toldBy : undefined,
+        note: "note" in override ? override.note : undefined,
+      });
       showToast(message);
       await refetchAppointments();
     },
-    [absentModal, showToast, refetchAppointments],
+    [absentModal, setDoctorPresence, today, showToast, refetchAppointments],
   );
 
   const waitingAll = lanes.flatMap((l) => l.waiting);
@@ -303,33 +329,89 @@ export default function TodaysQueuePage({
           ),
         )
         .filter(
-          (a) => minutesBetween(apptDateTime(a), now) > OVERDUE_GRACE_MINUTES,
+          (a) => minutesElapsed(apptDateTime(a), now) >= OVERDUE_GRACE_MINUTES,
         ),
     [appointments, now],
   );
   const waitTimes = waitingAll.map((a) =>
-    minutesBetween(new Date(a.updatedAt), now),
+    minutesBetween(stageStart(a, a.waitingAt || a.checkedInAt), now),
   );
   const avgWait = waitTimes.length
     ? Math.round(waitTimes.reduce((s, m) => s + m, 0) / waitTimes.length)
     : 0;
+
+  // A doctor's later-today session that isn't the one already summarized in
+  // their lane's capacity strip — either a second shift for someone already
+  // on the board, or the only session today for a doctor who hasn't started
+  // yet and so has no lane at all (nothing booked, nowhere active to show it).
+  const eveningSessions = useMemo(() => {
+    const nowMins = now.getHours() * 60 + now.getMinutes();
+    const toMins = (t: string) => {
+      const [h, m] = t.split(":").map(Number);
+      return h * 60 + m;
+    };
+    return doctorsData.doctors
+      .map((doctor) => {
+        const windows = todaysWindows(doctor, now);
+        const primary = primaryWindowToday(doctor, now);
+        const later = windows.find(
+          (w) =>
+            w.start > nowMins + 90 && (!primary || w.start !== primary.start),
+        );
+        if (!later) return null;
+        const bookedCount = appointments.filter(
+          (a) =>
+            a.doctorProfileId === doctor.id &&
+            [
+              APPOINTMENT_STATUS.CONFIRMED,
+              APPOINTMENT_STATUS.PENDING,
+              APPOINTMENT_STATUS.CHECKED_IN,
+              APPOINTMENT_STATUS.WAITING,
+              APPOINTMENT_STATUS.IN_CONSULTATION,
+              APPOINTMENT_STATUS.COMPLETED,
+            ].includes(normalizeStatus(a.status) as APPOINTMENT_STATUS) &&
+            toMins(a.time) >= later.start &&
+            toMins(a.time) < later.end,
+        ).length;
+        return { doctor, window: later, bookedCount };
+      })
+      .filter((v): v is { doctor: Doctor; window: { start: number; end: number }; bookedCount: number } => v != null)
+      .sort((a, b) => a.window.start - b.window.start)
+      .slice(0, 2);
+  }, [doctorsData.doctors, appointments, now]);
   const longestWait = waitTimes.length ? Math.max(...waitTimes) : 0;
 
   const isLoadingInitial = isLoading && appointments.length === 0;
 
   return (
-    <div className="pb-16">
+    <div ref={boardRef} className={`pb-16 ${isFullscreen ? "bg-surface-canvas p-4 overflow-y-auto h-screen" : ""}`}>
       <div className="flex flex-wrap items-start gap-4 mb-4">
         <div>
           <h1 className="text-xl font-bold text-ink-900 font-display tracking-tight">Today&apos;s queue</h1>
           <p className="text-sm text-ink-500 mt-1">
-            {format(now, "EEEE, d MMMM yyyy")} · updates every 30s
+            {format(now, "EEEE, d MMMM yyyy")}
           </p>
         </div>
         <div className="ml-auto flex items-center gap-3">
+          <span className="flex items-center gap-1.5 text-xs font-medium text-status-open bg-status-open-soft border border-status-open/20 rounded-full px-3 py-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-status-open" />
+            Live · refreshes every 30s
+          </span>
           <span className="font-mono text-lg font-semibold text-ink-900">
             {format(now, "h:mm a")}
           </span>
+          <button
+            type="button"
+            onClick={toggleFullscreen}
+            className="h-9 px-3 rounded-lg border border-border text-ink-700 hover:bg-surface-canvas text-sm font-medium flex items-center gap-2 transition-colors"
+          >
+            {isFullscreen ? (
+              <Minimize2 className="w-4 h-4" />
+            ) : (
+              <Maximize2 className="w-4 h-4" />
+            )}
+            {isFullscreen ? "Exit full screen" : "Full screen"}
+          </button>
           {canEdit && (
             <button
               type="button"
@@ -446,6 +528,7 @@ export default function TodaysQueuePage({
                     now={now}
                     canEdit={canEdit}
                     onSelect={setSelectedAppt}
+                    onSelectDoctor={setActiveDoctor}
                     onComplete={setCompleteAppt}
                     onWritePrescription={(a) =>
                       navigateToHospitalRoute(
@@ -500,6 +583,11 @@ export default function TodaysQueuePage({
                         <b className="text-sm text-status-danger">
                           {appt.patientName}
                         </b>
+                        {appt.bookingSource === "walk-in" && (
+                          <span className="shrink-0 rounded-md bg-status-warning-soft text-status-warning border border-status-warning/20 px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-wide">
+                            Walk-in
+                          </span>
+                        )}
                         <span className="ml-auto font-mono text-xs text-ink-500">
                           {lateMins}m late
                         </span>
@@ -540,15 +628,56 @@ export default function TodaysQueuePage({
               </div>
             </div>
 
-            {canEdit && (
-              <div className="bg-surface-paper border border-border rounded-xl p-4">
-                <button
-                  type="button"
-                  onClick={() => openAddWalkIn()}
-                  className="w-full h-10 rounded-lg bg-brand-violet hover:bg-brand-violet-hover text-white text-sm font-medium flex items-center justify-center gap-2 transition-colors"
-                >
-                  <Plus className="w-4 h-4" /> Add walk-in
-                </button>
+            {eveningSessions.length > 0 && (
+              <div className="bg-surface-paper border border-border rounded-xl overflow-hidden">
+                <div className="px-4 py-3 border-b border-border">
+                  <h2 className="text-sm font-bold text-ink-900 font-display tracking-tight">
+                    {eveningSessions.length > 1
+                      ? "Later today"
+                      : "Evening session"}
+                  </h2>
+                </div>
+                {eveningSessions.map(({ doctor, window, bookedCount }) => {
+                  const startsInMins = Math.max(
+                    0,
+                    window.start - (now.getHours() * 60 + now.getMinutes()),
+                  );
+                  const startsInLabel =
+                    startsInMins >= 60
+                      ? `${Math.floor(startsInMins / 60)}h ${startsInMins % 60}m`
+                      : `${startsInMins}m`;
+                  return (
+                    <div
+                      key={doctor.id}
+                      className="px-4 py-3 border-t border-border first:border-t-0"
+                    >
+                      <div className="flex items-baseline gap-2">
+                        <b className="text-sm text-ink-900">
+                          Dr. {doctor.name}
+                        </b>
+                        <span className="ml-auto font-mono text-xs text-ink-500">
+                          {formatTime12h(minutesToTimeStr(window.start))}
+                        </span>
+                      </div>
+                      <div className="text-xs text-ink-500 mt-1">
+                        {doctor.specialization || "General"} ·{" "}
+                        {bookedCount > 0
+                          ? `${bookedCount} booked, `
+                          : "nothing booked yet, "}
+                        starts in {startsInLabel}
+                      </div>
+                      {canEdit && (
+                        <button
+                          type="button"
+                          onClick={() => openAddWalkIn(doctor.id)}
+                          className="mt-2 w-full h-8 rounded-lg bg-brand-violet hover:bg-brand-violet-hover text-white text-xs font-semibold transition-colors"
+                        >
+                          + Add walk-in
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -562,8 +691,22 @@ export default function TodaysQueuePage({
           doctor={doctorsData.doctors.find(
             (d) => d.id === selectedAppt.doctorProfileId,
           )}
+          patient={patientsData.patients.find(
+            (p) => p.id === selectedAppt.patientId,
+          )}
+          queuePosition={(() => {
+            const lane = allLanes.find(
+              (l) => l.doctor.id === selectedAppt.doctorProfileId,
+            );
+            const index = lane?.waiting.findIndex(
+              (a) => a.id === selectedAppt.id,
+            );
+            return index != null && index >= 0 ? index + 1 : undefined;
+          })()}
           patientCode={getPatientCode(selectedAppt.patientId)}
           now={now}
+          collectedByName={user?.name}
+          onToast={showToast}
           onClose={() => setSelectedAppt(null)}
           onCheckIn={() =>
             quickUpdate(selectedAppt, APPOINTMENT_STATUS.CHECKED_IN)
@@ -590,6 +733,21 @@ export default function TodaysQueuePage({
           onNoShow={() => {
             setActionDialog({ kind: "noShow", appt: selectedAppt });
             setSelectedAppt(null);
+          }}
+          onUpdateReason={async (notes) => {
+            try {
+              await updateAppointmentStatus(
+                selectedAppt.id,
+                selectedAppt.status,
+                undefined,
+                { notes },
+              );
+              await refetchAppointments();
+            } catch (err) {
+              showToast(
+                err instanceof Error ? err.message : "Failed to update reason",
+              );
+            }
           }}
         />
       )}
@@ -618,6 +776,7 @@ export default function TodaysQueuePage({
           doctors={doctorsData.doctors}
           allAppointments={appointments}
           patientCode={getPatientCode(actionDialog.appt.patientId)}
+          now={now}
           onClose={() => setActionDialog(null)}
           updateAppointmentStatus={updateAppointmentStatus}
           onSuccess={handleDialogSuccess}
@@ -667,6 +826,7 @@ export default function TodaysQueuePage({
           hospitalId={hospitalId}
           lanes={allLanes}
           patients={patientsData.patients}
+          presenceOverrides={presenceOverrides}
           now={now}
           initialDoctorId={walkInPresetDoctorId}
           onClose={() => {
@@ -701,6 +861,13 @@ export default function TodaysQueuePage({
           );
         })()}
 
+      {activeDoctor && (
+        <DoctorDetailSidebar
+          doctor={activeDoctor}
+          onClose={() => setActiveDoctor(null)}
+        />
+      )}
+
       {toast && (
         <div className="fixed bottom-5 right-5 bg-ink-900 text-white px-4 py-3 rounded-lg shadow-lg z-50">
           {toast}
@@ -729,6 +896,7 @@ function DoctorLane({
   now,
   canEdit,
   onSelect,
+  onSelectDoctor,
   onComplete,
   onWritePrescription,
   onCheckIn,
@@ -747,6 +915,7 @@ function DoctorLane({
   now: Date;
   canEdit: boolean;
   onSelect: (a: AppointmentWithDetails) => void;
+  onSelectDoctor: (d: Doctor) => void;
   onComplete: (a: AppointmentWithDetails) => void;
   onWritePrescription: (a: AppointmentWithDetails) => void;
   onCheckIn: (a: AppointmentWithDetails) => void;
@@ -761,7 +930,13 @@ function DoctorLane({
 }) {
   const windows = todaysWindows(lane.doctor, now);
   const nowMins = now.getHours() * 60 + now.getMinutes();
-  const minsPastStart = windows.length ? nowMins - windows[0].start : null;
+  // The window actually in progress right now — a doctor with more than one
+  // session today (e.g. morning + evening) would otherwise always measure
+  // against the day's first window, however many hours ago that was.
+  const currentWindow = windows.find(
+    (w) => nowMins >= w.start && nowMins < w.end,
+  );
+  const minsPastStart = currentWindow ? nowMins - currentWindow.start : null;
   const showNudge =
     presence.tone === "expected" &&
     presence.label !== "ON BREAK" &&
@@ -774,9 +949,13 @@ function DoctorLane({
       <div className="px-4 py-3 border-b border-border flex items-start gap-3">
         <SpecAvatar name={lane.doctor.name} />
         <div className="min-w-0">
-          <div className="text-sm font-semibold text-ink-900 truncate">
+          <button
+            type="button"
+            onClick={() => onSelectDoctor(lane.doctor)}
+            className="text-sm font-semibold text-ink-900 truncate hover:underline hover:text-brand-violet transition-colors text-left"
+          >
             Dr. {lane.doctor.name}
-          </div>
+          </button>
           <div className="text-xs text-ink-500 truncate">{presence.detail}</div>
         </div>
         <span className="ml-auto shrink-0">
@@ -793,6 +972,66 @@ function DoctorLane({
           />
         </span>
       </div>
+
+      {windows.length > 0 &&
+        (() => {
+          const cap = sessionCapacity(lane, now);
+          const proj = projectFinish(lane, now);
+          const msg = capacityMessage(cap, proj, windows);
+          if (!cap.window) return null;
+          const pct = (n: number) =>
+            cap.totalCapacity ? (n / cap.totalCapacity) * 100 : 0;
+          const toneCls: Record<string, string> = {
+            ok: "text-status-open",
+            warn: "text-status-warning font-semibold",
+            danger: "text-status-danger font-semibold",
+          };
+          return (
+            <div className="px-4 py-2.5 border-b border-border bg-surface-canvas/30">
+              <div className="flex items-center justify-between text-[11px] text-ink-500 mb-1.5">
+                <span>
+                  Session capacity ·{" "}
+                  {formatTime12h(minutesToTimeStr(cap.window.start))}–
+                  {formatTime12h(minutesToTimeStr(cap.window.end))}
+                </span>
+                <span className="font-mono">
+                  <b className="text-ink-900">{cap.bookedCount}</b> of{" "}
+                  {cap.totalCapacity}
+                </span>
+              </div>
+              {cap.totalCapacity > 0 && (
+                <div className="h-[7px] rounded-full bg-surface-canvas overflow-hidden flex">
+                  <div
+                    className="h-full bg-brand-violet"
+                    style={{ width: `${pct(cap.scheduledCount)}%` }}
+                  />
+                  <div
+                    className="h-full bg-status-warning"
+                    style={{ width: `${pct(cap.walkInCount)}%` }}
+                  />
+                  <div
+                    className="h-full bg-status-open/30"
+                    style={{ width: `${pct(cap.freeCount)}%` }}
+                  />
+                </div>
+              )}
+              <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                {msg && (
+                  <span className={`text-[11px] ${toneCls[msg.tone]}`}>
+                    {msg.text}
+                  </span>
+                )}
+                {cap.heldTotal > 0 && (
+                  <span className="font-mono text-[10px] text-ink-500 border border-dashed border-border rounded px-1.5 py-0.5">
+                    {cap.heldFree > 0
+                      ? `${cap.heldFree} held slot${cap.heldFree === 1 ? "" : "s"} free`
+                      : "0 held slots left"}
+                  </span>
+                )}
+              </div>
+            </div>
+          );
+        })()}
 
       {showNudge && (
         <div className="flex items-center gap-2 px-4 py-2.5 bg-status-warning-soft border-b border-status-warning/20 text-xs text-status-warning">
@@ -866,12 +1105,14 @@ function DoctorLane({
               )}
           </div>
         ) : (
-          lane.waiting.map((appt) => (
+          lane.waiting.map((appt, index) => (
             <QueueCard
               key={appt.id}
               appt={appt}
               now={now}
               tone="waiting"
+              queuePosition={index + 1}
+              reason={lane.waitingOrder[index]?.reason}
               patientCode={getPatientCode(appt.patientId)}
               onClick={() => onSelect(appt)}
               action={
@@ -920,6 +1161,8 @@ function QueueCard({
   appt,
   now,
   tone,
+  queuePosition,
+  reason,
   patientCode,
   onClick,
   action,
@@ -927,13 +1170,26 @@ function QueueCard({
   appt: AppointmentWithDetails;
   now: Date;
   tone: "now" | "waiting" | "expected";
+  queuePosition?: number;
+  // orderQueue's reason for this rank — e.g. "booked 10:45 AM",
+  // "walked in 9:50 AM", "waited 47 min — next regardless". Only meaningful
+  // for tone === "waiting"; the queue board, "call next", and this card must
+  // all read the same orderQueue result rather than each computing their own.
+  reason?: string;
   patientCode?: string;
   onClick: () => void;
   action?: { label: string; onClick: () => void };
 }) {
-  const elapsed = minutesBetween(new Date(appt.updatedAt), now);
+  const elapsed = minutesBetween(
+    tone === "now"
+      ? stageStart(appt, appt.consultationStartedAt)
+      : stageStart(appt, appt.waitingAt || appt.checkedInAt),
+    now,
+  );
   const dueIn = minutesBetween(now, apptDateTime(appt));
-  const overdue = tone === "expected" && dueIn < -OVERDUE_GRACE_MINUTES;
+  const overdue =
+    tone === "expected" &&
+    minutesElapsed(apptDateTime(appt), now) >= OVERDUE_GRACE_MINUTES;
 
   const wrapCls =
     tone === "now"
@@ -950,14 +1206,23 @@ function QueueCard({
       onClick={onClick}
       className={`w-full text-left border rounded-lg px-3 py-2 flex items-center gap-3 transition-colors hover:shadow-sm ${wrapCls}`}
     >
-      <span className="w-9 h-9 rounded-lg bg-surface-canvas flex items-center justify-center font-mono text-xs font-semibold text-ink-700 shrink-0">
-        {patientCode
-          ? patientCode.slice(-3)
-          : formatTime12h(appt.time).replace(" ", "")}
+      <span className="w-9 h-9 rounded-lg bg-surface-canvas flex items-center justify-center font-mono text-sm font-bold text-ink-700 shrink-0">
+        {queuePosition != null
+          ? queuePosition
+          : patientCode
+            ? patientCode.slice(-3)
+            : formatTime12h(appt.time).replace(" ", "")}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block text-sm font-semibold text-ink-900 truncate">
-          {appt.patientName}
+        <span className="flex items-center gap-1.5">
+          <span className="block text-sm font-semibold text-ink-900 truncate">
+            {appt.patientName}
+          </span>
+          {appt.bookingSource === "walk-in" && (
+            <span className="shrink-0 rounded-md bg-status-warning-soft text-status-warning border border-status-warning/20 px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-wide">
+              Walk-in
+            </span>
+          )}
         </span>
         <span className="block text-xs text-ink-500 truncate">
           {[
@@ -965,6 +1230,7 @@ function QueueCard({
               ? `${appt.patientAge}${appt.patientGender ? ` ${appt.patientGender[0]}` : ""}`
               : null,
             tone === "expected" ? `booked ${formatTime12h(appt.time)}` : null,
+            tone === "waiting" ? reason : null,
           ]
             .filter(Boolean)
             .join(" · ")}

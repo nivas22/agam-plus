@@ -25,9 +25,73 @@ export const switchHospitalSchema = z.object({
   hospitalId: z.string().min(1, 'Hospital ID is required'),
 });
 
+// Syntax-only email-shape check (x@y.tld) — a username must look like an
+// email but is never verified as a real, deliverable address.
+export const usernameSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'Username must be in email format');
+
+export const passwordSchema = z
+  .string()
+  .min(8, 'Password must be at least 8 characters');
+
+export const loginPasswordSchema = z.object({
+  username: z.string().min(1, 'Username is required'),
+  password: z.string().min(1, 'Password is required'),
+  keepSignedIn: z.boolean().optional().default(false),
+});
+
+export const forgotPasswordSchema = z.object({
+  username: z.string().min(1, 'Username is required'),
+});
+
+export const resetPasswordSchema = z.object({
+  token: z.string().min(1, 'Reset token is required'),
+  newPassword: passwordSchema,
+});
+
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1, 'Current password is required'),
+  newPassword: passwordSchema,
+  signOutOthers: z.boolean().optional().default(false),
+});
+
+export const requestPasswordOtpSchema = z.object({
+  username: z.string().min(1, 'Username is required'),
+  channel: z.enum(['sms', 'whatsapp']).default('whatsapp'),
+});
+
+export const verifyPasswordOtpSchema = z.object({
+  username: z.string().min(1, 'Username is required'),
+  otp: z.string().regex(/^\d{6}$/, 'Code must be 6 digits'),
+});
+
+export const requestOtpSchema = z.object({
+  phone: z.string().min(8, 'A valid phone number is required'),
+});
+
+export const verifyOtpSchema = z.object({
+  phone: z.string().min(8, 'A valid phone number is required'),
+  otp: z.string().regex(/^\d{6}$/, 'OTP must be 6 digits'),
+});
+
 /* -------------------------------------------------------------------------- */
 /*                           APPOINTMENT SCHEMAS                              */
 /* -------------------------------------------------------------------------- */
+
+// Front-desk-recorded vitals, taken at walk-in time — every field optional
+// since not every desk has every instrument to hand.
+export const vitalsSchema = z.object({
+  bpSystolic: z.number().positive().optional(),
+  bpDiastolic: z.number().positive().optional(),
+  spo2: z.number().min(0).max(100).optional(),
+  pulse: z.number().positive().optional(),
+  weight: z.number().positive().optional(),
+  temperature: z.number().positive().optional(),
+  height: z.number().positive().optional(),
+});
 
 // NOTE: Status is NOT included in creation schema - all appointments are created as 'confirmed'
 // (admin/staff booking). The update endpoint moves status through the queue lifecycle from there.
@@ -40,6 +104,15 @@ export const createAppointmentSchema = z.object({
   numberOfOccurrences: z.number().int().positive().default(1),
   selectedDays: z.array(z.string()).default([]),
   notes: z.string().default(''),
+  // Set by the walk-in flow so capacity/held-slot accounting can tell a
+  // front-desk walk-in apart from a normally scheduled booking.
+  bookingSource: z.enum(['scheduled', 'walk-in']).optional(),
+  // Front-desk override: skip the normal slot-capacity search and book
+  // exactly `preferredTime` even if it's outside generated slots or the
+  // session is already at capacity. Only honored for frequency 'once', and
+  // still blocked server-side if the doctor's overCapacityPolicy is 'block'.
+  forceSlot: z.boolean().optional().default(false),
+  vitals: vitalsSchema.optional(),
 });
 
 export const updateAppointmentSchema = z.object({
@@ -56,6 +129,7 @@ export const updateAppointmentSchema = z.object({
       rescheduleTime: z.string().optional(),
       cancelReason: z.string().optional(),
       noShowReason: z.string().optional(),
+      notes: z.string().optional(),
     })
     .optional(),
 });
@@ -198,6 +272,8 @@ export const doctorAvailabilitySchema = z.object({
 export const createDoctorSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   email: z.string().email('Invalid email format'),
+  username: usernameSchema,
+  password: passwordSchema,
   phone: z.string().min(1, 'Phone is required'),
   specialization: z.string().optional(),
   qualification: z.string().optional(),
@@ -213,6 +289,13 @@ export const createDoctorSchema = z.object({
   appointmentDuration: z.number().int().positive().optional(),
   bufferMinutes: z.number().int().min(0).optional(),
   patientsPerSlot: z.number().int().positive().optional(),
+  // Walk-in carve-out settings — also hospital-scoped, on HospitalMember.
+  acceptWalkIns: z.boolean().optional(),
+  heldSlotsPerSession: z.number().int().min(0).optional(),
+  releaseHeldSlotsBeforeMinutes: z.number().int().min(0).nullable().optional(),
+  overCapacityPolicy: z.enum(['allow', 'warn', 'block']).optional(),
+  lateArrivalGraceMinutes: z.number().int().min(0).optional(),
+  noShowReleaseMinutes: z.number().int().min(0).optional(),
   // Set once staff have seen the phone-duplicate warning and chosen to create anyway.
   confirmDuplicate: z.boolean().optional().default(false),
 });
@@ -290,6 +373,8 @@ export const addHospitalAdminSchema = z.object({
 export const createTeamMemberSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   email: z.string().email('Invalid email format'),
+  username: usernameSchema,
+  password: passwordSchema,
   phone: z.string().min(1, 'Phone is required'),
   role: z.enum(['front_desk', 'nurse', 'accountant'], {
     message: 'Role must be one of: front_desk, nurse, accountant',
