@@ -34,8 +34,21 @@ jobs:
 
       - name: Deploy to Vercel (Preview)
         if: github.ref != 'refs/heads/main'
+        id: deploy_preview
         working-directory: apps/web
-        run: vercel deploy --yes --token="$VERCEL_TOKEN"
+        run: |
+          DEPLOYMENT_URL=$(vercel deploy --yes --token="$VERCEL_TOKEN")
+          echo "deployment_url=$DEPLOYMENT_URL" >> "$GITHUB_OUTPUT"
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_WEB }}
+
+      - name: Alias Preview Deployment to Static Domain
+        if: github.ref != 'refs/heads/main'
+        working-directory: apps/web
+        run: |
+          vercel alias set "${{ steps.deploy_preview.outputs.deployment_url }}" agam-plus-web-preview.vercel.app --token="$VERCEL_TOKEN"
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}

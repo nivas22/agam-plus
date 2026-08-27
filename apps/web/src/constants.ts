@@ -285,4 +285,5 @@ export const MEDICAL_SPECIALIZATIONS = [
   "Pathology",
   "Physical Medicine",
   "Plastic Surgery",
+  "Dentistry"
 ] as const;
