@@ -1,6 +1,6 @@
 "use client";
 
-import { Laptop, Lock, Smartphone, User as UserIcon } from "lucide-react";
+import { Laptop, Lock, Smartphone } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
