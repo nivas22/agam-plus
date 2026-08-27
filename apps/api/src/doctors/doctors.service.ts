@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import * as bcrypt from 'bcryptjs';
 import { MembershipRepository } from '../repositories/membership.repository';
 import { DoctorRepository } from '../repositories/doctor.repository';
 import { UserRepository } from '../repositories/user.repository';
@@ -7,7 +8,10 @@ import { AppointmentRepository } from '../repositories/appointment.repository';
 import { HospitalHolidayRepository } from '../repositories/hospital-holiday.repository';
 import { DoctorPresenceRepository } from '../repositories/doctor-presence.repository';
 import { EmailService } from '../email/email.service';
+import { AuditService } from '../audit/audit.service';
 import { ApiError } from '../common/errors/api-error';
+import { generateTempPassword } from '../common/password.util';
+import { HospitalUserProfile } from '../auth/decorators/current-user.decorator';
 import { DoctorProfile, TimeSlot } from '../types/doctor';
 import { ACTIVE_APPOINTMENT_STATUSES, ROLE } from '../constants';
 import { findHolidayForDate, filterSlotsForHoliday } from '../hospital-holidays/holiday-availability.util';
@@ -22,6 +26,7 @@ export class DoctorsService {
     private readonly hospitalHolidayRepository: HospitalHolidayRepository,
     private readonly doctorPresenceRepository: DoctorPresenceRepository,
     private readonly emailService: EmailService,
+    private readonly auditService: AuditService,
     private readonly config: ConfigService,
   ) {}
 
@@ -186,6 +191,8 @@ export class DoctorsService {
     doctorData: {
       name: string;
       email: string;
+      username: string;
+      password: string;
       phone: string;
       specialization?: string;
       qualification?: string;
@@ -221,15 +228,35 @@ export class DoctorsService {
       }
     }
 
+    // Username is the login handle and must be globally unique across all users.
+    const existingUsernameOwner = await this.userRepository.getUserByUsername(doctorData.username);
+    if (existingUsernameOwner && (!existingUser || (existingUsernameOwner as any).id !== (existingUser as any).id)) {
+      throw ApiError.conflict(`Username ${doctorData.username} is already in use`);
+    }
+
     let doctorUserId: string;
     if (!existingUser) {
       // Create new user
+      const passwordHash = await bcrypt.hash(doctorData.password, 10);
       doctorUserId = await this.userRepository.createUser({
         email: doctorData.email,
         name: doctorData.name,
+        username: doctorData.username,
+        passwordHash,
+        mustChangePassword: true,
       });
     } else {
       doctorUserId = (existingUser as any).id;
+      // Same person already has a User doc (e.g. added at another hospital first) —
+      // only set their login credentials if they don't already have one.
+      if (!(existingUser as any).username) {
+        const passwordHash = await bcrypt.hash(doctorData.password, 10);
+        await this.userRepository.updateUser(doctorUserId, {
+          username: doctorData.username,
+          passwordHash,
+          mustChangePassword: true,
+        });
+      }
     }
 
     // Check if membership already exists
@@ -334,6 +361,27 @@ export class DoctorsService {
         membershipStatus: 'pending',
       },
     };
+  }
+
+  async resetPassword(hospitalId: string, doctorId: string, actor: HospitalUserProfile) {
+    const profile = await this.doctorRepository.getDoctorProfileByUserId(doctorId);
+    if (!profile) {
+      throw ApiError.notFound('Doctor not found');
+    }
+
+    const tempPassword = generateTempPassword();
+    const passwordHash = await bcrypt.hash(tempPassword, 10);
+    await this.userRepository.updateUser(doctorId, { passwordHash, mustChangePassword: true });
+
+    await this.auditService.log({
+      hospitalId,
+      actor: { userId: actor.userId, name: actor.name, role: actor.role },
+      action: 'doctor.password_reset',
+      area: 'settings',
+      summary: `Reset ${(profile as any).name}'s password — they'll be asked to change it at next sign-in`,
+    });
+
+    return { success: true, tempPassword };
   }
 
   async getDoctorById(hospitalId: string, doctorId: string) {

@@ -28,16 +28,20 @@ describe('Patient/staff token scope isolation', () => {
     { expiresIn: '1h' },
   );
 
-  it('a patient-scoped token is rejected by the staff JwtAuthGuard', () => {
-    const guard = new JwtAuthGuard(new Reflector(), fakeConfig);
-    expect(() => guard.canActivate(makeContext(`Bearer ${patientToken}`))).toThrow(
+  // Neither test token carries a `sid` claim, so JwtAuthGuard's session
+  // lookup is skipped and a real SessionRepository is never needed here.
+  const fakeSessionRepository = {} as any;
+
+  it('a patient-scoped token is rejected by the staff JwtAuthGuard', async () => {
+    const guard = new JwtAuthGuard(new Reflector(), fakeConfig, fakeSessionRepository);
+    await expect(guard.canActivate(makeContext(`Bearer ${patientToken}`))).rejects.toThrow(
       UnauthorizedException,
     );
   });
 
-  it('a staff token is accepted by the staff JwtAuthGuard', () => {
-    const guard = new JwtAuthGuard(new Reflector(), fakeConfig);
-    expect(guard.canActivate(makeContext(`Bearer ${staffToken}`))).toBe(true);
+  it('a staff token is accepted by the staff JwtAuthGuard', async () => {
+    const guard = new JwtAuthGuard(new Reflector(), fakeConfig, fakeSessionRepository);
+    expect(await guard.canActivate(makeContext(`Bearer ${staffToken}`))).toBe(true);
   });
 
   it('a staff token is rejected by PatientAuthGuard', () => {

@@ -22,6 +22,7 @@ describe('PatientsService', () => {
     userId: 'staff-1',
     email: 'staff@test.com',
     name: 'Staff',
+    sid: 'session-1',
   };
 
   beforeAll(async () => {

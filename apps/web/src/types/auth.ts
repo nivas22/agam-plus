@@ -18,6 +18,8 @@ export interface AppUser {
   lastLogin?: any;
   createdAt?: any;
   isNewUser?: boolean;
+  username?: string;
+  hasPassword?: boolean;
   [key: string]: any;
 }
 
@@ -38,6 +40,7 @@ export type LoginSuccess = {
   role: ROLE;
   hospitals: HospitalMember[];
   currentHospital?: Hospital;
+  mustChangePassword?: boolean;
 };
 
 export type LoginError = {

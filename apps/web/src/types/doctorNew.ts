@@ -94,6 +94,8 @@ export interface DoctorsResponse {
 export interface CreateDoctorData {
   name: string;
   email: string;
+  username?: string;
+  password?: string;
   location?: string;
   gender?: string;
   maritalStatus?: string;

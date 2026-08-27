@@ -85,6 +85,8 @@ const SPECIALIZATIONS = [
   "ENT Specialist",
 ];
 
+const USERNAME_FORMAT_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 const DAY_START = 7 * 60;
 const DAY_END = 22 * 60;
 const DAY_SPAN = DAY_END - DAY_START;
@@ -92,6 +94,9 @@ const DAY_SPAN = DAY_END - DAY_START;
 type FormState = {
   name: string;
   email: string;
+  username: string;
+  usernameSameAsEmail: boolean;
+  password: string;
   phone: string;
   specialization: string;
   experience: string;
@@ -116,6 +121,9 @@ type FormState = {
 const EMPTY_FORM: FormState = {
   name: "",
   email: "",
+  username: "",
+  usernameSameAsEmail: true,
+  password: "",
   phone: "",
   specialization: "",
   experience: "",
@@ -333,6 +341,9 @@ export default function AddEditDoctor({
       const next: FormState = {
         name: d.name || "",
         email: d.email || "",
+        username: "",
+        usernameSameAsEmail: true,
+        password: "",
         phone: d.phone || "",
         specialization: d.specialization || "",
         experience: d.experience || "",
@@ -570,12 +581,26 @@ export default function AddEditDoctor({
       toast.error("Please fill in Name and Email");
       return;
     }
+    if (isNew) {
+      if (!USERNAME_FORMAT_REGEX.test(formData.username.trim())) {
+        toast.error("Username must be in email format (e.g. name@example.com)");
+        return;
+      }
+      if (formData.password.length < 8) {
+        toast.error("Temporary password must be at least 8 characters");
+        return;
+      }
+    }
 
     setSaving(true);
     try {
       const payload: Partial<CreateDoctorData> = {
         name: formData.name,
         email: formData.email,
+        ...(isNew && {
+          username: formData.username.trim(),
+          password: formData.password,
+        }),
         phone: formData.phone,
         specialization: formData.specialization,
         experience: formData.experience,
@@ -843,17 +868,65 @@ export default function AddEditDoctor({
               <Field
                 label="Email"
                 required
-                hint="Used for login and appointment alerts."
+                hint="Used for communication, e.g. appointment alerts."
               >
                 <input
                   type="email"
                   value={formData.email}
                   disabled={!canEdit}
-                  onChange={(e) => update("email", e.target.value)}
+                  onChange={(e) => {
+                    const email = e.target.value;
+                    update("email", email);
+                    if (formData.usernameSameAsEmail) update("username", email);
+                  }}
                   placeholder="doctor@example.com"
                   className={inputClass}
                 />
               </Field>
+              {isNew && (
+                <>
+                  <Field
+                    label="Username"
+                    required
+                    hint="Used to log in. Must look like an email but doesn't have to be a real one."
+                  >
+                    <input
+                      value={formData.username}
+                      disabled={!canEdit || formData.usernameSameAsEmail}
+                      onChange={(e) => update("username", e.target.value)}
+                      placeholder="doctor@example.com"
+                      className={inputClass}
+                    />
+                    <label className="mt-1.5 flex items-center gap-2 text-xs text-ink-500">
+                      <input
+                        type="checkbox"
+                        checked={formData.usernameSameAsEmail}
+                        disabled={!canEdit}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          update("usernameSameAsEmail", checked);
+                          if (checked) update("username", formData.email);
+                        }}
+                      />
+                      Username same as email
+                    </label>
+                  </Field>
+                  <Field
+                    label="Temporary password"
+                    required
+                    hint="Share this with the doctor. They'll be asked to change it on first sign-in."
+                  >
+                    <input
+                      type="text"
+                      value={formData.password}
+                      disabled={!canEdit}
+                      onChange={(e) => update("password", e.target.value)}
+                      placeholder="At least 8 characters"
+                      className={inputClass}
+                    />
+                  </Field>
+                </>
+              )}
               <Field label="Phone" hint="10 digits, no country code.">
                 <div className="flex gap-2">
                   <span className="font-mono tabular flex items-center px-3 rounded-lg border border-border bg-surface-canvas text-sm text-ink-700 shrink-0">

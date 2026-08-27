@@ -21,6 +21,7 @@ import { MedicineRepository } from './medicine.repository';
 import { PrescriptionRepository } from './prescription.repository';
 import { LeaveRequestRepository } from './leave-request.repository';
 import { DoctorPresenceRepository } from './doctor-presence.repository';
+import { SessionRepository } from './session.repository';
 import { User, UserSchema } from '../schemas/user.schema';
 import { Hospital, HospitalSchema } from '../schemas/hospital.schema';
 import {
@@ -63,6 +64,7 @@ import {
   DoctorPresence,
   DoctorPresenceSchema,
 } from '../schemas/doctor-presence.schema';
+import { Session, SessionSchema } from '../schemas/session.schema';
 
 const repositories = [
   UserRepository,
@@ -86,6 +88,7 @@ const repositories = [
   PrescriptionRepository,
   LeaveRequestRepository,
   DoctorPresenceRepository,
+  SessionRepository,
 ];
 
 @Global()
@@ -113,6 +116,7 @@ const repositories = [
       { name: LeaveRequest.name, schema: LeaveRequestSchema },
       { name: Counter.name, schema: CounterSchema },
       { name: DoctorPresence.name, schema: DoctorPresenceSchema },
+      { name: Session.name, schema: SessionSchema },
     ]),
   ],
   providers: repositories,

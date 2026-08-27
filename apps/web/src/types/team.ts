@@ -61,6 +61,8 @@ export interface TeamMemberProfileResponse extends TeamMember {
 export interface CreateTeamMemberData {
   name: string;
   email: string;
+  username: string;
+  password: string;
   phone: string;
   role: TeamRole;
   shift?: string;

@@ -1,35 +1,62 @@
 "use client";
 
 import { GoogleLogin } from "@react-oauth/google";
+import {
+  Building2,
+  Calendar,
+  Eye,
+  EyeOff,
+  Lock,
+  ShieldCheck,
+  User,
+  UserCog,
+} from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import {
-  FaEnvelope,
-  FaEye,
-  FaEyeSlash,
-  FaHospital,
-  FaLock,
-  FaUserMd,
-} from "react-icons/fa";
-import { FcGoogle } from "react-icons/fc";
 import { useAuth } from "@/hooks/useAuth";
-import "./scss/LoginPage.scss";
+
+const USERNAME_FORMAT_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const FEATURES = [
+  {
+    icon: Building2,
+    title: "One account, several hospitals",
+    description: "Switch between them without signing out.",
+  },
+  {
+    icon: UserCog,
+    title: "You only see what your role allows",
+    description: "Front desk takes payments; refunds need an admin.",
+  },
+  {
+    icon: ShieldCheck,
+    title: "Every payment and booking is signed",
+    description: "Who did it, when, and from which device.",
+  },
+  {
+    icon: Calendar,
+    title: "Appointment scheduling, built in",
+    description: "Streamlined booking and management for every hospital.",
+  },
+];
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("");
+  const [tab, setTab] = useState<"google" | "password">("password");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [keepSignedIn, setKeepSignedIn] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [localError, setLocalError] = useState("");
-  const [isEmailLoginEnabled, setIsEmailLoginEnabled] = useState(false);
-  const isLoggingInWithEmail = false;
 
   const {
     user,
     loading,
     error,
     loginWithGoogle,
+    loginWithPassword,
     isLoggingInWithGoogle,
+    isLoggingInWithPassword,
     isAuthenticated,
     hospitals,
     approvedHospitals,
@@ -44,7 +71,6 @@ export default function LoginPage() {
   // Redirect if authenticated
   useEffect(() => {
     if (isAuthenticated && user) {
-      // If there's a 'from' parameter, redirect back to that page
       if (from && from !== "/login") {
         router.push(from);
       } else if (approvedHospitals.length > 0) {
@@ -61,35 +87,28 @@ export default function LoginPage() {
     router,
   ]);
 
-  const handleEmailLogin = async (e: React.FormEvent) => {
+  const handlePasswordLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLocalError("");
 
-    if (!email || !password) {
-      setLocalError("Please enter both email and password");
+    if (!username || !password) {
+      setLocalError("Please enter both username and password");
+      return;
+    }
+    if (!USERNAME_FORMAT_REGEX.test(username)) {
+      setLocalError("Username must be in email format (e.g. name@example.com)");
       return;
     }
 
-    if (!isValidEmail(email)) {
-      setLocalError("Please enter a valid email address");
-      return;
+    try {
+      await loginWithPassword({ username, password, keepSignedIn });
+    } catch (err: any) {
+      setLocalError(err.message || "An unexpected error occurred");
     }
-
-    setIsEmailLoginEnabled(false);
-
-    // try {
-    //   const result = await loginWithEmail({ email, password });
-    //   if (!result.success) {
-    //     setLocalError(result.error || 'Login failed');
-    //   }
-    // } catch (err: any) {
-    //   setLocalError(err.message || 'An unexpected error occurred');
-    // }
   };
 
   const handleGoogleLogin = async (credential: string) => {
     setLocalError("");
-
     try {
       const result = await loginWithGoogle(credential);
       if (!result.success) {
@@ -100,340 +119,285 @@ export default function LoginPage() {
     }
   };
 
-  const isValidEmail = (email: string): boolean => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-  };
-
-  const togglePasswordVisibility = () => {
-    setShowPassword(!showPassword);
-  };
-
-  const isLoading = isLoggingInWithGoogle || loading;
+  const isLoading = isLoggingInWithGoogle || isLoggingInWithPassword || loading;
   const displayError = localError || error?.message;
 
   return (
-    <div className="login-container">
-      {/* Left side - Branding and information */}
-      <div className="branding-section">
-        <div className="branding-content">
-          {/* Logo and App Name */}
-          <div className="logo-section">
-            <div className="logo-container">
-              <img
-                src="/agam-plus-logo.svg"
-                alt="Agam Plus Logo"
-                className="app-logo"
-              />
-            </div>
-          </div>
+    <div className="min-h-screen bg-surface-canvas md:grid md:grid-cols-2">
+      {/* Left — branding */}
+      <div className="relative hidden md:flex flex-col overflow-hidden bg-ink-900 px-8 py-8 text-white">
+        <div
+          className="pointer-events-none absolute inset-0"
+          style={{
+            backgroundImage:
+              "radial-gradient(740px 440px at 8% -10%, rgba(91,75,219,.55), transparent 62%), radial-gradient(600px 400px at 96% 104%, rgba(154,63,208,.4), transparent 60%)",
+          }}
+        />
+        <div className="relative z-10 flex flex-col h-full">
+          <img
+            src="/agam-plus-logo.svg"
+            alt="Agam Plus"
+            className="h-50 w-80 brightness-0 invert"
+          />
 
-          {/* Features List */}
-          <div className="features-list">
-            <div className="feature-item">
-              <div className="feature-icon feature-icon-blue">
-                <FaHospital className="feature-icon-inner" />
-              </div>
-              <div className="feature-content">
-                <h3 className="feature-title font-display tracking-tight">
-                  Multi-Hospital Support
-                </h3>
-                <p className="feature-description">
-                  Work across multiple hospitals with single sign-on
-                </p>
-              </div>
-            </div>
-
-            <div className="feature-item">
-              <div className="feature-icon feature-icon-green">
-                <FaUserMd className="feature-icon-inner" />
-              </div>
-              <div className="feature-content">
-                <h3 className="feature-title font-display tracking-tight">
-                  Role-Based Access
-                </h3>
-                <p className="feature-description">
-                  Different permissions for admins, doctors, and staff
-                </p>
-              </div>
-            </div>
-
-            <div className="feature-item">
-              <div className="feature-icon feature-icon-purple">
-                <svg
-                  className="feature-icon-inner w-5 h-5 text-brand-violet"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-                  ></path>
-                </svg>
-              </div>
-              <div className="feature-content">
-                <h3 className="feature-title font-display tracking-tight">
-                  Patient Records
-                </h3>
-                <p className="feature-description">
-                  Secure and organized patient information
-                </p>
-              </div>
-            </div>
-
-            <div className="feature-item">
-              <div className="feature-icon feature-icon-orange">
-                <svg
-                  className="feature-icon-inner w-5 h-5 text-status-warning"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                  ></path>
-                </svg>
-              </div>
-              <div className="feature-content">
-                <h3 className="feature-title font-display tracking-tight">
-                  Appointment Scheduling
-                </h3>
-                <p className="feature-description">
-                  Streamlined booking and management
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Demo Information */}
-          <div className="demo-info">
-            <h4 className="demo-title">
-              <FcGoogle className="demo-title-icon" />
-              Quick Access
-            </h4>
-            <p className="demo-description">
-              Sign in with Google to access the multi-hospital system. You can
-              request access to multiple hospitals and switch between them
-              seamlessly.
+          <div className="mt-10">
+            <h1 className="font-display tracking-tight text-4xl font-bold leading-tight max-w-md">
+              The front desk, the doctors and the money — on one screen.
+            </h1>
+            <p className="mt-3 text-white/65 max-w-sm">
+              Sign in to the hospitals you&apos;ve been given access to.
             </p>
+
+            <div className="mt-8 max-w-md">
+              {FEATURES.map((f, i) => (
+                <div
+                  key={f.title}
+                  className={`flex gap-3 items-start py-3.5 border-white/10 ${i === 0 ? "" : "border-t"} ${i === FEATURES.length - 1 ? "border-b" : ""}`}
+                >
+                  <span className="w-7 h-7 rounded-lg bg-white/10 flex items-center justify-center shrink-0">
+                    <f.icon className="w-3.5 h-3.5" />
+                  </span>
+                  <div>
+                    <div className="text-sm font-semibold">{f.title}</div>
+                    <div className="text-xs text-white/60 mt-0.5 leading-relaxed">
+                      {f.description}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
 
-          {/* Hospital Count Info */}
-          {isAuthenticated && hospitals.length > 0 && (
-            <div className="hospital-status">
-              <p className="hospital-status-text">
-                Access to <strong>{approvedHospitals.length}</strong> approved
-                hospitals
-                {hospitals.length > approvedHospitals.length && (
-                  <span>
-                    {" "}
-                    and{" "}
-                    <strong>
-                      {hospitals.length - approvedHospitals.length}
-                    </strong>{" "}
-                    pending
-                  </span>
-                )}
-              </p>
-            </div>
-          )}
+          <div className="mt-8 text-xs text-white/40 flex gap-4">
+            <span>© {new Date().getFullYear()} Agam Plus</span>
+          </div>
         </div>
       </div>
 
-      {/* Right side - Login Form */}
-      <div className="login-section">
-        <div className="login-form-container">
-          <div className="login-header">
-            <h2 className="login-title font-display tracking-tight">
-              Welcome Back
-            </h2>
-            <p className="login-subtitle">Sign in to access your hospitals</p>
+      {/* Right — sign in */}
+      <div className="flex items-center justify-center px-8 py-14">
+        <div className="w-full max-w-md">
+          <h2 className="font-display tracking-tight text-4xl font-bold text-ink-900">
+            Sign in
+          </h2>
+          <p className="text-m text-ink-500 mt-1.5">
+            Two ways in, depending on your role at the hospital.
+          </p>
+
+          <div className="flex gap-2 bg-surface-canvas border border-border rounded-xl p-1 mt-10">
+            <button
+              type="button"
+              onClick={() => setTab("google")}
+              className={`flex-1 rounded-lg py-4 text-center transition-colors ${
+                tab === "google"
+                  ? "bg-surface-paper shadow-sm"
+                  : "hover:bg-surface-paper/60"
+              }`}
+            >
+              <div
+                className={`text-s font-semibold ${tab === "google" ? "text-brand-violet" : "text-ink-700"}`}
+              >
+                Social Login
+              </div>
+              {/* <div className="text-[11px] text-ink-500 mt-0.5">
+                Google account
+              </div> */}
+            </button>
+            <button
+              type="button"
+              onClick={() => setTab("password")}
+              className={`flex-1 rounded-lg py-2.5 text-center transition-colors ${
+                tab === "password"
+                  ? "bg-surface-paper shadow-sm"
+                  : "hover:bg-surface-paper/60"
+              }`}
+            >
+              <div
+                className={`text-xs font-semibold ${tab === "password" ? "text-brand-violet" : "text-ink-700"}`}
+              >
+                Username &amp; password
+              </div>
+              {/* <div className="text-[11px] text-ink-500 mt-0.5">
+                Username &amp; password
+              </div> */}
+            </button>
           </div>
 
-          {/* Error Message */}
-          {displayError && <div className="error-message">{displayError}</div>}
-
-          {/* Loading State */}
-          {isLoading && (
-            <div className="loading-message">
-              <div className="loading-content">
-                <div className="loading-spinner"></div>
-                Signing you in...
-              </div>
+          {displayError && (
+            <div className="mt-5 rounded-xl border border-status-danger/30 bg-status-danger-soft px-3.5 py-3 text-sm text-status-danger leading-relaxed">
+              {displayError}
             </div>
           )}
 
-          {/* Google Login Button */}
-          <div className="google-button-wrapper">
-            <GoogleLogin
-              onSuccess={(credentialResponse) => {
-                if (credentialResponse.credential) {
-                  handleGoogleLogin(credentialResponse.credential);
-                }
-              }}
-              onError={() => setLocalError("Google login failed")}
-              theme="outline"
-              shape="pill"
-              size="large"
-              text="continue_with"
-              width="384"
-            />
-          </div>
-
-          {/* Divider */}
-          <div className="divider">
-            <div className="divider-line"></div>
-            <span className="divider-text">or sign in with email</span>
-            <div className="divider-line"></div>
-          </div>
-
-          {/* Email Form */}
-          <form className="space-y-4" onSubmit={handleEmailLogin}>
-            <div>
-              <label
-                htmlFor="email"
-                className="block text-sm font-medium text-ink-700 mb-1"
-              >
-                Email address
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <FaEnvelope className="h-5 w-5 text-ink-500" />
-                </div>
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  autoComplete="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  disabled={isLoading || !isEmailLoginEnabled}
-                  className="w-full pl-10 pr-4 py-3 border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-violet focus:border-transparent disabled:bg-surface-canvas disabled:cursor-not-allowed transition-colors duration-200"
-                  placeholder="Enter your email"
-                  required
+          {tab === "google" ? (
+            <div className="mt-6">
+              <div className="flex justify-center">
+                <GoogleLogin
+                  onSuccess={(credentialResponse) => {
+                    if (credentialResponse.credential) {
+                      handleGoogleLogin(credentialResponse.credential);
+                    }
+                  }}
+                  onError={() => setLocalError("Google login failed")}
+                  theme="outline"
+                  shape="pill"
+                  size="large"
+                  text="continue_with"
+                  width="384"
                 />
               </div>
+              <p className="text-xs text-ink-500 text-center mt-4">
+                Request access to hospitals you work with — a hospital admin
+                approves you, then you can switch between hospitals anytime.
+              </p>
             </div>
-
-            <div>
-              <label
-                htmlFor="password"
-                className="block text-sm font-medium text-ink-700 mb-1"
-              >
-                Password
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <FaLock className="h-5 w-5 text-ink-500" />
-                </div>
-                <input
-                  id="password"
-                  name="password"
-                  type={showPassword ? "text" : "password"}
-                  autoComplete="current-password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  disabled={isLoading || !isEmailLoginEnabled}
-                  className="w-full pl-10 pr-12 py-3 border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-violet focus:border-transparent disabled:bg-surface-canvas disabled:cursor-not-allowed transition-colors duration-200"
-                  placeholder="Enter your password"
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={togglePasswordVisibility}
-                  disabled={isLoading || !isEmailLoginEnabled}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-ink-500 hover:text-ink-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          ) : (
+            <form className="mt-6 space-y-4" onSubmit={handlePasswordLogin}>
+              <div>
+                <label
+                  htmlFor="username"
+                  className="block text-xs font-semibold text-ink-700 mb-1.5"
                 >
-                  {showPassword ? (
-                    <FaEyeSlash className="h-5 w-5" />
-                  ) : (
-                    <FaEye className="h-5 w-5" />
-                  )}
-                </button>
-              </div>
-            </div>
-
-            {/* Forgot Password Link */}
-            <div className="flex justify-end">
-              <Link
-                href="/forgot-password"
-                className="text-sm text-brand-violet hover:text-brand-violet-hover font-medium transition-colors duration-200"
-              >
-                Forgot your password?
-              </Link>
-            </div>
-
-            <button
-              type="submit"
-              disabled={isLoading || !isEmailLoginEnabled}
-              className="w-full py-3 px-4 bg-brand-violet text-white rounded-xl font-medium hover:bg-brand-violet-hover transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-violet disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isLoggingInWithEmail ? (
-                <div className="flex items-center justify-center">
-                  <div className="w-5 h-5 border-2 border-surface-paper border-t-transparent rounded-full animate-spin mr-2"></div>
-                  Signing in...
+                  Username
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <User className="h-4 w-4 text-ink-500" />
+                  </div>
+                  <input
+                    id="username"
+                    name="username"
+                    type="text"
+                    autoComplete="username"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    disabled={isLoading}
+                    className="w-full pl-9 pr-3 py-2.5 border border-border rounded-xl bg-white font-mono text-sm focus:outline-none focus:ring-2 focus:ring-brand-violet focus:border-transparent disabled:bg-surface-canvas disabled:cursor-not-allowed transition-colors"
+                    placeholder="name@example.com"
+                    required
+                  />
                 </div>
-              ) : isEmailLoginEnabled ? (
-                "Sign in with Email"
-              ) : (
-                "Email Login Coming Soon"
-              )}
-            </button>
-          </form>
+              </div>
 
-          {/* Registration Link */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label htmlFor="password" className="block text-xs font-semibold text-ink-700">
+                    Password
+                  </label>
+                  <Link
+                    href="/forgot-password"
+                    className="text-xs text-brand-violet hover:text-brand-violet-hover font-medium"
+                  >
+                    Forgot password?
+                  </Link>
+                </div>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Lock className="h-4 w-4 text-ink-500" />
+                  </div>
+                  <input
+                    id="password"
+                    name="password"
+                    type={showPassword ? "text" : "password"}
+                    autoComplete="current-password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    disabled={isLoading}
+                    className="w-full pl-9 pr-10 py-2.5 border border-border rounded-xl bg-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-violet focus:border-transparent disabled:bg-surface-canvas disabled:cursor-not-allowed transition-colors"
+                    placeholder="Enter your password"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    disabled={isLoading}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-ink-500 hover:text-ink-700 disabled:opacity-50"
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <label className="flex items-start gap-2 text-xs text-ink-700">
+                <input
+                  type="checkbox"
+                  checked={keepSignedIn}
+                  onChange={(e) => setKeepSignedIn(e.target.checked)}
+                  disabled={isLoading}
+                  className="mt-0.5"
+                />
+                <span>
+                  Keep me signed in
+                  <span className="block text-[11px] text-ink-500">
+                    Don&apos;t tick this on the front-desk terminal
+                  </span>
+                </span>
+              </label>
+
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full py-2.5 px-4 bg-brand-violet text-white rounded-xl text-sm font-semibold hover:bg-brand-violet-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isLoggingInWithPassword ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Signing in...
+                  </span>
+                ) : (
+                  "Sign in"
+                )}
+              </button>
+
+              <div className="flex items-center gap-3 py-1">
+                <div className="flex-1 h-px bg-border" />
+                <span className="text-[11px] text-ink-500">
+                  or, if you&apos;re an admin or doctor
+                </span>
+                <div className="flex-1 h-px bg-border" />
+              </div>
+
+              <div className="flex justify-center">
+                <GoogleLogin
+                  onSuccess={(credentialResponse) => {
+                    if (credentialResponse.credential) {
+                      handleGoogleLogin(credentialResponse.credential);
+                    }
+                  }}
+                  onError={() => setLocalError("Google login failed")}
+                  theme="outline"
+                  shape="pill"
+                  size="medium"
+                  text="continue_with"
+                  width="320"
+                />
+              </div>
+            </form>
+          )}
+
           <div className="mt-6 text-center">
-            <p className="text-ink-700">
+            <p className="text-sm text-ink-700">
               Don&apos;t have an account?{" "}
               <Link
                 href="/register"
-                className="text-brand-violet hover:text-brand-violet-hover font-medium transition-colors duration-200"
+                className="text-brand-violet hover:text-brand-violet-hover font-medium"
               >
                 Request Access
               </Link>
             </p>
           </div>
 
-          {/* Hospital Access Info */}
-          <div className="mt-6 p-4 bg-surface-canvas rounded-lg border border-border">
-            <h4 className="text-sm font-medium text-ink-700 mb-2">
-              How it works:
-            </h4>
-            <ul className="text-xs text-ink-700 space-y-1">
-              <li>• Sign in with your Google account</li>
-              <li>• Request access to hospitals you work with</li>
-              <li>• Hospital admins will approve your access</li>
-              <li>• Switch between hospitals anytime</li>
-            </ul>
-          </div>
-
-          {/* Footer */}
-          <div className="mt-8 text-center">
-            <p className="text-sm text-ink-500">
-              By signing in, you agree to our{" "}
-              <Link
-                href="/terms"
-                className="text-brand-violet hover:text-brand-violet-hover font-medium"
-              >
-                Terms of Service
-              </Link>{" "}
-              and{" "}
-              <Link
-                href="/privacy"
-                className="text-brand-violet hover:text-brand-violet-hover font-medium"
-              >
-                Privacy Policy
-              </Link>
-            </p>
-          </div>
+          <p className="mt-6 text-[11px] text-ink-500 text-center leading-relaxed">
+            By signing in you agree to our{" "}
+            <Link href="/terms" className="text-ink-700 underline">
+              Terms of Service
+            </Link>{" "}
+            and{" "}
+            <Link href="/privacy" className="text-ink-700 underline">
+              Privacy Policy
+            </Link>
+            .
+          </p>
         </div>
       </div>
     </div>

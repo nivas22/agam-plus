@@ -25,6 +25,49 @@ export const switchHospitalSchema = z.object({
   hospitalId: z.string().min(1, 'Hospital ID is required'),
 });
 
+// Syntax-only email-shape check (x@y.tld) — a username must look like an
+// email but is never verified as a real, deliverable address.
+export const usernameSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'Username must be in email format');
+
+export const passwordSchema = z
+  .string()
+  .min(8, 'Password must be at least 8 characters');
+
+export const loginPasswordSchema = z.object({
+  username: z.string().min(1, 'Username is required'),
+  password: z.string().min(1, 'Password is required'),
+  keepSignedIn: z.boolean().optional().default(false),
+});
+
+export const forgotPasswordSchema = z.object({
+  username: z.string().min(1, 'Username is required'),
+});
+
+export const resetPasswordSchema = z.object({
+  token: z.string().min(1, 'Reset token is required'),
+  newPassword: passwordSchema,
+});
+
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1, 'Current password is required'),
+  newPassword: passwordSchema,
+  signOutOthers: z.boolean().optional().default(false),
+});
+
+export const requestPasswordOtpSchema = z.object({
+  username: z.string().min(1, 'Username is required'),
+  channel: z.enum(['sms', 'whatsapp']).default('whatsapp'),
+});
+
+export const verifyPasswordOtpSchema = z.object({
+  username: z.string().min(1, 'Username is required'),
+  otp: z.string().regex(/^\d{6}$/, 'Code must be 6 digits'),
+});
+
 export const requestOtpSchema = z.object({
   phone: z.string().min(8, 'A valid phone number is required'),
 });
@@ -229,6 +272,8 @@ export const doctorAvailabilitySchema = z.object({
 export const createDoctorSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   email: z.string().email('Invalid email format'),
+  username: usernameSchema,
+  password: passwordSchema,
   phone: z.string().min(1, 'Phone is required'),
   specialization: z.string().optional(),
   qualification: z.string().optional(),
@@ -328,6 +373,8 @@ export const addHospitalAdminSchema = z.object({
 export const createTeamMemberSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   email: z.string().email('Invalid email format'),
+  username: usernameSchema,
+  password: passwordSchema,
   phone: z.string().min(1, 'Phone is required'),
   role: z.enum(['front_desk', 'nurse', 'accountant'], {
     message: 'Role must be one of: front_desk, nurse, accountant',
