@@ -1,5 +1,5 @@
 // lib/api.ts
-const API_BASE_URL = process.env.AGAM_API_URL || "http://localhost:3001";
+const API_BASE_URL = process.env.NEXT_PUBLIC_AGAM_API_URL || "http://localhost:3001";
 const TOKEN_STORAGE_KEY = "qdoc_auth_token";
 
 // Carries the API's `details` payload (e.g. duplicate-match candidates on a 409)
