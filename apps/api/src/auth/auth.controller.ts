@@ -61,7 +61,7 @@ export class AuthController {
   @Public()
   @Post('password-otp/request')
   @UsePipes(new ZodValidationPipe(requestPasswordOtpSchema))
-  requestPasswordOtp(@Body() body: { username: string; channel: 'sms' | 'whatsapp' }) {
+  requestPasswordOtp(@Body() body: { username: string; channel: 'sms' | 'whatsapp' | 'email' }) {
     return this.authService.requestPasswordOtp(body.username, body.channel);
   }
 

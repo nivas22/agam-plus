@@ -19,7 +19,8 @@ import {
 import DoctorAvatar from "@/components/doctors/DoctorAvatar";
 import { useAuth } from "@/hooks/useAuth";
 import { useDoctorDashboardPracticeStats } from "@/hooks/useDoctorDashboardApi";
-import { useHospitalDoctor, useNewDoctorApi } from "@/hooks/useNewDoctorApi";
+import { useHospitalDoctor, useNewDoctorApi, useResetDoctorPassword } from "@/hooks/useNewDoctorApi";
+import TempPasswordModal from "@/components/common/TempPasswordModal";
 import { ApiRequestError } from "@/lib/api";
 import type { TimeSlot } from "@/types/appointment";
 import type { CreateDoctorData, Doctor } from "@/types/doctorNew";
@@ -317,6 +318,8 @@ export default function AddEditDoctor({
     hospitalId,
   );
   const { hospitals } = useAuth();
+  const resetPassword = useResetDoctorPassword(hospitalId);
+  const [tempPassword, setTempPassword] = useState<string | null>(null);
 
   const [formData, setFormData] = useState<FormState>(EMPTY_FORM);
   const [initialData, setInitialData] = useState<FormState>(EMPTY_FORM);
@@ -825,13 +828,27 @@ export default function AddEditDoctor({
             <div className="px-1 text-xs text-ink-500 space-y-2">
               <p>Changes go live for patients as soon as you save.</p>
               {canEdit && (
-                <button
-                  type="button"
-                  onClick={() => setConfirmDelete(true)}
-                  className="text-status-danger hover:underline font-medium"
-                >
-                  Remove this doctor
-                </button>
+                <>
+                  <button
+                    type="button"
+                    disabled={resetPassword.isPending}
+                    onClick={() =>
+                      resetPassword.mutate(id!, {
+                        onSuccess: (data) => setTempPassword(data.tempPassword),
+                      })
+                    }
+                    className="block text-brand-violet hover:underline font-medium disabled:opacity-50"
+                  >
+                    Reset password
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmDelete(true)}
+                    className="block text-status-danger hover:underline font-medium"
+                  >
+                    Remove this doctor
+                  </button>
+                </>
               )}
             </div>
           )}
@@ -1638,6 +1655,14 @@ export default function AddEditDoctor({
           viewHrefFor={(doctorId) =>
             `/hospital/${hospitalId}/doctors/${doctorId}`
           }
+        />
+      )}
+
+      {tempPassword && (
+        <TempPasswordModal
+          name={displayName}
+          tempPassword={tempPassword}
+          onClose={() => setTempPassword(null)}
         />
       )}
     </div>

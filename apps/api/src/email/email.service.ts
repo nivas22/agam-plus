@@ -213,6 +213,42 @@ This is an automated message. Please do not reply to this email.
     return this.sendEmail({ to: email, subject, html, text });
   }
 
+  async sendPasswordOtpEmail(email: string, otp: string): Promise<boolean> {
+    const subject = 'Your Agam Plus verification code';
+
+    const html = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background-color: #2563eb; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+          .content { background-color: #f9fafb; padding: 30px; border-radius: 0 0 8px 8px; text-align: center; }
+          .code { display: inline-block; font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #2563eb; margin: 20px 0; }
+          .footer { text-align: center; margin-top: 20px; color: #6b7280; font-size: 14px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header"><h1>Verification code</h1></div>
+          <div class="content">
+            <p>Use this code to reset your password. It expires in 5 minutes.</p>
+            <div class="code">${otp}</div>
+            <p>If you didn't request this, you can safely ignore this email.</p>
+          </div>
+          <div class="footer"><p>Nobody from Agam Plus will ever ask you for this code.</p></div>
+        </div>
+      </body>
+    </html>
+  `;
+
+    const text = `Verification code\n\nUse this code to reset your password: ${otp}\nIt expires in 5 minutes.\n\nIf you didn't request this, you can safely ignore this email.`;
+
+    return this.sendEmail({ to: email, subject, html, text });
+  }
+
   async sendDoctorApprovalEmail(doctorEmail: string, doctorName: string, hospitalName: string): Promise<boolean> {
     const appUrl = this.config.get<string>('NEXT_PUBLIC_APP_URL') || 'https://yourhospital.com';
     const subject = `Your Doctor Profile Has Been Approved - ${hospitalName}`;

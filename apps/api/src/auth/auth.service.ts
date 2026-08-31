@@ -45,6 +45,13 @@ function maskPhone(phone: string): string {
   return `+91 ${d.slice(0, 3)}••••${d.slice(7)}`;
 }
 
+function maskEmail(email: string): string {
+  const [local, domain] = email.split('@');
+  if (!domain) return email;
+  const visible = local.slice(0, 2);
+  return `${visible}${'•'.repeat(Math.max(local.length - visible.length, 3))}@${domain}`;
+}
+
 // Server-internal-only fields on User that must never reach the client.
 const SENSITIVE_USER_FIELDS = [
   'passwordHash',
@@ -290,18 +297,27 @@ export class AuthService {
     return null;
   }
 
-  async requestPasswordOtp(username: string, _channel: 'sms' | 'whatsapp') {
+  async requestPasswordOtp(username: string, channel: 'sms' | 'whatsapp' | 'email') {
     const userSnap = await this.userRepository.getUserByUsername(username);
     if (!userSnap) {
       throw ApiError.badRequest('No account found for that username');
     }
     const userId = (userSnap as any).id;
 
-    const phone = await this.resolvePhoneForUser(userId);
-    if (!phone) {
-      throw ApiError.badRequest(
-        'No phone number on file for this account — ask your hospital admin to reset your password from the Team screen.',
-      );
+    let phone: string | null = null;
+    if (channel === 'email') {
+      if (!(userSnap as any).email) {
+        throw ApiError.badRequest(
+          'No email on file for this account — ask your hospital admin to reset your password from the Team screen.',
+        );
+      }
+    } else {
+      phone = await this.resolvePhoneForUser(userId);
+      if (!phone) {
+        throw ApiError.badRequest(
+          'No phone number on file for this account — ask your hospital admin to reset your password from the Team screen.',
+        );
+      }
     }
 
     const now = Date.now();
@@ -319,15 +335,20 @@ export class AuthService {
     const otpHash = await bcrypt.hash(otp, 10);
     await this.userRepository.setOtp(userId, otpHash, new Date(now + OTP_TTL_MS));
 
-    // Both delivery channels route through the same placeholder SMS sender —
+    if (channel === 'email') {
+      await this.emailService.sendPasswordOtpEmail((userSnap as any).email, otp);
+      return { success: true, maskedContact: maskEmail((userSnap as any).email), channel };
+    }
+
+    // Both non-email channels route through the same placeholder SMS sender —
     // there's no real WhatsApp Business integration wired up anywhere in this
     // codebase yet, same limitation SmsService already has for plain SMS.
     await this.smsService.sendSms({
-      to: normalizePhone(phone),
+      to: normalizePhone(phone as string),
       message: `Your Agam Plus verification code is ${otp}. It expires in 5 minutes.`,
     });
 
-    return { success: true, maskedPhone: maskPhone(phone) };
+    return { success: true, maskedContact: maskPhone(phone as string), channel };
   }
 
   async verifyPasswordOtp(username: string, otp: string) {

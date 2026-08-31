@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, ArrowLeft, CheckCircle2, KeyRound, MessageCircle, Smartphone } from "lucide-react";
+import { AlertTriangle, ArrowLeft, CheckCircle2, KeyRound, Mail, MessageCircle, Smartphone } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -10,7 +10,7 @@ const USERNAME_FORMAT_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const RESEND_COOLDOWN_SECONDS = 60;
 
 type Step = "request" | "verify" | "set";
-type Channel = "whatsapp" | "sms";
+type Channel = "whatsapp" | "sms" | "email";
 
 async function parseError(response: Response): Promise<string> {
   const data = await response.json().catch(() => ({}));
@@ -37,7 +37,7 @@ export default function ForgotPasswordPage() {
   const [step, setStep] = useState<Step>("request");
   const [username, setUsername] = useState("");
   const [channel, setChannel] = useState<Channel>("whatsapp");
-  const [maskedPhone, setMaskedPhone] = useState("");
+  const [maskedContact, setMaskedContact] = useState("");
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [resetToken, setResetToken] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -68,7 +68,7 @@ export default function ForgotPasswordPage() {
       });
       if (!response.ok) throw new Error(await parseError(response));
       const data = await response.json();
-      setMaskedPhone(data.maskedPhone);
+      setMaskedContact(data.maskedContact);
       setOtp(["", "", "", "", "", ""]);
       setCooldown(RESEND_COOLDOWN_SECONDS);
       setStep("verify");
@@ -168,7 +168,8 @@ export default function ForgotPasswordPage() {
               Reset your password
             </h1>
             <p className="text-sm text-ink-500 mt-1.5 mb-5 leading-relaxed">
-              Tell us your username and we&apos;ll send a code to the phone number your hospital registered you with.
+              Tell us your username and we&apos;ll send a code to the phone number or email your hospital
+              registered you with.
             </p>
 
             {error && <div className="text-sm text-status-danger mb-4">{error}</div>}
@@ -220,6 +221,22 @@ export default function ForgotPasswordPage() {
                   <span className="block text-xs text-ink-500">Use this if WhatsApp isn&apos;t working.</span>
                 </span>
               </button>
+              <button
+                type="button"
+                onClick={() => setChannel("email")}
+                className={`w-full flex items-center gap-3 border rounded-xl p-3 text-left transition-colors ${
+                  channel === "email" ? "border-brand-violet bg-brand-violet-soft" : "border-border"
+                }`}
+              >
+                <span
+                  className={`w-4 h-4 rounded-full border flex-none ${channel === "email" ? "border-[5px] border-brand-violet bg-white" : "border-border"}`}
+                />
+                <Mail className="w-4 h-4 text-ink-500 flex-none" />
+                <span className="flex-1">
+                  <span className="block text-sm font-semibold text-ink-900">Email</span>
+                  <span className="block text-xs text-ink-500">Send the code to your registered email instead.</span>
+                </span>
+              </button>
             </div>
 
             <button
@@ -231,7 +248,7 @@ export default function ForgotPasswordPage() {
               {submitting ? "Sending..." : "Send the code"}
             </button>
             <p className="text-[11px] text-ink-500 mt-3 leading-relaxed">
-              Can&apos;t get to that number any more? Your hospital admin can reset your password directly
+              Can&apos;t get to any of these any more? Your hospital admin can reset your password directly
               from the Team screen — no code needed.
             </p>
           </>
@@ -244,14 +261,14 @@ export default function ForgotPasswordPage() {
               onClick={() => setStep("request")}
               className="text-xs font-semibold text-brand-violet flex items-center gap-1 mb-4"
             >
-              <ArrowLeft className="w-3.5 h-3.5" /> Use a different number
+              <ArrowLeft className="w-3.5 h-3.5" /> Use a different option
             </button>
             <div className="w-11 h-11 rounded-xl bg-brand-violet flex items-center justify-center mb-4">
               <KeyRound className="w-5 h-5 text-white" />
             </div>
             <h1 className="font-display tracking-tight text-xl font-bold text-ink-900">Enter the code</h1>
             <p className="text-sm text-ink-500 mt-1.5 mb-5 leading-relaxed">
-              We sent six digits to <span className="font-mono text-ink-900">{maskedPhone}</span>. It expires
+              We sent six digits to <span className="font-mono text-ink-900">{maskedContact}</span>. It expires
               in 5 minutes.
             </p>
 

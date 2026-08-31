@@ -137,7 +137,7 @@ export default function LoginPage() {
           <img
             src="/agam-plus-logo.svg"
             alt="Agam Plus"
-            className="h-50 w-80 brightness-0 invert"
+            className="h-14 w-auto brightness-0 invert"
           />
 
           <div className="mt-10">
@@ -180,7 +180,7 @@ export default function LoginPage() {
           <h2 className="font-display tracking-tight text-4xl font-bold text-ink-900">
             Sign in
           </h2>
-          <p className="text-m text-ink-500 mt-1.5">
+          <p className="text-sm text-ink-500 mt-1.5">
             Two ways in, depending on your role at the hospital.
           </p>
 
@@ -195,7 +195,7 @@ export default function LoginPage() {
               }`}
             >
               <div
-                className={`text-s font-semibold ${tab === "google" ? "text-brand-violet" : "text-ink-700"}`}
+                className={`text-xs font-semibold ${tab === "google" ? "text-brand-violet" : "text-ink-700"}`}
               >
                 Social Login
               </div>

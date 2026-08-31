@@ -60,7 +60,7 @@ export const changePasswordSchema = z.object({
 
 export const requestPasswordOtpSchema = z.object({
   username: z.string().min(1, 'Username is required'),
-  channel: z.enum(['sms', 'whatsapp']).default('whatsapp'),
+  channel: z.enum(['sms', 'whatsapp', 'email']).default('whatsapp'),
 });
 
 export const verifyPasswordOtpSchema = z.object({

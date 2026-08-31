@@ -70,6 +70,13 @@ const teamApiFunctions = {
     });
     return parseJsonOrThrow(response);
   },
+
+  resetPassword: async (hospitalId: string, memberId: string): Promise<{ success: boolean; tempPassword: string }> => {
+    const response = await fetchWithAuth(apiUrl(`/hospitals/${hospitalId}/team/${memberId}/password/reset`), {
+      method: "POST",
+    });
+    return parseJsonOrThrow(response);
+  },
 };
 
 export const teamKeys = {
@@ -156,5 +163,14 @@ export const useResetTeamMemberPin = (hospitalId?: string) => {
     onSuccess: (_data, memberId) => {
       queryClient.invalidateQueries({ queryKey: teamKeys.detail(actualHospitalId, memberId) });
     },
+  });
+};
+
+export const useResetTeamMemberPassword = (hospitalId?: string) => {
+  const params = useParams();
+  const actualHospitalId = hospitalId || (params.id as string);
+
+  return useMutation({
+    mutationFn: (memberId: string) => teamApiFunctions.resetPassword(actualHospitalId, memberId),
   });
 };
