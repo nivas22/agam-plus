@@ -12,8 +12,10 @@
     "test": "turbo run test",
     "dev:web": "turbo run dev --filter=web",
     "dev:api": "turbo run dev --filter=api",
+    "dev:www": "turbo run dev --filter=www",
     "build:web": "turbo run build --filter=web",
-    "build:api": "turbo run build --filter=api"
+    "build:api": "turbo run build --filter=api",
+    "build:www": "turbo run build --filter=www"
   },
   "devDependencies": {
     "turbo": "^2.3.0"

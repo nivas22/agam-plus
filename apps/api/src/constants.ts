@@ -1,10 +1,10 @@
 export enum DB_COLLECTIONS {
   USERS = "users",
-  DOCTOR_PROFILES = "doctorProfiles",
+  DOCTOR_PROFILES = "doctor_profiles",
   PATIENTS = "patients",
   APPOINTMENTS = "appointments",
   HOSPITALS = "hospitals",
-  HOSPITAL_MEMBERS = "hospitalMembers",
+  HOSPITAL_MEMBERS = "hospital_members",
   REVIEWS = "reviews",
   DOCTOR_ACTIVIES = "doctor_activities",
   PAYMENTS = "payments",
