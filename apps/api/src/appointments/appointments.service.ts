@@ -14,6 +14,7 @@ import { CreateAppointmentBody, UpdateAppointmentBody, AppointmentListQuery } fr
 import { findHolidayForDate, filterSlotsForHoliday } from '../hospital-holidays/holiday-availability.util';
 import {
   APPOINTMENT_STATUS,
+  APPOINTMENT_TYPE,
   ACTIVE_APPOINTMENT_STATUSES,
   isValidAppointmentTransition,
   normalizeAppointmentStatus,
@@ -259,6 +260,76 @@ export class AppointmentsService {
       })),
       total: generatedAppointments.length,
     };
+  }
+
+  // Patient self-booking (today: the WhatsApp bot). Unlike createAppointment
+  // there is no staff actor, no recurrence and no forced slot — and the
+  // result lands PENDING for staff to confirm rather than CONFIRMED.
+  async createSelfBookingAppointment(params: {
+    hospitalId: string;
+    doctorProfileId: string;
+    patientId: string;
+    date: string;
+    time: string;
+    notes?: string;
+    bookedVia: string;
+  }) {
+    const { hospitalId, doctorProfileId, patientId, date, time, notes, bookedVia } =
+      params;
+
+    const membershipRef = await this.membershipRepository.getHospitalMembership(
+      hospitalId,
+      doctorProfileId,
+    );
+    if (membershipRef.empty) {
+      throw ApiError.notFound('Doctor is not part of this hospital');
+    }
+    const membership = membershipRef.docs[0].data();
+
+    const patientExists = await this.patientRepository.verifyPatientInHospital(
+      patientId,
+      hospitalId,
+    );
+    if (!patientExists) {
+      throw ApiError.notFound('Patient not found in this hospital');
+    }
+
+    const doctor = await this.doctorRepository.getDoctorProfileById(doctorProfileId);
+    if (!doctor) throw ApiError.notFound('Doctor not found');
+
+    // Re-check availability at booking time: the patient picked this slot from
+    // a menu that may be minutes old, and someone else may have taken it.
+    const slots = await this.getAvailableSlots(doctor, membership, date);
+    if (!slots.some((s) => s.time === time)) {
+      throw ApiError.conflict('That slot is no longer available');
+    }
+
+    const patient = await this.patientRepository.getPatientById(patientId);
+    const nowIso = new Date().toISOString();
+
+    const appointmentId = await this.appointmentRepository.createAppointment({
+      doctorProfileId: membership.userId,
+      doctorName: doctor.name,
+      doctorSpecialization: doctor.specialization,
+      patientId,
+      patientName: (patient as any)?.name ?? '',
+      patientPhone: (patient as any)?.phone ?? '',
+      hospitalId,
+      date,
+      time,
+      frequency: 'once',
+      notes: notes ?? '',
+      type: APPOINTMENT_TYPE.REGULAR,
+      bookingSource: 'scheduled',
+      bookedVia,
+      status: APPOINTMENT_STATUS.PENDING,
+      createdBy: bookedVia,
+      userRole: 'patient',
+      createdAt: nowIso,
+      updatedAt: nowIso,
+    });
+
+    return { id: appointmentId, date, time, doctorName: doctor.name };
   }
 
   private async generateAppointments({

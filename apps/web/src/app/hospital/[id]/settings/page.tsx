@@ -4,6 +4,7 @@ import {
   AlertTriangle,
   CalendarOff,
   ClipboardList,
+  MessageCircle,
   Pill,
   Receipt,
   ShieldCheck,
@@ -65,6 +66,14 @@ export default function SettingsHubPage() {
       title: "Hospital holidays",
       description:
         "Set once, applies to every doctor. Individual leave stays on each doctor's own schedule.",
+      adminOnly: true,
+    },
+    {
+      href: `/hospital/${hospitalId}/settings/whatsapp`,
+      icon: <MessageCircle size={20} />,
+      title: "WhatsApp",
+      description:
+        "Let patients book and ask questions from WhatsApp. Bookings arrive as pending.",
       adminOnly: true,
     },
   ].filter((tile) => !isDoctor || !tile.adminOnly);

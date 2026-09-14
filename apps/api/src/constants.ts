@@ -23,6 +23,9 @@ export enum DB_COLLECTIONS {
   DOCTOR_PRESENCE = "doctor_presence",
   PATIENT_ACCOUNTS = "patient_accounts",
   SESSIONS = "sessions",
+  WHATSAPP_CONFIGS = "whatsapp_configs",
+  WHATSAPP_SESSIONS = "whatsapp_sessions",
+  WHATSAPP_ENQUIRIES = "whatsapp_enquiries",
 }
 
 // FRONT_DESK/NURSE/ACCOUNTANT replace the old unused STAFF value — nothing
@@ -61,9 +64,9 @@ export enum GENDER {
   OTHER = "Other",
 }
 
-// Appointment lifecycle. PENDING is reserved for a future patient
-// self-booking flow (not reachable today — admin/staff-created
-// appointments start at CONFIRMED). This also lays the groundwork for a
+// Appointment lifecycle. PENDING means a patient self-booked (today: via
+// WhatsApp) and staff have not confirmed yet — admin/staff-created
+// appointments still start at CONFIRMED. This also lays the groundwork for a
 // hospital queue: CHECKED_IN -> WAITING -> IN_CONSULTATION.
 export enum APPOINTMENT_STATUS {
   PENDING = "pending",
@@ -572,3 +575,24 @@ export const MEDICAL_SPECIALIZATIONS = [
   "Plastic Surgery",
   "Dentistry",
 ] as const;
+
+// Steps in the WhatsApp booking/enquiry conversation. The bot always replies
+// with interactive buttons or lists, so the reply we get back is an option id
+// for the current step rather than free text (the enquiry body is the one
+// exception).
+export enum WHATSAPP_STEP {
+  MAIN_MENU = "main_menu",
+  CHOOSE_DOCTOR = "choose_doctor",
+  CHOOSE_DATE = "choose_date",
+  CHOOSE_TIME = "choose_time",
+  CONFIRM = "confirm",
+  ENQUIRY_CAPTURE = "enquiry_capture",
+}
+
+export enum WHATSAPP_ENQUIRY_STATUS {
+  NEW = "new",
+  RESOLVED = "resolved",
+}
+
+// Abandoned conversations expire rather than trapping a patient mid-flow.
+export const WHATSAPP_SESSION_TTL_MINUTES = 30;

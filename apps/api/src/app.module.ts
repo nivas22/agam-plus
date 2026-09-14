@@ -21,6 +21,7 @@ import { TeamModule } from './team/team.module';
 import { ApprovalsModule } from './approvals/approvals.module';
 import { ChargeCatalogModule } from './charge-catalog/charge-catalog.module';
 import { HospitalHolidaysModule } from './hospital-holidays/hospital-holidays.module';
+import { WhatsappModule } from './whatsapp/whatsapp.module';
 import { ReportsModule } from './reports/reports.module';
 import { MedicinesModule } from './medicines/medicines.module';
 import { PrescriptionsModule } from './prescriptions/prescriptions.module';
@@ -49,6 +50,7 @@ import { DoctorPresenceModule } from './doctor-presence/doctor-presence.module';
     ApprovalsModule,
     ChargeCatalogModule,
     HospitalHolidaysModule,
+    WhatsappModule,
     ReportsModule,
     MedicinesModule,
     PrescriptionsModule,
