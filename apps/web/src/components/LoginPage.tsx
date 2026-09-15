@@ -138,10 +138,10 @@ export default function LoginPage() {
           <img
             src="/agam-plus-logo.svg"
             alt="Agam Plus"
-            className="h-14 w-auto brightness-0 invert"
+            className="h-64 w-auto self-start brightness-0 invert"
           />
 
-          <div className="mt-10">
+          <div className="mt-2">
             <h1 className="font-display tracking-tight text-4xl font-bold leading-tight max-w-md">
               The front desk, the doctors and the money — on one screen.
             </h1>
