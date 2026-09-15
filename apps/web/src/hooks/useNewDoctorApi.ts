@@ -172,6 +172,26 @@ const doctorApiFunctions = {
     return response.json();
   },
 
+  // Admin-initiated password reset — returns a fresh temp password once
+  resetPassword: async (
+    hospitalId: string,
+    doctorId: string,
+  ): Promise<{ success: boolean; tempPassword: string }> => {
+    const response = await fetchWithAuth(
+      apiUrl(`/hospitals/${hospitalId}/doctors/${doctorId}/password/reset`),
+      { method: "POST" },
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(
+        errorData.error || `HTTP error! status: ${response.status}`,
+      );
+    }
+
+    return response.json();
+  },
+
   // Update doctor status (approve/reject membership)
   updateDoctorMembership: async (
     hospitalId: string,
@@ -383,6 +403,17 @@ export const useDeleteHospitalDoctor = (hospitalId?: string) => {
         queryKey: doctorKeys.hospital(actualHospitalId),
       });
     },
+  });
+};
+
+// Hook for admin-initiated doctor password reset
+export const useResetDoctorPassword = (hospitalId?: string) => {
+  const params = useParams();
+  const actualHospitalId = hospitalId || (params.id as string);
+
+  return useMutation({
+    mutationFn: (doctorId: string) =>
+      doctorApiFunctions.resetPassword(actualHospitalId, doctorId),
   });
 };
 

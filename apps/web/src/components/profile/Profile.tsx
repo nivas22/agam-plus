@@ -398,11 +398,16 @@ export default function ProfilePage() {
                   <div className="space-y-4">
                     <div className="flex items-center justify-between py-3 px-4 bg-brand-violet-soft rounded-lg border border-brand-violet/20">
                       <div>
-                        <p className="text-sm font-semibold text-ink-900">Security</p>
-                        <p className="text-xs text-ink-500 mt-0.5">Your account is protected</p>
+                        <p className="text-sm font-semibold text-ink-900">Password &amp; security</p>
+                        <p className="text-xs text-ink-500 mt-0.5">
+                          {user?.hasPassword ? "Change your password, manage sign-in sessions" : "Your account is protected"}
+                        </p>
                       </div>
-                      <button className="text-sm font-medium text-brand-violet hover:text-brand-violet-hover">
-                        Contact Admin
+                      <button
+                        onClick={() => router.push(`/hospital/${currentHospital?.id}/profile/security`)}
+                        className="text-sm font-medium text-brand-violet hover:text-brand-violet-hover"
+                      >
+                        Manage
                       </button>
                     </div>
                   </div>

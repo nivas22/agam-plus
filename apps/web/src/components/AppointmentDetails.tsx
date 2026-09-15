@@ -56,6 +56,7 @@ interface AppointmentDetailsProps {
 
 type ActiveAction =
   | "changeDoctor"
+  | "confirm"
   | "cancel"
   | "noShow"
   | "reschedule"
@@ -301,6 +302,22 @@ export default function AppointmentDetails({
     }
   };
 
+  // Accept a patient self-booking (WhatsApp) that is waiting on the hospital
+  const confirmAppointment = async () => {
+    try {
+      await updateAppointmentStatus(
+        selectedApp.id,
+        APPOINTMENT_STATUS.CONFIRMED,
+      );
+      toast.success("Appointment confirmed!");
+      setUpdateAppointmentsMode(false);
+      setSelectedAppointmentsToUpdate([]);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to confirm appointment");
+    }
+  };
+
   // Mark the selected appointment as a no-show
   const markNoShow = async () => {
     try {
@@ -407,6 +424,15 @@ export default function AppointmentDetails({
         !!selectedDoctorForAppointments &&
         (updateScope === "all" || selectedAppointmentsToUpdate.length > 0),
       availableStatuses: [APPOINTMENT_STATUS.CONFIRMED],
+    },
+    confirm: {
+      title: "Confirm Appointment",
+      icon: <CheckCircle className="w-5 h-5 text-status-open" />,
+      description: "Accept this booking request from the patient",
+      action: confirmAppointment,
+      buttonText: "Confirm Appointment",
+      enabled: selectedAppointmentsToUpdate.length > 0,
+      availableStatuses: [APPOINTMENT_STATUS.PENDING],
     },
     cancel: {
       title: "Cancel Appointment",

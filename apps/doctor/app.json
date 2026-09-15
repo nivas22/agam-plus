@@ -1,0 +1,33 @@
+{
+  "expo": {
+    "name": "Agam Doctor",
+    "slug": "agam-doctor",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "agamdoctor",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "us.klip.agam.doctor"
+    },
+    "android": {
+      "package": "us.klip.agam.doctor",
+      "adaptiveIcon": {
+        "backgroundColor": "#4F3FD6"
+      },
+      "edgeToEdgeEnabled": true
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "apiUrl": "http://localhost:3001"
+    },
+    "backgroundColor": "#F2F2F7"
+  }
+}

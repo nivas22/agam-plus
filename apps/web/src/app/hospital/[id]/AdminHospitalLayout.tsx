@@ -13,6 +13,7 @@ import {
   ListChecks,
   LogOut,
   Menu,
+  MessageCircle,
   Plus,
   Settings,
   TrendingUp,
@@ -68,7 +69,8 @@ export default function AdminHospitalLayout({
     getRoleBasedRedirect,
     getCurrentHospitalRole,
   } = useAuth();
-  const isAdmin = getCurrentHospitalRole() === "admin";
+  const currentRole = getCurrentHospitalRole();
+  const isAdmin = currentRole === "admin";
 
   const actualHospitalId = hospitalId || (params.id as string);
   const displayName = userData?.name || userData?.email;
@@ -121,6 +123,16 @@ export default function AdminHospitalLayout({
       icon: <IndianRupee size={18} />,
       isNew: true,
     },
+    ...(currentRole === "admin" || currentRole === "front_desk"
+      ? [
+          {
+            to: "/enquiries",
+            label: "Enquiries",
+            icon: <MessageCircle size={18} />,
+            isNew: true,
+          },
+        ]
+      : []),
     ...(isAdmin
       ? [
           {

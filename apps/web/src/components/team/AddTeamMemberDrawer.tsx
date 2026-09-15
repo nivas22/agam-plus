@@ -5,10 +5,11 @@ import { Loader2, X } from "lucide-react";
 import { useState } from "react";
 import { ApiRequestError } from "@/lib/api";
 import { useCreateTeamMember } from "@/hooks/useTeamApi";
+import { useCreateHospitalDoctor } from "@/hooks/useNewDoctorApi";
 import { useRolePermissions } from "@/hooks/usePermissionsApi";
 import { Field, inputClass, ToggleSwitch } from "@/components/common/EditFormControls";
 import DuplicateWarningModal, { type DuplicateMatch } from "@/components/common/DuplicateWarningModal";
-import { SHIFT_OPTIONS, TEAM_ROLE_OPTIONS, type TeamRole } from "@/types/team";
+import { ADD_MEMBER_ROLE_OPTIONS, SHIFT_OPTIONS, type AddableRole } from "@/types/team";
 
 const USERNAME_FORMAT_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -24,7 +25,7 @@ export default function AddTeamMemberDrawer({ hospitalId, onClose }: AddTeamMemb
   const [username, setUsername] = useState("");
   const [usernameSameAsEmail, setUsernameSameAsEmail] = useState(true);
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<TeamRole>("front_desk");
+  const [role, setRole] = useState<AddableRole>("front_desk");
   const [shift, setShift] = useState("");
   const [startDate, setStartDate] = useState("");
   const [handlesCash, setHandlesCash] = useState(false);
@@ -33,6 +34,9 @@ export default function AddTeamMemberDrawer({ hospitalId, onClose }: AddTeamMemb
   const [duplicates, setDuplicates] = useState<DuplicateMatch[] | null>(null);
 
   const createMember = useCreateTeamMember(hospitalId);
+  const createDoctor = useCreateHospitalDoctor(hospitalId);
+  const isDoctor = role === "doctor";
+  const isSubmitting = isDoctor ? createDoctor.isPending : createMember.isPending;
   const { data: roleSummaries } = useRolePermissions(hospitalId);
   const summary = roleSummaries?.find((r) => r.role === role);
 
@@ -51,26 +55,38 @@ export default function AddTeamMemberDrawer({ hospitalId, onClose }: AddTeamMemb
       return;
     }
     try {
-      await createMember.mutateAsync({
-        name: name.trim(),
-        email: email.trim(),
-        username: username.trim(),
-        password,
-        phone: phone.trim(),
-        role,
-        shift: shift || undefined,
-        startDate: startDate || undefined,
-        handlesCash,
-        invitedVia,
-        confirmDuplicate,
-      });
+      if (role === "doctor") {
+        await createDoctor.mutateAsync({
+          name: name.trim(),
+          email: email.trim(),
+          username: username.trim(),
+          password,
+          phone: phone.trim(),
+          hospitalId,
+          confirmDuplicate,
+        });
+      } else {
+        await createMember.mutateAsync({
+          name: name.trim(),
+          email: email.trim(),
+          username: username.trim(),
+          password,
+          phone: phone.trim(),
+          role,
+          shift: shift || undefined,
+          startDate: startDate || undefined,
+          handlesCash,
+          invitedVia,
+          confirmDuplicate,
+        });
+      }
       onClose();
     } catch (err) {
       if (err instanceof ApiRequestError && err.details?.duplicates) {
         setDuplicates(err.details.duplicates);
         return;
       }
-      setError(err instanceof Error ? err.message : "Failed to add team member");
+      setError(err instanceof Error ? err.message : `Failed to add ${isDoctor ? "doctor" : "team member"}`);
     }
   };
 
@@ -158,7 +174,7 @@ export default function AddTeamMemberDrawer({ hospitalId, onClose }: AddTeamMemb
 
           <Field label="Role">
             <div className="grid gap-2">
-              {TEAM_ROLE_OPTIONS.map((opt) => {
+              {ADD_MEMBER_ROLE_OPTIONS.map((opt) => {
                 const active = role === opt.value;
                 return (
                   <button
@@ -184,7 +200,7 @@ export default function AddTeamMemberDrawer({ hospitalId, onClose }: AddTeamMemb
             {summary && (
               <div className="mt-3 bg-surface-canvas/60 border border-border rounded-lg p-3">
                 <div className="text-[11px] uppercase tracking-wide text-ink-500 font-semibold">
-                  What a {TEAM_ROLE_OPTIONS.find((r) => r.value === role)?.label} will be able to do
+                  What a {ADD_MEMBER_ROLE_OPTIONS.find((r) => r.value === role)?.label} will be able to do
                 </div>
                 <div className="flex gap-1.5 flex-wrap mt-2">
                   <span className="text-[11px] font-semibold rounded-md px-2 py-0.5 bg-status-open-soft text-status-open">
@@ -201,68 +217,79 @@ export default function AddTeamMemberDrawer({ hospitalId, onClose }: AddTeamMemb
             )}
           </Field>
 
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Shift" optional>
-              <select className={inputClass} value={shift} onChange={(e) => setShift(e.target.value)}>
-                <option value="">Not set</option>
-                {SHIFT_OPTIONS.map((s) => (
-                  <option key={s.value} value={s.value}>
-                    {s.label}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Start date">
-              <input type="date" className={inputClass} value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-            </Field>
-          </div>
+          {isDoctor && (
+            <div className="border border-brand-violet/30 bg-brand-violet-soft rounded-lg p-3 text-xs text-ink-700 leading-snug">
+              Only the basics are needed here. The doctor will fill in specialization, experience and availability
+              themselves the first time they sign in.
+            </div>
+          )}
 
-          <Field label="Cash handling">
-            <div className="border border-border rounded-lg p-3 flex gap-3 items-start bg-surface-canvas/40">
-              <ToggleSwitch checked={handlesCash} onChange={setHandlesCash} />
-              <div>
-                <div className="text-sm font-semibold text-ink-900">Handles the cash drawer</div>
-                <div className="text-xs text-ink-500 mt-0.5 leading-snug">
-                  Turn on only for people who take money at the desk. They&apos;ll set a 4-digit PIN on first sign-in, asked
-                  again on every refund and day close.
-                </div>
+          {!isDoctor && (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Shift" optional>
+                  <select className={inputClass} value={shift} onChange={(e) => setShift(e.target.value)}>
+                    <option value="">Not set</option>
+                    {SHIFT_OPTIONS.map((s) => (
+                      <option key={s.value} value={s.value}>
+                        {s.label}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Start date">
+                  <input type="date" className={inputClass} value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+                </Field>
               </div>
-            </div>
-          </Field>
 
-          <Field label="Send the invite by">
-            <div className="flex gap-2 flex-wrap">
-              {(["email", "whatsapp", "sms"] as const).map((ch) => (
-                <button
-                  key={ch}
-                  type="button"
-                  onClick={() => setInvitedVia(ch)}
-                  className={`px-3 py-1.5 rounded-lg border text-sm font-medium capitalize ${
-                    invitedVia === ch
-                      ? "border-status-open bg-status-open-soft text-status-open"
-                      : "border-border bg-surface-paper text-ink-700"
-                  }`}
-                >
-                  {ch}
-                </button>
-              ))}
-            </div>
-          </Field>
+              <Field label="Cash handling">
+                <div className="border border-border rounded-lg p-3 flex gap-3 items-start bg-surface-canvas/40">
+                  <ToggleSwitch checked={handlesCash} onChange={setHandlesCash} />
+                  <div>
+                    <div className="text-sm font-semibold text-ink-900">Handles the cash drawer</div>
+                    <div className="text-xs text-ink-500 mt-0.5 leading-snug">
+                      Turn on only for people who take money at the desk. They&apos;ll set a 4-digit PIN on first sign-in, asked
+                      again on every refund and day close.
+                    </div>
+                  </div>
+                </div>
+              </Field>
+
+              <Field label="Send the invite by">
+                <div className="flex gap-2 flex-wrap">
+                  {(["email", "whatsapp", "sms"] as const).map((ch) => (
+                    <button
+                      key={ch}
+                      type="button"
+                      onClick={() => setInvitedVia(ch)}
+                      className={`px-3 py-1.5 rounded-lg border text-sm font-medium capitalize ${
+                        invitedVia === ch
+                          ? "border-status-open bg-status-open-soft text-status-open"
+                          : "border-border bg-surface-paper text-ink-700"
+                      }`}
+                    >
+                      {ch}
+                    </button>
+                  ))}
+                </div>
+              </Field>
+            </>
+          )}
         </div>
 
         <div className="px-6 py-4 border-t border-border flex items-center gap-3">
-          <span className="text-[11px] text-ink-500">Employee ID assigned automatically</span>
+          {!isDoctor && <span className="text-[11px] text-ink-500">Employee ID assigned automatically</span>}
           <div className="flex-1" />
           <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg border border-border text-sm font-semibold text-ink-700">
             Cancel
           </button>
           <button
             type="button"
-            disabled={createMember.isPending}
+            disabled={isSubmitting}
             onClick={() => submit(false)}
             className="px-4 py-2 rounded-lg bg-brand-violet hover:bg-brand-violet-hover text-white text-sm font-semibold disabled:opacity-60 flex items-center gap-1.5"
           >
-            {createMember.isPending && <Loader2 size={14} className="animate-spin" />}
+            {isSubmitting && <Loader2 size={14} className="animate-spin" />}
             Send invite
           </button>
         </div>
@@ -270,10 +297,10 @@ export default function AddTeamMemberDrawer({ hospitalId, onClose }: AddTeamMemb
 
       {duplicates && (
         <DuplicateWarningModal
-          entityLabel="team member"
+          entityLabel={isDoctor ? "doctor" : "team member"}
           phone={phone}
           matches={duplicates}
-          isSubmitting={createMember.isPending}
+          isSubmitting={isSubmitting}
           onCancel={() => setDuplicates(null)}
           onConfirm={() => submit(true)}
         />

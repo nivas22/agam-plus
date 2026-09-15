@@ -5,6 +5,7 @@ import { AlertTriangle, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import {
+  useResetTeamMemberPassword,
   useResetTeamMemberPin,
   useTeamMember,
   useUpdateTeamMember,
@@ -12,6 +13,7 @@ import {
 } from "@/hooks/useTeamApi";
 import { useRolePermissions } from "@/hooks/usePermissionsApi";
 import { Field, inputClass, ToggleSwitch } from "@/components/common/EditFormControls";
+import TempPasswordModal from "@/components/common/TempPasswordModal";
 import { SHIFT_OPTIONS, TEAM_ROLE_OPTIONS, type TeamRole } from "@/types/team";
 
 interface EditTeamMemberPageProps {
@@ -26,6 +28,7 @@ export default function EditTeamMemberPage({ hospitalId, memberId }: EditTeamMem
   const updateMember = useUpdateTeamMember(hospitalId);
   const updateStatus = useUpdateTeamMemberStatus(hospitalId);
   const resetPin = useResetTeamMemberPin(hospitalId);
+  const resetPassword = useResetTeamMemberPassword(hospitalId);
 
   const [name, setName] = useState<string | null>(null);
   const [phone, setPhone] = useState<string | null>(null);
@@ -34,6 +37,7 @@ export default function EditTeamMemberPage({ hospitalId, memberId }: EditTeamMem
   const [handlesCash, setHandlesCash] = useState<boolean | null>(null);
   const [role, setRole] = useState<TeamRole | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [tempPassword, setTempPassword] = useState<string | null>(null);
 
   if (isLoading || !member) {
     return <div className="text-sm text-ink-500 py-8 text-center">Loading…</div>;
@@ -205,6 +209,17 @@ export default function EditTeamMemberPage({ hospitalId, memberId }: EditTeamMem
               onClick={() => resetPin.mutate(memberId)}
             />
             <DangerRow
+              title="Reset password"
+              description="Generates a new temporary password. They'll be asked to change it at next sign-in."
+              actionLabel="Reset password"
+              disabled={resetPassword.isPending}
+              onClick={() =>
+                resetPassword.mutate(memberId, {
+                  onSuccess: (data) => setTempPassword(data.tempPassword),
+                })
+              }
+            />
+            <DangerRow
               title="Suspend access"
               description="Signs them out and blocks sign-in. Everything is kept."
               actionLabel="Suspend"
@@ -225,6 +240,10 @@ export default function EditTeamMemberPage({ hospitalId, memberId }: EditTeamMem
           </div>
         </div>
       </div>
+
+      {tempPassword && (
+        <TempPasswordModal name={member.name} tempPassword={tempPassword} onClose={() => setTempPassword(null)} />
+      )}
     </div>
   );
 }

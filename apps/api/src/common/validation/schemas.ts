@@ -60,7 +60,7 @@ export const changePasswordSchema = z.object({
 
 export const requestPasswordOtpSchema = z.object({
   username: z.string().min(1, 'Username is required'),
-  channel: z.enum(['sms', 'whatsapp']).default('whatsapp'),
+  channel: z.enum(['sms', 'whatsapp', 'email']).default('whatsapp'),
 });
 
 export const verifyPasswordOtpSchema = z.object({
@@ -572,4 +572,17 @@ export const savePrescriptionSchema = z.object({
 
 export const prescriptionStatusSchema = z.object({
   status: z.enum(PRESCRIPTION_STATUS_VALUES as [string, ...string[]]),
+});
+
+// Hospitals can pause or resume their number without disconnecting it.
+export const whatsappEnabledSchema = z.object({
+  enabled: z.boolean(),
+});
+
+// A hospital bringing its own WhatsApp Business Account. Embedded Signup will
+// supply these from Meta's popup; for now they can also be entered by hand.
+export const connectOwnWhatsappSchema = z.object({
+  phoneNumberId: z.string().min(1, 'Phone number ID is required'),
+  wabaId: z.string().min(1, 'WhatsApp Business Account ID is required'),
+  accessToken: z.string().min(1, 'Access token is required'),
 });

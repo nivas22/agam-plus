@@ -33,6 +33,8 @@ export function clearAuthToken(): void {
   window.localStorage.removeItem(TOKEN_STORAGE_KEY);
 }
 
+const REQUEST_TIMEOUT_MS = 15000;
+
 export async function fetchWithAuth(
   url: string | URL | Request,
   options: RequestInit = {},
@@ -44,12 +46,26 @@ export async function fetchWithAuth(
     ...(token && { Authorization: `Bearer ${token}` }),
   };
 
-  const response = await fetch(url, {
-    ...options,
-    headers,
-  });
+  // Some browsers (notably iOS/iPadOS Safari) can leave a fetch() promise
+  // pending indefinitely instead of rejecting it, so a hard timeout is
+  // required to guarantee the caller's promise always settles.
+  const timeoutController = new AbortController();
+  const timeoutId = setTimeout(
+    () => timeoutController.abort(),
+    REQUEST_TIMEOUT_MS,
+  );
 
-  return response;
+  try {
+    const response = await fetch(url, {
+      ...options,
+      headers,
+      signal: options.signal ?? timeoutController.signal,
+    });
+
+    return response;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 export async function fetchWithAuthAndRetry(

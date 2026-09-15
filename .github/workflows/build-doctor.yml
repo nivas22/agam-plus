@@ -1,0 +1,78 @@
+name: Build Doctor App
+
+on:
+  push:
+    branches:
+      - main
+      - preview
+    paths:
+      - "apps/doctor/**"
+      - "packages/shared/**"
+      - "packages/mobile-ui/**"
+      - ".github/workflows/build-doctor.yml"
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: "EAS build profile"
+        required: true
+        default: preview
+        type: choice
+        options:
+          - preview
+          - production
+
+concurrency:
+  group: build-doctor-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Typecheck runs on every push. The EAS build is gated separately because it
+  # consumes build minutes — pushes to main build automatically, preview
+  # branches only on a manual dispatch.
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Typecheck and test
+        run: pnpm turbo run lint test --filter=doctor...
+
+  build:
+    needs: check
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: EAS build (Android + iOS)
+        working-directory: apps/doctor
+        run: |
+          PROFILE="${{ github.event.inputs.profile || 'production' }}"
+          eas build --platform all --profile "$PROFILE" --non-interactive --no-wait

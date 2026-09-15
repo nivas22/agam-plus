@@ -22,6 +22,9 @@ import { PrescriptionRepository } from './prescription.repository';
 import { LeaveRequestRepository } from './leave-request.repository';
 import { DoctorPresenceRepository } from './doctor-presence.repository';
 import { SessionRepository } from './session.repository';
+import { WhatsappConfigRepository } from './whatsapp-config.repository';
+import { WhatsappSessionRepository } from './whatsapp-session.repository';
+import { WhatsappEnquiryRepository } from './whatsapp-enquiry.repository';
 import { User, UserSchema } from '../schemas/user.schema';
 import { Hospital, HospitalSchema } from '../schemas/hospital.schema';
 import {
@@ -65,6 +68,18 @@ import {
   DoctorPresenceSchema,
 } from '../schemas/doctor-presence.schema';
 import { Session, SessionSchema } from '../schemas/session.schema';
+import {
+  WhatsappConfig,
+  WhatsappConfigSchema,
+} from '../schemas/whatsapp-config.schema';
+import {
+  WhatsappSession,
+  WhatsappSessionSchema,
+} from '../schemas/whatsapp-session.schema';
+import {
+  WhatsappEnquiry,
+  WhatsappEnquirySchema,
+} from '../schemas/whatsapp-enquiry.schema';
 
 const repositories = [
   UserRepository,
@@ -89,6 +104,9 @@ const repositories = [
   LeaveRequestRepository,
   DoctorPresenceRepository,
   SessionRepository,
+  WhatsappConfigRepository,
+  WhatsappSessionRepository,
+  WhatsappEnquiryRepository,
 ];
 
 @Global()
@@ -117,6 +135,9 @@ const repositories = [
       { name: Counter.name, schema: CounterSchema },
       { name: DoctorPresence.name, schema: DoctorPresenceSchema },
       { name: Session.name, schema: SessionSchema },
+      { name: WhatsappConfig.name, schema: WhatsappConfigSchema },
+      { name: WhatsappSession.name, schema: WhatsappSessionSchema },
+      { name: WhatsappEnquiry.name, schema: WhatsappEnquirySchema },
     ]),
   ],
   providers: repositories,

@@ -18,6 +18,17 @@ export const TEAM_ROLE_OPTIONS: { value: TeamRole; label: string; description: s
   },
 ];
 
+export type AddableRole = TeamRole | "doctor";
+
+export const ADD_MEMBER_ROLE_OPTIONS: { value: AddableRole; label: string; description: string }[] = [
+  ...TEAM_ROLE_OPTIONS,
+  {
+    value: "doctor",
+    label: "Doctor",
+    description: "Sees patients and manages their own schedule. Completes specialization, experience and availability on first sign-in.",
+  },
+];
+
 export const SHIFT_OPTIONS = [
   { value: "morning", label: "Morning · 8 am – 2 pm" },
   { value: "evening", label: "Evening · 2 – 9 pm" },
