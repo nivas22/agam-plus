@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - preview
     paths:
       - "apps/www/**"
       - "packages/shared/**"
@@ -36,6 +35,9 @@ jobs:
     # files sit outside it, and the deploy aborts with
     #   Please ensure project dependencies have been installed:
     #   File does not exist: node_modules/.pnpm/@opentelemetry+api@.../...
+    #
+    # www has no preview environment — it's the public marketing site, only
+    # production deploys matter, so this only triggers on main.
     steps:
       - uses: actions/checkout@v4
 
@@ -43,28 +45,7 @@ jobs:
         run: npm install --global vercel@latest
 
       - name: Deploy to Vercel (Production)
-        if: github.ref == 'refs/heads/main'
         run: vercel deploy --prod --yes --token="$VERCEL_TOKEN"
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_WWW }}
-
-      - name: Deploy to Vercel (Preview)
-        if: github.ref != 'refs/heads/main'
-        id: deploy_preview
-        run: |
-          DEPLOYMENT_URL=$(vercel deploy --yes --token="$VERCEL_TOKEN")
-          echo "deployment_url=$DEPLOYMENT_URL" >> "$GITHUB_OUTPUT"
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_WWW }}
-
-      - name: Alias Preview Deployment to Static Domain
-        if: github.ref != 'refs/heads/main'
-        run: |
-          vercel alias set "${{ steps.deploy_preview.outputs.deployment_url }}" agam-plus-www-preview.vercel.app --token="$VERCEL_TOKEN"
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
