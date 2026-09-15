@@ -15,83 +15,57 @@ concurrency:
   group: deploy-web-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  # Reading these from the environment links the project without `vercel link`.
-  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_WEB }}
-  VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    # Builds here in Actions and ships the finished output with `--prebuilt`,
-    # rather than uploading source for Vercel to build.
+    # Runs from the repo ROOT, not apps/web. `vercel deploy` uploads its working
+    # directory, and apps/web alone has no pnpm-workspace.yaml, no pnpm-lock.yaml
+    # and no packages/shared — Vercel would find no pnpm lockfile, fall back to
+    # npm, and fail on the "workspace:*" dependency on @agam/shared with:
+    #   npm error Unsupported URL Type "workspace:"
     #
-    # Why: a Vercel-side build needs both halves of a monorepo contract — the
-    # whole workspace uploaded (or pnpm cannot resolve "workspace:*" on
-    # @agam/shared) AND the project's Root Directory set to apps/web (or
-    # framework detection reads the root package.json, finds no "next", and
-    # fails with "No Next.js version detected"). Root Directory is a
-    # dashboard-only setting and cannot be committed. Building here needs
-    # neither: `vercel build` runs against the real repo where the workspace is
-    # intact, and `--prebuilt` uploads only .vercel/output, so Vercel installs
-    # nothing at all.
+    # REQUIRES the Vercel project's Root Directory to be "apps/web":
+    #   https://vercel.com/<team>/agam-plus-web/settings/build-and-deployment#root-directory
+    # Without it Vercel builds the repo root, whose package.json has no "next",
+    # and fails with "No Next.js version detected".
     #
-    # Requires the project's Root Directory to stay BLANK. If it is set to
-    # apps/web, `vercel build` resolves apps/web/apps/web and fails.
-    defaults:
-      run:
-        working-directory: apps/web
+    # Building in Actions and shipping `vercel deploy --prebuilt` was tried and
+    # does not work here: pnpm keeps its store only at the repo root, so
+    # apps/web/node_modules is symlinks into ../../node_modules/.pnpm. Deploying
+    # prebuilt from apps/web makes that folder the deployment root, the traced
+    # files sit outside it, and the deploy aborts with
+    #   Please ensure project dependencies have been installed:
+    #   File does not exist: node_modules/.pnpm/@opentelemetry+api@.../...
     steps:
       - uses: actions/checkout@v4
-
-      # No `version:` here on purpose — the action reads pnpm@9.15.9 from the
-      # root package.json "packageManager" field. Specifying both makes it
-      # abort with "Multiple versions of pnpm specified".
-      - uses: pnpm/action-setup@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: pnpm
-
-      # --filter web... installs web plus its workspace dependencies only, so
-      # the API's devDependencies (and mongodb-memory-server's 122MB download)
-      # never enter a web deploy.
-      - name: Install dependencies
-        working-directory: .
-        run: pnpm install --frozen-lockfile --filter web...
 
       - name: Install Vercel CLI
         run: npm install --global vercel@latest
 
-      - name: Select target environment
-        id: target
+      - name: Deploy to Vercel (Production)
+        if: github.ref == 'refs/heads/main'
+        run: vercel deploy --prod --yes --token="$VERCEL_TOKEN"
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_WEB }}
+
+      - name: Deploy to Vercel (Preview)
+        if: github.ref != 'refs/heads/main'
+        id: deploy_preview
         run: |
-          if [ "$GITHUB_REF" = "refs/heads/main" ]; then
-            echo "name=production" >> "$GITHUB_OUTPUT"
-            echo "flag=--prod" >> "$GITHUB_OUTPUT"
-          else
-            echo "name=preview" >> "$GITHUB_OUTPUT"
-            echo "flag=" >> "$GITHUB_OUTPUT"
-          fi
-
-      # Fetches the project's environment variables so this build sees the same
-      # NEXT_PUBLIC_* values a Vercel-side build would.
-      - name: Pull Vercel environment
-        run: vercel pull --yes --environment=${{ steps.target.outputs.name }} --token="$VERCEL_TOKEN"
-
-      - name: Build
-        run: vercel build ${{ steps.target.outputs.flag }} --token="$VERCEL_TOKEN"
-
-      - name: Deploy prebuilt output
-        id: deploy
-        run: |
-          URL=$(vercel deploy --prebuilt ${{ steps.target.outputs.flag }} --yes --token="$VERCEL_TOKEN")
-          echo "deployment_url=$URL" >> "$GITHUB_OUTPUT"
-          echo "Deployed to $URL"
+          DEPLOYMENT_URL=$(vercel deploy --yes --token="$VERCEL_TOKEN")
+          echo "deployment_url=$DEPLOYMENT_URL" >> "$GITHUB_OUTPUT"
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_WEB }}
 
       - name: Alias Preview Deployment to Static Domain
         if: github.ref != 'refs/heads/main'
         run: |
-          vercel alias set "${{ steps.deploy.outputs.deployment_url }}" agam-plus-web-preview.vercel.app --token="$VERCEL_TOKEN"
+          vercel alias set "${{ steps.deploy_preview.outputs.deployment_url }}" agam-plus-web-preview.vercel.app --token="$VERCEL_TOKEN"
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_WEB }}
