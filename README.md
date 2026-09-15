@@ -45,6 +45,9 @@ pnpm test
 
 Each app is deployed as its **own Vercel project** pointing at the same repo, with a different Root Directory. Vercel's monorepo support installs from the repo root (respecting `pnpm-workspace.yaml`) and then runs the app's build.
 
+> Direct link per project:
+> `https://vercel.com/<team>/<project>/settings/build-and-deployment#root-directory`
+>
 > **The CI deploy must run from the repo root.** `vercel deploy` uploads its
 > working directory, so running it inside `apps/web` uploads that folder alone
 > — without `pnpm-workspace.yaml`, `pnpm-lock.yaml` or `packages/*`. Vercel
@@ -58,7 +61,7 @@ Each app is deployed as its **own Vercel project** pointing at the same repo, wi
 ### Web (`apps/web`)
 
 1. Import the repo into a new Vercel project.
-2. Project Settings → General → Root Directory: `apps/web`. **Required** — the
+2. Project Settings → **Build and Deployment** → Root Directory: `apps/web`. **Required** — the
    CI deploy uploads the whole repo, so without this Vercel builds the root
    `package.json`, which has no `next`, and fails with *No Next.js version
    detected*.
@@ -71,7 +74,7 @@ Same shape as web — it also depends on `@agam/shared` (for `/api/version`), so
 it has the same two requirements.
 
 1. Import the repo into its own Vercel project.
-2. Project Settings → General → Root Directory: `apps/www`.
+2. Project Settings → **Build and Deployment** → Root Directory: `apps/www`.
 3. Framework Preset: Next.js (auto-detected).
 4. Repo secret: `VERCEL_PROJECT_ID_WWW`.
 
@@ -81,7 +84,7 @@ or `packages/shared/**`.
 ### API (`apps/api`)
 
 1. Import the repo into its own Vercel project.
-2. Project Settings → General → Root Directory: `apps/api`.
+2. Project Settings → **Build and Deployment** → Root Directory: `apps/api`.
    Its workflow still deploys from inside `apps/api`, which works only because
    the API has no `workspace:*` dependency.
 3. Framework Preset: **Other** (not the NestJS zero-config preset — see note below). Build/Install commands come from `apps/api/vercel.json` (they `cd` back to the repo root so `pnpm`/`turbo` can see the workspace).

@@ -23,7 +23,7 @@ jobs:
     # pnpm-lock.yaml and no packages/shared — so Vercel fell back to npm, which
     # cannot resolve the "workspace:*" dependency on @agam/shared.
     #
-    # Requires the Vercel project's Settings > General > Root Directory to be
+    # Requires the Vercel project's Settings > Build and Deployment > Root Directory to be
     # "apps/web", which is what tells Vercel where to build from.
     steps:
       - uses: actions/checkout@v4

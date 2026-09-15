@@ -24,7 +24,7 @@ jobs:
     # fall back to npm, and fail on the "workspace:*" dependency on @agam/shared
     # with: Unsupported URL Type "workspace:".
     #
-    # Requires the Vercel project's Settings > General > Root Directory to be
+    # Requires the Vercel project's Settings > Build and Deployment > Root Directory to be
     # "apps/www". Without it Vercel builds the repo root, whose package.json has
     # no "next", and fails with: No Next.js version detected.
     steps:
