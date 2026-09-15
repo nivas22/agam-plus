@@ -45,6 +45,16 @@ pnpm test
 
 Each app is deployed as its **own Vercel project** pointing at the same repo, with a different Root Directory. Vercel's monorepo support installs from the repo root (respecting `pnpm-workspace.yaml`) and then runs the app's build.
 
+> **The CI deploy must run from the repo root.** `vercel deploy` uploads its
+> working directory, so running it inside `apps/web` uploads that folder alone
+> — without `pnpm-workspace.yaml`, `pnpm-lock.yaml` or `packages/*`. Vercel
+> then finds no pnpm lockfile, falls back to `npm install`, and fails with
+> `Unsupported URL Type "workspace:"` on any `workspace:*` dependency. The
+> workflows therefore run `vercel deploy` from the root and rely on each
+> project's **Root Directory** setting to pick the app. Any app that depends
+> on `@agam/shared` needs this; `apps/api` has no workspace dependency and is
+> unaffected.
+
 ### Web (`apps/web`)
 
 1. Import the repo into a new Vercel project.
