@@ -7,7 +7,6 @@ on:
       - preview
     paths:
       - "apps/web/**"
-      - "packages/shared/**"
       - ".github/workflows/deploy-web.yml"
   workflow_dispatch:
 
@@ -18,24 +17,6 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    # Runs from the repo ROOT, not apps/web. `vercel deploy` uploads its working
-    # directory, and apps/web alone has no pnpm-workspace.yaml, no pnpm-lock.yaml
-    # and no packages/shared — Vercel would find no pnpm lockfile, fall back to
-    # npm, and fail on the "workspace:*" dependency on @agam/shared with:
-    #   npm error Unsupported URL Type "workspace:"
-    #
-    # REQUIRES the Vercel project's Root Directory to be "apps/web":
-    #   https://vercel.com/<team>/agam-plus-web/settings/build-and-deployment#root-directory
-    # Without it Vercel builds the repo root, whose package.json has no "next",
-    # and fails with "No Next.js version detected".
-    #
-    # Building in Actions and shipping `vercel deploy --prebuilt` was tried and
-    # does not work here: pnpm keeps its store only at the repo root, so
-    # apps/web/node_modules is symlinks into ../../node_modules/.pnpm. Deploying
-    # prebuilt from apps/web makes that folder the deployment root, the traced
-    # files sit outside it, and the deploy aborts with
-    #   Please ensure project dependencies have been installed:
-    #   File does not exist: node_modules/.pnpm/@opentelemetry+api@.../...
     steps:
       - uses: actions/checkout@v4
 
@@ -44,6 +25,7 @@ jobs:
 
       - name: Deploy to Vercel (Production)
         if: github.ref == 'refs/heads/main'
+        working-directory: apps/web
         run: vercel deploy --prod --yes --token="$VERCEL_TOKEN"
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
@@ -53,6 +35,7 @@ jobs:
       - name: Deploy to Vercel (Preview)
         if: github.ref != 'refs/heads/main'
         id: deploy_preview
+        working-directory: apps/web
         run: |
           DEPLOYMENT_URL=$(vercel deploy --yes --token="$VERCEL_TOKEN")
           echo "deployment_url=$DEPLOYMENT_URL" >> "$GITHUB_OUTPUT"
@@ -63,6 +46,7 @@ jobs:
 
       - name: Alias Preview Deployment to Static Domain
         if: github.ref != 'refs/heads/main'
+        working-directory: apps/web
         run: |
           vercel alias set "${{ steps.deploy_preview.outputs.deployment_url }}" agam-plus-web-preview.vercel.app --token="$VERCEL_TOKEN"
         env:
