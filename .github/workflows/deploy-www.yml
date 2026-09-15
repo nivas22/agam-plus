@@ -1,4 +1,4 @@
-name: Deploy API
+name: Deploy WWW
 
 on:
   push:
@@ -6,24 +6,27 @@ on:
       - main
       - preview
     paths:
-      - "apps/api/**"
+      - "apps/www/**"
       - "packages/shared/**"
-      - ".github/workflows/deploy-api.yml"
+      - ".github/workflows/deploy-www.yml"
   workflow_dispatch:
 
 concurrency:
-  group: deploy-api-${{ github.ref }}
+  group: deploy-www-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    # Unlike deploy-web.yml and deploy-www.yml, this one still runs inside
-    # apps/api. That works because apps/api has no "workspace:*" dependency, so
-    # a directory-only upload installs cleanly without the workspace root. If
-    # the API ever takes a dependency on @agam/shared, drop the
-    # working-directory lines below and set this project's Root Directory to
-    # "apps/api", exactly as the web and www workflows do.
+    # Runs from the repo ROOT, not apps/www. `vercel deploy` uploads its working
+    # directory, and apps/www alone has no pnpm-workspace.yaml, no
+    # pnpm-lock.yaml and no packages/shared — Vercel would find no pnpm lockfile,
+    # fall back to npm, and fail on the "workspace:*" dependency on @agam/shared
+    # with: Unsupported URL Type "workspace:".
+    #
+    # Requires the Vercel project's Settings > General > Root Directory to be
+    # "apps/www". Without it Vercel builds the repo root, whose package.json has
+    # no "next", and fails with: No Next.js version detected.
     steps:
       - uses: actions/checkout@v4
 
@@ -32,32 +35,28 @@ jobs:
 
       - name: Deploy to Vercel (Production)
         if: github.ref == 'refs/heads/main'
-        working-directory: apps/api
         run: vercel deploy --prod --yes --token="$VERCEL_TOKEN"
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_API }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_WWW }}
 
       - name: Deploy to Vercel (Preview)
         if: github.ref != 'refs/heads/main'
         id: deploy_preview
-        working-directory: apps/api
         run: |
           DEPLOYMENT_URL=$(vercel deploy --yes --token="$VERCEL_TOKEN")
           echo "deployment_url=$DEPLOYMENT_URL" >> "$GITHUB_OUTPUT"
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_API }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_WWW }}
 
       - name: Alias Preview Deployment to Static Domain
         if: github.ref != 'refs/heads/main'
-        working-directory: apps/api
         run: |
-          vercel alias set "${{ steps.deploy_preview.outputs.deployment_url }}" agam-plus-api-preview.vercel.app --token="$VERCEL_TOKEN"
+          vercel alias set "${{ steps.deploy_preview.outputs.deployment_url }}" agam-plus-www-preview.vercel.app --token="$VERCEL_TOKEN"
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_API }}
-          
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_WWW }}

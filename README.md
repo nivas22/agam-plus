@@ -58,13 +58,32 @@ Each app is deployed as its **own Vercel project** pointing at the same repo, wi
 ### Web (`apps/web`)
 
 1. Import the repo into a new Vercel project.
-2. Project Settings → General → Root Directory: `apps/web`.
+2. Project Settings → General → Root Directory: `apps/web`. **Required** — the
+   CI deploy uploads the whole repo, so without this Vercel builds the root
+   `package.json`, which has no `next`, and fails with *No Next.js version
+   detected*.
 3. Framework Preset: Next.js (auto-detected). No custom build/install commands needed.
+4. Repo secret: `VERCEL_PROJECT_ID_WEB`.
+
+### WWW (`apps/www`)
+
+Same shape as web — it also depends on `@agam/shared` (for `/api/version`), so
+it has the same two requirements.
+
+1. Import the repo into its own Vercel project.
+2. Project Settings → General → Root Directory: `apps/www`.
+3. Framework Preset: Next.js (auto-detected).
+4. Repo secret: `VERCEL_PROJECT_ID_WWW`.
+
+Deployed by `.github/workflows/deploy-www.yml` on pushes touching `apps/www/**`
+or `packages/shared/**`.
 
 ### API (`apps/api`)
 
-1. Import the repo into a second Vercel project.
+1. Import the repo into its own Vercel project.
 2. Project Settings → General → Root Directory: `apps/api`.
+   Its workflow still deploys from inside `apps/api`, which works only because
+   the API has no `workspace:*` dependency.
 3. Framework Preset: **Other** (not the NestJS zero-config preset — see note below). Build/Install commands come from `apps/api/vercel.json` (they `cd` back to the repo root so `pnpm`/`turbo` can see the workspace).
 
 The NestJS app itself (`apps/api/src`) is a standard, portable Nest app — `pnpm start:prod` runs it anywhere (AWS, GCP, a container, etc.) via `node dist/main`. The only Vercel-specific code is `apps/api/api/index.ts`, a thin adapter that wraps the same `AppModule` in a single serverless function, plus `apps/api/vercel.json`. Both can be deleted with no changes to `src/` when moving off Vercel.
