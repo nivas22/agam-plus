@@ -18,6 +18,13 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    # Deploys run from the repo ROOT, not apps/web. `vercel deploy` uploads its
+    # working directory, and apps/web alone has no pnpm-workspace.yaml, no
+    # pnpm-lock.yaml and no packages/shared — so Vercel fell back to npm, which
+    # cannot resolve the "workspace:*" dependency on @agam/shared.
+    #
+    # Requires the Vercel project's Settings > General > Root Directory to be
+    # "apps/web", which is what tells Vercel where to build from.
     steps:
       - uses: actions/checkout@v4
 
@@ -26,7 +33,6 @@ jobs:
 
       - name: Deploy to Vercel (Production)
         if: github.ref == 'refs/heads/main'
-        working-directory: apps/web
         run: vercel deploy --prod --yes --token="$VERCEL_TOKEN"
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
@@ -36,7 +42,6 @@ jobs:
       - name: Deploy to Vercel (Preview)
         if: github.ref != 'refs/heads/main'
         id: deploy_preview
-        working-directory: apps/web
         run: |
           DEPLOYMENT_URL=$(vercel deploy --yes --token="$VERCEL_TOKEN")
           echo "deployment_url=$DEPLOYMENT_URL" >> "$GITHUB_OUTPUT"
@@ -47,7 +52,6 @@ jobs:
 
       - name: Alias Preview Deployment to Static Domain
         if: github.ref != 'refs/heads/main'
-        working-directory: apps/web
         run: |
           vercel alias set "${{ steps.deploy_preview.outputs.deployment_url }}" agam-plus-web-preview.vercel.app --token="$VERCEL_TOKEN"
         env:

@@ -1,0 +1,13 @@
+# Read from the deployment root. Deploys run from the repo root (see
+# .github/workflows/deploy-*.yml) so that pnpm-workspace.yaml, pnpm-lock.yaml
+# and packages/* are present for the install — which means the per-app
+# apps/web/.vercelignore is no longer the file Vercel consults.
+#
+# Deliberately does NOT exclude apps/doctor or packages/mobile-ui: every
+# workspace package in pnpm-lock.yaml must exist at install time, or pnpm
+# rejects the lockfile as out of date. They cost a little upload size and
+# nothing else — Vercel only builds the project's Root Directory.
+.env
+.env.*
+apps/*/.env
+apps/*/.env.*
