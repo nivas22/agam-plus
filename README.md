@@ -61,6 +61,39 @@ The NestJS app itself (`apps/api/src`) is a standard, portable Nest app — `pnp
 
 > **Why not Vercel's zero-config NestJS support?** Vercel added a "zero-config" NestJS Function that auto-wraps `src/main.ts` — but as of writing it expects the entrypoint to export a handler, and fails at runtime (`No exports found in module`) against a standard `bootstrap()` + `app.listen()` file like ours. The custom adapter avoids that. If Vercel's NestJS support matures, this file can be dropped in favor of it.
 
+## Identifying a deployed version
+
+Nothing bumps `version` in package.json, so it cannot tell you what is live —
+the **git commit is the build number** for everything that deploys from CI.
+Every app reports the same shape (`packages/shared/src/version.ts`):
+
+```json
+{ "app": "api", "release": "0.0.1", "build": "a1b2c3d",
+  "environment": "production", "branch": "main",
+  "display": "api 0.0.1 (a1b2c3d) · production" }
+```
+
+| App | Where to read it |
+|-----|------------------|
+| api | `GET /version`, and now included in `GET /health` |
+| web | `GET /api/version` |
+| www | `GET /api/version` |
+| doctor | **More → About → Version** (tap to copy) |
+
+```bash
+curl -s https://<api-host>/version | jq .display
+curl -s https://<web-host>/api/version | jq .display
+```
+
+The web and www values come from Vercel's system environment variables, which
+requires **Settings → Environment Variables → Automatically expose System
+Environment Variables** to be on for each project. If it is off, `build` reads
+`unknown` — that is the signal.
+
+The mobile app is the exception: a store binary is identified by its build
+number, not a commit, so `build` there is the iOS `buildNumber` / Android
+`versionCode` that EAS increments. See the doctor-app section above.
+
 ## Environment variables
 
 Set per-app environment variables in each Vercel project's Settings → Environment Variables. Locally, copy `.env.example` files (if present in an app) to `.env.local` / `.env`.

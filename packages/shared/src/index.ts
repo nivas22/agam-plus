@@ -2,6 +2,8 @@
 // Subpath imports (@agam/shared/types/auth, @agam/shared/api/client) are also
 // available and are what apps/web's src/types/* shims re-export.
 
+export * from "./version";
+
 export * from "./api/client";
 export * from "./api/auth";
 export * from "./api/doctor";

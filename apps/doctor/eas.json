@@ -8,20 +8,25 @@
       "developmentClient": true,
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_AGAM_API_URL": "http://localhost:3001"
+        "EXPO_PUBLIC_AGAM_API_URL": "http://localhost:3001",
+        "EXPO_PUBLIC_BUILD_PROFILE": "development"
       }
     },
     "preview": {
       "distribution": "internal",
-      "android": { "buildType": "apk" },
+      "android": {
+        "buildType": "apk"
+      },
       "env": {
-        "EXPO_PUBLIC_AGAM_API_URL": "REPLACE_WITH_PREVIEW_API_URL"
+        "EXPO_PUBLIC_AGAM_API_URL": "REPLACE_WITH_PREVIEW_API_URL",
+        "EXPO_PUBLIC_BUILD_PROFILE": "preview"
       }
     },
     "production": {
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_AGAM_API_URL": "REPLACE_WITH_PRODUCTION_API_URL"
+        "EXPO_PUBLIC_AGAM_API_URL": "REPLACE_WITH_PRODUCTION_API_URL",
+        "EXPO_PUBLIC_BUILD_PROFILE": "production"
       }
     }
   },

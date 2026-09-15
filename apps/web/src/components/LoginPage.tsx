@@ -12,6 +12,7 @@ import {
   UserCog,
 } from "lucide-react";
 import Link from "next/link";
+import VersionFootnote from "@/components/common/VersionFootnote";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
@@ -398,6 +399,8 @@ export default function LoginPage() {
             </Link>
             .
           </p>
+
+          <VersionFootnote className="mt-4" />
         </div>
       </div>
     </div>
