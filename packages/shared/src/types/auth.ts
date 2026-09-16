@@ -31,6 +31,7 @@ export interface Hospital {
   email?: string;
   website?: string;
   description?: string;
+  registrationNumber?: string;
   createdAt: any;
 }
 

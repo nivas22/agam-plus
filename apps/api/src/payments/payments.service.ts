@@ -6,6 +6,7 @@ import { PatientRepository } from '../repositories/patient.repository';
 import { DoctorRepository } from '../repositories/doctor.repository';
 import { UserRepository } from '../repositories/user.repository';
 import { PackageRepository } from '../repositories/package.repository';
+import { AppointmentsService } from '../appointments/appointments.service';
 import { PermissionsService } from '../permissions/permissions.service';
 import { AuditService } from '../audit/audit.service';
 import { ApiError } from '../common/errors/api-error';
@@ -28,7 +29,6 @@ import {
   PAYMENT_METHOD,
   PAYMENT_STATUS,
   PERMISSION_STATE,
-  FOLLOW_UP_DAY_OFFSETS,
 } from '../constants';
 
 interface DayTotals {
@@ -48,6 +48,7 @@ export class PaymentsService {
     private readonly doctorRepository: DoctorRepository,
     private readonly userRepository: UserRepository,
     private readonly packageRepository: PackageRepository,
+    private readonly appointmentsService: AppointmentsService,
     private readonly permissionsService: PermissionsService,
     private readonly auditService: AuditService,
   ) {}
@@ -400,34 +401,19 @@ export class PaymentsService {
       );
     }
 
-    let followUpAppointmentId: string | null = null;
-    const followUpDays = followUp ? FOLLOW_UP_DAY_OFFSETS[followUp] : undefined;
-    if (followUpDays) {
-      const followUpDate = new Date();
-      followUpDate.setDate(followUpDate.getDate() + followUpDays);
-
-      // Drafted as PENDING — the front desk still has to confirm it, matching
-      // the state machine's reserved "not yet confirmed" status.
-      followUpAppointmentId =
-        await this.appointmentRepository.createAppointment({
-          hospitalId,
-          doctorProfileId: existingData.doctorProfileId,
-          doctorName: existingData.doctorName,
-          doctorSpecialization: existingData.doctorSpecialization,
-          patientId: existingData.patientId,
-          patientName: existingData.patientName,
-          // Local date components, not `.toISOString()` — that converts to
-          // UTC first and shifts the date back a day in timezones ahead of
-          // UTC (e.g. IST).
-          date: `${followUpDate.getFullYear()}-${String(followUpDate.getMonth() + 1).padStart(2, '0')}-${String(followUpDate.getDate()).padStart(2, '0')}`,
-          time: existingData.time,
-          status: APPOINTMENT_STATUS.PENDING,
-          type: APPOINTMENT_TYPE.FOLLOW_UP,
-          notes: 'Follow-up scheduled at visit completion',
-          createdBy: user.uid,
-          userRole,
-        });
-    }
+    const followUpAppointmentId = await this.appointmentsService.createFollowUpAppointment({
+      hospitalId,
+      doctorProfileId: existingData.doctorProfileId,
+      doctorName: existingData.doctorName,
+      doctorSpecialization: existingData.doctorSpecialization,
+      patientId: existingData.patientId,
+      patientName: existingData.patientName,
+      time: existingData.time,
+      followUpOption: followUp,
+      notes: 'Follow-up scheduled at visit completion',
+      createdBy: user.uid,
+      userRole,
+    });
 
     return {
       success: true,

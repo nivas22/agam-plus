@@ -17,6 +17,7 @@ export interface Doctor {
   email: string;
   specialization: string;
   qualification: string;
+  medicalRegistrationNumber?: string;
   consultationFee: number;
   availability: TimeSlot[];
   bio: string;

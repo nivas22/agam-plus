@@ -17,6 +17,7 @@ export enum DB_COLLECTIONS {
   CHARGE_CATALOG_ITEMS = "charge_catalog_items",
   HOSPITAL_HOLIDAYS = "hospital_holidays",
   MEDICINES = "medicines",
+  MEDICINE_PACKS = "medicine_packs",
   PRESCRIPTIONS = "prescriptions",
   LEAVE_REQUESTS = "leave_requests",
   COUNTERS = "counters",
@@ -410,6 +411,10 @@ export const FOOD_TIMING_OPTIONS = [
   "with_food",
   "anytime",
 ] as const;
+
+export const HOW_OFTEN_VALUES = ["1-0-0", "0-0-1", "1-0-1", "1-1-1", "SOS"] as const;
+
+export const FOLLOW_UP_REVIEW_VALUES = ["none", "1-week", "2-weeks", "1-month"] as const;
 
 // A prescription is a draft until the doctor signs it — signing just stamps
 // issuedAt; it can still be resaved afterwards (no immutability lock in v1).

@@ -912,7 +912,7 @@ export default function DoctorTodayPage({
             prescription={prescription}
             onSignPrescription={() =>
               setPrescriptionStatus
-                .mutateAsync("signed")
+                .mutateAsync({ status: "signed" })
                 .then(() => showToast("Prescription signed"))
                 .catch(() =>
                   showToast(

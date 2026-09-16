@@ -11,6 +11,8 @@ import {
   MEDICINE_FORM_VALUES,
   FOOD_TIMING_OPTIONS,
   PRESCRIPTION_STATUS_VALUES,
+  HOW_OFTEN_VALUES,
+  FOLLOW_UP_REVIEW_VALUES,
 } from '../../constants';
 
 /* -------------------------------------------------------------------------- */
@@ -532,9 +534,13 @@ export const createMedicineSchema = z.object({
   defaultDose: z.string().optional(),
   defaultFrequency: z.string().optional(),
   defaultFoodTiming: z.enum(FOOD_TIMING_OPTIONS).optional(),
+  brandNames: z.array(z.string()).optional(),
+  scheduleClass: z.string().optional(),
 });
 
-export const updateMedicineSchema = createMedicineSchema.partial();
+export const updateMedicineSchema = createMedicineSchema.partial().extend({
+  isFavourite: z.boolean().optional(),
+});
 
 export const medicineStatusSchema = z.object({
   status: z.enum(['active', 'archived']),
@@ -543,6 +549,14 @@ export const medicineStatusSchema = z.object({
 /* -------------------------------------------------------------------------- */
 /*                          PRESCRIPTION SCHEMAS                              */
 /* -------------------------------------------------------------------------- */
+
+const prescriptionItemStructuredDoseSchema = z.object({
+  howOften: z.enum(HOW_OFTEN_VALUES),
+  foodTiming: z.enum(FOOD_TIMING_OPTIONS),
+  days: z.number().positive(),
+  dispenseQty: z.number().min(0),
+  dispenseOverridden: z.boolean().optional(),
+});
 
 const prescriptionItemSchema = z.object({
   medicineId: z.string().min(1),
@@ -555,6 +569,7 @@ const prescriptionItemSchema = z.object({
   duration: z.string().optional(),
   quantity: z.string().optional(),
   note: z.string().optional(),
+  structuredDose: prescriptionItemStructuredDoseSchema.optional(),
 });
 
 const allergyOverrideSchema = z.object({
@@ -568,10 +583,36 @@ export const savePrescriptionSchema = z.object({
   items: z.array(prescriptionItemSchema).default([]),
   allergyOverrides: z.array(allergyOverrideSchema).default([]),
   advice: z.string().optional(),
+  followUpOption: z.enum(FOLLOW_UP_REVIEW_VALUES).optional(),
 });
 
 export const prescriptionStatusSchema = z.object({
   status: z.enum(PRESCRIPTION_STATUS_VALUES as [string, ...string[]]),
+  followUpOption: z.enum(FOLLOW_UP_REVIEW_VALUES).optional(),
+});
+
+/* -------------------------------------------------------------------------- */
+/*                          MEDICINE PACK SCHEMAS                             */
+/* -------------------------------------------------------------------------- */
+
+const medicinePackItemSchema = z.object({
+  medicineId: z.string().min(1),
+  medicineName: z.string().min(1),
+  howOften: z.enum(HOW_OFTEN_VALUES),
+  foodTiming: z.enum(FOOD_TIMING_OPTIONS),
+  days: z.number().positive(),
+  note: z.string().optional(),
+});
+
+export const createMedicinePackSchema = z.object({
+  name: z.string().min(1, 'Name is required'),
+  items: z.array(medicinePackItemSchema).min(1, 'At least one medicine is required'),
+});
+
+export const updateMedicinePackSchema = createMedicinePackSchema.partial();
+
+export const medicinePackStatusSchema = z.object({
+  status: z.enum(['active', 'archived']),
 });
 
 // Hospitals can pause or resume their number without disconnecting it.

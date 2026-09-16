@@ -19,6 +19,7 @@ import {
   isValidAppointmentTransition,
   normalizeAppointmentStatus,
   PERMISSION_STATE,
+  FOLLOW_UP_DAY_OFFSETS,
 } from '../constants';
 
 // Timestamp field to stamp when an appointment enters a given status.
@@ -844,5 +845,47 @@ export class AppointmentsService {
       message: 'Appointment deleted successfully',
       deletedBy: userRole,
     };
+  }
+
+  // Extracted from PaymentsService.completeVisit so PrescriptionsService can
+  // create the same draft follow-up when a doctor signs a prescription, not
+  // just when the front desk completes a paid visit. Drafted as PENDING —
+  // the front desk still has to confirm it.
+  async createFollowUpAppointment(params: {
+    hospitalId: string;
+    doctorProfileId: string;
+    doctorName?: string;
+    doctorSpecialization?: string;
+    patientId: string;
+    patientName?: string;
+    time: string;
+    followUpOption: string;
+    notes: string;
+    createdBy: string;
+    userRole: string;
+  }): Promise<string | null> {
+    const days = FOLLOW_UP_DAY_OFFSETS[params.followUpOption];
+    if (!days) return null;
+
+    const date = new Date();
+    date.setDate(date.getDate() + days);
+
+    return this.appointmentRepository.createAppointment({
+      hospitalId: params.hospitalId,
+      doctorProfileId: params.doctorProfileId,
+      doctorName: params.doctorName,
+      doctorSpecialization: params.doctorSpecialization,
+      patientId: params.patientId,
+      patientName: params.patientName,
+      // Local date components, not `.toISOString()` — that converts to UTC
+      // first and shifts the date back a day in timezones ahead of UTC (e.g. IST).
+      date: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`,
+      time: params.time,
+      status: APPOINTMENT_STATUS.PENDING,
+      type: APPOINTMENT_TYPE.FOLLOW_UP,
+      notes: params.notes,
+      createdBy: params.createdBy,
+      userRole: params.userRole,
+    });
   }
 }

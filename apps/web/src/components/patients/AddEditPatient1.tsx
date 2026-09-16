@@ -54,8 +54,15 @@ type FormState = {
   address: string;
   notes: string;
   allergies: string[];
+  conditions: string[];
+  flags: string[];
   status: "active" | "inactive" | "archived" | "approved" | "pending";
 };
+
+// The three tag-array fields (allergies, conditions, flags) share the same
+// add/remove/Enter-to-commit behavior, so their input state and handlers are
+// generic over the field name rather than tripling the same logic.
+type TagField = "allergies" | "conditions" | "flags";
 
 const EMPTY_FORM: FormState = {
   name: "",
@@ -67,6 +74,8 @@ const EMPTY_FORM: FormState = {
   address: "",
   notes: "",
   allergies: [],
+  conditions: [],
+  flags: [],
   status: "active",
 };
 
@@ -113,7 +122,11 @@ export default function AddEditPatient1({
   const [duplicateMatches, setDuplicateMatches] = useState<
     DuplicateMatch[] | null
   >(null);
-  const [allergyInput, setAllergyInput] = useState("");
+  const [tagInputs, setTagInputs] = useState<Record<TagField, string>>({
+    allergies: "",
+    conditions: "",
+    flags: "",
+  });
   const [activeSection, setActiveSection] = useState<
     "personal" | "contact" | "notes"
   >("personal");
@@ -135,6 +148,8 @@ export default function AddEditPatient1({
         address: p.address || "",
         notes: p.notes || "",
         allergies: p.allergies || [],
+        conditions: p.conditions || [],
+        flags: p.flags || [],
         status: (p.status as FormState["status"]) || "active",
       };
       setFormData(next);
@@ -192,28 +207,28 @@ export default function AddEditPatient1({
 
   function discardChanges() {
     setFormData(initialData);
-    setAllergyInput("");
+    setTagInputs({ allergies: "", conditions: "", flags: "" });
   }
 
-  function addAllergy() {
-    const value = allergyInput.trim();
-    if (value && !formData.allergies.includes(value)) {
-      update("allergies", [...formData.allergies, value]);
+  function addTag(field: TagField) {
+    const value = tagInputs[field].trim();
+    if (value && !formData[field].includes(value)) {
+      update(field, [...formData[field], value]);
     }
-    setAllergyInput("");
+    setTagInputs((prev) => ({ ...prev, [field]: "" }));
   }
 
-  function removeAllergy(value: string) {
+  function removeTag(field: TagField, value: string) {
     update(
-      "allergies",
-      formData.allergies.filter((a) => a !== value),
+      field,
+      formData[field].filter((a) => a !== value),
     );
   }
 
-  function onAllergyKeyDown(e: KeyboardEvent<HTMLInputElement>) {
+  function onTagKeyDown(field: TagField, e: KeyboardEvent<HTMLInputElement>) {
     if (e.key === "Enter" || e.key === ",") {
       e.preventDefault();
-      addAllergy();
+      addTag(field);
     }
   }
 
@@ -239,6 +254,8 @@ export default function AddEditPatient1({
         address: formData.address,
         notes: formData.notes,
         allergies: formData.allergies,
+        conditions: formData.conditions,
+        flags: formData.flags,
       };
 
       if (isNew) {
@@ -627,7 +644,7 @@ export default function AddEditPatient1({
                     {canEdit && (
                       <button
                         type="button"
-                        onClick={() => removeAllergy(a)}
+                        onClick={() => removeTag("allergies", a)}
                         className="hover:opacity-70"
                       >
                         <X className="w-3 h-3" />
@@ -638,15 +655,95 @@ export default function AddEditPatient1({
               </div>
               <input
                 type="text"
-                value={allergyInput}
+                value={tagInputs.allergies}
                 disabled={!canEdit}
-                onChange={(e) => setAllergyInput(e.target.value)}
-                onKeyDown={onAllergyKeyDown}
-                onBlur={addAllergy}
+                onChange={(e) =>
+                  setTagInputs((prev) => ({ ...prev, allergies: e.target.value }))
+                }
+                onKeyDown={(e) => onTagKeyDown("allergies", e)}
+                onBlur={() => addTag("allergies")}
                 placeholder="Type an allergy and press Enter (e.g. Penicillin)"
                 className={inputClass}
               />
             </Field>
+            <div className="mt-5">
+              <Field
+                label="Conditions"
+                optional
+                hint="Shown as badges on the prescription writer, e.g. diabetic, hypertensive."
+              >
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {formData.conditions.map((c) => (
+                    <span
+                      key={c}
+                      className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold bg-status-warning-soft text-status-warning"
+                    >
+                      {c}
+                      {canEdit && (
+                        <button
+                          type="button"
+                          onClick={() => removeTag("conditions", c)}
+                          className="hover:opacity-70"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      )}
+                    </span>
+                  ))}
+                </div>
+                <input
+                  type="text"
+                  value={tagInputs.conditions}
+                  disabled={!canEdit}
+                  onChange={(e) =>
+                    setTagInputs((prev) => ({ ...prev, conditions: e.target.value }))
+                  }
+                  onKeyDown={(e) => onTagKeyDown("conditions", e)}
+                  onBlur={() => addTag("conditions")}
+                  placeholder="Type a condition and press Enter (e.g. Diabetic)"
+                  className={inputClass}
+                />
+              </Field>
+            </div>
+            <div className="mt-5">
+              <Field
+                label="Flags"
+                optional
+                hint="Any other context worth surfacing on the prescription writer, e.g. eGFR normal."
+              >
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {formData.flags.map((f) => (
+                    <span
+                      key={f}
+                      className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold bg-status-open-soft text-status-open"
+                    >
+                      {f}
+                      {canEdit && (
+                        <button
+                          type="button"
+                          onClick={() => removeTag("flags", f)}
+                          className="hover:opacity-70"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      )}
+                    </span>
+                  ))}
+                </div>
+                <input
+                  type="text"
+                  value={tagInputs.flags}
+                  disabled={!canEdit}
+                  onChange={(e) =>
+                    setTagInputs((prev) => ({ ...prev, flags: e.target.value }))
+                  }
+                  onKeyDown={(e) => onTagKeyDown("flags", e)}
+                  onBlur={() => addTag("flags")}
+                  placeholder="Type a flag and press Enter (e.g. eGFR normal)"
+                  className={inputClass}
+                />
+              </Field>
+            </div>
             <div className="mt-5">
               <Field label="Additional notes" optional>
                 <textarea

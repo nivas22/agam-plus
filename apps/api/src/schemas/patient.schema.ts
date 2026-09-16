@@ -54,6 +54,15 @@ export class Patient {
   @Prop({ type: [String], default: [] })
   allergies?: string[];
 
+  // Manually-entered structured tags, same free-text-tag pattern as
+  // allergies — no real labs/conditions integration behind these, just
+  // doctor/desk-entered context shown as badges on the prescription writer.
+  @Prop({ type: [String], default: [] })
+  conditions?: string[];
+
+  @Prop({ type: [String], default: [] })
+  flags?: string[];
+
   @Prop({ default: 'active', index: true })
   status?: string;
 

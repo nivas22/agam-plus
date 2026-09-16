@@ -4,6 +4,7 @@ import {
   AlertTriangle,
   CalendarOff,
   ClipboardList,
+  Layers,
   MessageCircle,
   Pill,
   Receipt,
@@ -58,6 +59,15 @@ export default function SettingsHubPage() {
       description: isDoctor
         ? "Browse the catalog you prescribe from, including allergy class tags."
         : "The catalog doctors prescribe from, including allergy class tags.",
+      adminOnly: false,
+    },
+    {
+      href: `/hospital/${hospitalId}/settings/medicine-packs`,
+      icon: <Layers size={20} />,
+      title: "Medicine packs",
+      description: isDoctor
+        ? "Treatment templates you can apply in one click — Fever pack, URI pack."
+        : "Named bundles of medicines with preset doses for the prescription writer.",
       adminOnly: false,
     },
     {

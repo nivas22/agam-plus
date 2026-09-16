@@ -2,13 +2,17 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Prescription, PrescriptionDocument } from '../schemas/prescription.schema';
+import { Counter, CounterDocument } from '../schemas/counter.schema';
 import { toPlain, toPlainList } from './mongo.util';
+import { PRESCRIPTION_STATUS } from '../constants';
 
 @Injectable()
 export class PrescriptionRepository {
   constructor(
     @InjectModel(Prescription.name)
     private readonly model: Model<PrescriptionDocument>,
+    @InjectModel(Counter.name)
+    private readonly counterModel: Model<CounterDocument>,
   ) {}
 
   async getByAppointment(hospitalId: string, appointmentId: string) {
@@ -27,6 +31,50 @@ export class PrescriptionRepository {
       .sort({ createdAt: -1 })
       .lean();
     return toPlainList(docs);
+  }
+
+  // Backs "Repeat last" in the prescription writer — deliberately scoped to
+  // the SAME doctor, not just the same patient, so a repeat only offers
+  // continuity of care the requesting doctor actually gave.
+  async getLastSignedByDoctorAndPatient(
+    hospitalId: string,
+    doctorProfileId: string,
+    patientId: string,
+  ) {
+    const doc = await this.model
+      .findOne({ hospitalId, doctorProfileId, patientId, status: PRESCRIPTION_STATUS.SIGNED })
+      .sort({ issuedAt: -1 })
+      .lean();
+    return toPlain(doc);
+  }
+
+  // Same atomic-counter pattern as PaymentRepository.getNextInvoiceSequence:
+  // upsert-then-reconcile-then-$inc so concurrent sign requests can never be
+  // handed the same sequence number.
+  async getNextRxSequence(hospitalId: string): Promise<number> {
+    const key = `rx:${hospitalId}`;
+
+    await this.counterModel.updateOne({ _id: key }, { $setOnInsert: { seq: 0 } }, { upsert: true });
+
+    const highest = await this.model
+      .findOne({ hospitalId, rxNumber: { $exists: true } })
+      .sort({ rxNumber: -1 })
+      .select('rxNumber')
+      .lean();
+    const highestSeq = highest
+      ? parseInt((highest as any).rxNumber?.split('-').pop() || '0', 10) || 0
+      : 0;
+    await this.counterModel.updateOne(
+      { _id: key, seq: { $lt: highestSeq } },
+      { $set: { seq: highestSeq } },
+    );
+
+    const bumped = await this.counterModel.findOneAndUpdate(
+      { _id: key },
+      { $inc: { seq: 1 } },
+      { new: true },
+    );
+    return bumped!.seq;
   }
 
   // Upserts the single draft/signed doc for this appointment (see the
