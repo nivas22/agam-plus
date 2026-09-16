@@ -33,6 +33,11 @@ const teamApiFunctions = {
     return parseJsonOrThrow(response);
   },
 
+  fetchOwnProfile: async (hospitalId: string): Promise<TeamMemberProfileResponse> => {
+    const response = await fetchWithAuth(apiUrl(`/hospitals/${hospitalId}/team/me`));
+    return parseJsonOrThrow(response);
+  },
+
   createMember: async (hospitalId: string, data: CreateTeamMemberData) => {
     const response = await fetchWithAuth(apiUrl(`/hospitals/${hospitalId}/team`), {
       method: "POST",
@@ -107,6 +112,19 @@ export const useTeamMember = (memberId: string, hospitalId?: string) => {
     queryKey: teamKeys.detail(actualHospitalId, memberId),
     queryFn: () => teamApiFunctions.fetchMember(actualHospitalId, memberId),
     enabled: !!actualHospitalId && !!memberId,
+  });
+};
+
+// Front desk/nurse/accountant's own stats/attendance/permissions — the same
+// shape an admin sees via useTeamMember, scoped server-side to "me".
+export const useMyTeamProfile = (hospitalId?: string, enabled = true) => {
+  const params = useParams();
+  const actualHospitalId = hospitalId || (params.id as string);
+
+  return useQuery({
+    queryKey: [...teamKeys.hospital(actualHospitalId), "me"],
+    queryFn: () => teamApiFunctions.fetchOwnProfile(actualHospitalId),
+    enabled: !!actualHospitalId && enabled,
   });
 };
 

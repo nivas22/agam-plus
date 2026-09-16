@@ -341,11 +341,22 @@ export default function PlatformAdminLayout({ children }: { children: React.Reac
                   <button
                     onClick={() => {
                       setShowProfileMenu(false);
-                      router.push('/select-hospital');
+                      router.push('/platform-admin/profile');
                     }}
                     className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-ink-700 hover:bg-surface-canvas transition-colors text-left"
                   >
                     <UserIcon size={16} />
+                    <span>My profile</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setShowProfileMenu(false);
+                      router.push('/select-hospital');
+                    }}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-ink-700 hover:bg-surface-canvas transition-colors text-left border-t border-border"
+                  >
+                    <Building2 size={16} />
                     <span>Switch to Hospital View</span>
                   </button>
 

@@ -54,6 +54,15 @@ export class TeamController {
     return { valid };
   }
 
+  // Self-service view of the same profile an admin sees via ':memberId' below
+  // (stats/attendance/permissions) — only front desk/nurse/accountant have a
+  // team_member_profiles record, so this 404s for admin/doctor callers.
+  @Get('me')
+  @Roles('front_desk', 'nurse', 'accountant')
+  getOwnProfile(@Param('id') hospitalId: string, @CurrentHospitalUser() userProfile: HospitalUserProfile) {
+    return this.teamService.getMemberProfile(hospitalId, userProfile.userId);
+  }
+
   @Get(':memberId')
   getOne(@Param('id') hospitalId: string, @Param('memberId') memberId: string) {
     return this.teamService.getMemberProfile(hospitalId, memberId);
