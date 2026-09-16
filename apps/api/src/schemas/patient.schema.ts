@@ -25,8 +25,8 @@ export class Patient {
   @Prop({ required: true })
   name: string;
 
-  @Prop({ required: true, index: true })
-  email: string;
+  @Prop({ index: true })
+  email?: string;
 
   @Prop({ required: true })
   phone: string;
