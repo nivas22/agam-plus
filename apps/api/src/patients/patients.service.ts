@@ -114,7 +114,7 @@ export class PatientsService {
     user: JwtUser,
     patientData: Record<string, any>,
   ) {
-    const requiredFields = ['name', 'email', 'phone'];
+    const requiredFields = ['name', 'phone'];
     const missingFields = requiredFields.filter((f) => !patientData[f]);
     if (missingFields.length > 0) {
       throw ApiError.badRequest(
@@ -123,7 +123,7 @@ export class PatientsService {
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(patientData.email)) {
+    if (patientData.email && !emailRegex.test(patientData.email)) {
       throw ApiError.badRequest('Invalid email format');
     }
 
@@ -152,14 +152,16 @@ export class PatientsService {
       }
     }
 
-    const emailExists = await this.patientRepository.patientExistsByEmail(
-      hospitalId,
-      patientData.email,
-    );
-    if (emailExists) {
-      throw ApiError.conflict(
-        `A patient with email ${patientData.email} already exists in this hospital`,
+    if (patientData.email) {
+      const emailExists = await this.patientRepository.patientExistsByEmail(
+        hospitalId,
+        patientData.email,
       );
+      if (emailExists) {
+        throw ApiError.conflict(
+          `A patient with email ${patientData.email} already exists in this hospital`,
+        );
+      }
     }
 
     const generatedPatientId = generatePatientId();

@@ -237,6 +237,10 @@ export default function AddEditPatient1({
       toast.error("Please fill in Name and Date of Birth");
       return;
     }
+    if (!formData.phone.trim()) {
+      toast.error("Please fill in Phone");
+      return;
+    }
     if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       toast.error("Please enter a valid email address");
       return;
@@ -546,17 +550,7 @@ export default function AddEditPatient1({
               <p className="text-sm text-ink-500">How to reach this patient</p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <Field label="Email" optional hint="Used for appointment alerts.">
-                <input
-                  type="email"
-                  value={formData.email}
-                  disabled={!canEdit}
-                  onChange={(e) => update("email", e.target.value)}
-                  placeholder="patient@example.com"
-                  className={inputClass}
-                />
-              </Field>
-              <Field label="Phone" optional hint="10 digits, no country code.">
+              <Field label="Phone" required hint="10 digits, no country code.">
                 <div className="flex gap-2">
                   <span className="flex items-center px-3 rounded-lg border border-border bg-surface-canvas text-sm text-ink-700 shrink-0">
                     +91
@@ -574,6 +568,16 @@ export default function AddEditPatient1({
                     className={inputClass}
                   />
                 </div>
+              </Field>
+              <Field label="Email" optional hint="Used for appointment alerts.">
+                <input
+                  type="email"
+                  value={formData.email}
+                  disabled={!canEdit}
+                  onChange={(e) => update("email", e.target.value)}
+                  placeholder="patient@example.com"
+                  className={inputClass}
+                />
               </Field>
               <Field
                 label="Secondary phone"
