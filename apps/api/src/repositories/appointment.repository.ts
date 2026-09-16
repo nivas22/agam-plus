@@ -1,11 +1,21 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import { ACTIVE_APPOINTMENT_STATUSES } from '../constants';
 import {
   Appointment,
   AppointmentDocument,
 } from '../schemas/appointment.schema';
 import { toPlain, toPlainList } from './mongo.util';
+
+// Local calendar date (not `.toISOString()`, which shifts a day back in any
+// timezone ahead of UTC).
+function toISODateLocal(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
 
 @Injectable()
 export class AppointmentRepository {
@@ -124,7 +134,13 @@ export class AppointmentRepository {
       filter.doctorProfileId = options.doctorProfileId;
     if (options.patientId) filter.patientId = options.patientId;
     if (options.statuses?.length) filter.status = { $in: options.statuses };
-    else if (options.status) filter.status = options.status;
+    else if (options.status === 'upcoming') {
+      // "upcoming" isn't a real APPOINTMENT_STATUS value — it means "still
+      // active and not in the past yet", so translate it into the
+      // equivalent status/date filters rather than matching it literally.
+      filter.status = { $in: ACTIVE_APPOINTMENT_STATUSES };
+      filter.date = { $gte: toISODateLocal(new Date()) };
+    } else if (options.status) filter.status = options.status;
     if (options.type) filter.type = options.type;
     if (options.startDate && options.endDate) {
       filter.date = { $gte: options.startDate, $lte: options.endDate };

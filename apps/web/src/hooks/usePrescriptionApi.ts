@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
 import { ApiRequestError, apiUrl, fetchWithAuth } from "@/lib/api";
 import type {
+  FollowUpOption,
   Prescription,
   PrescriptionStatus,
   SavePrescriptionData,
@@ -21,6 +22,11 @@ async function parseJsonOrThrow(response: Response) {
   return response.json();
 }
 
+interface SetStatusBody {
+  status: PrescriptionStatus;
+  followUpOption?: FollowUpOption;
+}
+
 const prescriptionApiFunctions = {
   fetchPrescription: async (
     hospitalId: string,
@@ -29,6 +35,18 @@ const prescriptionApiFunctions = {
     const response = await fetchWithAuth(
       apiUrl(
         `/hospitals/${hospitalId}/appointments/${appointmentId}/prescription`,
+      ),
+    );
+    return parseJsonOrThrow(response);
+  },
+
+  fetchLastSigned: async (
+    hospitalId: string,
+    appointmentId: string,
+  ): Promise<{ prescription: Prescription | null }> => {
+    const response = await fetchWithAuth(
+      apiUrl(
+        `/hospitals/${hospitalId}/appointments/${appointmentId}/prescription/repeat-last`,
       ),
     );
     return parseJsonOrThrow(response);
@@ -55,7 +73,7 @@ const prescriptionApiFunctions = {
   setStatus: async (
     hospitalId: string,
     appointmentId: string,
-    status: PrescriptionStatus,
+    body: SetStatusBody,
   ): Promise<Prescription> => {
     const response = await fetchWithAuth(
       apiUrl(
@@ -64,7 +82,7 @@ const prescriptionApiFunctions = {
       {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify(body),
       },
     );
     return parseJsonOrThrow(response);
@@ -81,6 +99,8 @@ export const prescriptionKeys = {
       "appointment",
       appointmentId,
     ] as const,
+  lastSigned: (hospitalId: string, appointmentId: string) =>
+    [...prescriptionKeys.detail(hospitalId, appointmentId), "repeat-last"] as const,
 };
 
 export const usePrescription = (appointmentId: string, hospitalId?: string) => {
@@ -94,6 +114,23 @@ export const usePrescription = (appointmentId: string, hospitalId?: string) => {
         actualHospitalId,
         appointmentId,
       ),
+    enabled: !!actualHospitalId && !!appointmentId,
+  });
+};
+
+// Backs "Repeat last" in the prescription writer's quick-start row — the
+// same doctor's most recent signed prescription for this patient, if any.
+export const useLastSignedPrescription = (
+  appointmentId: string,
+  hospitalId?: string,
+) => {
+  const params = useParams();
+  const actualHospitalId = hospitalId || (params.id as string);
+
+  return useQuery({
+    queryKey: prescriptionKeys.lastSigned(actualHospitalId, appointmentId),
+    queryFn: () =>
+      prescriptionApiFunctions.fetchLastSigned(actualHospitalId, appointmentId),
     enabled: !!actualHospitalId && !!appointmentId,
   });
 };
@@ -126,11 +163,11 @@ export const useSetPrescriptionStatus = (
   const actualHospitalId = hospitalId || (params.id as string);
 
   return useMutation({
-    mutationFn: (status: PrescriptionStatus) =>
+    mutationFn: (body: SetStatusBody) =>
       prescriptionApiFunctions.setStatus(
         actualHospitalId,
         appointmentId,
-        status,
+        body,
       ),
     onSuccess: () => {
       queryClient.invalidateQueries({

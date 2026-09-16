@@ -22,6 +22,13 @@ export class PrescriptionsController {
     return this.prescriptionsService.getPrescription(hospitalId, appointmentId);
   }
 
+  // Backs "Repeat last" — the same doctor's most recent signed prescription
+  // for this patient, if any.
+  @Get('repeat-last')
+  getLastSigned(@Param('id') hospitalId: string, @Param('appointmentId') appointmentId: string) {
+    return this.prescriptionsService.getLastSignedForRepeat(hospitalId, appointmentId);
+  }
+
   @Put()
   @Roles('admin', 'doctor')
   @RequirePermission('write_prescription')
@@ -43,8 +50,14 @@ export class PrescriptionsController {
     @Param('id') hospitalId: string,
     @Param('appointmentId') appointmentId: string,
     @CurrentHospitalUser() userProfile: HospitalUserProfile,
-    @Body() body: { status: 'draft' | 'signed' },
+    @Body() body: { status: 'draft' | 'signed'; followUpOption?: string },
   ) {
-    return this.prescriptionsService.setStatus(hospitalId, appointmentId, userProfile, body.status);
+    return this.prescriptionsService.setStatus(
+      hospitalId,
+      appointmentId,
+      userProfile,
+      body.status,
+      body.followUpOption,
+    );
   }
 }

@@ -16,6 +16,10 @@ export type * from "./types/leaveRequest";
 export type * from "./types/doctorDashboard";
 export type * from "./types/medicine";
 export type * from "./types/prescription";
+export type * from "./types/medicinePack";
+
+export * from "./prescriptionDose";
+export * from "./prescriptionInstructionTemplate";
 
 // ./types/doctor is deliberately NOT re-exported here: it is the legacy shape
 // and collides with ./types/doctorNew on Doctor, HospitalMember, TimeSlot,

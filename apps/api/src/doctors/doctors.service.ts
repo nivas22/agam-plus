@@ -450,6 +450,7 @@ export class DoctorsService {
       'phone',
       'specialization',
       'qualification',
+      'medicalRegistrationNumber',
       'bio',
       'experience',
       'address',

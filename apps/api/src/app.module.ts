@@ -24,6 +24,7 @@ import { HospitalHolidaysModule } from './hospital-holidays/hospital-holidays.mo
 import { WhatsappModule } from './whatsapp/whatsapp.module';
 import { ReportsModule } from './reports/reports.module';
 import { MedicinesModule } from './medicines/medicines.module';
+import { MedicinePacksModule } from './medicine-packs/medicine-packs.module';
 import { PrescriptionsModule } from './prescriptions/prescriptions.module';
 import { LeaveRequestsModule } from './leave-requests/leave-requests.module';
 import { DoctorDashboardModule } from './doctor-dashboard/doctor-dashboard.module';
@@ -53,6 +54,7 @@ import { DoctorPresenceModule } from './doctor-presence/doctor-presence.module';
     WhatsappModule,
     ReportsModule,
     MedicinesModule,
+    MedicinePacksModule,
     PrescriptionsModule,
     LeaveRequestsModule,
     DoctorDashboardModule,

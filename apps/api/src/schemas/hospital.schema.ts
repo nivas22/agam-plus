@@ -12,6 +12,11 @@ export class Hospital {
   @Prop()
   address?: string;
 
+  // Shown on the prescription preview's "Reg. No." line when present; no
+  // admin UI to edit this yet, so it's set directly in the DB for now.
+  @Prop()
+  registrationNumber?: string;
+
   @Prop()
   createdAt?: Date;
 

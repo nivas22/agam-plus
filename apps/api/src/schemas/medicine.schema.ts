@@ -36,6 +36,22 @@ export class Medicine {
   @Prop()
   defaultFoodTiming?: string;
 
+  // Alternate trade names shown under the generic name on the prescription
+  // preview, e.g. ["Azithral", "Azee", "Zithrox"] for genericName "Azithromycin".
+  @Prop({ type: [String], default: [] })
+  brandNames?: string[];
+
+  // Drugs & Cosmetics Act schedule, e.g. "H", "H1", "X" — undefined/"" means
+  // OTC/unclassified. Shown as a badge on the prescription and drives no
+  // enforcement here, just a printed label for the pharmacy.
+  @Prop()
+  scheduleClass?: string;
+
+  // Hospital-wide (not per-doctor) quick-access flag, toggled from the
+  // catalog — surfaces in the prescription writer's "My favourites" filter.
+  @Prop({ default: false, index: true })
+  isFavourite?: boolean;
+
   @Prop({ required: true, enum: ['active', 'archived'], default: 'active', index: true })
   status: string;
 
