@@ -27,6 +27,7 @@ export enum DB_COLLECTIONS {
   WHATSAPP_CONFIGS = "whatsapp_configs",
   WHATSAPP_SESSIONS = "whatsapp_sessions",
   WHATSAPP_ENQUIRIES = "whatsapp_enquiries",
+  WHATSAPP_PROCESSED_MESSAGES = "whatsapp_processed_messages",
 }
 
 // FRONT_DESK/NURSE/ACCOUNTANT replace the old unused STAFF value — nothing
@@ -592,6 +593,9 @@ export enum WHATSAPP_STEP {
   CHOOSE_TIME = "choose_time",
   CONFIRM = "confirm",
   ENQUIRY_CAPTURE = "enquiry_capture",
+  MY_APPOINTMENTS = "my_appointments",
+  APPOINTMENT_ACTION = "appointment_action",
+  CANCEL_CONFIRM = "cancel_confirm",
 }
 
 export enum WHATSAPP_ENQUIRY_STATUS {

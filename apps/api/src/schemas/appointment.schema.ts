@@ -123,6 +123,11 @@ export class Appointment {
 
   @Prop()
   updatedAt?: Date;
+
+  // Stamped once a WhatsApp reminder has gone out for this appointment, so
+  // the reminder cron never messages the same patient twice.
+  @Prop()
+  reminderSentAt?: Date;
 }
 
 export const AppointmentSchema = SchemaFactory.createForClass(Appointment);

@@ -26,6 +26,7 @@ import { SessionRepository } from './session.repository';
 import { WhatsappConfigRepository } from './whatsapp-config.repository';
 import { WhatsappSessionRepository } from './whatsapp-session.repository';
 import { WhatsappEnquiryRepository } from './whatsapp-enquiry.repository';
+import { WhatsappProcessedMessageRepository } from './whatsapp-processed-message.repository';
 import { User, UserSchema } from '../schemas/user.schema';
 import { Hospital, HospitalSchema } from '../schemas/hospital.schema';
 import {
@@ -82,6 +83,10 @@ import {
   WhatsappEnquiry,
   WhatsappEnquirySchema,
 } from '../schemas/whatsapp-enquiry.schema';
+import {
+  WhatsappProcessedMessage,
+  WhatsappProcessedMessageSchema,
+} from '../schemas/whatsapp-processed-message.schema';
 
 const repositories = [
   UserRepository,
@@ -110,6 +115,7 @@ const repositories = [
   WhatsappConfigRepository,
   WhatsappSessionRepository,
   WhatsappEnquiryRepository,
+  WhatsappProcessedMessageRepository,
 ];
 
 @Global()
@@ -142,6 +148,10 @@ const repositories = [
       { name: WhatsappConfig.name, schema: WhatsappConfigSchema },
       { name: WhatsappSession.name, schema: WhatsappSessionSchema },
       { name: WhatsappEnquiry.name, schema: WhatsappEnquirySchema },
+      {
+        name: WhatsappProcessedMessage.name,
+        schema: WhatsappProcessedMessageSchema,
+      },
     ]),
   ],
   providers: repositories,
