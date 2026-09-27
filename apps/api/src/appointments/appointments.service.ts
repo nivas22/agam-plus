@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { ClientSession } from 'mongoose';
 import { AppointmentRepository } from '../repositories/appointment.repository';
 import { DoctorRepository } from '../repositories/doctor.repository';
 import { PatientRepository } from '../repositories/patient.repository';
@@ -298,36 +299,188 @@ export class AppointmentsService {
     const doctor = await this.doctorRepository.getDoctorProfileById(doctorProfileId);
     if (!doctor) throw ApiError.notFound('Doctor not found');
 
-    // Re-check availability at booking time: the patient picked this slot from
-    // a menu that may be minutes old, and someone else may have taken it.
-    const slots = await this.getAvailableSlots(doctor, membership, date);
-    if (!slots.some((s) => s.time === time)) {
-      throw ApiError.conflict('That slot is no longer available');
-    }
-
     const patient = await this.patientRepository.getPatientById(patientId);
     const nowIso = new Date().toISOString();
 
-    const appointmentId = await this.appointmentRepository.createAppointment({
-      doctorProfileId: membership.userId,
-      doctorName: doctor.name,
-      doctorSpecialization: doctor.specialization,
-      patientId,
-      patientName: (patient as any)?.name ?? '',
-      patientPhone: (patient as any)?.phone ?? '',
+    // The availability re-check and the insert run inside one transaction so
+    // two patients racing for the last open slot can't both pass the check
+    // before either has written their appointment — see runInTransaction.
+    const appointmentId = await this.appointmentRepository.runInTransaction(async (session) => {
+      const slots = await this.getAvailableSlots(doctor, membership, date, session);
+      if (!slots.some((s) => s.time === time)) {
+        throw ApiError.conflict('That slot is no longer available');
+      }
+
+      return this.appointmentRepository.createAppointment(
+        {
+          doctorProfileId: membership.userId,
+          doctorName: doctor.name,
+          doctorSpecialization: doctor.specialization,
+          patientId,
+          patientName: (patient as any)?.name ?? '',
+          patientPhone: (patient as any)?.phone ?? '',
+          hospitalId,
+          date,
+          time,
+          frequency: 'once',
+          notes: notes ?? '',
+          type: APPOINTMENT_TYPE.REGULAR,
+          bookingSource: 'scheduled',
+          bookedVia,
+          status: APPOINTMENT_STATUS.PENDING,
+          createdBy: bookedVia,
+          userRole: 'patient',
+          createdAt: nowIso,
+          updatedAt: nowIso,
+        },
+        session,
+      );
+    });
+
+    await this.auditService.log({
       hospitalId,
-      date,
-      time,
-      frequency: 'once',
-      notes: notes ?? '',
-      type: APPOINTMENT_TYPE.REGULAR,
-      bookingSource: 'scheduled',
-      bookedVia,
-      status: APPOINTMENT_STATUS.PENDING,
-      createdBy: bookedVia,
-      userRole: 'patient',
-      createdAt: nowIso,
-      updatedAt: nowIso,
+      actor: { userId: patientId, name: (patient as any)?.name ?? 'Patient', role: 'patient' },
+      action: 'appointment.booked',
+      area: 'appointments',
+      summary: `Booked via WhatsApp with ${doctor.name} on ${date} ${time}`,
+    });
+
+    return { id: appointmentId, date, time, doctorName: doctor.name };
+  }
+
+  // -- patient self-service (WhatsApp bot) --
+
+  async getUpcomingAppointmentsForPatient(
+    hospitalId: string,
+    patientId: string,
+    limit: number,
+  ) {
+    return this.appointmentRepository.getAppointmentsWithFilters({
+      hospitalId,
+      patientId,
+      status: 'upcoming',
+      limit,
+    });
+  }
+
+  // Fetches an appointment only if it belongs to this hospital AND this
+  // patient — the ownership check a patient-facing channel needs that an
+  // authenticated staff route gets for free from userProfile.
+  async getAppointmentForPatient(
+    hospitalId: string,
+    patientId: string,
+    appointmentId: string,
+  ): Promise<any | null> {
+    const appointment: any =
+      await this.appointmentRepository.getAppointmentById(appointmentId);
+    if (
+      !appointment ||
+      appointment.hospitalId !== hospitalId ||
+      appointment.patientId !== patientId
+    ) {
+      return null;
+    }
+    return appointment;
+  }
+
+  async cancelSelfBookedAppointment(
+    hospitalId: string,
+    patientId: string,
+    appointmentId: string,
+  ) {
+    const appointment = await this.getAppointmentForPatient(
+      hospitalId,
+      patientId,
+      appointmentId,
+    );
+    if (!appointment) throw ApiError.notFound('Appointment not found');
+
+    if (!isValidAppointmentTransition(appointment.status, APPOINTMENT_STATUS.CANCELLED)) {
+      throw ApiError.badRequest(
+        `Cannot cancel an appointment that is already ${normalizeAppointmentStatus(appointment.status)}`,
+      );
+    }
+
+    await this.appointmentRepository.updateAppointment(appointmentId, {
+      status: APPOINTMENT_STATUS.CANCELLED,
+      cancelReason: 'Cancelled by patient via WhatsApp',
+    });
+
+    await this.auditService.log({
+      hospitalId,
+      actor: { userId: patientId, name: appointment.patientName ?? 'Patient', role: 'patient' },
+      action: 'appointment.cancelled',
+      area: 'appointments',
+      summary: `Cancelled via WhatsApp — ${appointmentId}${appointment.patientName ? ` · ${appointment.patientName}` : ''}`,
+    });
+
+    return {
+      id: appointmentId,
+      doctorName: appointment.doctorName,
+      date: appointment.date,
+      time: appointment.time,
+    };
+  }
+
+  async rescheduleSelfBookedAppointment(
+    hospitalId: string,
+    patientId: string,
+    appointmentId: string,
+    date: string,
+    time: string,
+  ) {
+    const appointment = await this.getAppointmentForPatient(
+      hospitalId,
+      patientId,
+      appointmentId,
+    );
+    if (!appointment) throw ApiError.notFound('Appointment not found');
+
+    if (!ACTIVE_APPOINTMENT_STATUSES.includes(appointment.status)) {
+      throw ApiError.badRequest(
+        `Cannot reschedule an appointment that is already ${normalizeAppointmentStatus(appointment.status)}`,
+      );
+    }
+
+    const membershipRef = await this.membershipRepository.getHospitalMembership(
+      hospitalId,
+      appointment.doctorProfileId,
+    );
+    if (membershipRef.empty) throw ApiError.notFound('Doctor is not part of this hospital');
+    const membership = membershipRef.docs[0].data();
+
+    const doctor = await this.doctorRepository.getDoctorProfileById(appointment.doctorProfileId);
+    if (!doctor) throw ApiError.notFound('Doctor not found');
+
+    // Same re-check-and-insert-atomically approach as createSelfBookingAppointment.
+    await this.appointmentRepository.runInTransaction(async (session) => {
+      const slots = await this.getAvailableSlots(doctor, membership, date, session);
+      if (!slots.some((s) => s.time === time)) {
+        throw ApiError.conflict('That slot is no longer available');
+      }
+
+      await this.appointmentRepository.updateAppointment(
+        appointmentId,
+        {
+          date,
+          time,
+          // Back to PENDING, same as a fresh self-booking — staff should
+          // re-confirm a patient-initiated reschedule rather than it silently
+          // staying CONFIRMED on the old understanding.
+          status: APPOINTMENT_STATUS.PENDING,
+          rescheduledAt: new Date().toISOString(),
+          rescheduledBy: 'patient',
+        },
+        session,
+      );
+    });
+
+    await this.auditService.log({
+      hospitalId,
+      actor: { userId: patientId, name: appointment.patientName ?? 'Patient', role: 'patient' },
+      action: 'appointment.rescheduled',
+      area: 'appointments',
+      summary: `Rescheduled via WhatsApp — ${appointmentId}${appointment.patientName ? ` · ${appointment.patientName}` : ''} → ${date} ${time}`,
     });
 
     return { id: appointmentId, date, time, doctorName: doctor.name };
@@ -477,6 +630,7 @@ export class AppointmentsService {
     doctor: any,
     membership: any,
     date: string,
+    session?: ClientSession,
   ): Promise<{ time: string; remaining: number; capacity: number }[]> {
     try {
       const doctorAvailability = membership?.availability || [];
@@ -492,10 +646,12 @@ export class AppointmentsService {
 
       // Check for existing appointments on this date
       // Include legacy 'scheduled' for appointments created before this status migration.
-      const existingAppointments = await this.appointmentRepository.getAppointmentsByDoctorAndDate(doctor.userId, date, [
-        ...ACTIVE_APPOINTMENT_STATUSES,
-        'scheduled',
-      ]);
+      const existingAppointments = await this.appointmentRepository.getAppointmentsByDoctorAndDate(
+        doctor.userId,
+        date,
+        [...ACTIVE_APPOINTMENT_STATUSES, 'scheduled'],
+        session,
+      );
 
       // Count how many patients are already booked into each slot, so a slot
       // stays available until it reaches the doctor's patientsPerSlot capacity.

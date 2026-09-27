@@ -65,6 +65,28 @@ export class WhatsappPatientLookupService {
     return { patientId, created: true };
   }
 
+  // Read-only counterpart to findOrCreate — "my appointments" shouldn't
+  // conjure a new patient record just because someone messaged the number.
+  async findExisting(
+    hospitalId: string,
+    rawPhone: string,
+  ): Promise<{ patientId: string } | null> {
+    const phone = normalizePhone(rawPhone);
+    const matches = await this.patientRepository.findPatientsByPhone(
+      hospitalId,
+      phone,
+    );
+    if (matches.length === 0) return null;
+    if (matches.length === 1) return { patientId: matches[0].id };
+
+    const newest = [...matches].sort(
+      (a, b) =>
+        new Date(b.createdAt ?? 0).getTime() -
+        new Date(a.createdAt ?? 0).getTime(),
+    )[0];
+    return { patientId: newest.id };
+  }
+
   private generatePatientId(): string {
     return String(Math.floor(100000 + Math.random() * 900000));
   }

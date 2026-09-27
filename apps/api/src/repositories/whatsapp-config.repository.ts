@@ -28,6 +28,14 @@ export class WhatsappConfigRepository {
     return toPlain(doc);
   }
 
+  // Every hospital with a live WhatsApp connection — the set the reminder
+  // cron iterates over, since a hospital with no connection has nowhere to
+  // send a reminder anyway.
+  async getAllConnected() {
+    const docs = await this.model.find({ connected: true }).lean();
+    return toPlainList(docs);
+  }
+
   // Inbound webhooks only identify the destination by phone number ID.
   async getByPhoneNumberId(phoneNumberId: string) {
     const doc = await this.model.findOne({ phoneNumberId }).lean();

@@ -14,6 +14,7 @@ import type { Request, Response } from 'express';
 import * as crypto from 'crypto';
 import { Public } from '../auth/decorators/public.decorator';
 import { WhatsappConfigRepository } from '../repositories/whatsapp-config.repository';
+import { WhatsappProcessedMessageRepository } from '../repositories/whatsapp-processed-message.repository';
 import { WhatsappConversationService } from './whatsapp-conversation.service';
 import type { InboundMessage } from './whatsapp-conversation.service';
 
@@ -26,6 +27,7 @@ export class WhatsappWebhookController {
   constructor(
     private readonly config: ConfigService,
     private readonly whatsappConfigRepository: WhatsappConfigRepository,
+    private readonly processedMessageRepository: WhatsappProcessedMessageRepository,
     private readonly conversationService: WhatsappConversationService,
   ) {}
 
@@ -107,6 +109,20 @@ export class WhatsappWebhookController {
         }
 
         for (const message of value.messages) {
+          // Meta's webhook delivery is at-least-once — the same message can
+          // arrive twice (a retry after a slow/dropped ack, for instance).
+          // Reprocessing it would re-run whatever step the bot was on,
+          // which can double-book or double-cancel an appointment.
+          if (message.id) {
+            const claimed = await this.processedMessageRepository.tryClaim(
+              message.id,
+            );
+            if (!claimed) {
+              this.logger.log(`Skipping already-processed message ${message.id}`);
+              continue;
+            }
+          }
+
           const profileName =
             value.contacts?.find((c: any) => c.wa_id === message.from)?.profile
               ?.name ?? '';

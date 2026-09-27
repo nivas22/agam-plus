@@ -1,7 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { ClientSession, Model } from 'mongoose';
 import { ACTIVE_APPOINTMENT_STATUSES } from '../constants';
+import { ApiError } from '../common/errors/api-error';
 import {
   Appointment,
   AppointmentDocument,
@@ -19,10 +20,52 @@ function toISODateLocal(d: Date): string {
 
 @Injectable()
 export class AppointmentRepository {
+  private readonly logger = new Logger(AppointmentRepository.name);
+
   constructor(
     @InjectModel(Appointment.name)
     private readonly appointmentModel: Model<AppointmentDocument>,
   ) {}
+
+  // Runs `fn` inside a Mongo transaction so a slot's availability check and
+  // the appointment insert/update it gates can't interleave with a
+  // concurrent booking for the same slot. Falls back to running `fn`
+  // without a session if the deployment isn't a replica set/mongos (e.g. a
+  // standalone dev Mongo) — same behavior as before this existed, just no
+  // longer the only option in production.
+  async runInTransaction<T>(
+    fn: (session: ClientSession | undefined) => Promise<T>,
+  ): Promise<T> {
+    const session = await this.appointmentModel.db.startSession();
+    try {
+      let result: T;
+      await session.withTransaction(async () => {
+        result = await fn(session);
+      });
+      return result!;
+    } catch (error) {
+      // A business error thrown by `fn` itself (e.g. "slot no longer
+      // available") must always propagate as-is — never reinterpreted as a
+      // transactions-unavailable signal and retried, which would silently
+      // swallow it and re-run `fn` a second time.
+      if (error instanceof ApiError) throw error;
+
+      const message = (error as Error)?.message ?? '';
+      if (
+        /transaction numbers|illegalOperation|replica set|mongos|does not support retryable writes/i.test(
+          message,
+        )
+      ) {
+        this.logger.warn(
+          'Mongo transactions unavailable (not a replica set) — running without one',
+        );
+        return fn(undefined);
+      }
+      throw error;
+    } finally {
+      await session.endSession();
+    }
+  }
 
   async getAppointmentsByHospitalId(hospitalId: string, limit?: number) {
     let query = this.appointmentModel.find({ hospitalId });
@@ -73,13 +116,18 @@ export class AppointmentRepository {
     return toPlainList(docs);
   }
 
-  async createAppointment(appointmentData: any) {
-    const doc = await this.appointmentModel.create({
-      ...appointmentData,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
-    return doc._id.toString();
+  async createAppointment(appointmentData: any, session?: ClientSession) {
+    const docs = await this.appointmentModel.create(
+      [
+        {
+          ...appointmentData,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ],
+      { session },
+    );
+    return docs[0]._id.toString();
   }
 
   async createAppointmentsBatch(appointments: any[]) {
@@ -95,10 +143,15 @@ export class AppointmentRepository {
     return docs.map((doc) => doc._id.toString());
   }
 
-  async updateAppointment(appointmentId: string, updates: any) {
+  async updateAppointment(
+    appointmentId: string,
+    updates: any,
+    session?: ClientSession,
+  ) {
     await this.appointmentModel.updateOne(
       { _id: appointmentId },
       { $set: { ...updates, updatedAt: new Date() } },
+      { session },
     );
   }
 
@@ -111,9 +164,11 @@ export class AppointmentRepository {
     doctorProfileId: string,
     date: string,
     statuses: string[] = ['scheduled', 'confirmed'],
+    session?: ClientSession,
   ) {
     const docs = await this.appointmentModel
       .find({ doctorProfileId, date, status: { $in: statuses } })
+      .session(session ?? null)
       .lean();
     return toPlainList(docs);
   }
@@ -150,6 +205,26 @@ export class AppointmentRepository {
     if (options.limit) query = query.limit(options.limit);
 
     const docs = await query.lean();
+    return toPlainList(docs);
+  }
+
+  // Active appointments in [startDate, endDate] with a phone on file and no
+  // reminder sent yet — the reminder cron narrows this further to the exact
+  // lead-time window since date/time are plain strings, not one sortable field.
+  async getAppointmentsNeedingReminder(
+    hospitalId: string,
+    startDate: string,
+    endDate: string,
+  ) {
+    const docs = await this.appointmentModel
+      .find({
+        hospitalId,
+        status: { $in: ACTIVE_APPOINTMENT_STATUSES },
+        date: { $gte: startDate, $lte: endDate },
+        patientPhone: { $exists: true, $nin: [null, ''] },
+        reminderSentAt: { $exists: false },
+      })
+      .lean();
     return toPlainList(docs);
   }
 

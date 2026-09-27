@@ -6,6 +6,7 @@ import { WhatsappEnquiriesService } from './whatsapp-enquiries.service';
 import { WhatsappService } from './whatsapp.service';
 import { WhatsappConversationService } from './whatsapp-conversation.service';
 import { WhatsappPatientLookupService } from './whatsapp-patient-lookup.service';
+import { WhatsappReminderService } from './whatsapp-reminder.service';
 import { AuthModule } from '../auth/auth.module';
 import { AuditModule } from '../audit/audit.module';
 import { DoctorsModule } from '../doctors/doctors.module';
@@ -20,6 +21,7 @@ import { AppointmentsModule } from '../appointments/appointments.module';
     WhatsappService,
     WhatsappConversationService,
     WhatsappPatientLookupService,
+    WhatsappReminderService,
   ],
   exports: [WhatsappService, WhatsappSettingsService],
 })
