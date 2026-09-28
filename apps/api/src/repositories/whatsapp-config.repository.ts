@@ -47,7 +47,9 @@ export class WhatsappConfigRepository {
     data: {
       phoneNumberId: string;
       wabaId: string;
-      accessToken: string;
+      // Omitted when a hospital is only updating its phone/WABA id and wants
+      // to keep the already-stored token.
+      accessToken?: string;
       businessPhoneNumber?: string;
       verifiedName?: string;
       connectedBy?: string;
@@ -62,7 +64,9 @@ export class WhatsappConfigRepository {
           $set: {
             ...rest,
             hospitalId,
-            accessTokenEnc: encrypt(accessToken, this.encryptionKey()),
+            ...(accessToken
+              ? { accessTokenEnc: encrypt(accessToken, this.encryptionKey()) }
+              : {}),
             connected: true,
             connectedAt: now,
             updatedAt: now,

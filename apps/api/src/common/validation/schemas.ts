@@ -625,5 +625,6 @@ export const whatsappEnabledSchema = z.object({
 export const connectOwnWhatsappSchema = z.object({
   phoneNumberId: z.string().min(1, 'Phone number ID is required'),
   wabaId: z.string().min(1, 'WhatsApp Business Account ID is required'),
-  accessToken: z.string().min(1, 'Access token is required'),
+  // Left out on an update to keep the already-stored token unchanged.
+  accessToken: z.string().min(1, 'Access token is required').optional(),
 });

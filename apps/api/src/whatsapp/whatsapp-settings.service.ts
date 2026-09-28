@@ -39,11 +39,13 @@ export class WhatsappSettingsService {
   }
 
   // Embedded Signup will supply these from Meta's popup; until then a hospital
-  // admin copies them out of their own Meta app dashboard.
+  // admin copies them out of their own Meta app dashboard. accessToken is
+  // omitted when a hospital is only updating its phone/WABA id and wants to
+  // keep the already-stored token.
   async connectOwnAccount(
     hospitalId: string,
     actor: HospitalUserProfile,
-    input: { phoneNumberId: string; wabaId: string; accessToken: string },
+    input: { phoneNumberId: string; wabaId: string; accessToken?: string },
   ) {
     const existing = await this.whatsappConfigRepository.getByPhoneNumberId(
       input.phoneNumberId,
@@ -54,11 +56,22 @@ export class WhatsappSettingsService {
       );
     }
 
+    let accessToken = input.accessToken;
+    if (!accessToken) {
+      accessToken =
+        (await this.whatsappConfigRepository.getDecryptedAccessToken(
+          hospitalId,
+        )) ?? undefined;
+      if (!accessToken) {
+        throw ApiError.badRequest('Access token is required');
+      }
+    }
+
     // Checks the token and the number together, so a bad pairing fails now
     // rather than silently on the first patient message.
     const details = await this.fetchNumberDetails(
       input.phoneNumberId,
-      input.accessToken,
+      accessToken,
     );
 
     await this.whatsappConfigRepository.saveHospitalCredentials(hospitalId, {

@@ -15,7 +15,15 @@ interface WhatsAppSettingsPageProps {
   hospitalId: string;
 }
 
-const EMPTY_FORM: ConnectWhatsappData = {
+// Local form state always keeps accessToken as a string (blank means "keep
+// the current one"); ConnectWhatsappData itself allows omitting it entirely.
+type WhatsappForm = {
+  phoneNumberId: string;
+  wabaId: string;
+  accessToken: string;
+};
+
+const EMPTY_FORM: WhatsappForm = {
   phoneNumberId: "",
   wabaId: "",
   accessToken: "",
@@ -39,13 +47,13 @@ export default function WhatsAppSettingsPage({
   const setEnabled = useSetWhatsappEnabled(hospitalId);
 
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState<ConnectWhatsappData>(EMPTY_FORM);
+  const [form, setForm] = useState<WhatsappForm>(EMPTY_FORM);
   const [error, setError] = useState<string | null>(null);
 
   const assigned = status?.assigned ?? false;
   const connected = status?.connected ?? false;
 
-  const setField = (key: keyof ConnectWhatsappData, value: string) =>
+  const setField = (key: keyof WhatsappForm, value: string) =>
     setForm((prev) => ({ ...prev, [key]: value }));
 
   const run = async (fn: () => Promise<unknown>, fallback: string) => {
@@ -61,14 +69,36 @@ export default function WhatsAppSettingsPage({
 
   const handleConnect = async (e: React.FormEvent) => {
     e.preventDefault();
+    const payload: ConnectWhatsappData = {
+      phoneNumberId: form.phoneNumberId.trim(),
+      wabaId: form.wabaId.trim(),
+      // Left out when blank so an update keeps the already-stored token.
+      ...(form.accessToken.trim()
+        ? { accessToken: form.accessToken.trim() }
+        : {}),
+    };
     const ok = await run(
-      () => connect.mutateAsync(form),
+      () => connect.mutateAsync(payload),
       "Could not connect WhatsApp",
     );
     if (ok) {
       setForm(EMPTY_FORM);
       setShowForm(false);
     }
+  };
+
+  const openForm = () => {
+    setForm(
+      assigned
+        ? {
+            phoneNumberId: status?.phoneNumberId ?? "",
+            wabaId: status?.wabaId ?? "",
+            accessToken: "",
+          }
+        : EMPTY_FORM,
+    );
+    setShowForm((v) => !v);
+    setError(null);
   };
 
   const handleToggle = () => {
@@ -97,7 +127,7 @@ export default function WhatsAppSettingsPage({
   const canSubmit =
     form.phoneNumberId.trim() &&
     form.wabaId.trim() &&
-    form.accessToken.trim() &&
+    (assigned || form.accessToken.trim()) &&
     !connect.isPending;
 
   return (
@@ -185,10 +215,7 @@ export default function WhatsAppSettingsPage({
               )}
               <button
                 type="button"
-                onClick={() => {
-                  setShowForm((v) => !v);
-                  setError(null);
-                }}
+                onClick={openForm}
                 className={`text-xs font-semibold px-3 py-1.5 rounded-lg ${
                   assigned
                     ? "border border-border text-ink-700 hover:bg-surface-canvas"
@@ -218,6 +245,8 @@ export default function WhatsAppSettingsPage({
             From your Meta app dashboard, under WhatsApp → API Setup. Your
             access token is encrypted before it is stored and is never shown
             back to you.
+            {assigned &&
+              " Leave the access token blank to keep the one already saved."}
           </div>
           <label className="text-xs font-semibold text-ink-700">
             Phone number ID
@@ -241,6 +270,7 @@ export default function WhatsAppSettingsPage({
               type="password"
               value={form.accessToken}
               onChange={(e) => setField("accessToken", e.target.value)}
+              placeholder={assigned ? "Leave blank to keep current token" : ""}
               className="mt-1 w-full text-sm font-normal border border-border rounded-lg px-2.5 py-1.5"
             />
           </label>
