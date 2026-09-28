@@ -13,7 +13,8 @@ export interface WhatsappStatus {
 export interface ConnectWhatsappData {
   phoneNumberId: string;
   wabaId: string;
-  accessToken: string;
+  // Omit when updating to keep the already-stored token unchanged.
+  accessToken?: string;
 }
 
 export interface WhatsappEnquiry {
