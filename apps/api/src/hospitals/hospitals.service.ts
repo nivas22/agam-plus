@@ -6,6 +6,7 @@ import { DoctorRepository } from '../repositories/doctor.repository';
 import { PatientRepository } from '../repositories/patient.repository';
 import { DashboardRepository } from '../repositories/dashboard.repository';
 import { UserRepository } from '../repositories/user.repository';
+import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { ApiError } from '../common/errors/api-error';
 import { DB_COLLECTIONS, ROLE, VISIT_FINISHED_STATUSES } from '../constants';
 import { getDateCategory } from '../utils/dateUtils';
@@ -44,6 +45,7 @@ export class HospitalsService {
     private readonly patientRepository: PatientRepository,
     private readonly dashboardRepository: DashboardRepository,
     private readonly userRepository: UserRepository,
+    private readonly subscriptionsService: SubscriptionsService,
   ) {}
 
   async getAllHospitals() {
@@ -59,6 +61,8 @@ export class HospitalsService {
       website: body.website,
       description: body.description,
     });
+
+    await this.subscriptionsService.provisionForNewHospital(hospital.id, body.billingCycle, body.trialDays);
 
     const adminEmails: string[] = Array.isArray(body.adminEmails) ? body.adminEmails : [];
     const uniqueAdminEmails = [...new Set(adminEmails.map((email) => email.trim().toLowerCase()).filter(Boolean))];
@@ -103,6 +107,17 @@ export class HospitalsService {
     }
 
     return this.hospitalRepository.updateHospital(hospitalId, updateData);
+  }
+
+  async getSpecializations(hospitalId: string) {
+    const hospital = await this.getHospitalById(hospitalId);
+    return { specializations: hospital.specializations || [] };
+  }
+
+  async updateSpecializations(hospitalId: string, specializations: string[]) {
+    const deduped = [...new Set(specializations.map((s) => s.trim()).filter(Boolean))];
+    const hospital = await this.hospitalRepository.updateHospital(hospitalId, { specializations: deduped });
+    return { specializations: hospital.specializations || [] };
   }
 
   async deleteHospital(hospitalId: string) {

@@ -309,4 +309,125 @@ ${hospitalName} Administration Team
 
     return this.sendEmail({ to: doctorEmail, subject, html, text });
   }
+
+  async sendTrialEndingSoonEmail(email: string, name: string, hospitalName: string, trialEndsAt: Date): Promise<boolean> {
+    const appUrl = this.config.get<string>('NEXT_PUBLIC_APP_URL') || 'https://yourhospital.com';
+    const endsLabel = trialEndsAt.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
+    const subject = `${hospitalName}'s trial ends ${endsLabel}`;
+
+    const html = `
+    <!DOCTYPE html>
+    <html>
+      <head><meta charset="utf-8"><style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background-color: #f59e0b; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+        .content { background-color: #f9fafb; padding: 30px; border-radius: 0 0 8px 8px; }
+        .button { display: inline-block; background-color: #4f3fd6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 20px 0; }
+        .footer { text-align: center; margin-top: 20px; color: #6b7280; font-size: 14px; }
+      </style></head>
+      <body>
+        <div class="container">
+          <div class="header"><h1>Your trial is ending soon</h1></div>
+          <div class="content">
+            <p>Hi ${name},</p>
+            <p><strong>${hospitalName}</strong>'s trial ends on <strong>${endsLabel}</strong>. After that, the hospital's subscription switches to its paid plan automatically.</p>
+            <p>Nothing to do right now — just a heads-up so billing doesn't come as a surprise. You can review the plan any time from Settings &gt; Billing.</p>
+            <div style="text-align: center;">
+              <a href="${appUrl}/login" class="button">Review billing</a>
+            </div>
+          </div>
+          <div class="footer"><p>This is an automated message. Please do not reply to this email.</p></div>
+        </div>
+      </body>
+    </html>
+  `;
+
+    const text = `Your trial is ending soon\n\nHi ${name},\n\n${hospitalName}'s trial ends on ${endsLabel}. After that, the hospital's subscription switches to its paid plan automatically.\n\nReview the plan any time from Settings > Billing: ${appUrl}/login`;
+
+    return this.sendEmail({ to: email, subject, html, text });
+  }
+
+  async sendSubscriptionInvoiceDueEmail(
+    email: string,
+    name: string,
+    hospitalName: string,
+    invoiceNumber: string,
+    amount: number,
+    graceEndsAt: Date,
+  ): Promise<boolean> {
+    const appUrl = this.config.get<string>('NEXT_PUBLIC_APP_URL') || 'https://yourhospital.com';
+    const graceLabel = graceEndsAt.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
+    const amountLabel = `₹${Math.round(amount).toLocaleString('en-IN')}`;
+    const subject = `${hospitalName} — payment of ${amountLabel} is due`;
+
+    const html = `
+    <!DOCTYPE html>
+    <html>
+      <head><meta charset="utf-8"><style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background-color: #f59e0b; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+        .content { background-color: #f9fafb; padding: 30px; border-radius: 0 0 8px 8px; }
+        .button { display: inline-block; background-color: #4f3fd6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 20px 0; }
+        .footer { text-align: center; margin-top: 20px; color: #6b7280; font-size: 14px; }
+      </style></head>
+      <body>
+        <div class="container">
+          <div class="header"><h1>Payment due</h1></div>
+          <div class="content">
+            <p>Hi ${name},</p>
+            <p>Invoice <strong>${invoiceNumber}</strong> for <strong>${amountLabel}</strong> is now due for ${hospitalName}'s subscription.</p>
+            <p>Pay from Settings &gt; Billing by <strong>${graceLabel}</strong> to avoid the account being suspended.</p>
+            <div style="text-align: center;">
+              <a href="${appUrl}/login" class="button">Pay now</a>
+            </div>
+          </div>
+          <div class="footer"><p>This is an automated message. Please do not reply to this email.</p></div>
+        </div>
+      </body>
+    </html>
+  `;
+
+    const text = `Payment due\n\nHi ${name},\n\nInvoice ${invoiceNumber} for ${amountLabel} is now due for ${hospitalName}'s subscription.\n\nPay from Settings > Billing by ${graceLabel} to avoid the account being suspended: ${appUrl}/login`;
+
+    return this.sendEmail({ to: email, subject, html, text });
+  }
+
+  async sendSubscriptionSuspendedEmail(email: string, name: string, hospitalName: string): Promise<boolean> {
+    const appUrl = this.config.get<string>('NEXT_PUBLIC_APP_URL') || 'https://yourhospital.com';
+    const subject = `${hospitalName}'s subscription has been suspended`;
+
+    const html = `
+    <!DOCTYPE html>
+    <html>
+      <head><meta charset="utf-8"><style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background-color: #dc2626; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+        .content { background-color: #f9fafb; padding: 30px; border-radius: 0 0 8px 8px; }
+        .button { display: inline-block; background-color: #4f3fd6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 20px 0; }
+        .footer { text-align: center; margin-top: 20px; color: #6b7280; font-size: 14px; }
+      </style></head>
+      <body>
+        <div class="container">
+          <div class="header"><h1>Subscription suspended</h1></div>
+          <div class="content">
+            <p>Hi ${name},</p>
+            <p><strong>${hospitalName}</strong>'s subscription has been suspended due to a missed payment. Most actions are blocked until it's paid.</p>
+            <p>Submit a payment reference from Settings &gt; Billing to get reactivated.</p>
+            <div style="text-align: center;">
+              <a href="${appUrl}/login" class="button">Pay now</a>
+            </div>
+          </div>
+          <div class="footer"><p>This is an automated message. Please do not reply to this email.</p></div>
+        </div>
+      </body>
+    </html>
+  `;
+
+    const text = `Subscription suspended\n\nHi ${name},\n\n${hospitalName}'s subscription has been suspended due to a missed payment. Most actions are blocked until it's paid.\n\nSubmit a payment reference from Settings > Billing to get reactivated: ${appUrl}/login`;
+
+    return this.sendEmail({ to: email, subject, html, text });
+  }
 }

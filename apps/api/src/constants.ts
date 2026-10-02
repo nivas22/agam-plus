@@ -28,6 +28,9 @@ export enum DB_COLLECTIONS {
   WHATSAPP_SESSIONS = "whatsapp_sessions",
   WHATSAPP_ENQUIRIES = "whatsapp_enquiries",
   WHATSAPP_PROCESSED_MESSAGES = "whatsapp_processed_messages",
+  SUBSCRIPTIONS = "subscriptions",
+  SUBSCRIPTION_INVOICES = "subscription_invoices",
+  SUBSCRIPTION_PLAN_CONFIG = "subscription_plan_config",
 }
 
 // FRONT_DESK/NURSE/ACCOUNTANT replace the old unused STAFF value — nothing
@@ -621,3 +624,78 @@ export enum WHATSAPP_ENQUIRY_STATUS {
 
 // Abandoned conversations expire rather than trapping a patient mid-flow.
 export const WHATSAPP_SESSION_TTL_MINUTES = 30;
+
+export enum SUBSCRIPTION_BILLING_CYCLE {
+  MONTHLY = "monthly",
+  ANNUAL = "annual",
+}
+
+export const SUBSCRIPTION_BILLING_CYCLE_VALUES = Object.values(SUBSCRIPTION_BILLING_CYCLE);
+
+// `exempt` is a platform-admin-only override (pilot/demo hospitals) that
+// always passes the HospitalContextGuard billing check, regardless of dates.
+export enum SUBSCRIPTION_STATUS {
+  TRIALING = "trialing",
+  ACTIVE = "active",
+  PAST_DUE = "past_due",
+  SUSPENDED = "suspended",
+  EXEMPT = "exempt",
+  CANCELLED = "cancelled",
+}
+
+export const SUBSCRIPTION_STATUS_VALUES = Object.values(SUBSCRIPTION_STATUS);
+
+export enum SUBSCRIPTION_INVOICE_STATUS {
+  DUE = "due",
+  PAYMENT_SUBMITTED = "payment_submitted",
+  PAID = "paid",
+  FAILED = "failed",
+}
+
+export const SUBSCRIPTION_INVOICE_STATUS_VALUES = Object.values(SUBSCRIPTION_INVOICE_STATUS);
+
+// New hospitals get this many days to start using the product before the
+// first invoice is due — see SubscriptionsService.provisionForNewHospital.
+export const SUBSCRIPTION_TRIAL_DAYS = 14;
+
+// Days a past_due subscription keeps working before the renewal sweep
+// suspends it (see SubscriptionsService.runRenewalSweep).
+export const SUBSCRIPTION_GRACE_DAYS = 7;
+
+// How far ahead of trialEndsAt the renewal sweep sends the one-time
+// trial-ending-soon email.
+export const SUBSCRIPTION_TRIAL_REMINDER_DAYS_BEFORE = 3;
+
+// The base bundle covers one hospital with up to this many doctor/staff
+// seats; STAFF_ROLES (front_desk/nurse/accountant) share the one staff
+// allowance rather than each getting their own. Admins are never billed.
+export const SUBSCRIPTION_INCLUDED_DOCTORS = 5;
+export const SUBSCRIPTION_INCLUDED_STAFF = 1;
+
+export const SUBSCRIPTION_BASE_PRICE: Record<SUBSCRIPTION_BILLING_CYCLE, number> = {
+  [SUBSCRIPTION_BILLING_CYCLE.MONTHLY]: 799,
+  [SUBSCRIPTION_BILLING_CYCLE.ANNUAL]: 7990,
+};
+
+export const SUBSCRIPTION_DOCTOR_ADDON_PRICE: Record<SUBSCRIPTION_BILLING_CYCLE, number> = {
+  [SUBSCRIPTION_BILLING_CYCLE.MONTHLY]: 299,
+  [SUBSCRIPTION_BILLING_CYCLE.ANNUAL]: 2990,
+};
+
+export const SUBSCRIPTION_STAFF_ADDON_PRICE: Record<SUBSCRIPTION_BILLING_CYCLE, number> = {
+  [SUBSCRIPTION_BILLING_CYCLE.MONTHLY]: 149,
+  [SUBSCRIPTION_BILLING_CYCLE.ANNUAL]: 1490,
+};
+
+// Modules a platform admin can individually turn off for a hospital,
+// independent of billing status — see Subscription.features and
+// RequiresFeature(). All default to enabled (SubscriptionsService
+// provisioning) so no existing hospital loses access until explicitly toggled.
+export enum SUBSCRIPTION_FEATURE {
+  WHATSAPP = "whatsapp",
+  REPORTS = "reports",
+  PACKAGES = "packages",
+  MEDICINE_PACKS = "medicinePacks",
+}
+
+export const SUBSCRIPTION_FEATURE_VALUES = Object.values(SUBSCRIPTION_FEATURE);

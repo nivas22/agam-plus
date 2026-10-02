@@ -3,6 +3,7 @@ import { Cron } from '@nestjs/schedule';
 import { WhatsappService } from './whatsapp.service';
 import { WhatsappConfigRepository } from '../repositories/whatsapp-config.repository';
 import { AppointmentRepository } from '../repositories/appointment.repository';
+import { SubscriptionRepository } from '../repositories/subscription.repository';
 import {
   WA_REMINDER_HOURS_BEFORE,
   WA_REMINDER_WINDOW_MINUTES,
@@ -20,6 +21,7 @@ export class WhatsappReminderService {
     private readonly whatsappService: WhatsappService,
     private readonly whatsappConfigRepository: WhatsappConfigRepository,
     private readonly appointmentRepository: AppointmentRepository,
+    private readonly subscriptionRepository: SubscriptionRepository,
   ) {}
 
   @Cron('*/15 * * * *')
@@ -28,6 +30,12 @@ export class WhatsappReminderService {
 
     for (const config of hospitals as any[]) {
       try {
+        // A platform admin can disable the WhatsApp feature independent of
+        // the hospital's own connect/disconnect toggle — honor that here too,
+        // since this cron runs outside any per-request guard.
+        const subscription = await this.subscriptionRepository.getByHospitalId(config.hospitalId);
+        if (subscription?.features?.whatsapp === false) continue;
+
         await this.sendRemindersForHospital(config.hospitalId);
       } catch (error) {
         this.logger.error(

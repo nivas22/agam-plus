@@ -138,4 +138,10 @@ export class MembershipRepository {
 
     return this.memberModel.countDocuments(filter);
   }
+
+  // Used for subscription seat counting, where a "seat" can span several
+  // roles (e.g. front_desk/nurse/accountant all sharing one staff allowance).
+  async countApprovedMembersByRoles(hospitalId: string, roles: string[]) {
+    return this.memberModel.countDocuments({ hospitalId, role: { $in: roles }, status: 'approved' });
+  }
 }

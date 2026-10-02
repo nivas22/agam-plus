@@ -30,6 +30,8 @@ import { PrescriptionsModule } from './prescriptions/prescriptions.module';
 import { LeaveRequestsModule } from './leave-requests/leave-requests.module';
 import { DoctorDashboardModule } from './doctor-dashboard/doctor-dashboard.module';
 import { DoctorPresenceModule } from './doctor-presence/doctor-presence.module';
+import { SubscriptionsModule } from './subscriptions/subscriptions.module';
+import { InternalCronModule } from './internal/internal-cron.module';
 
 @Module({
   imports: [
@@ -61,7 +63,9 @@ import { DoctorPresenceModule } from './doctor-presence/doctor-presence.module';
     LeaveRequestsModule,
     DoctorDashboardModule,
     DoctorPresenceModule,
+    SubscriptionsModule,
     PlatformAdminModule,
+    InternalCronModule,
   ],
   controllers: [AppController],
   providers: [AppService],

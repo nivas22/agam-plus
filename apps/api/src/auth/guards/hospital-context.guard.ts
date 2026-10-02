@@ -1,10 +1,21 @@
-import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common';
+import { CanActivate, ExecutionContext, ForbiddenException, HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { MembershipRepository } from '../../repositories/membership.repository';
 import { HospitalRepository } from '../../repositories/hospital.repository';
 import { DoctorRepository } from '../../repositories/doctor.repository';
+import { SubscriptionRepository } from '../../repositories/subscription.repository';
+import { SUBSCRIPTION_FEATURE, SUBSCRIPTION_STATUS } from '../../constants';
 import { ROLES_KEY } from '../decorators/roles.decorator';
+import { REQUIRES_FEATURE_KEY } from '../decorators/requires-feature.decorator';
 import { JwtUser } from '../decorators/current-user.decorator';
+
+// GET requests always pass (read-only access stays available while
+// suspended/cancelled) and the billing routes themselves are always exempt —
+// a suspended hospital's admin still needs to view/pay invoices to get
+// unsuspended.
+const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
+const BILLING_PATH_SEGMENT = '/subscription';
+const BLOCKING_STATUSES = new Set<string>([SUBSCRIPTION_STATUS.SUSPENDED, SUBSCRIPTION_STATUS.CANCELLED]);
 
 /**
  * Direct port of the old verifyContext()/withVerification() pair — re-checks
@@ -18,6 +29,7 @@ export class HospitalContextGuard implements CanActivate {
     private readonly membershipRepository: MembershipRepository,
     private readonly hospitalRepository: HospitalRepository,
     private readonly doctorRepository: DoctorRepository,
+    private readonly subscriptionRepository: SubscriptionRepository,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -33,6 +45,25 @@ export class HospitalContextGuard implements CanActivate {
     const membership = await this.membershipRepository.getHospitalMembershipData(user.userId, hospitalId);
     if (!membership) {
       throw new ForbiddenException('Forbidden');
+    }
+
+    const isBillingRoute = !!request.path?.includes(BILLING_PATH_SEGMENT);
+    const subscription = await this.subscriptionRepository.getByHospitalId(hospitalId);
+
+    if (!SAFE_METHODS.has(request.method) && !isBillingRoute && BLOCKING_STATUSES.has(subscription?.status)) {
+      const message =
+        subscription?.status === SUBSCRIPTION_STATUS.CANCELLED
+          ? "This hospital's subscription has been cancelled — contact the platform team to reactivate it."
+          : "This hospital's subscription is suspended — ask your hospital admin to renew it under Settings > Billing.";
+      throw new HttpException(message, HttpStatus.PAYMENT_REQUIRED);
+    }
+
+    const requiredFeature = this.reflector.getAllAndOverride<SUBSCRIPTION_FEATURE | undefined>(REQUIRES_FEATURE_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+    if (requiredFeature && subscription?.features?.[requiredFeature] === false) {
+      throw new ForbiddenException(`This feature isn't included on this hospital's plan.`);
     }
 
     const userRole = (membership as any).role || 'doctor';

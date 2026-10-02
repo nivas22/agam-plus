@@ -363,9 +363,53 @@ export const createHospitalSchema = z.object({
   adminEmails: z
     .array(z.string().email('Invalid email format'))
     .min(1, 'At least one admin email is required'),
+  billingCycle: z.enum(['monthly', 'annual']).optional(),
+  trialDays: z.coerce.number().int().min(0).max(365).optional(),
 });
 
 export const updateHospitalSchema = createHospitalSchema.partial();
+
+export const updateHospitalSpecializationsSchema = z.object({
+  specializations: z
+    .array(z.string().trim().min(1, 'Specialization cannot be empty').max(100))
+    .max(100, 'Too many specializations'),
+});
+
+/* -------------------------------------------------------------------------- */
+/*                          SUBSCRIPTION SCHEMAS                              */
+/* -------------------------------------------------------------------------- */
+
+export const changeSubscriptionPlanSchema = z.object({
+  billingCycle: z.enum(['monthly', 'annual']),
+});
+
+export const submitSubscriptionPaymentSchema = z.object({
+  reference: z.string().min(1, 'Payment reference is required'),
+});
+
+export const setSubscriptionExemptSchema = z.object({
+  exempt: z.boolean(),
+});
+
+export const setSubscriptionCancelledSchema = z.object({
+  cancelled: z.boolean(),
+});
+
+export const setSubscriptionFeatureSchema = z.object({
+  feature: z.enum(['whatsapp', 'reports', 'packages', 'medicinePacks']),
+  enabled: z.boolean(),
+});
+
+export const updateSubscriptionPlanConfigSchema = z.object({
+  includedDoctors: z.coerce.number().int().positive(),
+  includedStaff: z.coerce.number().int().min(0),
+  basePriceMonthly: z.coerce.number().positive(),
+  basePriceAnnual: z.coerce.number().positive(),
+  doctorAddonPriceMonthly: z.coerce.number().min(0),
+  doctorAddonPriceAnnual: z.coerce.number().min(0),
+  staffAddonPriceMonthly: z.coerce.number().min(0),
+  staffAddonPriceAnnual: z.coerce.number().min(0),
+});
 
 /* -------------------------------------------------------------------------- */
 /*                        PLATFORM ADMIN SCHEMAS                              */

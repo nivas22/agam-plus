@@ -15,6 +15,7 @@ import * as crypto from 'crypto';
 import { Public } from '../auth/decorators/public.decorator';
 import { WhatsappConfigRepository } from '../repositories/whatsapp-config.repository';
 import { WhatsappProcessedMessageRepository } from '../repositories/whatsapp-processed-message.repository';
+import { SubscriptionRepository } from '../repositories/subscription.repository';
 import { WhatsappConversationService } from './whatsapp-conversation.service';
 import type { InboundMessage } from './whatsapp-conversation.service';
 
@@ -28,6 +29,7 @@ export class WhatsappWebhookController {
     private readonly config: ConfigService,
     private readonly whatsappConfigRepository: WhatsappConfigRepository,
     private readonly processedMessageRepository: WhatsappProcessedMessageRepository,
+    private readonly subscriptionRepository: SubscriptionRepository,
     private readonly conversationService: WhatsappConversationService,
   ) {}
 
@@ -104,6 +106,16 @@ export class WhatsappWebhookController {
         if (!config?.connected) {
           this.logger.warn(
             `Ignoring message for unknown or disconnected number ${phoneNumberId}`,
+          );
+          continue;
+        }
+
+        // A platform admin can disable the WhatsApp feature independent of
+        // the hospital's own connect/disconnect toggle.
+        const subscription = await this.subscriptionRepository.getByHospitalId(config.hospitalId);
+        if (subscription?.features?.whatsapp === false) {
+          this.logger.warn(
+            `Ignoring message for hospital ${config.hospitalId} — WhatsApp feature disabled on its plan`,
           );
           continue;
         }

@@ -8,6 +8,7 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  ClipboardList,
   IndianRupee,
   LayoutDashboard,
   ListChecks,
@@ -18,6 +19,7 @@ import {
   Settings,
   TrendingUp,
   User as UserIcon,
+  UserCog,
   Users,
   X,
 } from "lucide-react";
@@ -25,6 +27,7 @@ import { useParams, usePathname, useRouter } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { FaHospital, FaUserMd } from "react-icons/fa";
 import ApprovalModal from "@/components/approvals/ApprovalModal";
+import SubscriptionStatusBanner from "@/components/billing/SubscriptionStatusBanner";
 import GlobalSearch from "@/components/GlobalSearch";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { usePendingApprovals } from "@/hooks/useApprovalsApi";
@@ -96,32 +99,48 @@ export default function AdminHospitalLayout({
       to: "/dashboard",
       label: "Dashboard",
       icon: <LayoutDashboard size={18} />,
+      category: "care",
     },
     {
       to: "/doctors",
       label: "Doctors",
       icon: <FaUserMd size={18} />,
+      category: "people",
     },
     {
       to: "/patients",
       label: "Patients",
       icon: <Users size={18} />,
+      category: "people",
     },
+    ...(isAdmin
+      ? [
+          {
+            to: "/settings/team",
+            label: "Team",
+            icon: <UserCog size={18} />,
+            category: "people",
+          },
+        ]
+      : []),
     {
       to: "/appointments",
       label: "Appointments",
       icon: <Calendar size={18} />,
+      category: "care",
     },
     {
       to: "/queue",
       label: "Today's queue",
       icon: <ListChecks size={18} />,
+      category: "care",
     },
     {
       to: "/payments",
       label: "Payments",
       icon: <IndianRupee size={18} />,
       isNew: true,
+      category: "frontDesk",
     },
     ...(currentRole === "admin" || currentRole === "front_desk"
       ? [
@@ -130,6 +149,7 @@ export default function AdminHospitalLayout({
             label: "Enquiries",
             icon: <MessageCircle size={18} />,
             isNew: true,
+            category: "frontDesk",
           },
         ]
       : []),
@@ -139,19 +159,36 @@ export default function AdminHospitalLayout({
             to: "/reports",
             label: "Reports",
             icon: <TrendingUp size={18} />,
+            category: "admin",
+          },
+          {
+            to: "/settings/audit",
+            label: "Audit trail",
+            icon: <ClipboardList size={18} />,
+            category: "admin",
           },
           {
             to: "/settings",
             label: "Settings",
             icon: <Settings size={18} />,
+            category: "admin",
           },
         ]
       : []),
   ];
 
   // Desktop sidebar groups
-  const careItems = navItems.slice(0, 5);
-  const operationsItems = navItems.slice(5);
+  const navGroups = [
+    { key: "care", label: "Care" },
+    { key: "people", label: "People" },
+    { key: "frontDesk", label: "Front desk" },
+    { key: "admin", label: "Admin" },
+  ]
+    .map((group) => ({
+      ...group,
+      items: navItems.filter((item) => item.category === group.key),
+    }))
+    .filter((group) => group.items.length > 0);
 
   const toggleMenu = () => setIsOpen(!isOpen);
 
@@ -161,8 +198,23 @@ export default function AdminHospitalLayout({
     setIsOpen(false);
   };
 
+  const SETTINGS_SUBROUTES_WITH_OWN_NAV = ["/settings/team", "/settings/audit"];
+
   const isActive = (path: string) => {
     const fullPath = `/hospital/${actualHospitalId}${path}`;
+    // Some settings sub-routes have their own nav entry, so don't also
+    // light up the "/settings" item while viewing them.
+    if (path === "/settings") {
+      return (
+        pathname === fullPath ||
+        (pathname.startsWith(`${fullPath}/`) &&
+          !SETTINGS_SUBROUTES_WITH_OWN_NAV.some((subroute) =>
+            pathname.startsWith(
+              `/hospital/${actualHospitalId}${subroute}`,
+            ),
+          ))
+      );
+    }
     return pathname === fullPath || pathname.startsWith(`${fullPath}/`);
   };
 
@@ -324,98 +376,63 @@ export default function AdminHospitalLayout({
 
           {/* Navigation Links */}
           <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-4">
-            <div className="space-y-1">
-              {sidebarExpanded && (
-                <div className="px-3 pb-1 text-[10px] font-semibold text-night-muted uppercase tracking-wider">
-                  Care
-                </div>
-              )}
-              {careItems.map((item) => {
-                const active = isActive(item.to);
-                return (
-                  <button
-                    key={item.to}
-                    onClick={() => navigateTo(item.to)}
-                    className={`group relative flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 w-full text-left border-l-2 ${
-                      active
-                        ? "bg-night-active text-white border-status-open"
-                        : "text-night-muted hover:bg-night-hover hover:text-white border-transparent"
-                    }`}
-                    title={!sidebarExpanded ? item.label : undefined}
-                    aria-label={item.label}
-                  >
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                      <div className="flex-shrink-0 w-5 h-5 flex items-center justify-center">
-                        {item.icon}
-                      </div>
-                      {sidebarExpanded && (
-                        <span
-                          className={`text-sm truncate ${active ? "font-semibold" : "font-medium"}`}
-                        >
-                          {item.label}
-                        </span>
-                      )}
-                      {item.to.includes("/doctors") &&
-                        pendingCount > 0 &&
-                        sidebarExpanded && (
-                          <span className="ml-auto bg-status-warning text-white px-2 py-0.5 rounded-full text-[10px] font-bold flex-shrink-0">
-                            {pendingCount}
+            {navGroups.map((group) => (
+              <div key={group.key} className="space-y-1">
+                {sidebarExpanded && (
+                  <div className="px-3 pb-1 text-[10px] font-semibold text-night-muted uppercase tracking-wider">
+                    {group.label}
+                  </div>
+                )}
+                {group.items.map((item) => {
+                  const active = isActive(item.to);
+                  return (
+                    <button
+                      key={item.to}
+                      onClick={() => navigateTo(item.to)}
+                      className={`group relative flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 w-full text-left border-l-2 ${
+                        active
+                          ? "bg-night-active text-white border-status-open"
+                          : "text-night-muted hover:bg-night-hover hover:text-white border-transparent"
+                      }`}
+                      title={!sidebarExpanded ? item.label : undefined}
+                      aria-label={item.label}
+                    >
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <div className="flex-shrink-0 w-5 h-5 flex items-center justify-center">
+                          {item.icon}
+                        </div>
+                        {sidebarExpanded && (
+                          <span
+                            className={`text-sm truncate ${active ? "font-semibold" : "font-medium"}`}
+                          >
+                            {item.label}
                           </span>
                         )}
-                      {item.to.includes("/doctors") &&
-                        pendingCount > 0 &&
-                        !sidebarExpanded && (
-                          <div className="absolute -top-1 -right-1 w-4 h-4 bg-status-warning rounded-full flex items-center justify-center text-white text-[9px] font-bold">
-                            {pendingCount}
-                          </div>
+                        {item.to.includes("/doctors") &&
+                          pendingCount > 0 &&
+                          sidebarExpanded && (
+                            <span className="ml-auto bg-status-warning text-white px-2 py-0.5 rounded-full text-[10px] font-bold flex-shrink-0">
+                              {pendingCount}
+                            </span>
+                          )}
+                        {item.to.includes("/doctors") &&
+                          pendingCount > 0 &&
+                          !sidebarExpanded && (
+                            <div className="absolute -top-1 -right-1 w-4 h-4 bg-status-warning rounded-full flex items-center justify-center text-white text-[9px] font-bold">
+                              {pendingCount}
+                            </div>
+                          )}
+                        {item.isNew && sidebarExpanded && (
+                          <span className="ml-auto bg-white text-brand-violet px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wide flex-shrink-0">
+                            New
+                          </span>
                         )}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="space-y-1">
-              {sidebarExpanded && (
-                <div className="px-3 pb-1 text-[10px] font-semibold text-night-muted uppercase tracking-wider">
-                  Operations
-                </div>
-              )}
-              {operationsItems.map((item) => {
-                const active = isActive(item.to);
-                return (
-                  <button
-                    key={item.to}
-                    onClick={() => navigateTo(item.to)}
-                    className={`group relative flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 w-full text-left border-l-2 ${
-                      active
-                        ? "bg-night-active text-white border-status-open"
-                        : "text-night-muted hover:bg-night-hover hover:text-white border-transparent"
-                    }`}
-                    title={!sidebarExpanded ? item.label : undefined}
-                    aria-label={item.label}
-                  >
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                      <div className="flex-shrink-0 w-5 h-5 flex items-center justify-center">
-                        {item.icon}
                       </div>
-                      {sidebarExpanded && (
-                        <span
-                          className={`text-sm truncate ${active ? "font-semibold" : "font-medium"}`}
-                        >
-                          {item.label}
-                        </span>
-                      )}
-                      {item.isNew && sidebarExpanded && (
-                        <span className="ml-auto bg-white text-brand-violet px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wide flex-shrink-0">
-                          New
-                        </span>
-                      )}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
           </nav>
 
           {/* System status footer */}
@@ -994,7 +1011,13 @@ export default function AdminHospitalLayout({
                 </div>
               }
             >
-              <div key={pathname}>{children}</div>
+              <div key={pathname}>
+                <SubscriptionStatusBanner
+                  hospitalId={actualHospitalId}
+                  isAdmin={isAdmin}
+                />
+                {children}
+              </div>
             </Suspense>
           </div>
         </main>

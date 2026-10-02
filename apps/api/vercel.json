@@ -5,5 +5,9 @@
   ],
   "rewrites": [
     { "source": "/(.*)", "destination": "/api" }
+  ],
+  "crons": [
+    { "path": "/internal/cron/subscription-renewal", "schedule": "0 2 * * *" },
+    { "path": "/internal/cron/whatsapp-reminders", "schedule": "0 */1 * * *" }
   ]
 }

@@ -9,6 +9,7 @@ import { HospitalHolidayRepository } from '../repositories/hospital-holiday.repo
 import { DoctorPresenceRepository } from '../repositories/doctor-presence.repository';
 import { EmailService } from '../email/email.service';
 import { AuditService } from '../audit/audit.service';
+import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { ApiError } from '../common/errors/api-error';
 import { generateTempPassword } from '../common/password.util';
 import { HospitalUserProfile } from '../auth/decorators/current-user.decorator';
@@ -28,6 +29,7 @@ export class DoctorsService {
     private readonly emailService: EmailService,
     private readonly auditService: AuditService,
     private readonly config: ConfigService,
+    private readonly subscriptionsService: SubscriptionsService,
   ) {}
 
   async getDoctors(
@@ -548,6 +550,7 @@ export class DoctorsService {
   async deleteDoctor(hospitalId: string, doctorId: string) {
     // Remove hospital membership
     await this.membershipRepository.deleteHospitalMembership(hospitalId, doctorId);
+    await this.subscriptionsService.recalculateSeatCount(hospitalId);
 
     return {
       success: true,
@@ -555,7 +558,7 @@ export class DoctorsService {
     };
   }
 
-  async updateDoctorStatus(doctorId: string, status: string, requestingUserId: string) {
+  async updateDoctorStatus(hospitalId: string, doctorId: string, status: string, requestingUserId: string) {
     // Validate status value
     const validStatuses = ['approved', 'pending', 'rejected'];
     if (!validStatuses.includes(status)) {
@@ -564,6 +567,7 @@ export class DoctorsService {
 
     // Update doctor membership status
     await this.membershipRepository.updateHospitalMembershipStatus(doctorId, status);
+    await this.subscriptionsService.recalculateSeatCount(hospitalId);
 
     return {
       success: true,

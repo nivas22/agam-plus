@@ -6,7 +6,11 @@ import type { JwtUser } from '../auth/decorators/current-user.decorator';
 import { HospitalContextGuard } from '../auth/guards/hospital-context.guard';
 import { PlatformAdminGuard } from '../auth/guards/platform-admin.guard';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
-import { createHospitalSchema, requestAccessSchema } from '../common/validation/schemas';
+import {
+  createHospitalSchema,
+  requestAccessSchema,
+  updateHospitalSpecializationsSchema,
+} from '../common/validation/schemas';
 
 @Controller('hospitals')
 export class HospitalsController {
@@ -61,5 +65,22 @@ export class HospitalsController {
   @Get(':id/pending-count')
   getPendingCount(@Param('id') id: string) {
     return this.hospitalsService.getPendingDoctorCount(id);
+  }
+
+  // Read access is broad — everyone who can open the Add/Edit Doctor form
+  // needs this list for the specialization dropdown. Mutations are admin-only.
+  @Get(':id/specializations')
+  @UseGuards(HospitalContextGuard)
+  @Roles('admin', 'doctor', 'front_desk', 'nurse', 'accountant')
+  getSpecializations(@Param('id') id: string) {
+    return this.hospitalsService.getSpecializations(id);
+  }
+
+  @Put(':id/specializations')
+  @UseGuards(HospitalContextGuard)
+  @Roles('admin')
+  @UsePipes(new ZodValidationPipe(updateHospitalSpecializationsSchema))
+  updateSpecializations(@Param('id') id: string, @Body() body: { specializations: string[] }) {
+    return this.hospitalsService.updateSpecializations(id, body.specializations);
   }
 }
