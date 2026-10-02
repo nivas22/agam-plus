@@ -23,6 +23,6 @@ import { AppointmentsModule } from '../appointments/appointments.module';
     WhatsappPatientLookupService,
     WhatsappReminderService,
   ],
-  exports: [WhatsappService, WhatsappSettingsService],
+  exports: [WhatsappService, WhatsappSettingsService, WhatsappReminderService],
 })
 export class WhatsappModule {}

@@ -13,9 +13,11 @@ import { WhatsappSettingsService } from './whatsapp-settings.service';
 import { WhatsappEnquiriesService } from './whatsapp-enquiries.service';
 import { HospitalContextGuard } from '../auth/guards/hospital-context.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { RequiresFeature } from '../auth/decorators/requires-feature.decorator';
 import { CurrentHospitalUser } from '../auth/decorators/current-user.decorator';
 import type { HospitalUserProfile } from '../auth/decorators/current-user.decorator';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
+import { SUBSCRIPTION_FEATURE } from '../constants';
 import {
   connectOwnWhatsappSchema,
   whatsappEnabledSchema,
@@ -27,6 +29,7 @@ import {
 @Controller('hospitals/:id/whatsapp')
 @UseGuards(HospitalContextGuard)
 @Roles('admin')
+@RequiresFeature(SUBSCRIPTION_FEATURE.WHATSAPP)
 export class WhatsappSettingsController {
   constructor(
     private readonly whatsappSettingsService: WhatsappSettingsService,

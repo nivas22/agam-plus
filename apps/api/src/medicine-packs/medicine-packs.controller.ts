@@ -2,6 +2,7 @@ import { Body, Controller, Get, Param, Patch, Post, Put, Query, UseGuards, UsePi
 import { MedicinePacksService } from './medicine-packs.service';
 import { HospitalContextGuard } from '../auth/guards/hospital-context.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { RequiresFeature } from '../auth/decorators/requires-feature.decorator';
 import { CurrentHospitalUser } from '../auth/decorators/current-user.decorator';
 import type { HospitalUserProfile } from '../auth/decorators/current-user.decorator';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
@@ -10,6 +11,7 @@ import {
   updateMedicinePackSchema,
   medicinePackStatusSchema,
 } from '../common/validation/schemas';
+import { SUBSCRIPTION_FEATURE } from '../constants';
 
 // Read access is broad — the prescription writer's "Packs" quick-start (any
 // clinical role) needs the live list. Mutations are admin-only, same as the
@@ -17,6 +19,7 @@ import {
 @Controller('hospitals/:id/medicine-packs')
 @UseGuards(HospitalContextGuard)
 @Roles('admin', 'doctor', 'front_desk', 'nurse', 'accountant')
+@RequiresFeature(SUBSCRIPTION_FEATURE.MEDICINE_PACKS)
 export class MedicinePacksController {
   constructor(private readonly medicinePacksService: MedicinePacksService) {}
 

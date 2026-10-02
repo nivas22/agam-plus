@@ -149,12 +149,23 @@ export const paymentItemSchema = z.object({
   isPackageCovered: z.boolean().optional(),
 });
 
-export const completeVisitSchema = z.object({
+// Finishes the clinical part of a visit (in-consultation -> awaiting-payment)
+// without billing — see AppointmentsService.finishSession. Billing/payment
+// collection is a separate, later step (PaymentsService.completeVisit).
+export const finishSessionSchema = z.object({
   appointmentId: z.string().min(1, 'Appointment ID is required'),
   sessionNotes: z.string().optional(),
   followUp: z
     .enum(['none', '3-days', '1-week', '2-weeks', '1-month'])
     .default('none'),
+  // Injections/dressings/tests logged during the consultation — persisted
+  // now so they still make it into the bill whenever payment is collected.
+  givenItems: z.array(paymentItemSchema).optional(),
+});
+
+export const completeVisitSchema = z.object({
+  appointmentId: z.string().min(1, 'Appointment ID is required'),
+  sessionNotes: z.string().optional(),
   items: z
     .array(paymentItemSchema)
     .min(1, 'At least one billable item is required'),
@@ -352,9 +363,53 @@ export const createHospitalSchema = z.object({
   adminEmails: z
     .array(z.string().email('Invalid email format'))
     .min(1, 'At least one admin email is required'),
+  billingCycle: z.enum(['monthly', 'annual']).optional(),
+  trialDays: z.coerce.number().int().min(0).max(365).optional(),
 });
 
 export const updateHospitalSchema = createHospitalSchema.partial();
+
+export const updateHospitalSpecializationsSchema = z.object({
+  specializations: z
+    .array(z.string().trim().min(1, 'Specialization cannot be empty').max(100))
+    .max(100, 'Too many specializations'),
+});
+
+/* -------------------------------------------------------------------------- */
+/*                          SUBSCRIPTION SCHEMAS                              */
+/* -------------------------------------------------------------------------- */
+
+export const changeSubscriptionPlanSchema = z.object({
+  billingCycle: z.enum(['monthly', 'annual']),
+});
+
+export const submitSubscriptionPaymentSchema = z.object({
+  reference: z.string().min(1, 'Payment reference is required'),
+});
+
+export const setSubscriptionExemptSchema = z.object({
+  exempt: z.boolean(),
+});
+
+export const setSubscriptionCancelledSchema = z.object({
+  cancelled: z.boolean(),
+});
+
+export const setSubscriptionFeatureSchema = z.object({
+  feature: z.enum(['whatsapp', 'reports', 'packages', 'medicinePacks']),
+  enabled: z.boolean(),
+});
+
+export const updateSubscriptionPlanConfigSchema = z.object({
+  includedDoctors: z.coerce.number().int().positive(),
+  includedStaff: z.coerce.number().int().min(0),
+  basePriceMonthly: z.coerce.number().positive(),
+  basePriceAnnual: z.coerce.number().positive(),
+  doctorAddonPriceMonthly: z.coerce.number().min(0),
+  doctorAddonPriceAnnual: z.coerce.number().min(0),
+  staffAddonPriceMonthly: z.coerce.number().min(0),
+  staffAddonPriceAnnual: z.coerce.number().min(0),
+});
 
 /* -------------------------------------------------------------------------- */
 /*                        PLATFORM ADMIN SCHEMAS                              */

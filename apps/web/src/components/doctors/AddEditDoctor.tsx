@@ -19,6 +19,7 @@ import {
 import DoctorAvatar from "@/components/doctors/DoctorAvatar";
 import { useAuth } from "@/hooks/useAuth";
 import { useDoctorDashboardPracticeStats } from "@/hooks/useDoctorDashboardApi";
+import { useHospitalSpecializations } from "@/hooks/useHospitalSpecializationsApi";
 import { useHospitalDoctor, useNewDoctorApi, useResetDoctorPassword } from "@/hooks/useNewDoctorApi";
 import TempPasswordModal from "@/components/common/TempPasswordModal";
 import { ApiRequestError } from "@/lib/api";
@@ -65,7 +66,7 @@ const GRACE_MINUTE_OPTIONS = [5, 10, 15];
 const NO_SHOW_RELEASE_OPTIONS = [15, 20, 30];
 const GENDERS = [GENDER.MALE, GENDER.FEMALE, GENDER.OTHER];
 const MARITAL_STATUSES = ["Single", "Married"];
-const SPECIALIZATIONS = [
+const DEFAULT_SPECIALIZATIONS = [
   "General Practitioner",
   "Cardiologist",
   "Dermatologist",
@@ -320,6 +321,12 @@ export default function AddEditDoctor({
   const { hospitals } = useAuth();
   const resetPassword = useResetDoctorPassword(hospitalId);
   const [tempPassword, setTempPassword] = useState<string | null>(null);
+  const { data: hospitalSpecializationsData } =
+    useHospitalSpecializations(hospitalId);
+  const specializationOptions =
+    hospitalSpecializationsData?.specializations?.length
+      ? hospitalSpecializationsData.specializations
+      : DEFAULT_SPECIALIZATIONS;
 
   const [formData, setFormData] = useState<FormState>(EMPTY_FORM);
   const [initialData, setInitialData] = useState<FormState>(EMPTY_FORM);
@@ -1009,7 +1016,11 @@ export default function AddEditDoctor({
                   className={inputClass}
                 >
                   <option value="">Select a specialization</option>
-                  {SPECIALIZATIONS.map((s) => (
+                  {(formData.specialization &&
+                  !specializationOptions.includes(formData.specialization)
+                    ? [formData.specialization, ...specializationOptions]
+                    : specializationOptions
+                  ).map((s) => (
                     <option key={s} value={s}>
                       {s}
                     </option>

@@ -1,10 +1,18 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards, UsePipes } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Put, UseGuards, UsePipes } from '@nestjs/common';
 import { PlatformAdminService } from './platform-admin.service';
 import { PlatformAdminGuard } from '../auth/guards/platform-admin.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { JwtUser } from '../auth/decorators/current-user.decorator';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
-import { addHospitalAdminSchema, setPlatformAdminSchema } from '../common/validation/schemas';
+import {
+  addHospitalAdminSchema,
+  setPlatformAdminSchema,
+  setSubscriptionCancelledSchema,
+  setSubscriptionExemptSchema,
+  setSubscriptionFeatureSchema,
+  updateSubscriptionPlanConfigSchema,
+} from '../common/validation/schemas';
+import { SUBSCRIPTION_FEATURE } from '../constants';
 
 @Controller('platform-admin')
 @UseGuards(PlatformAdminGuard)
@@ -41,5 +49,59 @@ export class PlatformAdminController {
   @UsePipes(new ZodValidationPipe(setPlatformAdminSchema))
   setPlatformAdmin(@Param('id') id: string, @Body() body: { isPlatformAdmin: boolean }) {
     return this.platformAdminService.setPlatformAdmin(id, body.isPlatformAdmin);
+  }
+
+  @Post('subscriptions/invoices/:invoiceId/confirm-payment')
+  confirmSubscriptionPayment(@Param('invoiceId') invoiceId: string, @CurrentUser() user: JwtUser) {
+    return this.platformAdminService.confirmSubscriptionPayment(invoiceId, { userId: user.userId, name: user.name });
+  }
+
+  @Get('hospitals/:id/subscription')
+  getSubscriptionSummary(@Param('id') id: string) {
+    return this.platformAdminService.getSubscriptionSummary(id);
+  }
+
+  @Patch('hospitals/:id/subscription/exempt')
+  @UsePipes(new ZodValidationPipe(setSubscriptionExemptSchema))
+  setSubscriptionExempt(@Param('id') id: string, @CurrentUser() user: JwtUser, @Body() body: { exempt: boolean }) {
+    return this.platformAdminService.setSubscriptionExempt(id, body.exempt, { userId: user.userId, name: user.name });
+  }
+
+  @Patch('hospitals/:id/subscription/cancel')
+  @UsePipes(new ZodValidationPipe(setSubscriptionCancelledSchema))
+  setSubscriptionCancelled(@Param('id') id: string, @CurrentUser() user: JwtUser, @Body() body: { cancelled: boolean }) {
+    return this.platformAdminService.setSubscriptionCancelled(id, body.cancelled, {
+      userId: user.userId,
+      name: user.name,
+    });
+  }
+
+  @Patch('hospitals/:id/subscription/features')
+  @UsePipes(new ZodValidationPipe(setSubscriptionFeatureSchema))
+  setSubscriptionFeature(
+    @Param('id') id: string,
+    @CurrentUser() user: JwtUser,
+    @Body() body: { feature: SUBSCRIPTION_FEATURE; enabled: boolean },
+  ) {
+    return this.platformAdminService.setSubscriptionFeature(id, body.feature, body.enabled, {
+      userId: user.userId,
+      name: user.name,
+    });
+  }
+
+  @Get('subscriptions')
+  listSubscriptions() {
+    return this.platformAdminService.listSubscriptions();
+  }
+
+  @Get('subscription-plan-config')
+  getPlanConfig() {
+    return this.platformAdminService.getPlanConfig();
+  }
+
+  @Put('subscription-plan-config')
+  @UsePipes(new ZodValidationPipe(updateSubscriptionPlanConfigSchema))
+  updatePlanConfig(@CurrentUser() user: JwtUser, @Body() body: Record<string, any>) {
+    return this.platformAdminService.updatePlanConfig(body, user.userId);
   }
 }

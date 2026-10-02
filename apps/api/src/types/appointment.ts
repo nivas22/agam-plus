@@ -24,13 +24,25 @@ export interface Appointment {
   doctorProfileId: string;
   date: string;
   time: string;
-  status: 'scheduled' | 'completed' | 'cancelled' | 'no-show';
+  status:
+    | 'pending'
+    | 'confirmed'
+    | 'checked-in'
+    | 'waiting'
+    | 'in-consultation'
+    | 'awaiting-payment'
+    | 'completed'
+    | 'cancelled'
+    | 'no-show'
+    | 'rescheduled'
+    | 'scheduled';
   notes?: string;
   sessionNotes?: string;
   vitals?: Vitals;
   createdAt: string;
   updatedAt: string;
   completedAt?: string;
+  paymentCollectedAt?: string;
   patient?: Patient;
   doctor?: Doctor;
 }

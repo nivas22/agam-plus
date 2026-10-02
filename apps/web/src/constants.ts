@@ -63,6 +63,7 @@ export enum APPOINTMENT_STATUS {
   CHECKED_IN = "checked-in",
   WAITING = "waiting",
   IN_CONSULTATION = "in-consultation",
+  AWAITING_PAYMENT = "awaiting-payment",
   COMPLETED = "completed",
   CANCELLED = "cancelled",
   NO_SHOW = "no-show",
@@ -78,6 +79,15 @@ export const ACTIVE_APPOINTMENT_STATUSES: APPOINTMENT_STATUS[] = [
   APPOINTMENT_STATUS.CHECKED_IN,
   APPOINTMENT_STATUS.WAITING,
   APPOINTMENT_STATUS.IN_CONSULTATION,
+];
+
+// Statuses meaning "this patient was actually seen today" — the clinical
+// session happened, whether or not payment has been collected yet. Use this
+// (not a strict === COMPLETED check) for visit history/counts/durations;
+// keep strict COMPLETED only where "fully billed and closed" is the intent.
+export const VISIT_FINISHED_STATUSES: APPOINTMENT_STATUS[] = [
+  APPOINTMENT_STATUS.AWAITING_PAYMENT,
+  APPOINTMENT_STATUS.COMPLETED,
 ];
 
 // Legacy documents predate this state machine and were all written as
@@ -118,8 +128,13 @@ export const APPOINTMENT_STATUS_TRANSITIONS: Record<
     APPOINTMENT_STATUS.CANCELLED,
   ],
   [APPOINTMENT_STATUS.IN_CONSULTATION]: [
+    APPOINTMENT_STATUS.AWAITING_PAYMENT,
+    APPOINTMENT_STATUS.CANCELLED,
+  ],
+  [APPOINTMENT_STATUS.AWAITING_PAYMENT]: [
     APPOINTMENT_STATUS.COMPLETED,
     APPOINTMENT_STATUS.CANCELLED,
+    APPOINTMENT_STATUS.CONFIRMED, // reopen
   ],
   [APPOINTMENT_STATUS.COMPLETED]: [APPOINTMENT_STATUS.CONFIRMED], // reopen
   [APPOINTMENT_STATUS.CANCELLED]: [

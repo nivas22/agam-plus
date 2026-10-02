@@ -50,6 +50,12 @@ export class Appointment {
   @Prop()
   sessionNotes?: string;
 
+  // Injections/dressings/tests the doctor logged during the consultation,
+  // persisted at session-finish time so they survive into the bill even if
+  // payment is collected later, by someone else, on another device.
+  @Prop({ type: [Object] })
+  givenItems?: Record<string, any>[];
+
   // Recorded by the front desk at walk-in time — plain object (not a
   // sub-schema) since every field is optional and there's nothing to
   // validate/index at the Mongoose layer beyond what createAppointmentSchema
@@ -97,8 +103,16 @@ export class Appointment {
   @Prop()
   consultationStartedAt?: Date;
 
+  // Stamped when the clinical session finishes (in-consultation ->
+  // awaiting-payment) — "this visit happened", regardless of billing.
   @Prop()
   completedAt?: Date;
+
+  // Stamped when payment is actually collected (awaiting-payment ->
+  // completed) — may be well after completedAt if front desk closes it out
+  // later.
+  @Prop()
+  paymentCollectedAt?: Date;
 
   @Prop()
   rescheduleDate?: string;

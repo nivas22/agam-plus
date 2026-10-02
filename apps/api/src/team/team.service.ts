@@ -9,6 +9,7 @@ import { ApprovalRequestRepository } from '../repositories/approval-request.repo
 import { PermissionsService } from '../permissions/permissions.service';
 import { AuditService } from '../audit/audit.service';
 import { EmailService } from '../email/email.service';
+import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { ApiError } from '../common/errors/api-error';
 import { generateTempPassword } from '../common/password.util';
 import { HospitalUserProfile } from '../auth/decorators/current-user.decorator';
@@ -41,6 +42,7 @@ export class TeamService {
     private readonly permissionsService: PermissionsService,
     private readonly auditService: AuditService,
     private readonly emailService: EmailService,
+    private readonly subscriptionsService: SubscriptionsService,
   ) {}
 
   async listMembers(hospitalId: string) {
@@ -277,6 +279,7 @@ export class TeamService {
           ? MEMBERSHIP_STATUS.SUSPENDED
           : MEMBERSHIP_STATUS.DEACTIVATED;
     await this.membershipRepository.updateHospitalMembershipStatus((membership as any).id, membershipStatus);
+    await this.subscriptionsService.recalculateSeatCount(hospitalId);
 
     await this.auditService.log({
       hospitalId,

@@ -17,7 +17,10 @@ import {
   useDoctorPresence,
   useSetDoctorPresence,
 } from "@/hooks/useDoctorPresenceApi";
-import { useHospitalAppointmentsApi } from "@/hooks/useNewAppointmentsApi";
+import {
+  useFinishSession,
+  useHospitalAppointmentsApi,
+} from "@/hooks/useNewAppointmentsApi";
 import { useHospitalDoctors } from "@/hooks/useNewDoctorApi";
 import { useHospitalPatients } from "@/hooks/useNewPatientApi";
 import { paletteFor } from "@/lib/avatarPalette";
@@ -73,7 +76,7 @@ export default function TodaysQueuePage({
   canEdit,
   userId,
 }: TodaysQueuePageProps) {
-  const { user, navigateToHospitalRoute } = useAuth();
+  const { user } = useAuth();
   const [now, setNow] = useState(() => new Date());
   const [selectedAppt, setSelectedAppt] =
     useState<AppointmentWithDetails | null>(null);
@@ -145,7 +148,14 @@ export default function TodaysQueuePage({
     updateAppointmentStatus,
     addAppointment,
     refetchAppointments,
-  } = useHospitalAppointmentsApi(hospitalId, userRole, canEdit, params);
+    appointmentsUpdatedAt,
+  } = useHospitalAppointmentsApi(
+    hospitalId,
+    userRole,
+    canEdit,
+    params,
+    30_000,
+  );
 
   const { data: patientsData = { patients: [] } } = useHospitalPatients(
     hospitalId,
@@ -242,6 +252,26 @@ export default function TodaysQueuePage({
     [updateAppointmentStatus, refetchAppointments, showToast],
   );
 
+  // Finishes the clinical part of a visit without billing — no dialog here
+  // (front desk has no live session-notes draft to carry over; whatever the
+  // doctor already saved via "Save and come back" stays intact). Collecting
+  // payment is a separate, later action on the Awaiting-payment lane.
+  const finishSession = useFinishSession(hospitalId);
+  const handleFinishSession = useCallback(
+    async (appt: AppointmentWithDetails) => {
+      try {
+        await finishSession.mutateAsync({ appointmentId: appt.id });
+        setSelectedAppt(null);
+        showToast("Session finished — ready for payment");
+      } catch (err) {
+        showToast(
+          err instanceof Error ? err.message : "Couldn't finish the session",
+        );
+      }
+    },
+    [finishSession, showToast],
+  );
+
   const handleMarkHere = useCallback(
     (doctorId: string) => {
       setDoctorPresence.mutate({ doctorId, date: today, kind: "here" });
@@ -315,6 +345,7 @@ export default function TodaysQueuePage({
 
   const waitingAll = lanes.flatMap((l) => l.waiting);
   const inConsultationAll = lanes.flatMap((l) => l.inConsultation);
+  const awaitingPaymentAll = lanes.flatMap((l) => l.awaitingPayment);
   const doneAll = lanes.flatMap((l) => l.done);
   const yetToArriveAll = lanes.flatMap((l) => l.yetToArrive);
   // Computed straight from `appointments`, not from the per-doctor lanes —
@@ -368,6 +399,7 @@ export default function TodaysQueuePage({
               APPOINTMENT_STATUS.CHECKED_IN,
               APPOINTMENT_STATUS.WAITING,
               APPOINTMENT_STATUS.IN_CONSULTATION,
+              APPOINTMENT_STATUS.AWAITING_PAYMENT,
               APPOINTMENT_STATUS.COMPLETED,
             ].includes(normalizeStatus(a.status) as APPOINTMENT_STATUS) &&
             toMins(a.time) >= later.start &&
@@ -397,6 +429,12 @@ export default function TodaysQueuePage({
             <span className="w-1.5 h-1.5 rounded-full bg-status-open" />
             Live · refreshes every 30s
           </span>
+          {appointmentsUpdatedAt > 0 && (
+            <span className="text-xs text-ink-500">
+              Last refreshed{" "}
+              {format(new Date(appointmentsUpdatedAt), "h:mm:ss a")}
+            </span>
+          )}
           <span className="font-mono text-lg font-semibold text-ink-900">
             {format(now, "h:mm a")}
           </span>
@@ -424,7 +462,7 @@ export default function TodaysQueuePage({
         </div>
       </div>
 
-      <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-7 gap-px bg-border rounded-xl overflow-hidden border border-border mb-4">
+      <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-8 gap-px bg-border rounded-xl overflow-hidden border border-border mb-4">
         {[
           {
             label: "Waiting",
@@ -435,6 +473,11 @@ export default function TodaysQueuePage({
             label: "In consultation",
             n: inConsultationAll.length,
             cls: "text-brand-violet",
+          },
+          {
+            label: "Awaiting payment",
+            n: awaitingPaymentAll.length,
+            cls: "text-status-warning",
           },
           { label: "Done", n: doneAll.length, cls: "text-status-open" },
           {
@@ -530,12 +573,7 @@ export default function TodaysQueuePage({
                     onSelect={setSelectedAppt}
                     onSelectDoctor={setActiveDoctor}
                     onComplete={setCompleteAppt}
-                    onWritePrescription={(a) =>
-                      navigateToHospitalRoute(
-                        `appointments/${a.id}/prescription`,
-                        hospitalId,
-                      )
-                    }
+                    onFinishSession={handleFinishSession}
                     onCheckIn={(a) =>
                       quickUpdate(a, APPOINTMENT_STATUS.CHECKED_IN)
                     }
@@ -718,6 +756,7 @@ export default function TodaysQueuePage({
             setCompleteAppt(selectedAppt);
             setSelectedAppt(null);
           }}
+          onFinishSession={() => handleFinishSession(selectedAppt)}
           onChangeDoctor={() => {
             setActionDialog({ kind: "changeDoctor", appt: selectedAppt });
             setSelectedAppt(null);
@@ -898,7 +937,7 @@ function DoctorLane({
   onSelect,
   onSelectDoctor,
   onComplete,
-  onWritePrescription,
+  onFinishSession,
   onCheckIn,
   onSendIn,
   onAddWalkIn,
@@ -917,7 +956,7 @@ function DoctorLane({
   onSelect: (a: AppointmentWithDetails) => void;
   onSelectDoctor: (d: Doctor) => void;
   onComplete: (a: AppointmentWithDetails) => void;
-  onWritePrescription: (a: AppointmentWithDetails) => void;
+  onFinishSession: (a: AppointmentWithDetails) => void;
   onCheckIn: (a: AppointmentWithDetails) => void;
   onSendIn: (a: AppointmentWithDetails) => void;
   onAddWalkIn: (presetDoctorId?: string) => void;
@@ -1064,17 +1103,41 @@ function DoctorLane({
             <div className="px-3 pb-3 flex gap-2">
               <button
                 type="button"
-                onClick={() => onWritePrescription(lane.inConsultation[0])}
-                className="flex-1 h-8 rounded-lg border border-border text-ink-700 hover:bg-surface-canvas text-xs font-semibold transition-colors"
-              >
-                Write prescription
-              </button>
-              <button
-                type="button"
-                onClick={() => onComplete(lane.inConsultation[0])}
+                onClick={() => onFinishSession(lane.inConsultation[0])}
                 className="flex-1 h-8 rounded-lg bg-status-open hover:bg-status-open-hover text-white text-xs font-semibold transition-colors"
               >
-                Complete visit
+                Finish session
+              </button>
+            </div>
+          )}
+        </>
+      )}
+
+      {lane.awaitingPayment.length > 0 && (
+        <>
+          <div className="px-4 py-2 text-[10px] uppercase tracking-wide font-bold text-status-warning bg-status-warning-soft/40 border-b border-border">
+            Awaiting payment
+          </div>
+          <div className="p-3 space-y-2">
+            {lane.awaitingPayment.map((appt) => (
+              <QueueCard
+                key={appt.id}
+                appt={appt}
+                now={now}
+                tone="now"
+                patientCode={getPatientCode(appt.patientId)}
+                onClick={() => onSelect(appt)}
+              />
+            ))}
+          </div>
+          {canEdit && (
+            <div className="px-3 pb-3 flex gap-2">
+              <button
+                type="button"
+                onClick={() => onComplete(lane.awaitingPayment[0])}
+                className="flex-1 h-8 rounded-lg border border-status-warning/40 bg-surface-paper text-status-warning hover:bg-status-warning-soft text-xs font-semibold transition-colors"
+              >
+                Collect payment
               </button>
             </div>
           )}

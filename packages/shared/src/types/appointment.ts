@@ -33,6 +33,7 @@ export interface Appointment {
     | "checked-in"
     | "waiting"
     | "in-consultation"
+    | "awaiting-payment"
     | "completed"
     | "cancelled"
     | "no-show"
@@ -46,13 +47,24 @@ export interface Appointment {
   checkedInAt?: string;
   waitingAt?: string;
   consultationStartedAt?: string;
-  completedAt?: string; // Timestamp when appointment was marked as completed
+  completedAt?: string; // Timestamp the clinical session finished (awaiting-payment)
+  paymentCollectedAt?: string; // Timestamp payment was collected (completed)
   bookingSource?: "scheduled" | "walk-in";
   // Desk-triggered queue priority override — see orderQueue in queueBoard.ts.
   urgentOverrideAt?: string;
   urgentOverrideReason?: string;
   patient?: Patient;
   doctor?: Doctor;
+}
+
+// An injection/dressing/test logged during the consultation — persisted on
+// the appointment at session-finish time so it survives into the eventual
+// bill regardless of who collects payment, or when.
+export interface AppointmentGivenItem {
+  name: string;
+  quantity: number;
+  unitPrice: number;
+  chargeCatalogItemId?: string;
 }
 
 export interface AppointmentWithDetails extends Appointment {
@@ -71,6 +83,7 @@ export interface AppointmentWithDetails extends Appointment {
   type?: string;
   packageId?: string;
   packageVisitNumber?: number;
+  givenItems?: AppointmentGivenItem[];
 }
 
 export type AppointmentResponse = {

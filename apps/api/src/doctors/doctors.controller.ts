@@ -81,11 +81,12 @@ export class DoctorsController {
   @Patch(':doctorId/status')
   @Roles('admin')
   updateStatus(
+    @Param('id') hospitalId: string,
     @Param('doctorId') doctorId: string,
     @CurrentUser() user: JwtUser,
     @Body() body: { status: string },
   ) {
-    return this.doctorsService.updateDoctorStatus(doctorId, body.status, user.userId);
+    return this.doctorsService.updateDoctorStatus(hospitalId, doctorId, body.status, user.userId);
   }
 
   @Get(':doctorId/availability')

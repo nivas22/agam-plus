@@ -312,6 +312,7 @@ describe("laneStatus", () => {
       waitingOrder: [],
       yetToArrive: [],
       overdue: [],
+      awaitingPayment: [],
       done: [],
       all: [walkinAppt],
     };
@@ -582,6 +583,7 @@ describe("earliestConsultationStart / computePresence", () => {
       waitingOrder: [],
       yetToArrive: [],
       overdue: [],
+      awaitingPayment: [],
       done: [],
       all: [inConsultAppt],
     };
@@ -623,6 +625,7 @@ describe("projectFinish", () => {
       waitingOrder: [],
       yetToArrive: [eveningYetToArrive],
       overdue: [],
+      awaitingPayment: [],
       done: [],
       all: [staleMorningWaiting, eveningYetToArrive],
     };

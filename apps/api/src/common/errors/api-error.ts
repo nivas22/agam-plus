@@ -21,6 +21,10 @@ export class ApiError extends Error {
     return new ApiError(403, message);
   }
 
+  static paymentRequired(message: string = 'Payment required') {
+    return new ApiError(402, message);
+  }
+
   static notFound(message: string = 'Resource not found') {
     return new ApiError(404, message);
   }
