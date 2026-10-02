@@ -5,6 +5,7 @@ import { HospitalRepository } from '../repositories/hospital.repository';
 import { MembershipRepository } from '../repositories/membership.repository';
 import { DashboardRepository } from '../repositories/dashboard.repository';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
+import { DemoRequestRepository } from '../repositories/demo-request.repository';
 import { ApiError } from '../common/errors/api-error';
 
 @Injectable()
@@ -15,7 +16,16 @@ export class PlatformAdminService {
     private readonly membershipRepository: MembershipRepository,
     private readonly dashboardRepository: DashboardRepository,
     private readonly subscriptionsService: SubscriptionsService,
+    private readonly demoRequestRepository: DemoRequestRepository,
   ) {}
+
+  listDemoRequests(status?: string) {
+    return this.demoRequestRepository.list(status);
+  }
+
+  markDemoRequestContacted(id: string, platformAdmin: { userId: string }) {
+    return this.demoRequestRepository.markContacted(id, platformAdmin.userId);
+  }
 
   confirmSubscriptionPayment(invoiceId: string, platformAdmin: { userId: string; name: string }) {
     return this.subscriptionsService.confirmPayment(invoiceId, {

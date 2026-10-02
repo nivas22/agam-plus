@@ -412,6 +412,23 @@ export const updateSubscriptionPlanConfigSchema = z.object({
 });
 
 /* -------------------------------------------------------------------------- */
+/*                         DEMO REQUEST SCHEMAS                               */
+/* -------------------------------------------------------------------------- */
+
+// Public "Book a demo" submission from the marketing site — kept deliberately
+// permissive (no email format enforced, etc.) since it's filled in by a
+// prospect, not validated against any existing record.
+export const createDemoRequestSchema = z.object({
+  hospitalName: z.string().trim().min(1, 'Clinic / hospital name is required').max(200),
+  contactName: z.string().trim().min(1, 'Your name is required').max(200),
+  phone: z.string().trim().min(6, 'A valid phone number is required').max(20),
+  email: z.string().trim().email('Invalid email format').optional().or(z.literal('')),
+  city: z.string().trim().max(100).optional(),
+  doctorCount: z.coerce.number().int().positive().optional(),
+  message: z.string().trim().max(2000).optional(),
+});
+
+/* -------------------------------------------------------------------------- */
 /*                        PLATFORM ADMIN SCHEMAS                              */
 /* -------------------------------------------------------------------------- */
 

@@ -1,3 +1,4 @@
+import { DemoRequestModal } from "@/components/DemoRequestModal";
 import {
   DoctorPhonesMock,
   PatientCardMock,
@@ -5,10 +6,11 @@ import {
   QueueBoardMock,
   WaitingRoomTvMock,
 } from "@/components/mocks";
+import { PricingCard } from "@/components/PricingCard";
 
 function Logo({ dark }: { dark?: boolean }) {
   return (
-    <a className="logo">
+    <a className="logo" href="/">
       <svg width="34" height="34" viewBox="0 0 64 64" fill="none">
         {dark ? (
           <rect width="64" height="64" rx="18" fill="#fff" fillOpacity=".14" />
@@ -93,55 +95,6 @@ const ROLES = [
   },
 ];
 
-const PLANS = [
-  {
-    name: "Clinic",
-    who: "1–3 doctors, single location",
-    price: "₹1,499",
-    unit: "/ doctor / month",
-    features: [
-      "Queue, bookings and walk-ins",
-      "Payments, dues and day close",
-      "Prescriptions with allergy checks",
-      "WhatsApp reminders and receipts",
-      "Unlimited front-desk accounts",
-    ],
-    cta: "Start a trial",
-    best: false,
-  },
-  {
-    name: "Hospital",
-    who: "4–20 doctors, one or more branches",
-    price: "₹1,199",
-    unit: "/ doctor / month",
-    features: [
-      "Everything in Clinic",
-      "Prepaid packages and series booking",
-      "Waiting-room TV board",
-      "Reports — collections, dues aging, no-shows",
-      "Roles, approvals and the audit trail",
-      "Multi-hospital switching",
-    ],
-    cta: "Book a demo",
-    best: true,
-  },
-  {
-    name: "Group",
-    who: "20+ doctors, several branches",
-    price: "Let's talk",
-    unit: "",
-    features: [
-      "Everything in Hospital",
-      "Data migration from your current system",
-      "On-site setup and staff training",
-      "Named support contact",
-      "Custom reports and exports",
-    ],
-    cta: "Talk to us",
-    best: false,
-  },
-];
-
 const TRUST = [
   {
     icon: "✎",
@@ -190,17 +143,14 @@ export default function HomePage() {
         <div className="in">
           <Logo />
           <div className="links">
-            <a>How it works</a>
-            <a>For doctors</a>
-            <a>Pricing</a>
-            <a>Security</a>
-            <a>Help</a>
+            <a href="#how-it-works">How it works</a>
+            <a href="#for-doctors">For doctors</a>
+            <a href="#pricing">Pricing</a>
+            <a href="#security">Security</a>
+            <a href="#faq">Help</a>
           </div>
           <span className="sp" />
-          <a style={{ fontSize: 14, color: "var(--ink2)", fontWeight: 500 }}>
-            Sign in
-          </a>
-          <a className="btn p sm">Book a demo</a>
+          <DemoRequestModal label="Book a demo" className="btn p sm" />
         </div>
       </div>
 
@@ -217,8 +167,10 @@ export default function HomePage() {
             diary on paper.
           </p>
           <div className="cta">
-            <a className="btn p">Book a 20-minute demo</a>
-            <a className="btn q">See the screens</a>
+            <DemoRequestModal label="Book a 20-minute demo" className="btn p" />
+            <a className="btn q" href="#how-it-works">
+              See the screens
+            </a>
             <span className="note">
               No card. We set up your doctors and hours with you.
             </span>
@@ -260,7 +212,7 @@ export default function HomePage() {
         </div>
       </div>
 
-      <div className="wrap">
+      <div className="wrap" id="how-it-works">
         <div className="feat">
           <div className="txt">
             <div className="eyebrow">The queue</div>
@@ -355,7 +307,7 @@ export default function HomePage() {
           </div>
         </div>
 
-        <div className="feat">
+        <div className="feat" id="for-doctors">
           <div className="txt">
             <div className="eyebrow">For the doctor</div>
             <h2 style={{ marginTop: 12, fontSize: 34 }}>
@@ -468,45 +420,27 @@ export default function HomePage() {
         </div>
       </div>
 
-      <div className="band">
+      <div className="band" id="pricing">
         <div className="wrap">
           <div className="eyebrow">Pricing</div>
-          <h2 style={{ marginTop: 12 }}>Priced per doctor, not per screen.</h2>
+          <h2 style={{ marginTop: 12 }}>One bundle, priced for how you grow.</h2>
           <p className="lede">
-            Every plan includes the front desk, the queue board, payments and
-            the patient app. Add as many desk staff as you need — they&apos;re
-            free.
+            A base bundle covering the front desk, the queue board, payments
+            and the patient app — pay extra only once you add doctors or
+            staff beyond what&apos;s included.
           </p>
 
-          <div className="plans">
-            {PLANS.map((plan) => (
-              <div className={`plan ${plan.best ? "best" : ""}`} key={plan.name}>
-                {plan.best && (
-                  <span className="best-tag">MOST CLINICS PICK THIS</span>
-                )}
-                <div className="nm">{plan.name}</div>
-                <div className="who">{plan.who}</div>
-                <div className="pr">
-                  {plan.price} {plan.unit && <small>{plan.unit}</small>}
-                </div>
-                <ul>
-                  {plan.features.map((f) => (
-                    <li key={f}>{f}</li>
-                  ))}
-                </ul>
-                <a className={`btn ${plan.best ? "p" : "q"}`}>{plan.cta}</a>
-              </div>
-            ))}
-          </div>
+          <PricingCard />
+
           <p className="pricenote">
-            Billed yearly. GST extra. Switching from paper or another system?
-            We&apos;ll bring your doctors, patients and open dues across
-            before you go live.
+            GST extra. Switching from paper or another system? We&apos;ll
+            bring your doctors, patients and open dues across before you go
+            live.
           </p>
         </div>
       </div>
 
-      <div className="band soft">
+      <div className="band soft" id="security">
         <div className="wrap">
           <div className="eyebrow">Security</div>
           <h2 style={{ marginTop: 12, maxWidth: 660 }}>
@@ -525,7 +459,7 @@ export default function HomePage() {
         </div>
       </div>
 
-      <div className="band">
+      <div className="band" id="faq">
         <div className="wrap">
           <div className="eyebrow">Questions</div>
           <h2 style={{ marginTop: 12 }}>The ones we get asked on every demo.</h2>
@@ -548,8 +482,10 @@ export default function HomePage() {
             how your OPD actually runs, we&apos;ll tell you.
           </p>
           <div className="cta">
-            <a className="btn w">Book a demo</a>
-            <a className="btn g">Call +91 44 2345 6789</a>
+            <DemoRequestModal label="Book a demo" className="btn w" />
+            <a className="btn g" href="tel:+914423456789">
+              Call +91 44 2345 6789
+            </a>
           </div>
         </div>
       </div>
@@ -580,8 +516,12 @@ export default function HomePage() {
               <h4>Company</h4>
               <ul>
                 <li>About</li>
-                <li>Pricing</li>
-                <li>Security</li>
+                <li>
+                  <a href="#pricing">Pricing</a>
+                </li>
+                <li>
+                  <a href="#security">Security</a>
+                </li>
                 <li>Careers</li>
                 <li>Contact</li>
               </ul>
@@ -589,7 +529,9 @@ export default function HomePage() {
             <div>
               <h4>Support</h4>
               <ul>
-                <li>Help centre</li>
+                <li>
+                  <a href="#faq">Help centre</a>
+                </li>
                 <li>Setup guide</li>
                 <li>Status</li>
                 <li>WhatsApp us</li>

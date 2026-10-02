@@ -7,6 +7,7 @@ import {
   CreditCard,
   LayoutDashboard,
   LogOut,
+  Megaphone,
   Menu,
   Search,
   Settings,
@@ -37,6 +38,11 @@ const NAV_ITEMS = [
     icon: <CreditCard size={18} />,
   },
   { to: "/platform-admin/users", label: "Users", icon: <Users size={18} /> },
+  {
+    to: "/platform-admin/demo-requests",
+    label: "Demo requests",
+    icon: <Megaphone size={18} />,
+  },
 ];
 
 export default function PlatformAdminLayout({

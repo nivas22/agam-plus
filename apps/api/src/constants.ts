@@ -31,6 +31,7 @@ export enum DB_COLLECTIONS {
   SUBSCRIPTIONS = "subscriptions",
   SUBSCRIPTION_INVOICES = "subscription_invoices",
   SUBSCRIPTION_PLAN_CONFIG = "subscription_plan_config",
+  DEMO_REQUESTS = "demo_requests",
 }
 
 // FRONT_DESK/NURSE/ACCOUNTANT replace the old unused STAFF value — nothing
@@ -699,3 +700,13 @@ export enum SUBSCRIPTION_FEATURE {
 }
 
 export const SUBSCRIPTION_FEATURE_VALUES = Object.values(SUBSCRIPTION_FEATURE);
+
+// A "Book a demo" submission from the marketing site (apps/www). NEW until a
+// platform admin has reached out, then CONTACTED — mirrors the
+// WHATSAPP_ENQUIRY_STATUS new/resolved shape.
+export enum DEMO_REQUEST_STATUS {
+  NEW = "new",
+  CONTACTED = "contacted",
+}
+
+export const DEMO_REQUEST_STATUS_VALUES = Object.values(DEMO_REQUEST_STATUS);
