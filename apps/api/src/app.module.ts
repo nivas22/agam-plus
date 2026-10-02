@@ -32,6 +32,7 @@ import { DoctorDashboardModule } from './doctor-dashboard/doctor-dashboard.modul
 import { DoctorPresenceModule } from './doctor-presence/doctor-presence.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { InternalCronModule } from './internal/internal-cron.module';
+import { DemoRequestsModule } from './demo-requests/demo-requests.module';
 
 @Module({
   imports: [
@@ -66,6 +67,7 @@ import { InternalCronModule } from './internal/internal-cron.module';
     SubscriptionsModule,
     PlatformAdminModule,
     InternalCronModule,
+    DemoRequestsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

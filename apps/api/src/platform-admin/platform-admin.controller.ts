@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Put, UseGuards, UsePipes } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query, UseGuards, UsePipes } from '@nestjs/common';
 import { PlatformAdminService } from './platform-admin.service';
 import { PlatformAdminGuard } from '../auth/guards/platform-admin.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -103,5 +103,15 @@ export class PlatformAdminController {
   @UsePipes(new ZodValidationPipe(updateSubscriptionPlanConfigSchema))
   updatePlanConfig(@CurrentUser() user: JwtUser, @Body() body: Record<string, any>) {
     return this.platformAdminService.updatePlanConfig(body, user.userId);
+  }
+
+  @Get('demo-requests')
+  listDemoRequests(@Query('status') status?: string) {
+    return this.platformAdminService.listDemoRequests(status);
+  }
+
+  @Patch('demo-requests/:id/contacted')
+  markDemoRequestContacted(@Param('id') id: string, @CurrentUser() user: JwtUser) {
+    return this.platformAdminService.markDemoRequestContacted(id, { userId: user.userId });
   }
 }
