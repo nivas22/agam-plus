@@ -30,6 +30,7 @@ import { WhatsappProcessedMessageRepository } from './whatsapp-processed-message
 import { SubscriptionRepository } from './subscription.repository';
 import { SubscriptionInvoiceRepository } from './subscription-invoice.repository';
 import { SubscriptionPlanConfigRepository } from './subscription-plan-config.repository';
+import { DemoRequestRepository } from './demo-request.repository';
 import { User, UserSchema } from '../schemas/user.schema';
 import { Hospital, HospitalSchema } from '../schemas/hospital.schema';
 import {
@@ -99,6 +100,7 @@ import {
   SubscriptionPlanConfig,
   SubscriptionPlanConfigSchema,
 } from '../schemas/subscription-plan-config.schema';
+import { DemoRequest, DemoRequestSchema } from '../schemas/demo-request.schema';
 
 const repositories = [
   UserRepository,
@@ -131,6 +133,7 @@ const repositories = [
   SubscriptionRepository,
   SubscriptionInvoiceRepository,
   SubscriptionPlanConfigRepository,
+  DemoRequestRepository,
 ];
 
 @Global()
@@ -170,6 +173,7 @@ const repositories = [
       { name: Subscription.name, schema: SubscriptionSchema },
       { name: SubscriptionInvoice.name, schema: SubscriptionInvoiceSchema },
       { name: SubscriptionPlanConfig.name, schema: SubscriptionPlanConfigSchema },
+      { name: DemoRequest.name, schema: DemoRequestSchema },
     ]),
   ],
   providers: repositories,
