@@ -6,7 +6,6 @@ import { PatientRepository } from '../repositories/patient.repository';
 import { DoctorRepository } from '../repositories/doctor.repository';
 import { UserRepository } from '../repositories/user.repository';
 import { PackageRepository } from '../repositories/package.repository';
-import { AppointmentsService } from '../appointments/appointments.service';
 import { PermissionsService } from '../permissions/permissions.service';
 import { AuditService } from '../audit/audit.service';
 import { ApiError } from '../common/errors/api-error';
@@ -48,7 +47,6 @@ export class PaymentsService {
     private readonly doctorRepository: DoctorRepository,
     private readonly userRepository: UserRepository,
     private readonly packageRepository: PackageRepository,
-    private readonly appointmentsService: AppointmentsService,
     private readonly permissionsService: PermissionsService,
     private readonly auditService: AuditService,
   ) {}
@@ -183,8 +181,7 @@ export class PaymentsService {
       throw ApiError.forbidden('Unauthorized - Access denied to this hospital');
     }
 
-    const { appointmentId, sessionNotes, followUp, items, discount, method } =
-      body;
+    const { appointmentId, sessionNotes, items, discount, method } = body;
 
     const appointment =
       await this.appointmentRepository.getAppointmentById(appointmentId);
@@ -214,7 +211,7 @@ export class PaymentsService {
       )
     ) {
       throw ApiError.badRequest(
-        `Cannot complete an appointment from status '${existingData.status}'`,
+        `Cannot collect payment on an appointment from status '${existingData.status}' — finish the session first`,
       );
     }
 
@@ -373,7 +370,7 @@ export class PaymentsService {
 
     const updateData: Record<string, any> = {
       status: APPOINTMENT_STATUS.COMPLETED,
-      completedAt: new Date().toISOString(),
+      paymentCollectedAt: new Date().toISOString(),
       updatedBy: user.uid,
       updatedByRole: userRole,
     };
@@ -401,20 +398,6 @@ export class PaymentsService {
       );
     }
 
-    const followUpAppointmentId = await this.appointmentsService.createFollowUpAppointment({
-      hospitalId,
-      doctorProfileId: existingData.doctorProfileId,
-      doctorName: existingData.doctorName,
-      doctorSpecialization: existingData.doctorSpecialization,
-      patientId: existingData.patientId,
-      patientName: existingData.patientName,
-      time: existingData.time,
-      followUpOption: followUp,
-      notes: 'Follow-up scheduled at visit completion',
-      createdBy: user.uid,
-      userRole,
-    });
-
     return {
       success: true,
       message:
@@ -422,7 +405,6 @@ export class PaymentsService {
           ? `Visit completed with ${total} due`
           : 'Visit completed and payment recorded',
       payment,
-      followUpAppointmentId,
     };
   }
 

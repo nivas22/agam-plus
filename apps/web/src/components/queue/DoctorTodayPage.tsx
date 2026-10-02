@@ -12,6 +12,7 @@ import {
   useSetDoctorPresence,
 } from "@/hooks/useDoctorPresenceApi";
 import {
+  useFinishSession,
   useHospitalAppointmentsApi,
   usePatientHospitalAppointments,
 } from "@/hooks/useNewAppointmentsApi";
@@ -423,9 +424,12 @@ export default function DoctorTodayPage({
     hospitalId,
     selectedAppt?.id,
   );
-  const selectedGivenItems = (selectedPayment?.items || []).filter(
-    (item) => !item.isAuto,
-  );
+  // Once billed, the Payment doc is the source of truth for what was given
+  // (it may have been edited at billing time); before that, the appointment's
+  // own `givenItems` (persisted at session-finish) is all there is.
+  const selectedGivenItems = selectedPayment
+    ? selectedPayment.items.filter((item) => !item.isAuto)
+    : ((selectedAppt?.givenItems as PaymentItem[] | undefined) ?? []);
 
   const { data: notesModalPrescriptionResult } = usePrescription(
     notesModalAppt?.id || "",
@@ -501,16 +505,70 @@ export default function DoctorTodayPage({
     [updateAppointmentStatus, showToast],
   );
 
-  const handleCompleteSuccess = useCallback(
+  // Collecting payment (CompleteVisitDialog, opened from an "Awaiting
+  // payment" row) is now independent of whichever patient is currently
+  // selected/in consultation — it doesn't touch the live session, so there's
+  // nothing to auto-advance here beyond closing the dialog.
+  const handleCollectPaymentSuccess = useCallback(
     (message: string) => {
       showToast(message);
-      const nextWaiting = lane?.waiting[0];
       setCompleteAppt(null);
-      if (nextWaiting) {
-        setSelectedApptId(nextWaiting.id);
-      }
     },
-    [showToast, lane],
+    [showToast],
+  );
+
+  const finishSession = useFinishSession(hospitalId);
+
+  // Finishes the clinical part of the current visit (in-consultation ->
+  // awaiting-payment) without billing — notes/follow-up/given-items already
+  // live in component state, so this is a direct call, no dialog. Collecting
+  // payment is a separate, later step (doctor can do it immediately from the
+  // Awaiting-payment list, or front desk can do it whenever).
+  const handleFinishSession = useCallback(
+    (appt: AppointmentWithDetails) => {
+      return finishSession.mutateAsync({
+        appointmentId: appt.id,
+        sessionNotes: appt.id === selectedAppt?.id ? notesDraft : undefined,
+        followUp: appt.id === selectedAppt?.id ? followUp : undefined,
+        givenItems: appt.id === selectedAppt?.id ? extraItems : undefined,
+      });
+    },
+    [finishSession, selectedAppt?.id, notesDraft, followUp, extraItems],
+  );
+
+  // "Complete without signing" / "Sign & complete" — finish the session, and
+  // advance the doctor's view to the next waiting patient's pre-call preview
+  // (same spot as before — just no longer blocked on billing).
+  const handleFinishAndPreview = useCallback(
+    (appt: AppointmentWithDetails) => {
+      handleFinishSession(appt)
+        .then(() => {
+          showToast("Session finished — ready for payment");
+          const nextWaiting = lane?.waiting[0];
+          if (nextWaiting) setSelectedApptId(nextWaiting.id);
+        })
+        .catch(() => showToast("Couldn't finish the session"));
+    },
+    [handleFinishSession, showToast, lane],
+  );
+
+  // "Call next patient" — finish the current session AND call the next
+  // waiting patient straight into consultation, switching the screen to them
+  // in one click (rather than leaving them in the pre-call preview).
+  const handleFinishAndCallNext = useCallback(
+    (appt: AppointmentWithDetails) => {
+      const nextWaiting = lane?.waiting[0];
+      handleFinishSession(appt)
+        .then(() => {
+          showToast("Session finished — ready for payment");
+          if (nextWaiting) {
+            setSelectedApptId(nextWaiting.id);
+            handleCallIn(nextWaiting);
+          }
+        })
+        .catch(() => showToast("Couldn't finish the session"));
+    },
+    [handleFinishSession, showToast, lane, handleCallIn],
   );
 
   // The doctor's overall order of the day — 1st, 2nd, 3rd... patient seen —
@@ -559,7 +617,7 @@ export default function DoctorTodayPage({
     minutesBetween(stageStart(a, a.waitingAt || a.checkedInAt), now),
   );
   const longestWait = waitElapsed.length ? Math.max(...waitElapsed) : 0;
-  const durations = lane.done
+  const durations = [...lane.done, ...lane.awaitingPayment]
     .map((a) =>
       a.consultationStartedAt && a.completedAt
         ? minutesBetween(
@@ -688,7 +746,7 @@ export default function DoctorTodayPage({
           }[] = [
             {
               label: "Seen",
-              n: lane.done.length,
+              n: lane.done.length + lane.awaitingPayment.length,
               sub: `of ${lane.all.length} today`,
             },
             {
@@ -850,6 +908,29 @@ export default function DoctorTodayPage({
             </>
           )}
 
+          {lane.awaitingPayment.length > 0 && (
+            <>
+              <SectionLabel>
+                Awaiting payment · {lane.awaitingPayment.length}
+              </SectionLabel>
+              {lane.awaitingPayment.map((appt) => (
+                <PatientRow
+                  key={appt.id}
+                  appt={appt}
+                  patient={patientsById[appt.patientId]}
+                  tone="awaitingPayment"
+                  queuePosition={queuePositionByApptId.get(appt.id)}
+                  now={now}
+                  selected={appt.id === selectedApptId}
+                  isDue={isPatientDue(appt.patientId)}
+                  isNew={isPatientNew(appt.patientId)}
+                  onClick={() => setSelectedApptId(appt.id)}
+                  onCollectPayment={() => setCompleteAppt(appt)}
+                />
+              ))}
+            </>
+          )}
+
           {lane.done.length > 0 && (
             <>
               <SectionLabel>Done · {lane.done.length}</SectionLabel>
@@ -929,7 +1010,10 @@ export default function DoctorTodayPage({
             followUp={followUp}
             setFollowUp={setFollowUp}
             onSaveAndComeBack={handleSaveNotes}
-            onCompleteAndCallNext={() => setCompleteAppt(selectedAppt)}
+            onFinishSession={() => handleFinishAndPreview(selectedAppt)}
+            isFinishingSession={finishSession.isPending}
+            nextWaitingPatientName={lane.waiting[0]?.patientName}
+            onCallNextPatient={() => handleFinishAndCallNext(selectedAppt)}
             lastSavedAt={lastSavedAt}
             extendedMinutes={extendedMinutes[selectedAppt.id] || 0}
             onExtend={() =>
@@ -960,6 +1044,7 @@ export default function DoctorTodayPage({
               selectedAppt.status === "scheduled"
             }
             onCallIn={() => handleCallIn(selectedAppt)}
+            onCollectPayment={() => setCompleteAppt(selectedAppt)}
           />
         )}
       </div>
@@ -973,11 +1058,8 @@ export default function DoctorTodayPage({
           patientCode={getPatientCode(completeAppt.patientId)}
           collectedByName={user?.name}
           updateAppointmentStatus={updateAppointmentStatus}
-          initialSessionNotes={notesDraft}
-          initialFollowUp={followUp}
-          initialExtraItems={extraItems}
           onClose={() => setCompleteAppt(null)}
-          onSuccess={handleCompleteSuccess}
+          onSuccess={handleCollectPaymentSuccess}
         />
       )}
 
@@ -1026,10 +1108,11 @@ function PatientRow({
   reason,
   onClick,
   onWriteNotes,
+  onCollectPayment,
 }: {
   appt: AppointmentWithDetails;
   patient: Patient | undefined;
-  tone: "now" | "waiting" | "upcoming" | "done";
+  tone: "now" | "waiting" | "upcoming" | "done" | "awaitingPayment";
   // This patient's position in today's overall queue (1st, 2nd, 3rd... seen)
   // — only meaningful for tone==="done".
   queuePosition?: number;
@@ -1044,6 +1127,9 @@ function PatientRow({
   // Opens the notes modal instead of selecting the row — only used by the
   // "Write" action on a done row missing its session notes.
   onWriteNotes?: () => void;
+  // Opens the Collect-payment dialog for this visit — only used by
+  // tone==="awaitingPayment" rows.
+  onCollectPayment?: () => void;
 }) {
   const age = resolveAge(appt, patient);
   const isWalkIn = appt.bookingSource === "walk-in";
@@ -1061,21 +1147,23 @@ function PatientRow({
   const badgeCls =
     tone === "now"
       ? "bg-brand-violet text-white"
-      : tone === "done"
-        ? noteMissing
-          ? "bg-status-warning-soft text-status-warning"
-          : "bg-status-open-soft text-status-open"
-        : tone === "waiting" && elapsed != null && elapsed > 25
-          ? "bg-status-danger-soft text-status-danger"
-          : tone === "waiting" && elapsed != null && elapsed > 15
+      : tone === "awaitingPayment"
+        ? "bg-status-warning-soft text-status-warning"
+        : tone === "done"
+          ? noteMissing
             ? "bg-status-warning-soft text-status-warning"
-            : "bg-surface-canvas text-ink-700";
+            : "bg-status-open-soft text-status-open"
+          : tone === "waiting" && elapsed != null && elapsed > 25
+            ? "bg-status-danger-soft text-status-danger"
+            : tone === "waiting" && elapsed != null && elapsed > 15
+              ? "bg-status-warning-soft text-status-warning"
+              : "bg-surface-canvas text-ink-700";
 
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`w-full grid ${tone === "done" ? "grid-cols-[48px_1fr_auto]" : "grid-cols-[34px_1fr_auto]"} gap-3 items-center text-left px-4 py-3 border-t border-lineSoft first:border-t-0 ${
+      className={`w-full grid ${tone === "done" || tone === "awaitingPayment" ? "grid-cols-[48px_1fr_auto]" : "grid-cols-[34px_1fr_auto]"} gap-3 items-center text-left px-4 py-3 border-t border-lineSoft first:border-t-0 ${
         selected
           ? "bg-brand-violet-soft shadow-[inset_3px_0_0_theme(colors.brand.violet)]"
           : ""
@@ -1083,16 +1171,18 @@ function PatientRow({
     >
       <span
         className={
-          tone === "done"
+          tone === "done" || tone === "awaitingPayment"
             ? `w-11 h-11 rounded-xl grid place-items-center font-mono text-lg font-bold ${badgeCls}`
             : `w-8.5 h-8.5 rounded-lg grid place-items-center font-mono text-[13px] font-semibold ${badgeCls}`
         }
       >
-        {tone === "done"
-          ? queuePosition != null
-            ? String(queuePosition).padStart(2, "0")
-            : "✓"
-          : formatTime12h(appt.time).replace(" ", "").slice(0, -2)}
+        {tone === "awaitingPayment"
+          ? "₹"
+          : tone === "done"
+            ? queuePosition != null
+              ? String(queuePosition).padStart(2, "0")
+              : "✓"
+            : formatTime12h(appt.time).replace(" ", "").slice(0, -2)}
       </span>
       <span className="min-w-0">
         <span className="block text-[14px] font-semibold text-ink-900 truncate">
@@ -1108,9 +1198,11 @@ function PatientRow({
             ? reason
             : tone === "upcoming"
               ? `${formatTime12h(appt.time)} · not arrived`
-              : tone === "done"
-                ? `${formatTime12h(appt.time)} · ${noteMissing ? "notes missing" : "notes saved"}`
-                : [
+              : tone === "awaitingPayment"
+                ? `${formatTime12h(appt.time)} · awaiting payment`
+                : tone === "done"
+                  ? `${formatTime12h(appt.time)} · ${noteMissing ? "notes missing" : "notes saved"}`
+                  : [
                     age != null ? `${age}` : null,
                     appt.patientGender ? appt.patientGender[0] : null,
                   ]
@@ -1141,6 +1233,24 @@ function PatientRow({
           className="h-7 px-3 rounded-md border border-border bg-surface-paper text-xs font-medium text-ink-700 hover:bg-surface-canvas shrink-0"
         >
           Write
+        </span>
+      ) : tone === "awaitingPayment" ? (
+        <span
+          role="button"
+          tabIndex={0}
+          onClick={(e) => {
+            e.stopPropagation();
+            onCollectPayment?.();
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.stopPropagation();
+              onCollectPayment?.();
+            }
+          }}
+          className="h-7 px-3 rounded-md border border-status-warning/40 bg-surface-paper text-xs font-semibold text-status-warning hover:bg-status-warning-soft shrink-0"
+        >
+          Collect payment
         </span>
       ) : tone === "done" ? (
         <span
@@ -1224,7 +1334,10 @@ function ConsultationPanel({
   followUp,
   setFollowUp,
   onSaveAndComeBack,
-  onCompleteAndCallNext,
+  onFinishSession,
+  isFinishingSession,
+  nextWaitingPatientName,
+  onCallNextPatient,
   lastSavedAt,
   extendedMinutes,
   onExtend,
@@ -1262,7 +1375,10 @@ function ConsultationPanel({
   followUp: FollowUpOption;
   setFollowUp: (v: FollowUpOption) => void;
   onSaveAndComeBack: () => void;
-  onCompleteAndCallNext: () => void;
+  onFinishSession: () => void;
+  isFinishingSession: boolean;
+  nextWaitingPatientName?: string;
+  onCallNextPatient: () => void;
   lastSavedAt: Date | null;
   extendedMinutes: number;
   onExtend: () => void;
@@ -1297,6 +1413,14 @@ function ConsultationPanel({
               .join(" · ")}
           </div>
         </div>
+        {appt.patientPhone && (
+          <a
+            href={`tel:${appt.patientPhone}`}
+            className="h-9 px-3 rounded-lg border border-border text-sm font-medium text-ink-700 hover:bg-surface-canvas flex items-center gap-1.5 shrink-0"
+          >
+            <Phone size={14} /> Call
+          </a>
+        )}
         <span className="ml-auto flex items-center gap-2 shrink-0">
           <span
             className={`flex items-baseline gap-2 border rounded-xl px-4 py-2 ${
@@ -1656,20 +1780,35 @@ function ConsultationPanel({
         <span className="flex-1" />
         <button
           type="button"
-          onClick={onCompleteAndCallNext}
-          className="h-9 px-4 rounded-lg border border-border text-sm font-medium text-ink-700 hover:bg-surface-canvas"
+          onClick={onCallNextPatient}
+          disabled={!nextWaitingPatientName || isFinishingSession}
+          title={
+            nextWaitingPatientName
+              ? `Finish this session & call ${nextWaitingPatientName} in`
+              : "Nobody is waiting"
+          }
+          className="h-9 px-4 rounded-lg border border-border text-sm font-medium text-ink-700 hover:bg-surface-canvas disabled:opacity-40 disabled:hover:bg-transparent flex items-center gap-1.5"
         >
-          Complete without signing
+          <Phone size={14} /> Call next patient
+        </button>
+        <button
+          type="button"
+          onClick={onFinishSession}
+          disabled={isFinishingSession}
+          className="h-9 px-4 rounded-lg border border-border text-sm font-medium text-ink-700 hover:bg-surface-canvas disabled:opacity-40"
+        >
+          Finish without signing
         </button>
         <button
           type="button"
           onClick={() => {
             if (unsignedPrescription) onSignPrescription();
-            onCompleteAndCallNext();
+            onFinishSession();
           }}
-          className="h-9 px-4 rounded-lg bg-status-open hover:bg-status-open-hover text-white text-sm font-semibold"
+          disabled={isFinishingSession}
+          className="h-9 px-4 rounded-lg bg-status-open hover:bg-status-open-hover text-white text-sm font-semibold disabled:opacity-60"
         >
-          Sign &amp; complete
+          Sign &amp; finish
         </button>
       </div>
     </div>
@@ -1692,6 +1831,7 @@ function PreCallPanel({
   dueAmount,
   isYetToArrive,
   onCallIn,
+  onCollectPayment,
 }: {
   appt: AppointmentWithDetails;
   patient: Patient | undefined;
@@ -1708,6 +1848,7 @@ function PreCallPanel({
   dueAmount: number;
   isYetToArrive: boolean;
   onCallIn: () => void;
+  onCollectPayment?: () => void;
 }) {
   const age = resolveAge(appt, patient);
   const waitStart = stageStart(appt, appt.waitingAt || appt.checkedInAt);
@@ -1737,7 +1878,11 @@ function PreCallPanel({
         </div>
         <span className="ml-auto shrink-0">
         
-          {appt.status === APPOINTMENT_STATUS.COMPLETED ? (
+          {appt.status === APPOINTMENT_STATUS.AWAITING_PAYMENT ? (
+            <span className="flex items-baseline gap-2 rounded-xl px-4 py-2 border border-status-warning/30 bg-status-warning-soft text-status-warning">
+              <b className="font-mono text-lg">Awaiting payment</b>
+            </span>
+          ) : appt.status === APPOINTMENT_STATUS.COMPLETED ? (
             <span className="flex items-baseline gap-2 rounded-xl px-4 py-2 border border-status-open/30 bg-status-open-soft text-status-open">
               <b className="font-mono text-lg">Completed</b>
             </span>
@@ -1781,7 +1926,8 @@ function PreCallPanel({
 
       <div className="grid grid-cols-1 md:grid-cols-[1.2fr_0.8fr]">
         <div className="p-5 min-w-0">
-          {appt.status === APPOINTMENT_STATUS.COMPLETED ? (
+          {appt.status === APPOINTMENT_STATUS.COMPLETED ||
+          appt.status === APPOINTMENT_STATUS.AWAITING_PAYMENT ? (
             <>
               <div className="text-[12px] uppercase tracking-wide text-ink-500 font-bold mb-2">
                 Session notes
@@ -1954,16 +2100,28 @@ function PreCallPanel({
           Full history
         </a>
         <span className="flex-1" />
-        <span className="text-[12px] text-ink-500 hidden md:inline">
-          Calling them in starts the clock and updates the waiting room board
-        </span>
-        <button
-          type="button"
-          onClick={onCallIn}
-          className="h-9 px-4 rounded-lg bg-brand-violet hover:bg-brand-violet-hover text-white text-sm font-semibold"
-        >
-          Call in {appt.patientName.split(" ")[0]}
-        </button>
+        {appt.status === APPOINTMENT_STATUS.AWAITING_PAYMENT ? (
+          <button
+            type="button"
+            onClick={onCollectPayment}
+            className="h-9 px-4 rounded-lg bg-status-open hover:bg-status-open-hover text-white text-sm font-semibold"
+          >
+            Collect payment
+          </button>
+        ) : (
+          <>
+            <span className="text-[12px] text-ink-500 hidden md:inline">
+              Calling them in starts the clock and updates the waiting room board
+            </span>
+            <button
+              type="button"
+              onClick={onCallIn}
+              className="h-9 px-4 rounded-lg bg-brand-violet hover:bg-brand-violet-hover text-white text-sm font-semibold"
+            >
+              Call in {appt.patientName.split(" ")[0]}
+            </button>
+          </>
+        )}
       </div>
     </div>
   );

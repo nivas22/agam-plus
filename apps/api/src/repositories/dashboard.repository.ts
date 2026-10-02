@@ -37,13 +37,14 @@ export class DashboardRepository {
     }
   }
 
-  async countDoctorAppointments(hospitalId: string, doctorId: string, start: string, end: string, status?: string): Promise<number> {
+  async countDoctorAppointments(hospitalId: string, doctorId: string, start: string, end: string, status?: string | string[]): Promise<number> {
     const filter: Record<string, any> = {
       hospitalId,
       doctorProfileId: doctorId,
       date: { $gte: start, $lte: end },
     };
-    if (status) filter.status = status;
+    if (Array.isArray(status)) filter.status = { $in: status };
+    else if (status) filter.status = status;
 
     return this.connection.collection(DB_COLLECTIONS.APPOINTMENTS).countDocuments(filter);
   }

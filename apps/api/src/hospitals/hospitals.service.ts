@@ -7,7 +7,7 @@ import { PatientRepository } from '../repositories/patient.repository';
 import { DashboardRepository } from '../repositories/dashboard.repository';
 import { UserRepository } from '../repositories/user.repository';
 import { ApiError } from '../common/errors/api-error';
-import { DB_COLLECTIONS, ROLE } from '../constants';
+import { DB_COLLECTIONS, ROLE, VISIT_FINISHED_STATUSES } from '../constants';
 import { getDateCategory } from '../utils/dateUtils';
 import { JwtUser } from '../auth/decorators/current-user.decorator';
 import { AdminDashboardData, DoctorDashboardData } from '../types/dashboard';
@@ -239,7 +239,7 @@ export class HospitalsService {
 
       const [todaysAppointments, completedAppointments, pendingAppointments, totalPatients, upcomingAppointmentsRaw] = await Promise.all([
         this.dashboardRepository.countDoctorAppointments(hospitalId, doctorId, todayStartISO, todayEndISO, 'scheduled'),
-        this.dashboardRepository.countDoctorAppointments(hospitalId, doctorId, todayStartISO, todayEndISO, 'completed'),
+        this.dashboardRepository.countDoctorAppointments(hospitalId, doctorId, todayStartISO, todayEndISO, VISIT_FINISHED_STATUSES),
         this.dashboardRepository.countDoctorAppointments(hospitalId, doctorId, todayStartISO, todayEndISO, 'pending'),
         this.dashboardRepository.getDoctorPatientCount(hospitalId, doctorId),
         this.dashboardRepository.getDoctorUpcomingAppointments(hospitalId, doctorId),

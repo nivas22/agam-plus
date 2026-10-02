@@ -117,7 +117,9 @@ export function LedgerDialog({ hospitalId, pkg, onClose }: LedgerDialogProps) {
                       ? "bg-status-open-soft text-status-open"
                       : v.status === "cancelled" || v.status === "no-show"
                         ? "bg-status-danger-soft text-status-danger"
-                        : "bg-surface-canvas text-ink-700"
+                        : v.status === "awaiting-payment"
+                          ? "bg-status-warning-soft text-status-warning"
+                          : "bg-surface-canvas text-ink-700"
                   }`}
                 >
                   {v.status.replace("-", " ")}

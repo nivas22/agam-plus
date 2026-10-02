@@ -223,7 +223,10 @@ function buildSessionInfo(
       walkInCount++;
       return { time: t, status: "walkin" as const, appointment: appt };
     }
-    if (appt.status === APPOINTMENT_STATUS.COMPLETED) {
+    if (
+      appt.status === APPOINTMENT_STATUS.AWAITING_PAYMENT ||
+      appt.status === APPOINTMENT_STATUS.COMPLETED
+    ) {
       doneCount++;
       return { time: t, status: "done" as const, appointment: appt };
     }
@@ -315,7 +318,8 @@ function slotLabel(slot: SessionSlot): string {
       : "Cancelled";
   }
   if (slot.status === "walkin") {
-    return slot.appointment?.status === APPOINTMENT_STATUS.COMPLETED
+    return slot.appointment?.status === APPOINTMENT_STATUS.AWAITING_PAYMENT ||
+      slot.appointment?.status === APPOINTMENT_STATUS.COMPLETED
       ? "Walk-in · seen"
       : "Walk-in";
   }
@@ -452,7 +456,9 @@ export default function DoctorProfilePage({
 
   const monthStats = useMemo(() => {
     const completed = monthAppointments.filter(
-      (a) => a.status === APPOINTMENT_STATUS.COMPLETED,
+      (a) =>
+        a.status === APPOINTMENT_STATUS.AWAITING_PAYMENT ||
+        a.status === APPOINTMENT_STATUS.COMPLETED,
     ).length;
     const cancelledCount = monthAppointments.filter(
       (a) => a.status === APPOINTMENT_STATUS.CANCELLED,
@@ -546,7 +552,8 @@ export default function DoctorProfilePage({
     const durations = monthAppointments
       .filter(
         (a) =>
-          a.status === APPOINTMENT_STATUS.COMPLETED &&
+          (a.status === APPOINTMENT_STATUS.AWAITING_PAYMENT ||
+            a.status === APPOINTMENT_STATUS.COMPLETED) &&
           a.consultationStartedAt &&
           a.completedAt,
       )
@@ -630,6 +637,7 @@ export default function DoctorProfilePage({
         .filter((a) => a.date <= todayIso)
         .filter(
           (a) =>
+            a.status === APPOINTMENT_STATUS.AWAITING_PAYMENT ||
             a.status === APPOINTMENT_STATUS.COMPLETED ||
             a.status === APPOINTMENT_STATUS.NO_SHOW ||
             a.status === APPOINTMENT_STATUS.CANCELLED,

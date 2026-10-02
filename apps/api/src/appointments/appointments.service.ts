@@ -11,7 +11,7 @@ import { AuditService } from '../audit/audit.service';
 import { ApiError } from '../common/errors/api-error';
 import { AppointmentWithDetails, Vitals } from '../types/appointment';
 import { JwtUser, HospitalUserProfile } from '../auth/decorators/current-user.decorator';
-import { CreateAppointmentBody, UpdateAppointmentBody, AppointmentListQuery } from './appointments.types';
+import { CreateAppointmentBody, UpdateAppointmentBody, FinishSessionBody, AppointmentListQuery } from './appointments.types';
 import { findHolidayForDate, filterSlotsForHoliday } from '../hospital-holidays/holiday-availability.util';
 import {
   APPOINTMENT_STATUS,
@@ -29,7 +29,8 @@ const STATUS_TIMESTAMP_FIELD: Partial<Record<APPOINTMENT_STATUS, string>> = {
   [APPOINTMENT_STATUS.CHECKED_IN]: 'checkedInAt',
   [APPOINTMENT_STATUS.WAITING]: 'waitingAt',
   [APPOINTMENT_STATUS.IN_CONSULTATION]: 'consultationStartedAt',
-  [APPOINTMENT_STATUS.COMPLETED]: 'completedAt',
+  [APPOINTMENT_STATUS.AWAITING_PAYMENT]: 'completedAt',
+  [APPOINTMENT_STATUS.COMPLETED]: 'paymentCollectedAt',
 };
 
 interface GenerateAppointmentsParams {
@@ -945,6 +946,77 @@ export class AppointmentsService {
       success: true,
       message: 'Appointment updated successfully',
       updatedBy: userRole,
+    };
+  }
+
+  // Finishes the clinical part of a visit (in-consultation -> awaiting-payment)
+  // without billing — saves session notes, persists any items given during
+  // the visit so they survive into the eventual bill, and creates the draft
+  // follow-up appointment. Collecting payment is a later, separate step —
+  // see PaymentsService.completeVisit, which only runs from awaiting-payment.
+  async finishSession(hospitalId: string, user: JwtUser, userProfile: HospitalUserProfile, body: FinishSessionBody) {
+    const userRole = userProfile?.role;
+
+    if (userRole !== 'admin' && userProfile?.hospitalId !== hospitalId) {
+      throw ApiError.forbidden('Unauthorized - Access denied to this hospital');
+    }
+
+    const { appointmentId, sessionNotes, followUp, givenItems } = body;
+
+    const existingAppointment = await this.appointmentRepository.getAppointmentById(appointmentId);
+    if (!existingAppointment) {
+      throw ApiError.notFound('Appointment not found');
+    }
+
+    const existingData = existingAppointment as any;
+
+    if (existingData.hospitalId !== hospitalId) {
+      throw ApiError.notFound('Appointment not found in this hospital');
+    }
+
+    if (userRole === 'doctor' && existingData.doctorProfileId !== userProfile?.userId) {
+      throw ApiError.forbidden('Unauthorized - Can only update your own appointments');
+    }
+
+    if (!isValidAppointmentTransition(existingData.status, APPOINTMENT_STATUS.AWAITING_PAYMENT)) {
+      const currentStatus = normalizeAppointmentStatus(existingData.status);
+      throw ApiError.badRequest(`Cannot finish a session from status '${currentStatus}'`);
+    }
+
+    const updateData: any = {
+      status: APPOINTMENT_STATUS.AWAITING_PAYMENT,
+      completedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      updatedBy: user.uid,
+      updatedByRole: userRole,
+    };
+    if (sessionNotes) {
+      updateData.sessionNotes = sessionNotes;
+    }
+    if (givenItems && givenItems.length > 0) {
+      updateData.givenItems = givenItems;
+    }
+
+    await this.appointmentRepository.updateAppointment(appointmentId, updateData);
+
+    const followUpAppointmentId = await this.createFollowUpAppointment({
+      hospitalId,
+      doctorProfileId: existingData.doctorProfileId,
+      doctorName: existingData.doctorName,
+      doctorSpecialization: existingData.doctorSpecialization,
+      patientId: existingData.patientId,
+      patientName: existingData.patientName,
+      time: existingData.time,
+      followUpOption: followUp,
+      notes: 'Follow-up scheduled at visit completion',
+      createdBy: user.uid,
+      userRole,
+    });
+
+    return {
+      success: true,
+      message: 'Session finished — ready for payment',
+      followUpAppointmentId,
     };
   }
 

@@ -149,12 +149,23 @@ export const paymentItemSchema = z.object({
   isPackageCovered: z.boolean().optional(),
 });
 
-export const completeVisitSchema = z.object({
+// Finishes the clinical part of a visit (in-consultation -> awaiting-payment)
+// without billing — see AppointmentsService.finishSession. Billing/payment
+// collection is a separate, later step (PaymentsService.completeVisit).
+export const finishSessionSchema = z.object({
   appointmentId: z.string().min(1, 'Appointment ID is required'),
   sessionNotes: z.string().optional(),
   followUp: z
     .enum(['none', '3-days', '1-week', '2-weeks', '1-month'])
     .default('none'),
+  // Injections/dressings/tests logged during the consultation — persisted
+  // now so they still make it into the bill whenever payment is collected.
+  givenItems: z.array(paymentItemSchema).optional(),
+});
+
+export const completeVisitSchema = z.object({
+  appointmentId: z.string().min(1, 'Appointment ID is required'),
+  sessionNotes: z.string().optional(),
   items: z
     .array(paymentItemSchema)
     .min(1, 'At least one billable item is required'),

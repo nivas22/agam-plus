@@ -7,8 +7,8 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser, CurrentHospitalUser } from '../auth/decorators/current-user.decorator';
 import type { JwtUser, HospitalUserProfile } from '../auth/decorators/current-user.decorator';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
-import { createAppointmentSchema, updateAppointmentSchema } from '../common/validation/schemas';
-import type { CreateAppointmentBody, UpdateAppointmentBody } from './appointments.types';
+import { createAppointmentSchema, updateAppointmentSchema, finishSessionSchema } from '../common/validation/schemas';
+import type { CreateAppointmentBody, UpdateAppointmentBody, FinishSessionBody } from './appointments.types';
 
 @Controller('hospitals/:id/appointments')
 @UseGuards(HospitalContextGuard, PermissionGuard)
@@ -68,6 +68,17 @@ export class AppointmentsController {
     @Body(new ZodValidationPipe(updateAppointmentSchema)) body: UpdateAppointmentBody,
   ) {
     return this.appointmentsService.updateAppointment(hospitalId, user, userProfile, body);
+  }
+
+  @Patch('finish-session')
+  @Roles('admin', 'doctor', 'front_desk', 'nurse')
+  finishSession(
+    @Param('id') hospitalId: string,
+    @CurrentUser() user: JwtUser,
+    @CurrentHospitalUser() userProfile: HospitalUserProfile,
+    @Body(new ZodValidationPipe(finishSessionSchema)) body: FinishSessionBody,
+  ) {
+    return this.appointmentsService.finishSession(hospitalId, user, userProfile, body);
   }
 
   @Delete()

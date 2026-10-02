@@ -55,7 +55,6 @@ export interface Payment {
 export interface CompleteVisitPayload {
   appointmentId: string;
   sessionNotes?: string;
-  followUp?: FollowUpOption;
   items: PaymentItem[];
   discount?: number;
   method: PaymentMethod;
@@ -67,6 +66,23 @@ export interface CompleteVisitPayload {
   dueReason?: string;
   sendReceiptWhatsApp?: boolean;
   usePackageVisit?: boolean;
+}
+
+// Finishes the clinical part of a visit (in-consultation -> awaiting-payment)
+// without billing. Collecting payment is a separate, later step — see
+// CompleteVisitPayload — which can happen immediately or much later, by the
+// doctor or front desk.
+export interface FinishSessionPayload {
+  appointmentId: string;
+  sessionNotes?: string;
+  followUp?: FollowUpOption;
+  givenItems?: PaymentItem[];
+}
+
+export interface FinishSessionResponse {
+  success: boolean;
+  message: string;
+  followUpAppointmentId?: string | null;
 }
 
 export interface CompleteVisitResponse {

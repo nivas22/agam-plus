@@ -310,6 +310,7 @@ export default function CalendarAppointmentsPage({
               <option value="all">All Status</option>
               <option value="pending">Pending</option>
               <option value="scheduled">Scheduled</option>
+              <option value="awaiting-payment">Awaiting Payment</option>
               <option value="completed">Completed</option>
               <option value="cancelled">Cancelled</option>
               <option value="no-show">No Show</option>

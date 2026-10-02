@@ -43,6 +43,7 @@ interface PatientQueueDrawerProps {
   onCheckIn: () => void;
   onSendIn: () => void;
   onComplete: () => void;
+  onFinishSession: () => void;
   onChangeDoctor: () => void;
   onReschedule: () => void;
   onCancel: () => void;
@@ -64,6 +65,7 @@ export default function PatientQueueDrawer({
   onCheckIn,
   onSendIn,
   onComplete,
+  onFinishSession,
   onChangeDoctor,
   onReschedule,
   onCancel,
@@ -94,11 +96,15 @@ export default function PatientQueueDrawer({
     norm === APPOINTMENT_STATUS.CONFIRMED ||
     norm === APPOINTMENT_STATUS.PENDING;
   const isInConsultation = norm === APPOINTMENT_STATUS.IN_CONSULTATION;
+  const isAwaitingPayment = norm === APPOINTMENT_STATUS.AWAITING_PAYMENT;
 
   const canChangeDoctor = isYetToArrive || isWaiting;
   const canReschedule = isYetToArrive;
   const canMarkNoShow = norm === APPOINTMENT_STATUS.CONFIRMED;
-  const canCancel = !isInConsultation && norm !== APPOINTMENT_STATUS.COMPLETED;
+  const canCancel =
+    !isInConsultation &&
+    !isAwaitingPayment &&
+    norm !== APPOINTMENT_STATUS.COMPLETED;
 
   // History comes from every appointment this patient has ever had, not just
   // today's — visits before today, most recent one, and no-show count.
@@ -348,10 +354,19 @@ export default function PatientQueueDrawer({
           {isInConsultation && (
             <button
               type="button"
-              onClick={onComplete}
+              onClick={onFinishSession}
               className="w-full h-10 rounded-lg bg-brand-violet hover:bg-brand-violet-hover text-white text-sm font-semibold transition-colors"
             >
-              Complete visit
+              Finish session
+            </button>
+          )}
+          {isAwaitingPayment && (
+            <button
+              type="button"
+              onClick={onComplete}
+              className="w-full h-10 rounded-lg bg-status-open hover:bg-status-open-hover text-white text-sm font-semibold transition-colors"
+            >
+              Collect payment
             </button>
           )}
           {isWaiting && (

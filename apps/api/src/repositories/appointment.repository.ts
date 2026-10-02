@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { ClientSession, Model } from 'mongoose';
-import { ACTIVE_APPOINTMENT_STATUSES } from '../constants';
+import { ACTIVE_APPOINTMENT_STATUSES, VISIT_FINISHED_STATUSES } from '../constants';
 import { ApiError } from '../common/errors/api-error';
 import {
   Appointment,
@@ -248,7 +248,7 @@ export class AppointmentRepository {
       .find({
         hospitalId,
         doctorProfileId,
-        status: 'completed',
+        status: { $in: VISIT_FINISHED_STATUSES },
         date: { $gte: sinceDate },
         $or: [{ sessionNotes: { $exists: false } }, { sessionNotes: '' }],
       })

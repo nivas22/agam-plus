@@ -9,6 +9,10 @@ import type {
   AppointmentResponse,
   AppointmentWithDetails,
 } from "@/types/appointment";
+import type {
+  FinishSessionPayload,
+  FinishSessionResponse,
+} from "@/types/payment";
 import { ACTIVE_APPOINTMENT_STATUSES, APPOINTMENT_STATUS } from "../constants";
 
 // Base API functions with hospital context
@@ -126,6 +130,29 @@ const appointmentsApiFunctions = {
     return response.json();
   },
 
+  // Finishes the clinical part of a visit (in-consultation -> awaiting-payment)
+  // without billing — see AppointmentsService.finishSession on the backend.
+  finishSession: async (
+    hospitalId: string,
+    payload: FinishSessionPayload,
+  ): Promise<FinishSessionResponse> => {
+    const response = await fetchWithAuth(
+      apiUrl(`/hospitals/${hospitalId}/appointments/finish-session`),
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      },
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || "Failed to finish the session");
+    }
+
+    return response.json();
+  },
+
   // Search appointments in hospital
   searchHospitalAppointments: async (
     hospitalId: string,
@@ -178,6 +205,7 @@ export const useHospitalAppointments = (
   hospitalId?: string,
   params?: URLSearchParams,
   userRole: string = "admin",
+  refetchIntervalMs?: number,
 ) => {
   const queryParams = useParams();
   const actualHospitalId = hospitalId || (queryParams.id as string);
@@ -195,6 +223,9 @@ export const useHospitalAppointments = (
         userRole,
       ),
     staleTime: 2 * 60 * 1000,
+    ...(refetchIntervalMs
+      ? { refetchInterval: refetchIntervalMs, refetchIntervalInBackground: true }
+      : {}),
     enabled: !!actualHospitalId && !!userRole,
     select: (data) => ({
       ...data,
@@ -357,6 +388,22 @@ export const useUpdateHospitalAppointmentStatus = (hospitalId?: string) => {
   });
 };
 
+export const useFinishSession = (hospitalId?: string) => {
+  const queryClient = useQueryClient();
+  const queryParams = useParams();
+  const actualHospitalId = hospitalId || (queryParams.id as string);
+
+  return useMutation({
+    mutationFn: (payload: FinishSessionPayload) =>
+      appointmentsApiFunctions.finishSession(actualHospitalId, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: appointmentsKeys.hospital(actualHospitalId),
+      });
+    },
+  });
+};
+
 export const useAddHospitalAppointment = (hospitalId?: string) => {
   const queryClient = useQueryClient();
   const queryParams = useParams();
@@ -415,6 +462,9 @@ export interface UseHospitalAppointmentsApiReturn {
   refetchTodayAppointments: () => Promise<void>;
   refetchUpcomingAppointments: () => Promise<void>;
   invalidateAppointments: () => void;
+  // Timestamp (ms since epoch) of the last successful appointments fetch —
+  // lets a "live" board show when it actually last heard from the server.
+  appointmentsUpdatedAt: number;
 }
 
 export function useHospitalAppointmentsApi(
@@ -422,6 +472,7 @@ export function useHospitalAppointmentsApi(
   userRole: string = "admin",
   canEdit: boolean = false,
   params?: URLSearchParams,
+  refetchIntervalMs?: number,
 ): UseHospitalAppointmentsApiReturn {
   const queryClient = useQueryClient();
   const queryParams = useParams();
@@ -432,8 +483,9 @@ export function useHospitalAppointmentsApi(
     data: appointmentData,
     isLoading: appointmentLoading,
     error: appointmentErrorMessage,
+    dataUpdatedAt: appointmentsUpdatedAt,
     refetch,
-  } = useHospitalAppointments(actualHospitalId, params, userRole);
+  } = useHospitalAppointments(actualHospitalId, params, userRole, refetchIntervalMs);
 
   const {
     data: todayAppointmentsData,
@@ -518,6 +570,8 @@ export function useHospitalAppointmentsApi(
         queryKey: appointmentsKeys.hospital(actualHospitalId),
       });
     },
+
+    appointmentsUpdatedAt,
   };
 }
 

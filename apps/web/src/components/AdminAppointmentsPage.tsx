@@ -14,7 +14,10 @@ import {
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { useHospitalAppointmentsApi } from "@/hooks/useNewAppointmentsApi";
+import {
+  useFinishSession,
+  useHospitalAppointmentsApi,
+} from "@/hooks/useNewAppointmentsApi";
 import { useHospitalDoctors } from "@/hooks/useNewDoctorApi";
 import { useHospitalPatients } from "@/hooks/useNewPatientApi";
 import { paletteFor } from "@/lib/avatarPalette";
@@ -80,6 +83,11 @@ const STATUS_CONFIG: Record<
     badge: "bg-brand-violet text-white",
     stripe: "bg-brand-violet",
   },
+  [APPOINTMENT_STATUS.AWAITING_PAYMENT]: {
+    label: "Awaiting payment",
+    badge: "bg-status-warning-soft text-status-warning",
+    stripe: "bg-status-warning",
+  },
   [APPOINTMENT_STATUS.COMPLETED]: {
     label: "Completed",
     badge: "bg-surface-canvas text-ink-500",
@@ -128,7 +136,11 @@ const NEXT_STEP: Partial<Record<string, { label: string; status: string }>> = {
     status: APPOINTMENT_STATUS.IN_CONSULTATION,
   },
   [APPOINTMENT_STATUS.IN_CONSULTATION]: {
-    label: "Complete",
+    label: "Finish session",
+    status: APPOINTMENT_STATUS.AWAITING_PAYMENT,
+  },
+  [APPOINTMENT_STATUS.AWAITING_PAYMENT]: {
+    label: "Collect payment",
     status: APPOINTMENT_STATUS.COMPLETED,
   },
 };
@@ -155,6 +167,7 @@ const STATUS_TOAST: Partial<Record<string, string>> = {
   [APPOINTMENT_STATUS.CHECKED_IN]: "Patient checked in",
   [APPOINTMENT_STATUS.WAITING]: "Patient moved to the waiting queue",
   [APPOINTMENT_STATUS.IN_CONSULTATION]: "Consultation started",
+  [APPOINTMENT_STATUS.AWAITING_PAYMENT]: "Session finished — ready for payment",
   [APPOINTMENT_STATUS.COMPLETED]: "Appointment marked as completed",
   [APPOINTMENT_STATUS.CANCELLED]: "Appointment cancelled",
   [APPOINTMENT_STATUS.NO_SHOW]: "Appointment marked as no-show",
@@ -539,11 +552,31 @@ export default function AppointmentsPage({
     [updateAppointmentStatus, refetchAppointments, showToast],
   );
 
+  // Finishes the clinical part of a visit (in-consultation -> awaiting
+  // payment) without billing — no dialog, no session-notes draft to carry
+  // over here; whatever the doctor already saved stays intact. Collecting
+  // payment is a separate, later step — see openCompleteFlow below.
+  const finishSession = useFinishSession(hospitalId);
+  const handleFinishSession = useCallback(
+    async (appt: AppointmentWithDetails) => {
+      try {
+        await finishSession.mutateAsync({ appointmentId: appt.id });
+        showToast(STATUS_TOAST[APPOINTMENT_STATUS.AWAITING_PAYMENT]!);
+        await refetchAppointments();
+      } catch (err) {
+        showToast(
+          err instanceof Error ? err.message : "Couldn't finish the session",
+        );
+      }
+    },
+    [finishSession, refetchAppointments, showToast],
+  );
+
   // A row's primary action always moves it exactly one step forward — except
-  // "Complete", which needs session notes first, so it opens that modal
-  // instead, and "Check in": a different day is a hard stop (nothing to
-  // confirm — that appointment isn't today's business), while same-day but
-  // still-early just asks for confirmation, since the booking could be a
+  // "Collect payment", which needs billing details first, so it opens that
+  // dialog instead, and "Check in": a different day is a hard stop (nothing
+  // to confirm — that appointment isn't today's business), while same-day
+  // but still-early just asks for confirmation, since the booking could be a
   // genuinely early arrival.
   const advanceAppointment = useCallback(
     (appt: AppointmentWithDetails) => {
@@ -551,6 +584,8 @@ export default function AppointmentsPage({
       if (!step) return;
       if (step.status === APPOINTMENT_STATUS.COMPLETED) {
         openCompleteFlow(appt);
+      } else if (step.status === APPOINTMENT_STATUS.AWAITING_PAYMENT) {
+        handleFinishSession(appt);
       } else if (
         step.status === APPOINTMENT_STATUS.CHECKED_IN &&
         appt.date !== toISODate(new Date())
@@ -565,7 +600,7 @@ export default function AppointmentsPage({
         handleUpdateStatus(appt.id, step.status);
       }
     },
-    [handleUpdateStatus, openCompleteFlow],
+    [handleUpdateStatus, openCompleteFlow, handleFinishSession],
   );
 
   // Shared success handler for the change-doctor / reschedule / cancel / no-show dialogs.
@@ -625,6 +660,7 @@ export default function AppointmentsPage({
     const canCancel = isActiveStatus(appt.status);
     // Once every active-state action has its own explicit button, only terminal rows still need the details modal.
     const openableViaRow =
+      appt.status === APPOINTMENT_STATUS.AWAITING_PAYMENT ||
       appt.status === APPOINTMENT_STATUS.COMPLETED ||
       appt.status === APPOINTMENT_STATUS.CANCELLED ||
       appt.status === APPOINTMENT_STATUS.NO_SHOW;
@@ -695,15 +731,17 @@ export default function AppointmentsPage({
                 {nextStep.label}
               </button>
             )}
-            {canEdit && appt.status === APPOINTMENT_STATUS.COMPLETED && (
-              <button
-                type="button"
-                onClick={() => openDetailsModal(appt)}
-                className="h-8 px-3 rounded-lg border border-border text-xs font-medium text-ink-700 hover:bg-surface-canvas transition-colors"
-              >
-                Visit notes
-              </button>
-            )}
+            {canEdit &&
+              (appt.status === APPOINTMENT_STATUS.AWAITING_PAYMENT ||
+                appt.status === APPOINTMENT_STATUS.COMPLETED) && (
+                <button
+                  type="button"
+                  onClick={() => openDetailsModal(appt)}
+                  className="h-8 px-3 rounded-lg border border-border text-xs font-medium text-ink-700 hover:bg-surface-canvas transition-colors"
+                >
+                  Visit notes
+                </button>
+              )}
             {canEdit &&
               (appt.status === APPOINTMENT_STATUS.CANCELLED ||
                 appt.status === APPOINTMENT_STATUS.NO_SHOW) && (

@@ -70,15 +70,26 @@ export interface QueueLane {
   waitingOrder: OrderedQueueEntry[];
   yetToArrive: AppointmentWithDetails[];
   overdue: AppointmentWithDetails[];
+  // Clinically finished, payment not yet collected — the doctor (or whoever
+  // finished the session) moved on; billing is a separate, later step that
+  // can happen immediately or be left for front desk.
+  awaitingPayment: AppointmentWithDetails[];
+  // Fully closed — payment collected. Strictly APPOINTMENT_STATUS.COMPLETED;
+  // use `awaitingPayment` too wherever "this visit happened" (not "is fully
+  // billed") is what's meant.
   done: AppointmentWithDetails[];
   all: AppointmentWithDetails[];
 }
 
 // Patients still needing the doctor's attention today — excludes completed,
-// cancelled, and no-show appointments.
+// cancelled, and no-show appointments. Awaiting-payment patients are still
+// on-site/need checkout, so they count as active.
 export function activePatientCount(lane: QueueLane): number {
   return (
-    lane.inConsultation.length + lane.waiting.length + lane.yetToArrive.length
+    lane.inConsultation.length +
+    lane.waiting.length +
+    lane.yetToArrive.length +
+    lane.awaitingPayment.length
   );
 }
 
@@ -124,6 +135,10 @@ export function buildLanes(
     const overdue = yetToArrive.filter(
       (a) => minutesElapsed(apptDateTime(a), now) >= OVERDUE_GRACE_MINUTES,
     );
+    const awaitingPayment = all.filter(
+      (a) =>
+        normalizeStatus(a.status) === APPOINTMENT_STATUS.AWAITING_PAYMENT,
+    );
     const done = all.filter(
       (a) => normalizeStatus(a.status) === APPOINTMENT_STATUS.COMPLETED,
     );
@@ -134,6 +149,7 @@ export function buildLanes(
       waitingOrder,
       yetToArrive,
       overdue,
+      awaitingPayment,
       done,
       all,
     };
@@ -247,6 +263,7 @@ const COUNTS_TOWARD_CAPACITY = new Set<string>([
   APPOINTMENT_STATUS.CHECKED_IN,
   APPOINTMENT_STATUS.WAITING,
   APPOINTMENT_STATUS.IN_CONSULTATION,
+  APPOINTMENT_STATUS.AWAITING_PAYMENT,
   APPOINTMENT_STATUS.COMPLETED,
 ]);
 
@@ -438,6 +455,13 @@ export function laneStatus(lane: QueueLane, now: Date): LaneStatus {
     return { label: "On time", tone: "ok" };
   }
 
+  // Clinically done for the day, but a visit still needs its payment
+  // collected — keep this lane out of "Session over" until that's cleared,
+  // so front desk doesn't lose track of it.
+  if (lane.awaitingPayment.length > 0) {
+    return { label: "Payment pending", tone: "ok" };
+  }
+
   const availability = doctorAvailabilityNow(lane.doctor, now);
   return {
     label: availability.label,
@@ -456,7 +480,7 @@ export function earliestConsultationStart(lane: QueueLane): Date | null {
   // Appointments with no consultationStartedAt are skipped outright rather
   // than passed through stageStart, which would default to `updatedAt` and
   // report the doctor's last unrelated save as their arrival time.
-  const candidates = [...lane.inConsultation, ...lane.done]
+  const candidates = [...lane.inConsultation, ...lane.awaitingPayment, ...lane.done]
     .filter((a) => !!a.consultationStartedAt)
     .map((a) => new Date(a.consultationStartedAt as string))
     .filter((d) => !Number.isNaN(d.getTime()));

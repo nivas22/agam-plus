@@ -150,6 +150,7 @@ export default function PatientProfilePage({
       appointments
         .filter((a) =>
           [
+            APPOINTMENT_STATUS.AWAITING_PAYMENT,
             APPOINTMENT_STATUS.COMPLETED,
             APPOINTMENT_STATUS.NO_SHOW,
             APPOINTMENT_STATUS.CANCELLED,
@@ -203,7 +204,9 @@ export default function PatientProfilePage({
       (a) => a.status !== APPOINTMENT_STATUS.CANCELLED,
     ).length;
     const lastCompleted = pastAppointments.find(
-      (a) => a.status === APPOINTMENT_STATUS.COMPLETED,
+      (a) =>
+        a.status === APPOINTMENT_STATUS.AWAITING_PAYMENT ||
+        a.status === APPOINTMENT_STATUS.COMPLETED,
     );
     const lifetimeBilled = payments.reduce((sum, p) => sum + p.total, 0);
     const collected = payments.reduce((sum, p) => sum + collectedAmount(p), 0);
@@ -692,6 +695,8 @@ function VisitRow({
   const box = dateBoxParts(appointment.date);
   const isNoShow = appointment.status === APPOINTMENT_STATUS.NO_SHOW;
   const isCancelled = appointment.status === APPOINTMENT_STATUS.CANCELLED;
+  const isAwaitingPayment =
+    appointment.status === APPOINTMENT_STATUS.AWAITING_PAYMENT;
 
   return (
     <div className="grid grid-cols-[62px_1fr_auto] gap-3.5 px-4 py-3.5 border-t border-border first:border-t-0">
@@ -724,7 +729,9 @@ function VisitRow({
               ? "cancelled"
               : payment
                 ? `completed · ${payment.invoiceNumber}`
-                : "completed"}
+                : isAwaitingPayment
+                  ? "awaiting payment"
+                  : "completed"}
         </div>
         {appointment.sessionNotes && (
           <div className="text-[12.5px] text-ink-700 bg-surface-canvas/40 border border-border rounded-lg px-2.5 py-2 mt-2 leading-relaxed">
@@ -765,8 +772,20 @@ function VisitRow({
                 : `Paid · ${payment.method === PAYMENT_METHOD.SPLIT ? "Split" : payment.method.toUpperCase()}`}
           </span>
         ) : (
-          <span className="inline-block mt-1 rounded-md px-2 py-0.5 text-[11px] font-semibold bg-surface-canvas text-ink-500">
-            {isNoShow ? "No-show" : isCancelled ? "Cancelled" : "—"}
+          <span
+            className={`inline-block mt-1 rounded-md px-2 py-0.5 text-[11px] font-semibold ${
+              isAwaitingPayment
+                ? "bg-status-warning-soft text-status-warning"
+                : "bg-surface-canvas text-ink-500"
+            }`}
+          >
+            {isNoShow
+              ? "No-show"
+              : isCancelled
+                ? "Cancelled"
+                : isAwaitingPayment
+                  ? "Awaiting payment"
+                  : "—"}
           </span>
         )}
       </div>
