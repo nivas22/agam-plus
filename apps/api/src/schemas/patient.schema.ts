@@ -9,6 +9,13 @@ export class Patient {
   @Prop({ index: true })
   userId?: string;
 
+  // Links this hospital-scoped record to the patient's global, phone-verified
+  // PatientAccount identity (the patient app) — null until the patient
+  // verifies via OTP with a matching phone, or was already verified when
+  // this record was created. See PatientAccount for the account itself.
+  @Prop({ index: true })
+  patientAccountId?: string;
+
   @Prop({ required: true, index: true })
   hospitalId: string;
 
@@ -18,8 +25,8 @@ export class Patient {
   @Prop({ required: true })
   name: string;
 
-  @Prop({ required: true, index: true })
-  email: string;
+  @Prop({ index: true })
+  email?: string;
 
   @Prop({ required: true })
   phone: string;
@@ -46,6 +53,15 @@ export class Patient {
   // Medicine's classes/name by PrescriptionsService's allergy check.
   @Prop({ type: [String], default: [] })
   allergies?: string[];
+
+  // Manually-entered structured tags, same free-text-tag pattern as
+  // allergies — no real labs/conditions integration behind these, just
+  // doctor/desk-entered context shown as badges on the prescription writer.
+  @Prop({ type: [String], default: [] })
+  conditions?: string[];
+
+  @Prop({ type: [String], default: [] })
+  flags?: string[];
 
   @Prop({ default: 'active', index: true })
   status?: string;

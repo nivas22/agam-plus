@@ -1,9 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { DB_COLLECTIONS, MEMBERSHIP_STATUS, ROLE } from '../constants';
+import { DB_COLLECTIONS, MEMBERSHIP_STATUS, ROLE, SUBSCRIPTION_FEATURE } from '../constants';
 import { UserRepository } from '../repositories/user.repository';
 import { HospitalRepository } from '../repositories/hospital.repository';
 import { MembershipRepository } from '../repositories/membership.repository';
 import { DashboardRepository } from '../repositories/dashboard.repository';
+import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { ApiError } from '../common/errors/api-error';
 
 @Injectable()
@@ -13,7 +14,84 @@ export class PlatformAdminService {
     private readonly hospitalRepository: HospitalRepository,
     private readonly membershipRepository: MembershipRepository,
     private readonly dashboardRepository: DashboardRepository,
+    private readonly subscriptionsService: SubscriptionsService,
   ) {}
+
+  confirmSubscriptionPayment(invoiceId: string, platformAdmin: { userId: string; name: string }) {
+    return this.subscriptionsService.confirmPayment(invoiceId, {
+      userId: platformAdmin.userId,
+      name: platformAdmin.name,
+      role: 'platform_admin',
+    });
+  }
+
+  setSubscriptionExempt(hospitalId: string, exempt: boolean, platformAdmin: { userId: string; name: string }) {
+    return this.subscriptionsService.setExempt(hospitalId, exempt, {
+      userId: platformAdmin.userId,
+      name: platformAdmin.name,
+      role: 'platform_admin',
+    });
+  }
+
+  setSubscriptionCancelled(hospitalId: string, cancelled: boolean, platformAdmin: { userId: string; name: string }) {
+    return this.subscriptionsService.setCancelled(hospitalId, cancelled, {
+      userId: platformAdmin.userId,
+      name: platformAdmin.name,
+      role: 'platform_admin',
+    });
+  }
+
+  getSubscriptionSummary(hospitalId: string) {
+    return this.subscriptionsService.getBillingSummary(hospitalId);
+  }
+
+  setSubscriptionFeature(
+    hospitalId: string,
+    feature: SUBSCRIPTION_FEATURE,
+    enabled: boolean,
+    platformAdmin: { userId: string; name: string },
+  ) {
+    return this.subscriptionsService.setFeatureFlag(hospitalId, feature, enabled, {
+      userId: platformAdmin.userId,
+      name: platformAdmin.name,
+      role: 'platform_admin',
+    });
+  }
+
+  getPlanConfig() {
+    return this.subscriptionsService.getPlanConfig();
+  }
+
+  updatePlanConfig(data: Record<string, any>, userId: string) {
+    return this.subscriptionsService.updatePlanConfig(data, userId);
+  }
+
+  // Platform Admin > Subscriptions overview — one row per hospital, reusing
+  // getBillingSummary (which already lazily provisions a subscription for a
+  // hospital that predates this feature) rather than a separate bulk query.
+  async listSubscriptions() {
+    const hospitals = await this.hospitalRepository.getAllHospitals();
+
+    return Promise.all(
+      hospitals.map(async (hospital: any) => {
+        const { subscription, amounts, invoices } = await this.subscriptionsService.getBillingSummary(hospital.id);
+        const pendingInvoice =
+          invoices.find((invoice: any) => invoice.status === 'due' || invoice.status === 'payment_submitted') || null;
+
+        return {
+          hospitalId: hospital.id,
+          hospitalName: hospital.name,
+          billingCycle: subscription.billingCycle,
+          status: subscription.status,
+          doctorCount: subscription.doctorCount,
+          staffCount: subscription.staffCount,
+          totalAmount: amounts.totalAmount,
+          features: subscription.features,
+          pendingInvoice,
+        };
+      }),
+    );
+  }
 
   async getStats() {
     const [hospitals, users, doctors, patients, appointments] = await Promise.all([
@@ -86,7 +164,6 @@ export class PlatformAdminService {
     await this.membershipRepository.createHospitalMembership({
       hospitalId,
       userId: (user as any).id,
-      firebaseUid: (user as any).firebaseUid,
       role: ROLE.ADMIN,
       status: MEMBERSHIP_STATUS.APPROVED,
       invitedBy: invitedByUserId,

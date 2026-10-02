@@ -15,6 +15,7 @@ import { HospitalContextGuard } from '../auth/guards/hospital-context.guard';
 import { PermissionGuard } from '../permissions/guards/permission.guard';
 import { RequirePermission } from '../permissions/decorators/require-permission.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { RequiresFeature } from '../auth/decorators/requires-feature.decorator';
 import {
   CurrentUser,
   CurrentHospitalUser,
@@ -34,10 +35,12 @@ import type {
   SellPackageBody,
   ExtendPackageBody,
 } from './packages.types';
+import { SUBSCRIPTION_FEATURE } from '../constants';
 
 @Controller('hospitals/:id/packages')
 @UseGuards(HospitalContextGuard, PermissionGuard)
 @Roles('admin', 'doctor', 'front_desk')
+@RequiresFeature(SUBSCRIPTION_FEATURE.PACKAGES)
 export class PackagesController {
   constructor(private readonly packagesService: PackagesService) {}
 

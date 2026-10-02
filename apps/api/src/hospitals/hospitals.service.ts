@@ -6,8 +6,9 @@ import { DoctorRepository } from '../repositories/doctor.repository';
 import { PatientRepository } from '../repositories/patient.repository';
 import { DashboardRepository } from '../repositories/dashboard.repository';
 import { UserRepository } from '../repositories/user.repository';
+import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { ApiError } from '../common/errors/api-error';
-import { DB_COLLECTIONS, ROLE } from '../constants';
+import { DB_COLLECTIONS, ROLE, VISIT_FINISHED_STATUSES } from '../constants';
 import { getDateCategory } from '../utils/dateUtils';
 import { JwtUser } from '../auth/decorators/current-user.decorator';
 import { AdminDashboardData, DoctorDashboardData } from '../types/dashboard';
@@ -44,6 +45,7 @@ export class HospitalsService {
     private readonly patientRepository: PatientRepository,
     private readonly dashboardRepository: DashboardRepository,
     private readonly userRepository: UserRepository,
+    private readonly subscriptionsService: SubscriptionsService,
   ) {}
 
   async getAllHospitals() {
@@ -60,19 +62,20 @@ export class HospitalsService {
       description: body.description,
     });
 
+    await this.subscriptionsService.provisionForNewHospital(hospital.id, body.billingCycle, body.trialDays);
+
     const adminEmails: string[] = Array.isArray(body.adminEmails) ? body.adminEmails : [];
     const uniqueAdminEmails = [...new Set(adminEmails.map((email) => email.trim().toLowerCase()).filter(Boolean))];
 
     // Admins are provisioned by email rather than defaulting to the creator —
     // the platform admin creating the hospital isn't necessarily who runs it.
     // A User doc is created up front for anyone who hasn't signed in yet; it
-    // gets linked to their firebaseUid on first Google login (see AuthService.login).
+    // gets linked to their Google account on first login (see AuthService.login).
     for (const email of uniqueAdminEmails) {
       const adminUser = await this.userRepository.getOrCreateUserByEmail(email);
       await this.membershipRepository.createHospitalMembership({
         hospitalId: hospital.id,
         userId: adminUser.id,
-        firebaseUid: adminUser.firebaseUid,
         role: ROLE.ADMIN,
         status: 'approved',
         invitedBy: user.userId,
@@ -106,6 +109,17 @@ export class HospitalsService {
     return this.hospitalRepository.updateHospital(hospitalId, updateData);
   }
 
+  async getSpecializations(hospitalId: string) {
+    const hospital = await this.getHospitalById(hospitalId);
+    return { specializations: hospital.specializations || [] };
+  }
+
+  async updateSpecializations(hospitalId: string, specializations: string[]) {
+    const deduped = [...new Set(specializations.map((s) => s.trim()).filter(Boolean))];
+    const hospital = await this.hospitalRepository.updateHospital(hospitalId, { specializations: deduped });
+    return { specializations: hospital.specializations || [] };
+  }
+
   async deleteHospital(hospitalId: string) {
     const hospital = await this.hospitalRepository.getHospitalById(hospitalId);
     if (!hospital) {
@@ -129,7 +143,6 @@ export class HospitalsService {
 
     await this.membershipRepository.createHospitalMembership({
       hospitalId,
-      firebaseUid: user.uid,
       userId: user.userId,
       role: role || ROLE.DOCTOR,
       status: 'pending',
@@ -144,7 +157,6 @@ export class HospitalsService {
       await this.doctorRepository.upsertDoctorProfile(user.userId, {
         name: user.name || '',
         email: user.email || '',
-        firebaseUid: user.uid,
         createdAt: new Date(),
         specialties: [],
         bio: '',
@@ -242,7 +254,7 @@ export class HospitalsService {
 
       const [todaysAppointments, completedAppointments, pendingAppointments, totalPatients, upcomingAppointmentsRaw] = await Promise.all([
         this.dashboardRepository.countDoctorAppointments(hospitalId, doctorId, todayStartISO, todayEndISO, 'scheduled'),
-        this.dashboardRepository.countDoctorAppointments(hospitalId, doctorId, todayStartISO, todayEndISO, 'completed'),
+        this.dashboardRepository.countDoctorAppointments(hospitalId, doctorId, todayStartISO, todayEndISO, VISIT_FINISHED_STATUSES),
         this.dashboardRepository.countDoctorAppointments(hospitalId, doctorId, todayStartISO, todayEndISO, 'pending'),
         this.dashboardRepository.getDoctorPatientCount(hospitalId, doctorId),
         this.dashboardRepository.getDoctorUpcomingAppointments(hospitalId, doctorId),

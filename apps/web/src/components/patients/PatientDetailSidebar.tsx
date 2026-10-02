@@ -244,15 +244,25 @@ export default function PatientDetailSidebar({
                 {patientAppointments.slice(1, 4).map((appt, index) => (
                   <div
                     key={appt.id || index}
-                    className="bg-surface-canvas rounded-lg p-2.5 border border-border"
+                    className="bg-surface-canvas rounded-lg p-2.5 border border-border flex items-center gap-3"
                   >
-                    <div className="text-sm font-medium text-ink-900 font-mono tabular">
-                      {formatAppointmentDate(appt.date).date}
+                    <div className="bg-surface-paper rounded-lg shadow-sm px-2 py-1 text-center shrink-0">
+                      <div className="text-ink-900 font-bold text-sm leading-none font-mono tabular">
+                        {formatAppointmentDate(appt.date).day}
+                      </div>
+                      <div className="text-ink-500 text-[9px] uppercase leading-none mt-0.5">
+                        {formatAppointmentDate(appt.date).month}
+                      </div>
                     </div>
-                    <div className="text-xs text-ink-500 flex items-center gap-1 mt-0.5">
-                      <Clock className="w-3 h-3 shrink-0" />
-                      {appt.time}
-                      {appt.doctor?.name && ` · Dr. ${appt.doctor.name}`}
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium text-ink-900 truncate font-mono tabular">
+                        {formatAppointmentDate(appt.date).date}
+                      </div>
+                      <div className="text-xs text-ink-500 flex items-center gap-1 mt-0.5">
+                        <Clock className="w-3 h-3 shrink-0" />
+                        {appt.time}
+                        {appt.doctor?.name && ` · Dr. ${appt.doctor.name}`}
+                      </div>
                     </div>
                   </div>
                 ))}

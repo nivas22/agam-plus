@@ -308,7 +308,9 @@ export default function CalendarAppointmentsPage({
               className="px-4 py-2 border border-border rounded-lg focus:ring-2 focus:ring-brand-violet focus:border-brand-violet bg-surface-paper"
             >
               <option value="all">All Status</option>
+              <option value="pending">Pending</option>
               <option value="scheduled">Scheduled</option>
+              <option value="awaiting-payment">Awaiting Payment</option>
               <option value="completed">Completed</option>
               <option value="cancelled">Cancelled</option>
               <option value="no-show">No Show</option>

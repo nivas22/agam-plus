@@ -67,6 +67,29 @@ export class HospitalMember {
 
   @Prop()
   patientsPerSlot?: number;
+
+  // Walk-in carve-out settings, all hospital-scoped like the fields above.
+  @Prop()
+  acceptWalkIns?: boolean;
+
+  @Prop()
+  heldSlotsPerSession?: number;
+
+  // Minutes before a session's end that unclaimed held slots open up to online
+  // booking; null means they're never released automatically. Explicit
+  // `type: Number` because @nestjs/mongoose can't infer a type from a union
+  // via reflection (design:type metadata collapses `number | null` to Object).
+  @Prop({ type: Number, default: null })
+  releaseHeldSlotsBeforeMinutes?: number | null;
+
+  @Prop({ enum: ['allow', 'warn', 'block'] })
+  overCapacityPolicy?: string;
+
+  @Prop()
+  lateArrivalGraceMinutes?: number;
+
+  @Prop()
+  noShowReleaseMinutes?: number;
 }
 
 export const HospitalMemberSchema = SchemaFactory.createForClass(HospitalMember);

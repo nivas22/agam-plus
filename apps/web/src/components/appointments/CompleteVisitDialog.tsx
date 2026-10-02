@@ -18,14 +18,9 @@ import { useCompleteVisit } from "@/hooks/useNewPaymentApi";
 import { useChargeCatalogItems } from "@/hooks/useChargeCatalogApi";
 import { useAuth } from "@/hooks/useAuth";
 import type { AppointmentWithDetails } from "@/types/appointment";
-import type {
-  FollowUpOption,
-  PaymentItem,
-  PaymentMethod,
-} from "@/types/payment";
+import type { PaymentItem, PaymentMethod } from "@/types/payment";
 import {
   APPOINTMENT_TYPE,
-  FOLLOW_UP_OPTIONS,
   PAYMENT_DUE_REASONS,
   PAYMENT_METHOD,
 } from "../../constants";
@@ -51,11 +46,6 @@ interface CompleteVisitDialogProps {
   patientCode?: string;
   collectedByName?: string;
   updateAppointmentStatus: UpdateStatusFn;
-  // Lets a caller that already collected these live (e.g. the doctor's Today
-  // console) carry that work into the dialog instead of losing it.
-  initialSessionNotes?: string;
-  initialFollowUp?: FollowUpOption;
-  initialExtraItems?: PaymentItem[];
   onClose: () => void;
   onSuccess: (message: string) => void;
 }
@@ -141,17 +131,11 @@ export default function CompleteVisitDialog({
   patientCode,
   collectedByName,
   updateAppointmentStatus,
-  initialSessionNotes,
-  initialFollowUp,
-  initialExtraItems,
   onClose,
   onSuccess,
 }: CompleteVisitDialogProps) {
   const [sessionNotes, setSessionNotes] = useState(
-    initialSessionNotes ?? appointment.sessionNotes ?? "",
-  );
-  const [followUp, setFollowUp] = useState<FollowUpOption>(
-    initialFollowUp ?? "none",
+    appointment.sessionNotes ?? "",
   );
   const [items, setItems] = useState<PaymentItem[]>([
     {
@@ -160,7 +144,10 @@ export default function CompleteVisitDialog({
       unitPrice: consultationFee ?? 0,
       isAuto: true,
     },
-    ...(initialExtraItems ?? []),
+    // Injections/dressings/tests the doctor logged during the consultation
+    // (finishSession persists these onto the appointment) — carried into the
+    // bill regardless of who collects payment, or when.
+    ...((appointment.givenItems as PaymentItem[] | undefined) ?? []),
   ]);
   const [newItemName, setNewItemName] = useState("");
   const [newItemPrice, setNewItemPrice] = useState("");
@@ -179,6 +166,13 @@ export default function CompleteVisitDialog({
 
   const completeVisit = useCompleteVisit(hospitalId);
   const { isDoctor } = useAuth();
+  const [collectedByRole, setCollectedByRole] = useState<"doctor" | "frontdesk">(
+    isDoctor ? "doctor" : "frontdesk",
+  );
+  const resolvedCollectedBy =
+    collectedByRole === "doctor"
+      ? doctorName || (isDoctor ? collectedByName : undefined) || "Doctor"
+      : (!isDoctor ? collectedByName : undefined) || "Front desk";
   const { data: chargeCatalogData } = useChargeCatalogItems(hospitalId, { status: "active" });
   const quickAddItems = (chargeCatalogData?.items || []).filter(
     (item) => isDoctor || item.frontDeskCanAdd,
@@ -291,13 +285,14 @@ export default function CompleteVisitDialog({
       const result = await completeVisit.mutateAsync({
         appointmentId: appointment.id,
         sessionNotes: sessionNotes || undefined,
-        followUp,
         items,
         discount,
         method,
         amountTendered: method === PAYMENT_METHOD.CASH ? tendered : undefined,
         collectedBy:
-          method === PAYMENT_METHOD.CASH ? collectedByName : undefined,
+          method === PAYMENT_METHOD.CASH || method === PAYMENT_METHOD.SPLIT
+            ? resolvedCollectedBy
+            : undefined,
         upiReference:
           method === PAYMENT_METHOD.UPI ? upiReference || undefined : undefined,
         splitCashAmount:
@@ -312,7 +307,7 @@ export default function CompleteVisitDialog({
       onClose();
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Failed to complete the visit",
+        err instanceof Error ? err.message : "Failed to collect payment",
       );
     }
   };
@@ -330,7 +325,7 @@ export default function CompleteVisitDialog({
     <DialogShell
       icon={<ReceiptText className="w-4.5 h-4.5" />}
       iconTone="bg-status-open-soft text-status-open"
-      title={`Complete visit — ${appointment.patientName}`}
+      title={`Collect payment — ${appointment.patientName}`}
       subtitle={doctorName ? `Dr. ${doctorName}` : undefined}
       onClose={onClose}
       size="lg"
@@ -394,27 +389,6 @@ export default function CompleteVisitDialog({
             rows={7}
             className="w-full p-3 border border-border rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-brand-violet/20 focus:border-brand-violet"
           />
-
-          <div className="mt-4">
-            <label className="text-xs font-semibold text-ink-700 mb-1 block">
-              Follow-up{" "}
-              <span className="font-normal text-ink-500">optional</span>
-            </label>
-            <select
-              value={followUp}
-              onChange={(e) => setFollowUp(e.target.value as FollowUpOption)}
-              className="w-full h-10 px-3 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-brand-violet/20 focus:border-brand-violet"
-            >
-              {FOLLOW_UP_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-            <p className="text-[11.5px] text-ink-500 mt-1.5">
-              Creates a draft appointment the front desk can confirm.
-            </p>
-          </div>
         </div>
 
         {/* billing */}
@@ -687,8 +661,22 @@ export default function CompleteVisitDialog({
                       <label className="text-xs font-semibold text-ink-700 mb-1 block">
                         Collected by
                       </label>
-                      <div className="h-9 px-2.5 flex items-center border border-border rounded-lg text-sm bg-surface-canvas text-ink-700 truncate">
-                        {collectedByName || "—"}
+                      <div className="grid grid-cols-2 gap-1.5">
+                        {(["doctor", "frontdesk"] as const).map((role) => (
+                          <button
+                            key={role}
+                            type="button"
+                            onClick={() => setCollectedByRole(role)}
+                            aria-pressed={collectedByRole === role}
+                            className={`h-9 px-2 rounded-lg border text-xs font-medium truncate transition-colors ${
+                              collectedByRole === role
+                                ? "border-brand-violet bg-brand-violet-soft text-brand-violet"
+                                : "border-border text-ink-700 hover:border-ink-500/40"
+                            }`}
+                          >
+                            {role === "doctor" ? "Doctor" : "Front desk"}
+                          </button>
+                        ))}
                       </div>
                     </div>
                   </div>
@@ -775,6 +763,27 @@ export default function CompleteVisitDialog({
                       ? `Adds up to ${money(total)}`
                       : `Does not add up to ${money(total)}`}
                   </p>
+
+                  <label className="text-xs font-semibold text-ink-700 mb-1 mt-3 block">
+                    Collected by
+                  </label>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {(["doctor", "frontdesk"] as const).map((role) => (
+                      <button
+                        key={role}
+                        type="button"
+                        onClick={() => setCollectedByRole(role)}
+                        aria-pressed={collectedByRole === role}
+                        className={`h-9 px-2 rounded-lg border text-xs font-medium truncate transition-colors ${
+                          collectedByRole === role
+                            ? "border-brand-violet bg-brand-violet-soft text-brand-violet"
+                            : "border-border text-ink-700 hover:border-ink-500/40"
+                        }`}
+                      >
+                        {role === "doctor" ? "Doctor" : "Front desk"}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
 

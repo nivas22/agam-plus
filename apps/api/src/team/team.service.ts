@@ -9,7 +9,9 @@ import { ApprovalRequestRepository } from '../repositories/approval-request.repo
 import { PermissionsService } from '../permissions/permissions.service';
 import { AuditService } from '../audit/audit.service';
 import { EmailService } from '../email/email.service';
+import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { ApiError } from '../common/errors/api-error';
+import { generateTempPassword } from '../common/password.util';
 import { HospitalUserProfile } from '../auth/decorators/current-user.decorator';
 import { MEMBERSHIP_STATUS } from '../constants';
 import { TEAM_ASSIGNABLE_ROLES } from '../permissions/permission-catalog';
@@ -17,6 +19,8 @@ import { TEAM_ASSIGNABLE_ROLES } from '../permissions/permission-catalog';
 interface CreateTeamMemberData {
   name: string;
   email: string;
+  username: string;
+  password: string;
   phone: string;
   role: string;
   shift?: string;
@@ -38,6 +42,7 @@ export class TeamService {
     private readonly permissionsService: PermissionsService,
     private readonly auditService: AuditService,
     private readonly emailService: EmailService,
+    private readonly subscriptionsService: SubscriptionsService,
   ) {}
 
   async listMembers(hospitalId: string) {
@@ -90,11 +95,34 @@ export class TeamService {
       }
     }
 
+    // Username is the login handle and must be globally unique across all users.
+    const existingUsernameOwner = await this.userRepository.getUserByUsername(data.username);
+    if (existingUsernameOwner && (!existingUser || (existingUsernameOwner as any).id !== existingUserId)) {
+      throw ApiError.conflict(`Username ${data.username} is already in use`);
+    }
+
     let userId: string;
     if (!existingUser) {
-      userId = await this.userRepository.createUser({ email: data.email, name: data.name });
+      const passwordHash = await bcrypt.hash(data.password, 10);
+      userId = await this.userRepository.createUser({
+        email: data.email,
+        name: data.name,
+        username: data.username,
+        passwordHash,
+        mustChangePassword: true,
+      });
     } else {
       userId = existingUserId;
+      // Same person already has a User doc (e.g. added at another hospital first) —
+      // only set their login credentials if they don't already have one.
+      if (!(existingUser as any).username) {
+        const passwordHash = await bcrypt.hash(data.password, 10);
+        await this.userRepository.updateUser(userId, {
+          username: data.username,
+          passwordHash,
+          mustChangePassword: true,
+        });
+      }
     }
 
     // One role per (userId, hospitalId) membership — same constraint
@@ -251,6 +279,7 @@ export class TeamService {
           ? MEMBERSHIP_STATUS.SUSPENDED
           : MEMBERSHIP_STATUS.DEACTIVATED;
     await this.membershipRepository.updateHospitalMembershipStatus((membership as any).id, membershipStatus);
+    await this.subscriptionsService.recalculateSeatCount(hospitalId);
 
     await this.auditService.log({
       hospitalId,
@@ -279,6 +308,27 @@ export class TeamService {
     });
 
     return { success: true };
+  }
+
+  async resetPassword(hospitalId: string, memberId: string, actor: HospitalUserProfile) {
+    const profile = await this.teamMemberRepository.getByUserId(memberId);
+    if (!profile || (profile as any).hospitalId !== hospitalId) {
+      throw ApiError.notFound('Team member not found');
+    }
+
+    const tempPassword = generateTempPassword();
+    const passwordHash = await bcrypt.hash(tempPassword, 10);
+    await this.userRepository.updateUser(memberId, { passwordHash, mustChangePassword: true });
+
+    await this.auditService.log({
+      hospitalId,
+      actor: { userId: actor.userId, name: actor.name, role: actor.role },
+      action: 'team_member.password_reset',
+      area: 'settings',
+      summary: `Reset ${(profile as any).name}'s password — they'll be asked to change it at next sign-in`,
+    });
+
+    return { success: true, tempPassword };
   }
 
   async setOwnPin(hospitalId: string, actor: HospitalUserProfile, pin: string) {

@@ -11,6 +11,8 @@ import {
   MEDICINE_FORM_VALUES,
   FOOD_TIMING_OPTIONS,
   PRESCRIPTION_STATUS_VALUES,
+  HOW_OFTEN_VALUES,
+  FOLLOW_UP_REVIEW_VALUES,
 } from '../../constants';
 
 /* -------------------------------------------------------------------------- */
@@ -25,9 +27,73 @@ export const switchHospitalSchema = z.object({
   hospitalId: z.string().min(1, 'Hospital ID is required'),
 });
 
+// Syntax-only email-shape check (x@y.tld) — a username must look like an
+// email but is never verified as a real, deliverable address.
+export const usernameSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'Username must be in email format');
+
+export const passwordSchema = z
+  .string()
+  .min(8, 'Password must be at least 8 characters');
+
+export const loginPasswordSchema = z.object({
+  username: z.string().min(1, 'Username is required'),
+  password: z.string().min(1, 'Password is required'),
+  keepSignedIn: z.boolean().optional().default(false),
+});
+
+export const forgotPasswordSchema = z.object({
+  username: z.string().min(1, 'Username is required'),
+});
+
+export const resetPasswordSchema = z.object({
+  token: z.string().min(1, 'Reset token is required'),
+  newPassword: passwordSchema,
+});
+
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1, 'Current password is required'),
+  newPassword: passwordSchema,
+  signOutOthers: z.boolean().optional().default(false),
+});
+
+export const requestPasswordOtpSchema = z.object({
+  username: z.string().min(1, 'Username is required'),
+  channel: z.enum(['sms', 'whatsapp', 'email']).default('whatsapp'),
+});
+
+export const verifyPasswordOtpSchema = z.object({
+  username: z.string().min(1, 'Username is required'),
+  otp: z.string().regex(/^\d{6}$/, 'Code must be 6 digits'),
+});
+
+export const requestOtpSchema = z.object({
+  phone: z.string().min(8, 'A valid phone number is required'),
+});
+
+export const verifyOtpSchema = z.object({
+  phone: z.string().min(8, 'A valid phone number is required'),
+  otp: z.string().regex(/^\d{6}$/, 'OTP must be 6 digits'),
+});
+
 /* -------------------------------------------------------------------------- */
 /*                           APPOINTMENT SCHEMAS                              */
 /* -------------------------------------------------------------------------- */
+
+// Front-desk-recorded vitals, taken at walk-in time — every field optional
+// since not every desk has every instrument to hand.
+export const vitalsSchema = z.object({
+  bpSystolic: z.number().positive().optional(),
+  bpDiastolic: z.number().positive().optional(),
+  spo2: z.number().min(0).max(100).optional(),
+  pulse: z.number().positive().optional(),
+  weight: z.number().positive().optional(),
+  temperature: z.number().positive().optional(),
+  height: z.number().positive().optional(),
+});
 
 // NOTE: Status is NOT included in creation schema - all appointments are created as 'confirmed'
 // (admin/staff booking). The update endpoint moves status through the queue lifecycle from there.
@@ -40,6 +106,15 @@ export const createAppointmentSchema = z.object({
   numberOfOccurrences: z.number().int().positive().default(1),
   selectedDays: z.array(z.string()).default([]),
   notes: z.string().default(''),
+  // Set by the walk-in flow so capacity/held-slot accounting can tell a
+  // front-desk walk-in apart from a normally scheduled booking.
+  bookingSource: z.enum(['scheduled', 'walk-in']).optional(),
+  // Front-desk override: skip the normal slot-capacity search and book
+  // exactly `preferredTime` even if it's outside generated slots or the
+  // session is already at capacity. Only honored for frequency 'once', and
+  // still blocked server-side if the doctor's overCapacityPolicy is 'block'.
+  forceSlot: z.boolean().optional().default(false),
+  vitals: vitalsSchema.optional(),
 });
 
 export const updateAppointmentSchema = z.object({
@@ -56,6 +131,7 @@ export const updateAppointmentSchema = z.object({
       rescheduleTime: z.string().optional(),
       cancelReason: z.string().optional(),
       noShowReason: z.string().optional(),
+      notes: z.string().optional(),
     })
     .optional(),
 });
@@ -73,12 +149,23 @@ export const paymentItemSchema = z.object({
   isPackageCovered: z.boolean().optional(),
 });
 
-export const completeVisitSchema = z.object({
+// Finishes the clinical part of a visit (in-consultation -> awaiting-payment)
+// without billing — see AppointmentsService.finishSession. Billing/payment
+// collection is a separate, later step (PaymentsService.completeVisit).
+export const finishSessionSchema = z.object({
   appointmentId: z.string().min(1, 'Appointment ID is required'),
   sessionNotes: z.string().optional(),
   followUp: z
     .enum(['none', '3-days', '1-week', '2-weeks', '1-month'])
     .default('none'),
+  // Injections/dressings/tests logged during the consultation — persisted
+  // now so they still make it into the bill whenever payment is collected.
+  givenItems: z.array(paymentItemSchema).optional(),
+});
+
+export const completeVisitSchema = z.object({
+  appointmentId: z.string().min(1, 'Appointment ID is required'),
+  sessionNotes: z.string().optional(),
   items: z
     .array(paymentItemSchema)
     .min(1, 'At least one billable item is required'),
@@ -198,6 +285,8 @@ export const doctorAvailabilitySchema = z.object({
 export const createDoctorSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   email: z.string().email('Invalid email format'),
+  username: usernameSchema,
+  password: passwordSchema,
   phone: z.string().min(1, 'Phone is required'),
   specialization: z.string().optional(),
   qualification: z.string().optional(),
@@ -213,6 +302,13 @@ export const createDoctorSchema = z.object({
   appointmentDuration: z.number().int().positive().optional(),
   bufferMinutes: z.number().int().min(0).optional(),
   patientsPerSlot: z.number().int().positive().optional(),
+  // Walk-in carve-out settings — also hospital-scoped, on HospitalMember.
+  acceptWalkIns: z.boolean().optional(),
+  heldSlotsPerSession: z.number().int().min(0).optional(),
+  releaseHeldSlotsBeforeMinutes: z.number().int().min(0).nullable().optional(),
+  overCapacityPolicy: z.enum(['allow', 'warn', 'block']).optional(),
+  lateArrivalGraceMinutes: z.number().int().min(0).optional(),
+  noShowReleaseMinutes: z.number().int().min(0).optional(),
   // Set once staff have seen the phone-duplicate warning and chosen to create anyway.
   confirmDuplicate: z.boolean().optional().default(false),
 });
@@ -267,9 +363,53 @@ export const createHospitalSchema = z.object({
   adminEmails: z
     .array(z.string().email('Invalid email format'))
     .min(1, 'At least one admin email is required'),
+  billingCycle: z.enum(['monthly', 'annual']).optional(),
+  trialDays: z.coerce.number().int().min(0).max(365).optional(),
 });
 
 export const updateHospitalSchema = createHospitalSchema.partial();
+
+export const updateHospitalSpecializationsSchema = z.object({
+  specializations: z
+    .array(z.string().trim().min(1, 'Specialization cannot be empty').max(100))
+    .max(100, 'Too many specializations'),
+});
+
+/* -------------------------------------------------------------------------- */
+/*                          SUBSCRIPTION SCHEMAS                              */
+/* -------------------------------------------------------------------------- */
+
+export const changeSubscriptionPlanSchema = z.object({
+  billingCycle: z.enum(['monthly', 'annual']),
+});
+
+export const submitSubscriptionPaymentSchema = z.object({
+  reference: z.string().min(1, 'Payment reference is required'),
+});
+
+export const setSubscriptionExemptSchema = z.object({
+  exempt: z.boolean(),
+});
+
+export const setSubscriptionCancelledSchema = z.object({
+  cancelled: z.boolean(),
+});
+
+export const setSubscriptionFeatureSchema = z.object({
+  feature: z.enum(['whatsapp', 'reports', 'packages', 'medicinePacks']),
+  enabled: z.boolean(),
+});
+
+export const updateSubscriptionPlanConfigSchema = z.object({
+  includedDoctors: z.coerce.number().int().positive(),
+  includedStaff: z.coerce.number().int().min(0),
+  basePriceMonthly: z.coerce.number().positive(),
+  basePriceAnnual: z.coerce.number().positive(),
+  doctorAddonPriceMonthly: z.coerce.number().min(0),
+  doctorAddonPriceAnnual: z.coerce.number().min(0),
+  staffAddonPriceMonthly: z.coerce.number().min(0),
+  staffAddonPriceAnnual: z.coerce.number().min(0),
+});
 
 /* -------------------------------------------------------------------------- */
 /*                        PLATFORM ADMIN SCHEMAS                              */
@@ -290,6 +430,8 @@ export const addHospitalAdminSchema = z.object({
 export const createTeamMemberSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   email: z.string().email('Invalid email format'),
+  username: usernameSchema,
+  password: passwordSchema,
   phone: z.string().min(1, 'Phone is required'),
   role: z.enum(['front_desk', 'nurse', 'accountant'], {
     message: 'Role must be one of: front_desk, nurse, accountant',
@@ -447,9 +589,13 @@ export const createMedicineSchema = z.object({
   defaultDose: z.string().optional(),
   defaultFrequency: z.string().optional(),
   defaultFoodTiming: z.enum(FOOD_TIMING_OPTIONS).optional(),
+  brandNames: z.array(z.string()).optional(),
+  scheduleClass: z.string().optional(),
 });
 
-export const updateMedicineSchema = createMedicineSchema.partial();
+export const updateMedicineSchema = createMedicineSchema.partial().extend({
+  isFavourite: z.boolean().optional(),
+});
 
 export const medicineStatusSchema = z.object({
   status: z.enum(['active', 'archived']),
@@ -458,6 +604,14 @@ export const medicineStatusSchema = z.object({
 /* -------------------------------------------------------------------------- */
 /*                          PRESCRIPTION SCHEMAS                              */
 /* -------------------------------------------------------------------------- */
+
+const prescriptionItemStructuredDoseSchema = z.object({
+  howOften: z.enum(HOW_OFTEN_VALUES),
+  foodTiming: z.enum(FOOD_TIMING_OPTIONS),
+  days: z.number().positive(),
+  dispenseQty: z.number().min(0),
+  dispenseOverridden: z.boolean().optional(),
+});
 
 const prescriptionItemSchema = z.object({
   medicineId: z.string().min(1),
@@ -470,6 +624,7 @@ const prescriptionItemSchema = z.object({
   duration: z.string().optional(),
   quantity: z.string().optional(),
   note: z.string().optional(),
+  structuredDose: prescriptionItemStructuredDoseSchema.optional(),
 });
 
 const allergyOverrideSchema = z.object({
@@ -483,8 +638,48 @@ export const savePrescriptionSchema = z.object({
   items: z.array(prescriptionItemSchema).default([]),
   allergyOverrides: z.array(allergyOverrideSchema).default([]),
   advice: z.string().optional(),
+  followUpOption: z.enum(FOLLOW_UP_REVIEW_VALUES).optional(),
 });
 
 export const prescriptionStatusSchema = z.object({
   status: z.enum(PRESCRIPTION_STATUS_VALUES as [string, ...string[]]),
+  followUpOption: z.enum(FOLLOW_UP_REVIEW_VALUES).optional(),
+});
+
+/* -------------------------------------------------------------------------- */
+/*                          MEDICINE PACK SCHEMAS                             */
+/* -------------------------------------------------------------------------- */
+
+const medicinePackItemSchema = z.object({
+  medicineId: z.string().min(1),
+  medicineName: z.string().min(1),
+  howOften: z.enum(HOW_OFTEN_VALUES),
+  foodTiming: z.enum(FOOD_TIMING_OPTIONS),
+  days: z.number().positive(),
+  note: z.string().optional(),
+});
+
+export const createMedicinePackSchema = z.object({
+  name: z.string().min(1, 'Name is required'),
+  items: z.array(medicinePackItemSchema).min(1, 'At least one medicine is required'),
+});
+
+export const updateMedicinePackSchema = createMedicinePackSchema.partial();
+
+export const medicinePackStatusSchema = z.object({
+  status: z.enum(['active', 'archived']),
+});
+
+// Hospitals can pause or resume their number without disconnecting it.
+export const whatsappEnabledSchema = z.object({
+  enabled: z.boolean(),
+});
+
+// A hospital bringing its own WhatsApp Business Account. Embedded Signup will
+// supply these from Meta's popup; for now they can also be entered by hand.
+export const connectOwnWhatsappSchema = z.object({
+  phoneNumberId: z.string().min(1, 'Phone number ID is required'),
+  wabaId: z.string().min(1, 'WhatsApp Business Account ID is required'),
+  // Left out on an update to keep the already-stored token unchanged.
+  accessToken: z.string().min(1, 'Access token is required').optional(),
 });

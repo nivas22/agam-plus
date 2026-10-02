@@ -1,9 +1,9 @@
 // components/settings/MedicineCatalogPage.tsx
 "use client";
 
-import { AlertTriangle, Plus, Search } from "lucide-react";
+import { AlertTriangle, Plus, Search, Star } from "lucide-react";
 import { useMemo, useState } from "react";
-import { useMedicines } from "@/hooks/useMedicineApi";
+import { useMedicines, useUpdateMedicine } from "@/hooks/useMedicineApi";
 import type { Medicine } from "@/types/medicine";
 import { MEDICINE_FORM_OPTIONS } from "@/types/medicine";
 import MedicineItemDrawer from "./MedicineItemDrawer";
@@ -27,6 +27,7 @@ export default function MedicineCatalogPage({
     status: showArchived ? "archived" : undefined,
     search: search || undefined,
   });
+  const updateMedicine = useUpdateMedicine(hospitalId);
   const items = useMemo(
     () =>
       (data?.items || []).filter((item) =>
@@ -105,7 +106,7 @@ export default function MedicineCatalogPage({
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-surface-canvas/60 border-b border-border">
-                {["Medicine", "Classes", "Form", "Strength", "Status", ""].map(
+                {["", "Medicine", "Classes", "Form", "Strength", "Status", ""].map(
                   (h) => (
                     <th
                       key={h}
@@ -121,7 +122,7 @@ export default function MedicineCatalogPage({
               {!isLoading && items.length === 0 && (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={7}
                     className="px-4 py-8 text-center text-ink-500"
                   >
                     {showArchived
@@ -137,12 +138,44 @@ export default function MedicineCatalogPage({
                   onClick={() => setDrawerItemId(item.id)}
                 >
                   <td className="px-3 py-2.5">
+                    <button
+                      type="button"
+                      disabled={!canEdit || updateMedicine.isPending}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        updateMedicine.mutate({
+                          medicineId: item.id,
+                          updates: { isFavourite: !item.isFavourite },
+                        });
+                      }}
+                      className={`p-1 rounded-md ${item.isFavourite ? "text-brand-violet" : "text-ink-500/40"} ${canEdit ? "hover:text-brand-violet" : ""}`}
+                      title={
+                        item.isFavourite
+                          ? "Remove from favourites"
+                          : "Mark as favourite"
+                      }
+                    >
+                      <Star
+                        size={15}
+                        fill={item.isFavourite ? "currentColor" : "none"}
+                      />
+                    </button>
+                  </td>
+                  <td className="px-3 py-2.5">
                     <span className="block font-medium text-ink-900">
                       {item.name}
+                      {item.scheduleClass && (
+                        <span className="ml-1.5 inline-block rounded-md px-1.5 py-0.5 text-[9.5px] font-bold tracking-wide align-middle bg-status-warning-soft text-status-warning">
+                          SCHEDULE {item.scheduleClass}
+                        </span>
+                      )}
                     </span>
                     {item.genericName && (
                       <span className="block text-[10.5px] text-ink-500">
                         {item.genericName}
+                        {item.brandNames && item.brandNames.length > 0
+                          ? ` · ${item.brandNames.join(", ")}`
+                          : ""}
                       </span>
                     )}
                   </td>

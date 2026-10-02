@@ -13,12 +13,16 @@ export class ApiError extends Error {
     return new ApiError(400, message, details);
   }
 
-  static unauthorized(message: string = 'Unauthorized') {
-    return new ApiError(401, message);
+  static unauthorized(message: string = 'Unauthorized', details?: any) {
+    return new ApiError(401, message, details);
   }
 
   static forbidden(message: string = 'Forbidden') {
     return new ApiError(403, message);
+  }
+
+  static paymentRequired(message: string = 'Payment required') {
+    return new ApiError(402, message);
   }
 
   static notFound(message: string = 'Resource not found') {

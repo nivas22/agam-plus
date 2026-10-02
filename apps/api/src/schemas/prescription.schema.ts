@@ -2,6 +2,32 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
 import { DB_COLLECTIONS, PRESCRIPTION_STATUS_VALUES } from '../constants';
 
+// Structured authoring source for an item's dose — optional so a
+// prescription saved before this existed keeps reading back as `undefined`
+// here and rendering from the legacy dose/frequency/duration/quantity
+// strings below, with no migration needed.
+@Schema({ _id: false })
+export class PrescriptionItemStructuredDose {
+  @Prop({ required: true })
+  howOften: string;
+
+  @Prop({ required: true })
+  foodTiming: string;
+
+  @Prop({ required: true })
+  days: number;
+
+  @Prop({ required: true })
+  dispenseQty: number;
+
+  @Prop()
+  dispenseOverridden?: boolean;
+}
+
+export const PrescriptionItemStructuredDoseSchema = SchemaFactory.createForClass(
+  PrescriptionItemStructuredDose,
+);
+
 @Schema({ _id: false })
 export class PrescriptionItem {
   @Prop({ required: true })
@@ -34,6 +60,9 @@ export class PrescriptionItem {
 
   @Prop()
   note?: string;
+
+  @Prop({ type: PrescriptionItemStructuredDoseSchema })
+  structuredDose?: PrescriptionItemStructuredDose;
 }
 
 export const PrescriptionItemSchema = SchemaFactory.createForClass(PrescriptionItem);
@@ -93,6 +122,17 @@ export class Prescription {
 
   @Prop({ required: true, enum: PRESCRIPTION_STATUS_VALUES, default: 'draft' })
   status: string;
+
+  // Assigned once, at sign time (see PrescriptionsService.setStatus) — never
+  // reassigned on re-sign.
+  @Prop()
+  rxNumber?: string;
+
+  @Prop()
+  followUpOption?: string;
+
+  @Prop()
+  followUpAppointmentId?: string;
 
   @Prop()
   issuedAt?: Date;

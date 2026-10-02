@@ -45,7 +45,7 @@ export default function Home() {
   return (
     <>
       <Toaster position="top-right" />
-      <LoadingSpinner message="Redirecting to your dashboard...." />
+      <LoadingSpinner message="Redirecting to your dashboard..." />
     </>
   );
 }

@@ -50,6 +50,27 @@ export class Appointment {
   @Prop()
   sessionNotes?: string;
 
+  // Injections/dressings/tests the doctor logged during the consultation,
+  // persisted at session-finish time so they survive into the bill even if
+  // payment is collected later, by someone else, on another device.
+  @Prop({ type: [Object] })
+  givenItems?: Record<string, any>[];
+
+  // Recorded by the front desk at walk-in time — plain object (not a
+  // sub-schema) since every field is optional and there's nothing to
+  // validate/index at the Mongoose layer beyond what createAppointmentSchema
+  // already enforces on the way in.
+  @Prop({ type: Object })
+  vitals?: {
+    bpSystolic?: number;
+    bpDiastolic?: number;
+    spo2?: number;
+    pulse?: number;
+    weight?: number;
+    temperature?: number;
+    height?: number;
+  };
+
   // Denormalized display copies — kept as-is rather than $lookup, matching
   // the existing Firestore repository's write-time denormalization.
   @Prop()
@@ -82,8 +103,16 @@ export class Appointment {
   @Prop()
   consultationStartedAt?: Date;
 
+  // Stamped when the clinical session finishes (in-consultation ->
+  // awaiting-payment) — "this visit happened", regardless of billing.
   @Prop()
   completedAt?: Date;
+
+  // Stamped when payment is actually collected (awaiting-payment ->
+  // completed) — may be well after completedAt if front desk closes it out
+  // later.
+  @Prop()
+  paymentCollectedAt?: Date;
 
   @Prop()
   rescheduleDate?: string;
@@ -108,6 +137,11 @@ export class Appointment {
 
   @Prop()
   updatedAt?: Date;
+
+  // Stamped once a WhatsApp reminder has gone out for this appointment, so
+  // the reminder cron never messages the same patient twice.
+  @Prop()
+  reminderSentAt?: Date;
 }
 
 export const AppointmentSchema = SchemaFactory.createForClass(Appointment);

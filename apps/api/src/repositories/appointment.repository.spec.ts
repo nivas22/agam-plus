@@ -106,4 +106,29 @@ describe('AppointmentRepository', () => {
     expect(found.status).toBe('completed');
     expect(found.updatedAt).toBeInstanceOf(Date);
   });
+
+  describe('runInTransaction', () => {
+    // mongodb-memory-server here is a standalone instance (no replica set),
+    // so this also exercises the "transactions unavailable" fallback path —
+    // the same code path a non-Atlas/non-replica-set deployment would hit.
+    it('runs the callback and returns its result even without transaction support', async () => {
+      const result = await repo.runInTransaction(async (session) => {
+        return repo.createAppointment(
+          { hospitalId: 'h4', doctorId: 'd5', patientId: 'p6', date: '2026-08-20', status: 'scheduled' },
+          session,
+        );
+      });
+
+      expect(typeof result).toBe('string');
+      expect(await model.countDocuments({ hospitalId: 'h4' })).toBe(1);
+    });
+
+    it('propagates a business error thrown inside the callback instead of swallowing it', async () => {
+      await expect(
+        repo.runInTransaction(async () => {
+          throw new Error('slot no longer available');
+        }),
+      ).rejects.toThrow('slot no longer available');
+    });
+  });
 });

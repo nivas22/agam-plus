@@ -5,6 +5,10 @@ export interface JwtUser {
   userId: string;
   email: string;
   name: string;
+  // Session id (see Session schema) — lets JwtAuthGuard reject a token whose
+  // session has been revoked (sign-out / "sign out everywhere") even though
+  // the JWT signature/expiry are still valid.
+  sid: string;
 }
 
 export const CurrentUser = createParamDecorator((_data: unknown, ctx: ExecutionContext): JwtUser => {

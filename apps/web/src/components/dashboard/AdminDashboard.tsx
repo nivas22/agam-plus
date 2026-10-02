@@ -25,7 +25,6 @@ import {
   getInitials,
   minutesBetween,
   minutesToTimeStr,
-  readPresenceOverrides,
   todaysWindows,
   toISODate,
 } from "@/components/queue/queueBoard";
@@ -34,6 +33,7 @@ import { usePendingApprovals } from "@/hooks/useApprovalsApi";
 import { useAuditLog } from "@/hooks/useAuditApi";
 import { useAuth } from "@/hooks/useAuth";
 import { useChargeCatalogItems } from "@/hooks/useChargeCatalogApi";
+import { useDoctorPresence } from "@/hooks/useDoctorPresenceApi";
 import { useHospitalHolidays } from "@/hooks/useHospitalHolidaysApi";
 import { useHospitalAppointmentsApi } from "@/hooks/useNewAppointmentsApi";
 import { useHospitalDoctors } from "@/hooks/useNewDoctorApi";
@@ -112,9 +112,9 @@ export default function AdminDashboardClient() {
     () => buildLanes(doctors, appointments, now),
     [doctors, appointments, now],
   );
-  const presenceOverrides = useMemo(
-    () => readPresenceOverrides(hospitalId, today),
-    [hospitalId, today],
+  const { data: presenceOverrides = {} } = useDoctorPresence(
+    hospitalId,
+    today,
   );
 
   // ---- live strip -----------------------------------------------------

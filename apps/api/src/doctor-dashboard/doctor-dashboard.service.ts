@@ -6,7 +6,7 @@ import { HospitalHolidayRepository } from '../repositories/hospital-holiday.repo
 import { LeaveRequestRepository } from '../repositories/leave-request.repository';
 import { ReportsService } from '../reports/reports.service';
 import { eachDateIso, slotsPerDay, toISODateLocal, weekdayName } from '../reports/reports.util';
-import { APPOINTMENT_STATUS, APPOINTMENT_TYPE, HOLIDAY_CLOSURE_TYPE, LEAVE_REQUEST_STATUS } from '../constants';
+import { APPOINTMENT_STATUS, APPOINTMENT_TYPE, HOLIDAY_CLOSURE_TYPE, LEAVE_REQUEST_STATUS, VISIT_FINISHED_STATUSES } from '../constants';
 
 function addDays(d: Date, n: number): Date {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
@@ -214,7 +214,7 @@ export class DoctorDashboardService {
       this.appointmentRepository.getAppointmentsWithFilters({
         hospitalId,
         doctorProfileId,
-        status: APPOINTMENT_STATUS.COMPLETED,
+        statuses: VISIT_FINISHED_STATUSES,
         startDate,
         endDate,
       }),
@@ -270,7 +270,7 @@ export class DoctorDashboardService {
       this.appointmentRepository.getAppointmentsWithFilters({
         hospitalId,
         doctorProfileId,
-        status: APPOINTMENT_STATUS.COMPLETED,
+        statuses: VISIT_FINISHED_STATUSES,
         startDate: yesterday,
         endDate: yesterday,
       }),

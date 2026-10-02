@@ -56,6 +56,7 @@ interface AppointmentDetailsProps {
 
 type ActiveAction =
   | "changeDoctor"
+  | "confirm"
   | "cancel"
   | "noShow"
   | "reschedule"
@@ -162,6 +163,7 @@ export default function AppointmentDetails({
         case APPOINTMENT_STATUS.IN_CONSULTATION:
           actions.push("cancel");
           break;
+        case APPOINTMENT_STATUS.AWAITING_PAYMENT:
         case APPOINTMENT_STATUS.COMPLETED:
           actions.push("reopen", "viewNotes");
           break;
@@ -179,7 +181,10 @@ export default function AppointmentDetails({
       setAvailableActions(actions);
 
       // Set default action based on status
-      if (normalizedStatus === APPOINTMENT_STATUS.COMPLETED) {
+      if (
+        normalizedStatus === APPOINTMENT_STATUS.AWAITING_PAYMENT ||
+        normalizedStatus === APPOINTMENT_STATUS.COMPLETED
+      ) {
         setActiveAction("viewNotes");
       } else if (
         normalizedStatus === APPOINTMENT_STATUS.CANCELLED ||
@@ -197,9 +202,10 @@ export default function AppointmentDetails({
         setActiveAction("cancel");
       }
 
-      // Pre-fill session notes for completed appointments
+      // Pre-fill session notes for a finished visit (billed or not)
       if (
-        normalizedStatus === APPOINTMENT_STATUS.COMPLETED &&
+        (normalizedStatus === APPOINTMENT_STATUS.AWAITING_PAYMENT ||
+          normalizedStatus === APPOINTMENT_STATUS.COMPLETED) &&
         selectedApp.sessionNotes
       ) {
         setSessionNotes(selectedApp.sessionNotes);
@@ -301,6 +307,22 @@ export default function AppointmentDetails({
     }
   };
 
+  // Accept a patient self-booking (WhatsApp) that is waiting on the hospital
+  const confirmAppointment = async () => {
+    try {
+      await updateAppointmentStatus(
+        selectedApp.id,
+        APPOINTMENT_STATUS.CONFIRMED,
+      );
+      toast.success("Appointment confirmed!");
+      setUpdateAppointmentsMode(false);
+      setSelectedAppointmentsToUpdate([]);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to confirm appointment");
+    }
+  };
+
   // Mark the selected appointment as a no-show
   const markNoShow = async () => {
     try {
@@ -372,12 +394,14 @@ export default function AppointmentDetails({
     }
   };
 
-  // Update session notes for completed appointment
+  // Update session notes for a finished visit — same-status save, since this
+  // runs for both awaiting-payment and fully-completed visits and must never
+  // itself force a status transition (that only happens by billing/collecting).
   const updateSessionNotes = async () => {
     try {
       await updateAppointmentStatus(
         selectedApp.id,
-        APPOINTMENT_STATUS.COMPLETED,
+        selectedApp.status,
         sessionNotes,
       );
       toast.success("Session notes updated!");
@@ -407,6 +431,15 @@ export default function AppointmentDetails({
         !!selectedDoctorForAppointments &&
         (updateScope === "all" || selectedAppointmentsToUpdate.length > 0),
       availableStatuses: [APPOINTMENT_STATUS.CONFIRMED],
+    },
+    confirm: {
+      title: "Confirm Appointment",
+      icon: <CheckCircle className="w-5 h-5 text-status-open" />,
+      description: "Accept this booking request from the patient",
+      action: confirmAppointment,
+      buttonText: "Confirm Appointment",
+      enabled: selectedAppointmentsToUpdate.length > 0,
+      availableStatuses: [APPOINTMENT_STATUS.PENDING],
     },
     cancel: {
       title: "Cancel Appointment",
@@ -459,6 +492,7 @@ export default function AppointmentDetails({
       buttonText: "Reopen Appointment",
       enabled: selectedAppointmentsToUpdate.length > 0,
       availableStatuses: [
+        APPOINTMENT_STATUS.AWAITING_PAYMENT,
         APPOINTMENT_STATUS.COMPLETED,
         APPOINTMENT_STATUS.CANCELLED,
         APPOINTMENT_STATUS.NO_SHOW,
@@ -467,11 +501,14 @@ export default function AppointmentDetails({
     viewNotes: {
       title: "Visit Record",
       icon: <FileText className="w-5 h-5 text-brand-violet" />,
-      description: "Session notes and details for this completed visit",
+      description: "Session notes and details for this visit",
       action: updateSessionNotes,
       buttonText: "Update Notes",
       enabled: sessionNotes.trim().length > 0,
-      availableStatuses: [APPOINTMENT_STATUS.COMPLETED],
+      availableStatuses: [
+        APPOINTMENT_STATUS.AWAITING_PAYMENT,
+        APPOINTMENT_STATUS.COMPLETED,
+      ],
     },
   };
 
@@ -485,9 +522,12 @@ export default function AppointmentDetails({
   };
 
   const currentAction = actionConfig[activeAction];
+  const normalizedSelectedStatus = normalizeAppointmentStatus(
+    selectedApp.status,
+  );
   const isCompletedFlow =
-    normalizeAppointmentStatus(selectedApp.status) ===
-    APPOINTMENT_STATUS.COMPLETED;
+    normalizedSelectedStatus === APPOINTMENT_STATUS.AWAITING_PAYMENT ||
+    normalizedSelectedStatus === APPOINTMENT_STATUS.COMPLETED;
   const completedAtDisplay = (() => {
     if (!selectedApp.completedAt) return null;
     try {
@@ -512,7 +552,8 @@ export default function AppointmentDetails({
     const reopenedAt = safeDate(selectedApp.reopenedAt);
     if (reopenedAt) events.push({ at: reopenedAt, label: "Reopened" });
     const completedAt = safeDate(selectedApp.completedAt);
-    if (completedAt) events.push({ at: completedAt, label: "Completed" });
+    if (completedAt)
+      events.push({ at: completedAt, label: "Session finished" });
     const paidAt = safeDate(visitPayment?.settledAt || visitPayment?.createdAt);
     if (paidAt && visitPayment) {
       events.push({
@@ -548,6 +589,8 @@ export default function AppointmentDetails({
   // Get status badge class
   const getStatusBadgeClass = (status: string) => {
     switch (normalizeAppointmentStatus(status)) {
+      case APPOINTMENT_STATUS.AWAITING_PAYMENT:
+        return "bg-status-warning-soft text-status-warning border-status-warning/20";
       case APPOINTMENT_STATUS.COMPLETED:
         return "bg-status-open-soft text-status-open border-status-open/20";
       case APPOINTMENT_STATUS.CANCELLED:
@@ -692,7 +735,8 @@ export default function AppointmentDetails({
                         Doctor:{" "}
                         {selectedAppointment.doctorName || "Not assigned"}
                       </p>
-                      {selectedAppointment.status === "completed" &&
+                      {(selectedAppointment.status === "completed" ||
+                        selectedAppointment.status === "awaiting-payment") &&
                         selectedAppointment.sessionNotes && (
                           <div className="mt-2 p-2 bg-surface-paper rounded-lg">
                             <p className="text-xs font-medium text-ink-700">
@@ -1243,7 +1287,10 @@ export default function AppointmentDetails({
                         </>
                       ) : (
                         <p className="text-xs text-ink-500">
-                          No bill recorded for this visit.
+                          {normalizedSelectedStatus ===
+                          APPOINTMENT_STATUS.AWAITING_PAYMENT
+                            ? "Payment hasn't been collected yet."
+                            : "No bill recorded for this visit."}
                         </p>
                       )}
                     </div>

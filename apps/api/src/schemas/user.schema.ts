@@ -14,6 +14,53 @@ export class User {
   @Prop({ index: true, sparse: true, unique: true })
   firebaseUid?: string;
 
+  // Login handle for username+password sign-in — always email-shaped
+  // (x@y.tld) but not necessarily a real, deliverable address, distinct
+  // from `email` which is used for actual communication.
+  @Prop({ index: true, sparse: true, unique: true, trim: true, lowercase: true })
+  username?: string;
+
+  @Prop()
+  passwordHash?: string;
+
+  // Set true when an admin sets a temporary password at creation time;
+  // cleared once the user picks their own password.
+  @Prop({ default: false })
+  mustChangePassword?: boolean;
+
+  @Prop()
+  passwordResetTokenHash?: string;
+
+  @Prop()
+  passwordResetExpires?: Date;
+
+  // One pending OTP embedded directly on the doc (mirrors PatientAccount's
+  // otp* fields) — used for the phone-based "forgot password" flow.
+  @Prop()
+  otpHash?: string;
+
+  @Prop()
+  otpExpiresAt?: Date;
+
+  @Prop({ default: 0 })
+  otpAttempts?: number;
+
+  @Prop()
+  otpSentAt?: Date;
+
+  @Prop({ default: 0 })
+  otpRequestCount?: number;
+
+  @Prop()
+  otpRequestWindowStart?: Date;
+
+  // Login-lockout counters for password sign-in — reset on a successful login.
+  @Prop({ default: 0 })
+  failedLoginAttempts?: number;
+
+  @Prop()
+  lockedUntil?: Date;
+
   @Prop()
   name?: string;
 

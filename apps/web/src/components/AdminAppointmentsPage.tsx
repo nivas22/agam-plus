@@ -5,15 +5,19 @@ import { format } from "date-fns";
 import {
   CalendarDays,
   ChevronDown,
+  History,
   Info,
   Plus,
   Printer,
   Search,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { useHospitalAppointmentsApi } from "@/hooks/useNewAppointmentsApi";
+import {
+  useFinishSession,
+  useHospitalAppointmentsApi,
+} from "@/hooks/useNewAppointmentsApi";
 import { useHospitalDoctors } from "@/hooks/useNewDoctorApi";
 import { useHospitalPatients } from "@/hooks/useNewPatientApi";
 import { paletteFor } from "@/lib/avatarPalette";
@@ -28,6 +32,8 @@ import {
   RescheduleDialog,
 } from "./appointments/AppointmentActionDialogs";
 import CompleteVisitDialog from "./appointments/CompleteVisitDialog";
+import ConfirmationDialog from "./ConfirmationDialog";
+import { apptDateTime } from "./queue/queueBoard";
 
 interface AppointmentsPageProps {
   userRole: string | undefined;
@@ -77,6 +83,11 @@ const STATUS_CONFIG: Record<
     badge: "bg-brand-violet text-white",
     stripe: "bg-brand-violet",
   },
+  [APPOINTMENT_STATUS.AWAITING_PAYMENT]: {
+    label: "Awaiting payment",
+    badge: "bg-status-warning-soft text-status-warning",
+    stripe: "bg-status-warning",
+  },
   [APPOINTMENT_STATUS.COMPLETED]: {
     label: "Completed",
     badge: "bg-surface-canvas text-ink-500",
@@ -125,7 +136,11 @@ const NEXT_STEP: Partial<Record<string, { label: string; status: string }>> = {
     status: APPOINTMENT_STATUS.IN_CONSULTATION,
   },
   [APPOINTMENT_STATUS.IN_CONSULTATION]: {
-    label: "Complete",
+    label: "Finish session",
+    status: APPOINTMENT_STATUS.AWAITING_PAYMENT,
+  },
+  [APPOINTMENT_STATUS.AWAITING_PAYMENT]: {
+    label: "Collect payment",
     status: APPOINTMENT_STATUS.COMPLETED,
   },
 };
@@ -152,6 +167,7 @@ const STATUS_TOAST: Partial<Record<string, string>> = {
   [APPOINTMENT_STATUS.CHECKED_IN]: "Patient checked in",
   [APPOINTMENT_STATUS.WAITING]: "Patient moved to the waiting queue",
   [APPOINTMENT_STATUS.IN_CONSULTATION]: "Consultation started",
+  [APPOINTMENT_STATUS.AWAITING_PAYMENT]: "Session finished — ready for payment",
   [APPOINTMENT_STATUS.COMPLETED]: "Appointment marked as completed",
   [APPOINTMENT_STATUS.CANCELLED]: "Appointment cancelled",
   [APPOINTMENT_STATUS.NO_SHOW]: "Appointment marked as no-show",
@@ -309,7 +325,7 @@ export default function AppointmentsPage({
 
   const ADD_APPOINTMENT_PATH = `/hospital/${hospitalId}/appointments/add`;
 
-  const [view, setView] = useState<"agenda" | "week">("agenda");
+  const [view, setView] = useState<"agenda" | "week" | "past">("agenda");
   const [range, setRange] = useState("week");
   const [search, setSearch] = useState("");
   const [doctorFilter, setDoctorFilter] = useState("all");
@@ -351,7 +367,9 @@ export default function AppointmentsPage({
     () =>
       view === "week"
         ? { start: currentWeek.start, end: currentWeek.end }
-        : getRangeDates(range),
+        : view === "past"
+          ? getRangeDates("past")
+          : getRangeDates(range),
     [view, range, currentWeek],
   );
 
@@ -371,6 +389,20 @@ export default function AppointmentsPage({
     refetchAppointments,
     updateAppointmentStatus,
   } = useHospitalAppointmentsApi(hospitalId, userRole, false, params);
+
+  // React Query treats a tab/dropdown switch as "just show me this cached
+  // key" when that exact date range was already fetched recently (2 min
+  // staleTime) — e.g. flipping Agenda -> Past -> Agenda -> Past. Force a
+  // live refetch on every range change so the list is never silently stale.
+  const isFirstRangeFetch = useRef(true);
+  useEffect(() => {
+    if (isFirstRangeFetch.current) {
+      isFirstRangeFetch.current = false;
+      return;
+    }
+    refetchAppointments();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rangeDates.start, rangeDates.end]);
 
   const { data: patientsData = { patients: [] }, isLoading: patientsLoading } =
     useHospitalPatients(hospitalId, undefined, true);
@@ -449,7 +481,9 @@ export default function AppointmentsPage({
       });
     }
     return [...results].sort((a, b) =>
-      (a.date + a.time).localeCompare(b.date + b.time),
+      view === "past"
+        ? (b.date + b.time).localeCompare(a.date + a.time)
+        : (a.date + a.time).localeCompare(b.date + b.time),
     );
   }, [
     statsScope,
@@ -457,6 +491,7 @@ export default function AppointmentsPage({
     today,
     search,
     getPatientCode,
+    view,
     isAttentionStatus,
   ]);
 
@@ -494,6 +529,11 @@ export default function AppointmentsPage({
     setShowNotesModal(true);
   }, []);
 
+  const [earlyCheckInAppt, setEarlyCheckInAppt] =
+    useState<AppointmentWithDetails | null>(null);
+  const [wrongDayCheckInAppt, setWrongDayCheckInAppt] =
+    useState<AppointmentWithDetails | null>(null);
+
   const handleUpdateStatus = useCallback(
     async (appointmentId: string, status: string, notes = "") => {
       try {
@@ -512,19 +552,55 @@ export default function AppointmentsPage({
     [updateAppointmentStatus, refetchAppointments, showToast],
   );
 
+  // Finishes the clinical part of a visit (in-consultation -> awaiting
+  // payment) without billing — no dialog, no session-notes draft to carry
+  // over here; whatever the doctor already saved stays intact. Collecting
+  // payment is a separate, later step — see openCompleteFlow below.
+  const finishSession = useFinishSession(hospitalId);
+  const handleFinishSession = useCallback(
+    async (appt: AppointmentWithDetails) => {
+      try {
+        await finishSession.mutateAsync({ appointmentId: appt.id });
+        showToast(STATUS_TOAST[APPOINTMENT_STATUS.AWAITING_PAYMENT]!);
+        await refetchAppointments();
+      } catch (err) {
+        showToast(
+          err instanceof Error ? err.message : "Couldn't finish the session",
+        );
+      }
+    },
+    [finishSession, refetchAppointments, showToast],
+  );
+
   // A row's primary action always moves it exactly one step forward — except
-  // "Complete", which needs session notes first, so it opens that modal instead.
+  // "Collect payment", which needs billing details first, so it opens that
+  // dialog instead, and "Check in": a different day is a hard stop (nothing
+  // to confirm — that appointment isn't today's business), while same-day
+  // but still-early just asks for confirmation, since the booking could be a
+  // genuinely early arrival.
   const advanceAppointment = useCallback(
     (appt: AppointmentWithDetails) => {
       const step = getNextStep(appt.status);
       if (!step) return;
       if (step.status === APPOINTMENT_STATUS.COMPLETED) {
         openCompleteFlow(appt);
+      } else if (step.status === APPOINTMENT_STATUS.AWAITING_PAYMENT) {
+        handleFinishSession(appt);
+      } else if (
+        step.status === APPOINTMENT_STATUS.CHECKED_IN &&
+        appt.date !== toISODate(new Date())
+      ) {
+        setWrongDayCheckInAppt(appt);
+      } else if (
+        step.status === APPOINTMENT_STATUS.CHECKED_IN &&
+        new Date() < apptDateTime(appt)
+      ) {
+        setEarlyCheckInAppt(appt);
       } else {
         handleUpdateStatus(appt.id, step.status);
       }
     },
-    [handleUpdateStatus, openCompleteFlow],
+    [handleUpdateStatus, openCompleteFlow, handleFinishSession],
   );
 
   // Shared success handler for the change-doctor / reschedule / cancel / no-show dialogs.
@@ -584,6 +660,7 @@ export default function AppointmentsPage({
     const canCancel = isActiveStatus(appt.status);
     // Once every active-state action has its own explicit button, only terminal rows still need the details modal.
     const openableViaRow =
+      appt.status === APPOINTMENT_STATUS.AWAITING_PAYMENT ||
       appt.status === APPOINTMENT_STATUS.COMPLETED ||
       appt.status === APPOINTMENT_STATUS.CANCELLED ||
       appt.status === APPOINTMENT_STATUS.NO_SHOW;
@@ -654,15 +731,17 @@ export default function AppointmentsPage({
                 {nextStep.label}
               </button>
             )}
-            {canEdit && appt.status === APPOINTMENT_STATUS.COMPLETED && (
-              <button
-                type="button"
-                onClick={() => openDetailsModal(appt)}
-                className="h-8 px-3 rounded-lg border border-border text-xs font-medium text-ink-700 hover:bg-surface-canvas transition-colors"
-              >
-                Visit notes
-              </button>
-            )}
+            {canEdit &&
+              (appt.status === APPOINTMENT_STATUS.AWAITING_PAYMENT ||
+                appt.status === APPOINTMENT_STATUS.COMPLETED) && (
+                <button
+                  type="button"
+                  onClick={() => openDetailsModal(appt)}
+                  className="h-8 px-3 rounded-lg border border-border text-xs font-medium text-ink-700 hover:bg-surface-canvas transition-colors"
+                >
+                  Visit notes
+                </button>
+              )}
             {canEdit &&
               (appt.status === APPOINTMENT_STATUS.CANCELLED ||
                 appt.status === APPOINTMENT_STATUS.NO_SHOW) && (
@@ -783,13 +862,14 @@ export default function AppointmentsPage({
           100,
       ),
     );
-    const gaps = selectedDoctor
-      ? computeGaps(
-          selectedDoctor,
-          date,
-          live.map((a) => a.time),
-        )
-      : null;
+    const gaps =
+      selectedDoctor && view !== "past"
+        ? computeGaps(
+            selectedDoctor,
+            date,
+            live.map((a) => a.time),
+          )
+        : null;
     const lines = buildDayLines(items, gaps, isToday, nowMins);
 
     return (
@@ -1033,7 +1113,7 @@ export default function AppointmentsPage({
         <select
           value={range}
           onChange={(e) => setRange(e.target.value)}
-          disabled={view === "week"}
+          disabled={view === "week" || view === "past"}
           className="h-9 pl-3 pr-8 rounded-lg border border-border bg-surface-paper text-sm disabled:opacity-50"
         >
           {RANGE_OPTIONS.map((o) => (
@@ -1069,6 +1149,13 @@ export default function AppointmentsPage({
               className={`px-3 py-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 transition-colors ${view === "week" ? "bg-surface-paper text-ink-900 shadow-sm" : "text-ink-500"}`}
             >
               <ChevronDown className="w-3.5 h-3.5 -rotate-90" /> Week
+            </button>
+            <button
+              type="button"
+              onClick={() => setView("past")}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 transition-colors ${view === "past" ? "bg-surface-paper text-ink-900 shadow-sm" : "text-ink-500"}`}
+            >
+              <History className="w-3.5 h-3.5" /> Past
             </button>
           </div>
           <button
@@ -1176,6 +1263,7 @@ export default function AppointmentsPage({
           doctors={doctorsData.doctors}
           allAppointments={appointments}
           patientCode={getPatientCode(actionDialog.appt.patientId)}
+          now={now}
           onClose={() => setActionDialog(null)}
           updateAppointmentStatus={updateAppointmentStatus}
           onSuccess={handleDialogSuccess}
@@ -1219,6 +1307,46 @@ export default function AppointmentsPage({
           onSuccess={handleDialogSuccess}
         />
       )}
+
+      {/* Confirm early check-in — scheduled time hasn't arrived yet */}
+      <ConfirmationDialog
+        isOpen={!!earlyCheckInAppt}
+        onClose={() => setEarlyCheckInAppt(null)}
+        onConfirm={() => {
+          if (earlyCheckInAppt) {
+            handleUpdateStatus(
+              earlyCheckInAppt.id,
+              APPOINTMENT_STATUS.CHECKED_IN,
+            );
+          }
+          setEarlyCheckInAppt(null);
+        }}
+        title="Check in early?"
+        message={
+          earlyCheckInAppt
+            ? `This appointment is booked for ${format(new Date(`${earlyCheckInAppt.date}T00:00:00`), "d MMM")}, ${formatTime12h(earlyCheckInAppt.time)}, which hasn't started yet. Check in anyway?`
+            : ""
+        }
+        confirmText="Check in anyway"
+      />
+
+      {/* Block check-in — appointment isn't scheduled for today */}
+      <ConfirmationDialog
+        isOpen={!!wrongDayCheckInAppt}
+        onClose={() => setWrongDayCheckInAppt(null)}
+        onConfirm={() => setWrongDayCheckInAppt(null)}
+        hideCancel
+        confirmColor="red"
+        confirmText="OK"
+        title="Can't check in"
+        message={
+          wrongDayCheckInAppt
+            ? wrongDayCheckInAppt.date < toISODate(new Date())
+              ? `This appointment was booked for ${format(new Date(`${wrongDayCheckInAppt.date}T00:00:00`), "d MMM")}, ${formatTime12h(wrongDayCheckInAppt.time)} and is now overdue. Reschedule it before checking the patient in.`
+              : `This appointment is booked for ${format(new Date(`${wrongDayCheckInAppt.date}T00:00:00`), "d MMM")}, ${formatTime12h(wrongDayCheckInAppt.time)} — check-in only opens on that day.`
+            : ""
+        }
+      />
 
       {/* Toast Notification */}
       {toast && (

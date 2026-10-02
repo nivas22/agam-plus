@@ -32,14 +32,12 @@ export class PatientsController {
   @Roles('admin', 'doctor', 'front_desk', 'nurse', 'accountant')
   list(
     @Param('id') hospitalId: string,
-    @CurrentHospitalUser() userProfile: HospitalUserProfile,
     @Query('status') status?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ) {
     return this.patientsService.listPatients(
       hospitalId,
-      userProfile.userId,
       status || undefined,
       parseInt(page || '1', 10),
       parseInt(limit || '10', 10),

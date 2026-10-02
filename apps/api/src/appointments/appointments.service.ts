@@ -1,22 +1,26 @@
 import { Injectable } from '@nestjs/common';
+import { ClientSession } from 'mongoose';
 import { AppointmentRepository } from '../repositories/appointment.repository';
 import { DoctorRepository } from '../repositories/doctor.repository';
 import { PatientRepository } from '../repositories/patient.repository';
 import { MembershipRepository } from '../repositories/membership.repository';
 import { HospitalHolidayRepository } from '../repositories/hospital-holiday.repository';
+import { DoctorPresenceRepository } from '../repositories/doctor-presence.repository';
 import { PermissionsService } from '../permissions/permissions.service';
 import { AuditService } from '../audit/audit.service';
 import { ApiError } from '../common/errors/api-error';
-import { AppointmentWithDetails } from '../types/appointment';
+import { AppointmentWithDetails, Vitals } from '../types/appointment';
 import { JwtUser, HospitalUserProfile } from '../auth/decorators/current-user.decorator';
-import { CreateAppointmentBody, UpdateAppointmentBody, AppointmentListQuery } from './appointments.types';
+import { CreateAppointmentBody, UpdateAppointmentBody, FinishSessionBody, AppointmentListQuery } from './appointments.types';
 import { findHolidayForDate, filterSlotsForHoliday } from '../hospital-holidays/holiday-availability.util';
 import {
   APPOINTMENT_STATUS,
+  APPOINTMENT_TYPE,
   ACTIVE_APPOINTMENT_STATUSES,
   isValidAppointmentTransition,
   normalizeAppointmentStatus,
   PERMISSION_STATE,
+  FOLLOW_UP_DAY_OFFSETS,
 } from '../constants';
 
 // Timestamp field to stamp when an appointment enters a given status.
@@ -25,7 +29,8 @@ const STATUS_TIMESTAMP_FIELD: Partial<Record<APPOINTMENT_STATUS, string>> = {
   [APPOINTMENT_STATUS.CHECKED_IN]: 'checkedInAt',
   [APPOINTMENT_STATUS.WAITING]: 'waitingAt',
   [APPOINTMENT_STATUS.IN_CONSULTATION]: 'consultationStartedAt',
-  [APPOINTMENT_STATUS.COMPLETED]: 'completedAt',
+  [APPOINTMENT_STATUS.AWAITING_PAYMENT]: 'completedAt',
+  [APPOINTMENT_STATUS.COMPLETED]: 'paymentCollectedAt',
 };
 
 interface GenerateAppointmentsParams {
@@ -41,6 +46,9 @@ interface GenerateAppointmentsParams {
   createdBy: string;
   userRole: string;
   membership: any;
+  bookingSource?: 'scheduled' | 'walk-in';
+  forceSlot?: boolean;
+  vitals?: Vitals;
 }
 
 @Injectable()
@@ -51,6 +59,7 @@ export class AppointmentsService {
     private readonly patientRepository: PatientRepository,
     private readonly membershipRepository: MembershipRepository,
     private readonly hospitalHolidayRepository: HospitalHolidayRepository,
+    private readonly doctorPresenceRepository: DoctorPresenceRepository,
     private readonly permissionsService: PermissionsService,
     private readonly auditService: AuditService,
   ) {}
@@ -182,7 +191,19 @@ export class AppointmentsService {
   }
 
   async createAppointment(hospitalId: string, user: JwtUser, userProfile: HospitalUserProfile, body: CreateAppointmentBody) {
-    const { doctorProfileId, patientId, startDate, preferredTime, frequency, numberOfOccurrences, selectedDays, notes } = body;
+    const {
+      doctorProfileId,
+      patientId,
+      startDate,
+      preferredTime,
+      frequency,
+      numberOfOccurrences,
+      selectedDays,
+      notes,
+      bookingSource,
+      forceSlot,
+      vitals,
+    } = body;
 
     // Verify user has access to this hospital
     if (userProfile.role !== 'admin' && userProfile.hospitalId !== hospitalId) {
@@ -221,6 +242,9 @@ export class AppointmentsService {
       createdBy: user.uid,
       userRole: userProfile.role,
       membership,
+      bookingSource,
+      forceSlot,
+      vitals,
     });
 
     if (generatedAppointments.length === 0) {
@@ -241,6 +265,228 @@ export class AppointmentsService {
     };
   }
 
+  // Patient self-booking (today: the WhatsApp bot). Unlike createAppointment
+  // there is no staff actor, no recurrence and no forced slot — and the
+  // result lands PENDING for staff to confirm rather than CONFIRMED.
+  async createSelfBookingAppointment(params: {
+    hospitalId: string;
+    doctorProfileId: string;
+    patientId: string;
+    date: string;
+    time: string;
+    notes?: string;
+    bookedVia: string;
+  }) {
+    const { hospitalId, doctorProfileId, patientId, date, time, notes, bookedVia } =
+      params;
+
+    const membershipRef = await this.membershipRepository.getHospitalMembership(
+      hospitalId,
+      doctorProfileId,
+    );
+    if (membershipRef.empty) {
+      throw ApiError.notFound('Doctor is not part of this hospital');
+    }
+    const membership = membershipRef.docs[0].data();
+
+    const patientExists = await this.patientRepository.verifyPatientInHospital(
+      patientId,
+      hospitalId,
+    );
+    if (!patientExists) {
+      throw ApiError.notFound('Patient not found in this hospital');
+    }
+
+    const doctor = await this.doctorRepository.getDoctorProfileById(doctorProfileId);
+    if (!doctor) throw ApiError.notFound('Doctor not found');
+
+    const patient = await this.patientRepository.getPatientById(patientId);
+    const nowIso = new Date().toISOString();
+
+    // The availability re-check and the insert run inside one transaction so
+    // two patients racing for the last open slot can't both pass the check
+    // before either has written their appointment — see runInTransaction.
+    const appointmentId = await this.appointmentRepository.runInTransaction(async (session) => {
+      const slots = await this.getAvailableSlots(doctor, membership, date, session);
+      if (!slots.some((s) => s.time === time)) {
+        throw ApiError.conflict('That slot is no longer available');
+      }
+
+      return this.appointmentRepository.createAppointment(
+        {
+          doctorProfileId: membership.userId,
+          doctorName: doctor.name,
+          doctorSpecialization: doctor.specialization,
+          patientId,
+          patientName: (patient as any)?.name ?? '',
+          patientPhone: (patient as any)?.phone ?? '',
+          hospitalId,
+          date,
+          time,
+          frequency: 'once',
+          notes: notes ?? '',
+          type: APPOINTMENT_TYPE.REGULAR,
+          bookingSource: 'scheduled',
+          bookedVia,
+          status: APPOINTMENT_STATUS.PENDING,
+          createdBy: bookedVia,
+          userRole: 'patient',
+          createdAt: nowIso,
+          updatedAt: nowIso,
+        },
+        session,
+      );
+    });
+
+    await this.auditService.log({
+      hospitalId,
+      actor: { userId: patientId, name: (patient as any)?.name ?? 'Patient', role: 'patient' },
+      action: 'appointment.booked',
+      area: 'appointments',
+      summary: `Booked via WhatsApp with ${doctor.name} on ${date} ${time}`,
+    });
+
+    return { id: appointmentId, date, time, doctorName: doctor.name };
+  }
+
+  // -- patient self-service (WhatsApp bot) --
+
+  async getUpcomingAppointmentsForPatient(
+    hospitalId: string,
+    patientId: string,
+    limit: number,
+  ) {
+    return this.appointmentRepository.getAppointmentsWithFilters({
+      hospitalId,
+      patientId,
+      status: 'upcoming',
+      limit,
+    });
+  }
+
+  // Fetches an appointment only if it belongs to this hospital AND this
+  // patient — the ownership check a patient-facing channel needs that an
+  // authenticated staff route gets for free from userProfile.
+  async getAppointmentForPatient(
+    hospitalId: string,
+    patientId: string,
+    appointmentId: string,
+  ): Promise<any | null> {
+    const appointment: any =
+      await this.appointmentRepository.getAppointmentById(appointmentId);
+    if (
+      !appointment ||
+      appointment.hospitalId !== hospitalId ||
+      appointment.patientId !== patientId
+    ) {
+      return null;
+    }
+    return appointment;
+  }
+
+  async cancelSelfBookedAppointment(
+    hospitalId: string,
+    patientId: string,
+    appointmentId: string,
+  ) {
+    const appointment = await this.getAppointmentForPatient(
+      hospitalId,
+      patientId,
+      appointmentId,
+    );
+    if (!appointment) throw ApiError.notFound('Appointment not found');
+
+    if (!isValidAppointmentTransition(appointment.status, APPOINTMENT_STATUS.CANCELLED)) {
+      throw ApiError.badRequest(
+        `Cannot cancel an appointment that is already ${normalizeAppointmentStatus(appointment.status)}`,
+      );
+    }
+
+    await this.appointmentRepository.updateAppointment(appointmentId, {
+      status: APPOINTMENT_STATUS.CANCELLED,
+      cancelReason: 'Cancelled by patient via WhatsApp',
+    });
+
+    await this.auditService.log({
+      hospitalId,
+      actor: { userId: patientId, name: appointment.patientName ?? 'Patient', role: 'patient' },
+      action: 'appointment.cancelled',
+      area: 'appointments',
+      summary: `Cancelled via WhatsApp — ${appointmentId}${appointment.patientName ? ` · ${appointment.patientName}` : ''}`,
+    });
+
+    return {
+      id: appointmentId,
+      doctorName: appointment.doctorName,
+      date: appointment.date,
+      time: appointment.time,
+    };
+  }
+
+  async rescheduleSelfBookedAppointment(
+    hospitalId: string,
+    patientId: string,
+    appointmentId: string,
+    date: string,
+    time: string,
+  ) {
+    const appointment = await this.getAppointmentForPatient(
+      hospitalId,
+      patientId,
+      appointmentId,
+    );
+    if (!appointment) throw ApiError.notFound('Appointment not found');
+
+    if (!ACTIVE_APPOINTMENT_STATUSES.includes(appointment.status)) {
+      throw ApiError.badRequest(
+        `Cannot reschedule an appointment that is already ${normalizeAppointmentStatus(appointment.status)}`,
+      );
+    }
+
+    const membershipRef = await this.membershipRepository.getHospitalMembership(
+      hospitalId,
+      appointment.doctorProfileId,
+    );
+    if (membershipRef.empty) throw ApiError.notFound('Doctor is not part of this hospital');
+    const membership = membershipRef.docs[0].data();
+
+    const doctor = await this.doctorRepository.getDoctorProfileById(appointment.doctorProfileId);
+    if (!doctor) throw ApiError.notFound('Doctor not found');
+
+    // Same re-check-and-insert-atomically approach as createSelfBookingAppointment.
+    await this.appointmentRepository.runInTransaction(async (session) => {
+      const slots = await this.getAvailableSlots(doctor, membership, date, session);
+      if (!slots.some((s) => s.time === time)) {
+        throw ApiError.conflict('That slot is no longer available');
+      }
+
+      await this.appointmentRepository.updateAppointment(
+        appointmentId,
+        {
+          date,
+          time,
+          // Back to PENDING, same as a fresh self-booking — staff should
+          // re-confirm a patient-initiated reschedule rather than it silently
+          // staying CONFIRMED on the old understanding.
+          status: APPOINTMENT_STATUS.PENDING,
+          rescheduledAt: new Date().toISOString(),
+          rescheduledBy: 'patient',
+        },
+        session,
+      );
+    });
+
+    await this.auditService.log({
+      hospitalId,
+      actor: { userId: patientId, name: appointment.patientName ?? 'Patient', role: 'patient' },
+      action: 'appointment.rescheduled',
+      area: 'appointments',
+      summary: `Rescheduled via WhatsApp — ${appointmentId}${appointment.patientName ? ` · ${appointment.patientName}` : ''} → ${date} ${time}`,
+    });
+
+    return { id: appointmentId, date, time, doctorName: doctor.name };
+  }
+
   private async generateAppointments({
     doctor,
     patientId,
@@ -254,6 +500,9 @@ export class AppointmentsService {
     createdBy,
     userRole,
     membership,
+    bookingSource,
+    forceSlot,
+    vitals,
   }: GenerateAppointmentsParams) {
     const appointments: any[] = [];
     const start = new Date(startDate);
@@ -261,6 +510,13 @@ export class AppointmentsService {
     const maxOccurrences = frequency === 'once' ? 1 : Math.max(1, numberOfOccurrences);
     let attempts = 0;
     const SAFETY_LIMIT = 1000;
+
+    // Drop keys the desk left blank rather than persisting an object full of
+    // undefineds — same reasoning as the vitalsSchema fields all being
+    // optional (not every desk has every instrument to hand).
+    const cleanedVitals = vitals
+      ? Object.fromEntries(Object.entries(vitals).filter(([, v]) => v != null))
+      : undefined;
 
     // All appointments created here are admin/staff-booked (Flow 2), so they
     // start CONFIRMED directly. PENDING is reserved for a future patient
@@ -273,15 +529,37 @@ export class AppointmentsService {
       hospitalId,
       frequency,
       notes,
+      bookingSource: bookingSource || 'scheduled',
       status: APPOINTMENT_STATUS.CONFIRMED as const,
       confirmedAt: new Date().toISOString(),
       createdBy,
       userRole,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
+      ...(cleanedVitals && Object.keys(cleanedVitals).length > 0
+        ? { vitals: cleanedVitals }
+        : {}),
     };
 
     if (frequency === 'once') {
+      // The walk-in board's "straight into the queue" option: skip the normal
+      // slot search (which would reject once the session is at capacity) and
+      // book the exact time the front desk picked — still subject to the
+      // doctor's overCapacityPolicy below.
+      if (forceSlot && preferredTime) {
+        await this.assertWalkInCapacityAllowed(doctor, membership, startDate);
+        appointments.push({
+          ...baseAppointmentData,
+          date: startDate,
+          // Snap to the doctor's actual slot grid — a walk-in booked at
+          // whatever the clock reads (e.g. 09:14) would otherwise store a
+          // `time` that never matches the "09:00" bucket getAvailableSlots
+          // groups bookings by, so it silently wouldn't count against that
+          // slot's capacity and online booking would still offer it.
+          time: this.snapToSlotGrid(doctor, membership, startDate, preferredTime),
+        });
+        return appointments;
+      }
       const slot = await this.findNextAvailableSlot(doctor, membership, startDate, preferredTime);
       if (slot) {
         appointments.push({
@@ -353,6 +631,7 @@ export class AppointmentsService {
     doctor: any,
     membership: any,
     date: string,
+    session?: ClientSession,
   ): Promise<{ time: string; remaining: number; capacity: number }[]> {
     try {
       const doctorAvailability = membership?.availability || [];
@@ -368,10 +647,12 @@ export class AppointmentsService {
 
       // Check for existing appointments on this date
       // Include legacy 'scheduled' for appointments created before this status migration.
-      const existingAppointments = await this.appointmentRepository.getAppointmentsByDoctorAndDate(doctor.userId, date, [
-        ...ACTIVE_APPOINTMENT_STATUSES,
-        'scheduled',
-      ]);
+      const existingAppointments = await this.appointmentRepository.getAppointmentsByDoctorAndDate(
+        doctor.userId,
+        date,
+        [...ACTIVE_APPOINTMENT_STATUSES, 'scheduled'],
+        session,
+      );
 
       // Count how many patients are already booked into each slot, so a slot
       // stays available until it reaches the doctor's patientsPerSlot capacity.
@@ -384,6 +665,19 @@ export class AppointmentsService {
       const today = new Date();
       const isToday = dateObj.toDateString() === today.toDateString();
       const currentTime = isToday ? today : null;
+
+      // A doctor marked "left for the day" is done seeing patients — today's
+      // remaining slots stop being bookable the moment that's set, same as
+      // they'd stop for a walk-in at the front desk. Only today: the
+      // override is a same-day dashboard signal, not a standing closure.
+      if (isToday && membership?.hospitalId) {
+        const presence = await this.doctorPresenceRepository.getForDoctorAndDate(
+          membership.hospitalId,
+          membership.userId,
+          date,
+        );
+        if ((presence as any)?.kind === 'leftForDay') return [];
+      }
 
       // Generate all possible slots across every window for this day
       // Booking-rule fields (appointmentDuration/bufferMinutes/patientsPerSlot) are
@@ -434,6 +728,85 @@ export class AppointmentsService {
     } catch (err) {
       console.error('getAvailableSlots error:', err);
       return [];
+    }
+  }
+
+  // Gate for `forceSlot` bookings only — the normal slot search already
+  // enforces capacity by construction, this is the one path that can
+  // deliberately exceed it. A 'block' policy makes that a hard no once the
+  // day's total capacity (regular + walk-in, held slots included — walk-ins
+  // are exactly what those are held for) is used up; 'warn'/'allow' both let
+  // the desk proceed, the difference being front-end friction only.
+  // Rounds an arbitrary time down to the start of whichever slot on the
+  // doctor's grid it falls inside, so a walk-in booked "right now" lands on
+  // the same bucket (e.g. 09:00) that online-booking capacity is counted by,
+  // instead of a bespoke minute (09:14) nothing else ever matches.
+  private snapToSlotGrid(doctor: any, membership: any, date: string, timeStr: string): string {
+    const dayName = new Date(date).toLocaleDateString('en-US', { weekday: 'long' });
+    const windows = (membership?.availability || []).filter((a: any) => a.day === dayName);
+    if (windows.length === 0) return timeStr;
+
+    const duration = membership?.appointmentDuration || doctor.appointmentDuration || 30;
+    const gap = Math.max(0, membership?.bufferMinutes || 0);
+    const step = duration + gap;
+
+    const toMins = (t: string) => {
+      const [h, m] = t.split(':').map(Number);
+      return h * 60 + m;
+    };
+    const toTime = (mins: number) =>
+      `${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`;
+
+    const target = toMins(timeStr);
+    const containingWindow = windows.find((w: any) => target >= toMins(w.startTime) && target < toMins(w.endTime));
+    const window =
+      containingWindow ||
+      [...windows].sort(
+        (a: any, b: any) => Math.abs(toMins(a.startTime) - target) - Math.abs(toMins(b.startTime) - target),
+      )[0];
+
+    const winStart = toMins(window.startTime);
+    const winEnd = toMins(window.endTime);
+    // Clamp into the window so a walk-in just before opening or after
+    // closing still lands on a valid slot rather than one outside it.
+    const clamped = Math.max(winStart, Math.min(target, Math.max(winStart, winEnd - duration)));
+    const stepsElapsed = Math.floor((clamped - winStart) / step);
+    return toTime(winStart + stepsElapsed * step);
+  }
+
+  private async assertWalkInCapacityAllowed(doctor: any, membership: any, date: string) {
+    if ((membership?.overCapacityPolicy || 'warn') !== 'block') return;
+
+    const dayName = new Date(date).toLocaleDateString('en-US', { weekday: 'long' });
+    const windows = (membership?.availability || []).filter((a: any) => a.day === dayName);
+    if (windows.length === 0) return;
+
+    const duration = membership?.appointmentDuration || doctor.appointmentDuration || 30;
+    const gap = Math.max(0, membership?.bufferMinutes || 0);
+    const perSlot = Math.max(1, membership?.patientsPerSlot || 1);
+    const step = duration + gap;
+
+    let totalCapacity = 0;
+    for (const w of windows) {
+      const start = new Date(`${date}T${w.startTime}`);
+      const end = new Date(`${date}T${w.endTime}`);
+      let slotCount = 0;
+      const cur = new Date(start);
+      while (cur.getTime() + duration * 60000 <= end.getTime()) {
+        slotCount++;
+        cur.setMinutes(cur.getMinutes() + step);
+      }
+      totalCapacity += slotCount * perSlot;
+    }
+
+    const existing = await this.appointmentRepository.getAppointmentsByDoctorAndDate(doctor.userId, date, [
+      ...ACTIVE_APPOINTMENT_STATUSES,
+      'scheduled',
+    ]);
+    if (existing.length >= totalCapacity) {
+      throw ApiError.badRequest(
+        `Dr. ${doctor.name} is fully booked today and this hospital's walk-in policy blocks adding more.`,
+      );
     }
   }
 
@@ -511,16 +884,25 @@ export class AppointmentsService {
     }
 
     if (appointmentData?.doctorProfileId) {
-      // Verify the new doctor belongs to this hospital
-      const newDoctor = (await this.doctorRepository.getDoctorProfileById(appointmentData.doctorProfileId)) as any;
-
-      if (!newDoctor || newDoctor.hospitalId !== hospitalId) {
+      // Verify the new doctor belongs to this hospital — membership, not a
+      // hospitalId field on the doctor profile itself, which isn't reliably
+      // populated (see DoctorPresenceService for the same fix).
+      const newDoctorMembership = await this.membershipRepository.getHospitalMembership(
+        hospitalId,
+        appointmentData.doctorProfileId,
+      );
+      if (newDoctorMembership.empty) {
         throw ApiError.notFound('Doctor not found in this hospital');
       }
+      const newDoctor = (await this.doctorRepository.getDoctorProfileById(appointmentData.doctorProfileId)) as any;
 
       updateData.doctorProfileId = appointmentData.doctorProfileId;
-      updateData.doctorName = newDoctor.name || appointmentData.doctorName || existingData.doctorName;
-      updateData.doctorSpecialization = newDoctor.specialization || existingData.doctorSpecialization;
+      updateData.doctorName = newDoctor?.name || appointmentData.doctorName || existingData.doctorName;
+      updateData.doctorSpecialization = newDoctor?.specialization || existingData.doctorSpecialization;
+    }
+
+    if (appointmentData?.notes !== undefined) {
+      updateData.notes = appointmentData.notes;
     }
 
     if (appointmentData?.cancelReason) {
@@ -564,6 +946,77 @@ export class AppointmentsService {
       success: true,
       message: 'Appointment updated successfully',
       updatedBy: userRole,
+    };
+  }
+
+  // Finishes the clinical part of a visit (in-consultation -> awaiting-payment)
+  // without billing — saves session notes, persists any items given during
+  // the visit so they survive into the eventual bill, and creates the draft
+  // follow-up appointment. Collecting payment is a later, separate step —
+  // see PaymentsService.completeVisit, which only runs from awaiting-payment.
+  async finishSession(hospitalId: string, user: JwtUser, userProfile: HospitalUserProfile, body: FinishSessionBody) {
+    const userRole = userProfile?.role;
+
+    if (userRole !== 'admin' && userProfile?.hospitalId !== hospitalId) {
+      throw ApiError.forbidden('Unauthorized - Access denied to this hospital');
+    }
+
+    const { appointmentId, sessionNotes, followUp, givenItems } = body;
+
+    const existingAppointment = await this.appointmentRepository.getAppointmentById(appointmentId);
+    if (!existingAppointment) {
+      throw ApiError.notFound('Appointment not found');
+    }
+
+    const existingData = existingAppointment as any;
+
+    if (existingData.hospitalId !== hospitalId) {
+      throw ApiError.notFound('Appointment not found in this hospital');
+    }
+
+    if (userRole === 'doctor' && existingData.doctorProfileId !== userProfile?.userId) {
+      throw ApiError.forbidden('Unauthorized - Can only update your own appointments');
+    }
+
+    if (!isValidAppointmentTransition(existingData.status, APPOINTMENT_STATUS.AWAITING_PAYMENT)) {
+      const currentStatus = normalizeAppointmentStatus(existingData.status);
+      throw ApiError.badRequest(`Cannot finish a session from status '${currentStatus}'`);
+    }
+
+    const updateData: any = {
+      status: APPOINTMENT_STATUS.AWAITING_PAYMENT,
+      completedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      updatedBy: user.uid,
+      updatedByRole: userRole,
+    };
+    if (sessionNotes) {
+      updateData.sessionNotes = sessionNotes;
+    }
+    if (givenItems && givenItems.length > 0) {
+      updateData.givenItems = givenItems;
+    }
+
+    await this.appointmentRepository.updateAppointment(appointmentId, updateData);
+
+    const followUpAppointmentId = await this.createFollowUpAppointment({
+      hospitalId,
+      doctorProfileId: existingData.doctorProfileId,
+      doctorName: existingData.doctorName,
+      doctorSpecialization: existingData.doctorSpecialization,
+      patientId: existingData.patientId,
+      patientName: existingData.patientName,
+      time: existingData.time,
+      followUpOption: followUp,
+      notes: 'Follow-up scheduled at visit completion',
+      createdBy: user.uid,
+      userRole,
+    });
+
+    return {
+      success: true,
+      message: 'Session finished — ready for payment',
+      followUpAppointmentId,
     };
   }
 
@@ -620,5 +1073,47 @@ export class AppointmentsService {
       message: 'Appointment deleted successfully',
       deletedBy: userRole,
     };
+  }
+
+  // Extracted from PaymentsService.completeVisit so PrescriptionsService can
+  // create the same draft follow-up when a doctor signs a prescription, not
+  // just when the front desk completes a paid visit. Drafted as PENDING —
+  // the front desk still has to confirm it.
+  async createFollowUpAppointment(params: {
+    hospitalId: string;
+    doctorProfileId: string;
+    doctorName?: string;
+    doctorSpecialization?: string;
+    patientId: string;
+    patientName?: string;
+    time: string;
+    followUpOption: string;
+    notes: string;
+    createdBy: string;
+    userRole: string;
+  }): Promise<string | null> {
+    const days = FOLLOW_UP_DAY_OFFSETS[params.followUpOption];
+    if (!days) return null;
+
+    const date = new Date();
+    date.setDate(date.getDate() + days);
+
+    return this.appointmentRepository.createAppointment({
+      hospitalId: params.hospitalId,
+      doctorProfileId: params.doctorProfileId,
+      doctorName: params.doctorName,
+      doctorSpecialization: params.doctorSpecialization,
+      patientId: params.patientId,
+      patientName: params.patientName,
+      // Local date components, not `.toISOString()` — that converts to UTC
+      // first and shifts the date back a day in timezones ahead of UTC (e.g. IST).
+      date: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`,
+      time: params.time,
+      status: APPOINTMENT_STATUS.PENDING,
+      type: APPOINTMENT_TYPE.FOLLOW_UP,
+      notes: params.notes,
+      createdBy: params.createdBy,
+      userRole: params.userRole,
+    });
   }
 }

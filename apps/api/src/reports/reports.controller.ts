@@ -3,9 +3,11 @@ import type { Response } from 'express';
 import { ReportsService } from './reports.service';
 import { HospitalContextGuard } from '../auth/guards/hospital-context.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { RequiresFeature } from '../auth/decorators/requires-feature.decorator';
 import { CurrentHospitalUser } from '../auth/decorators/current-user.decorator';
 import type { HospitalUserProfile } from '../auth/decorators/current-user.decorator';
 import { toCsv } from '../common/csv.util';
+import { SUBSCRIPTION_FEATURE } from '../constants';
 
 // A doctor caller only ever sees their own row — resolved from the
 // membership context, never taken from the request.
@@ -15,6 +17,7 @@ function scopeFor(userProfile: HospitalUserProfile): string | undefined {
 
 @Controller('hospitals/:id/reports')
 @UseGuards(HospitalContextGuard)
+@RequiresFeature(SUBSCRIPTION_FEATURE.REPORTS)
 export class ReportsController {
   constructor(private readonly reportsService: ReportsService) {}
 

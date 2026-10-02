@@ -27,7 +27,10 @@ export class ApprovalsService {
   }
 
   private asJwtUser(profile: HospitalUserProfile): JwtUser {
-    return { uid: profile.userId, userId: profile.userId, email: profile.email, name: profile.name };
+    // Synthetic — this JwtUser is only ever used as a data carrier passed
+    // directly into service methods below (never through JwtAuthGuard), so
+    // there's no real session to reference.
+    return { uid: profile.userId, userId: profile.userId, email: profile.email, name: profile.name, sid: '' };
   }
 
   // Replays the original action using the payload captured when it was

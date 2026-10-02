@@ -2,7 +2,7 @@ import type { GENDER } from "../constants";
 
 export interface Patient {
   id: string;
-  userId: string;
+  userId?: string;
   hospitalId: string;
   patientId?: string;
   name: string;
@@ -15,6 +15,8 @@ export interface Patient {
   age?: string;
   address: string;
   allergies?: string[];
+  conditions?: string[];
+  flags?: string[];
   status: "active" | "inactive" | "archived" | "approved" | "pending";
   createdAt: any;
   updatedAt?: any;
@@ -50,6 +52,8 @@ export interface CreatePatientData {
   };
   medicalHistory?: string[];
   allergies?: string[];
+  conditions?: string[];
+  flags?: string[];
   currentMedications?: string[];
   insuranceInfo?: {
     provider: string;
@@ -78,6 +82,8 @@ export interface UpdatePatientData {
   };
   medicalHistory?: string[];
   allergies?: string[];
+  conditions?: string[];
+  flags?: string[];
   currentMedications?: string[];
   insuranceInfo?: {
     provider: string;

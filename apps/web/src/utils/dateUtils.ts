@@ -186,6 +186,7 @@ export function isCurrentWeek(date: Date): boolean {
 
 export const statusColors: { [key: string]: string } = {
   scheduled: "bg-brand-violet-soft text-brand-violet",
+  "awaiting-payment": "bg-status-warning-soft text-status-warning",
   completed: "bg-status-open-soft text-status-open",
   cancelled: "bg-status-danger-soft text-status-danger",
   "no-show": "bg-surface-canvas text-ink-500",

@@ -11,7 +11,11 @@ import {
   useUpdateMedicine,
 } from "@/hooks/useMedicineApi";
 import type { FoodTiming, MedicineForm } from "@/types/medicine";
-import { FOOD_TIMING_OPTIONS, MEDICINE_FORM_OPTIONS } from "@/types/medicine";
+import {
+  FOOD_TIMING_OPTIONS,
+  MEDICINE_FORM_OPTIONS,
+  SCHEDULE_CLASS_OPTIONS,
+} from "@/types/medicine";
 
 interface MedicineItemDrawerProps {
   hospitalId: string;
@@ -43,6 +47,10 @@ export default function MedicineItemDrawer({
   const [defaultFoodTiming, setDefaultFoodTiming] = useState<FoodTiming | "">(
     "",
   );
+  const [brandNames, setBrandNames] = useState<string[]>([]);
+  const [brandNameInput, setBrandNameInput] = useState("");
+  const [scheduleClass, setScheduleClass] = useState("");
+  const [isFavourite, setIsFavourite] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -55,6 +63,9 @@ export default function MedicineItemDrawer({
     setDefaultDose(item.defaultDose || "");
     setDefaultFrequency(item.defaultFrequency || "");
     setDefaultFoodTiming(item.defaultFoodTiming || "");
+    setBrandNames(item.brandNames || []);
+    setScheduleClass(item.scheduleClass || "");
+    setIsFavourite(item.isFavourite || false);
   }, [item]);
 
   const saving = createItem.isPending || updateItem.isPending;
@@ -70,6 +81,20 @@ export default function MedicineItemDrawer({
     if (e.key === "Enter" || e.key === ",") {
       e.preventDefault();
       addClass();
+    }
+  };
+
+  const addBrandName = () => {
+    const value = brandNameInput.trim();
+    if (value && !brandNames.includes(value))
+      setBrandNames((prev) => [...prev, value]);
+    setBrandNameInput("");
+  };
+
+  const onBrandNameKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" || e.key === ",") {
+      e.preventDefault();
+      addBrandName();
     }
   };
 
@@ -89,6 +114,9 @@ export default function MedicineItemDrawer({
       defaultDose: defaultDose.trim() || undefined,
       defaultFrequency: defaultFrequency.trim() || undefined,
       defaultFoodTiming: defaultFoodTiming || undefined,
+      brandNames,
+      scheduleClass: scheduleClass || undefined,
+      isFavourite,
     };
 
     try {
@@ -271,6 +299,76 @@ export default function MedicineItemDrawer({
                   ))}
                 </select>
               </Field>
+
+              <Field
+                label="Brand names"
+                optional
+                hint="Trade names shown under the generic name on the prescription, e.g. Azithral, Azee"
+              >
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {brandNames.map((b) => (
+                    <span
+                      key={b}
+                      className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold bg-brand-violet-soft text-brand-violet"
+                    >
+                      {b}
+                      {!readOnly && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setBrandNames((prev) => prev.filter((x) => x !== b))
+                          }
+                          className="hover:opacity-70"
+                        >
+                          <X size={11} />
+                        </button>
+                      )}
+                    </span>
+                  ))}
+                </div>
+                {!readOnly && (
+                  <input
+                    type="text"
+                    className={inputClass}
+                    placeholder="Type a brand name and press Enter"
+                    value={brandNameInput}
+                    onChange={(e) => setBrandNameInput(e.target.value)}
+                    onKeyDown={onBrandNameKeyDown}
+                    onBlur={addBrandName}
+                  />
+                )}
+              </Field>
+
+              <div className="grid grid-cols-2 gap-3 items-end">
+                <Field
+                  label="Schedule"
+                  optional
+                  hint="Drugs & Cosmetics Act classification"
+                >
+                  <select
+                    className={inputClass}
+                    value={scheduleClass}
+                    disabled={readOnly}
+                    onChange={(e) => setScheduleClass(e.target.value)}
+                  >
+                    {SCHEDULE_CLASS_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <label className="flex items-center gap-2 pb-2.5 text-sm font-medium text-ink-700">
+                  <input
+                    type="checkbox"
+                    checked={isFavourite}
+                    disabled={readOnly}
+                    onChange={(e) => setIsFavourite(e.target.checked)}
+                    className="w-4 h-4 rounded border-border"
+                  />
+                  Favourite (quick-access in prescriptions)
+                </label>
+              </div>
             </div>
 
             <div className="px-6 py-4 border-t border-border flex items-center gap-3">

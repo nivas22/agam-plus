@@ -191,19 +191,34 @@ interface ChangeDoctorDialogProps {
   doctors: Doctor[];
   allAppointments: AppointmentWithDetails[];
   patientCode?: string;
+  now: Date;
   onClose: () => void;
   updateAppointmentStatus: UpdateStatusFn;
   onSuccess: (message: string) => void;
 }
 
-export function ChangeDoctorDialog({ appointment, doctors, allAppointments, patientCode, onClose, updateAppointmentStatus, onSuccess }: ChangeDoctorDialogProps) {
+// Once a patient has checked in, their original booked slot is already
+// behind them — checking a new doctor's schedule against that stale time
+// answers the wrong question. What matters is who's free right now.
+const ALREADY_ARRIVED_STATUSES = new Set<string>([
+  APPOINTMENT_STATUS.CHECKED_IN,
+  APPOINTMENT_STATUS.WAITING,
+  APPOINTMENT_STATUS.IN_CONSULTATION,
+]);
+
+export function ChangeDoctorDialog({ appointment, doctors, allAppointments, patientCode, now, onClose, updateAppointmentStatus, onSuccess }: ChangeDoctorDialogProps) {
   const [query, setQuery] = useState("");
   const [picked, setPicked] = useState<Doctor | null>(null);
   const [notify, setNotify] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
   const current = doctors.find((d) => d.id === appointment.doctorProfileId) || null;
-  const dayName = format(new Date(`${appointment.date}T00:00:00`), "EEEE");
+  const alreadyArrived = ALREADY_ARRIVED_STATUSES.has(appointment.status);
+  const dayName = format(alreadyArrived ? now : new Date(`${appointment.date}T00:00:00`), "EEEE");
+  const checkMinutes = alreadyArrived
+    ? now.getHours() * 60 + now.getMinutes()
+    : minutesSinceMidnight(appointment.time);
+  const timeLabel = alreadyArrived ? "now" : `at ${formatTime12h(appointment.time)}`;
 
   const candidates = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -212,29 +227,56 @@ export function ChangeDoctorDialog({ appointment, doctors, allAppointments, pati
       .filter((d) => !q || `${d.name} ${d.specialization}`.toLowerCase().includes(q))
       .map((d) => {
         const worksThatDay = (d.availability || []).some((s) => s.day === dayName);
-        const busy = allAppointments.some(
-          (a) =>
-            a.id !== appointment.id &&
-            a.doctorProfileId === d.id &&
-            a.date === appointment.date &&
-            a.time === appointment.time &&
-            a.status !== APPOINTMENT_STATUS.CANCELLED &&
-            a.status !== APPOINTMENT_STATUS.NO_SHOW
+        // "Free"/"busy" only mean anything if the checked time falls inside
+        // one of this doctor's windows for that day — a doctor who works
+        // 5-8pm Tuesdays isn't free at a 12pm Tuesday slot just because
+        // they aren't double-booked at noon.
+        const worksThatTime = (d.availability || []).some(
+          (s) =>
+            s.day === dayName &&
+            checkMinutes >= minutesSinceMidnight(s.startTime) &&
+            checkMinutes < minutesSinceMidnight(s.endTime)
         );
-        const state: "off" | "busy" | "free" = !worksThatDay ? "off" : busy ? "busy" : "free";
+        // A patient already here needs a doctor who isn't mid-consultation
+        // with someone else right now; a not-yet-arrived patient just needs
+        // their preserved slot to not already be double-booked.
+        const busy = alreadyArrived
+          ? allAppointments.some(
+              (a) =>
+                a.doctorProfileId === d.id &&
+                a.status === APPOINTMENT_STATUS.IN_CONSULTATION
+            )
+          : allAppointments.some(
+              (a) =>
+                a.id !== appointment.id &&
+                a.doctorProfileId === d.id &&
+                a.date === appointment.date &&
+                a.time === appointment.time &&
+                a.status !== APPOINTMENT_STATUS.CANCELLED &&
+                a.status !== APPOINTMENT_STATUS.NO_SHOW
+            );
+        const state: "off" | "outsideHours" | "busy" | "free" = !worksThatDay
+          ? "off"
+          : !worksThatTime
+          ? "outsideHours"
+          : busy
+          ? "busy"
+          : "free";
         return { doctor: d, state, sameSpecialty: d.specialization === current?.specialization };
       })
       .sort((a, b) => Number(b.sameSpecialty) - Number(a.sameSpecialty));
-  }, [doctors, allAppointments, appointment, dayName, query, current]);
+  }, [doctors, allAppointments, appointment, dayName, checkMinutes, alreadyArrived, query, current]);
 
   const sameGroup = candidates.filter((c) => c.sameSpecialty);
   const otherGroup = candidates.filter((c) => !c.sameSpecialty);
 
-  const badgeFor = (state: "off" | "busy" | "free") =>
+  const badgeFor = (state: "off" | "outsideHours" | "busy" | "free") =>
     state === "free"
-      ? { text: `Free at ${formatTime12h(appointment.time)}`, cls: "bg-status-open-soft text-status-open" }
+      ? { text: `Free ${timeLabel}`, cls: "bg-status-open-soft text-status-open" }
       : state === "busy"
-      ? { text: `Busy at ${formatTime12h(appointment.time)}`, cls: "bg-status-warning-soft text-status-warning" }
+      ? { text: `Busy ${timeLabel}`, cls: "bg-status-warning-soft text-status-warning" }
+      : state === "outsideHours"
+      ? { text: `Not available ${timeLabel}`, cls: "bg-surface-canvas text-ink-500" }
       : { text: `Not consulting ${dayName}`, cls: "bg-surface-canvas text-ink-500" };
 
   const submit = async () => {
@@ -258,15 +300,16 @@ export function ChangeDoctorDialog({ appointment, doctors, allAppointments, pati
     const [c1] = paletteFor(c.doctor.name);
     const badge = badgeFor(c.state);
     const isPicked = picked?.id === c.doctor.id;
+    const unavailable = c.state === "off" || c.state === "outsideHours";
     return (
       <button
         type="button"
-        disabled={c.state === "off"}
+        disabled={unavailable}
         onClick={() => setPicked(c.doctor)}
         aria-pressed={isPicked}
         className={`w-full flex items-center gap-3 p-2.5 rounded-xl border text-left transition-colors ${
           isPicked ? "border-brand-violet bg-brand-violet-soft ring-1 ring-brand-violet" : "border-border hover:border-ink-500/40"
-        } ${c.state === "off" ? "opacity-60 cursor-not-allowed" : ""}`}
+        } ${unavailable ? "opacity-60 cursor-not-allowed" : ""}`}
       >
         <span
           className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold text-white shrink-0"
@@ -288,7 +331,11 @@ export function ChangeDoctorDialog({ appointment, doctors, allAppointments, pati
       icon={<Users2 className="w-4.5 h-4.5" />}
       iconTone="bg-surface-canvas text-ink-700"
       title="Move to a different doctor"
-      subtitle={`Keeping ${dateLabel(appointment.date)} at ${formatTime12h(appointment.time)}`}
+      subtitle={
+        alreadyArrived
+          ? `${appointment.patientName} is already here — checking who's free now`
+          : `Keeping ${dateLabel(appointment.date)} at ${formatTime12h(appointment.time)}`
+      }
       onClose={onClose}
       wide
       footer={

@@ -1,0 +1,30 @@
+name: Auto PR dev -> preview
+
+on:
+  push:
+    branches:
+      - dev
+
+jobs:
+  create-pr:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create PR to preview
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh pr list --base preview --head dev --state open --json number --jq '.[0].number' | grep -q .; then
+            echo "PR from dev to preview already exists, skipping."
+            exit 0
+          fi
+
+          gh pr create \
+            --base preview \
+            --head dev \
+            --title "Merge dev into preview" \
+            --body "Automated PR created from pushes to dev."

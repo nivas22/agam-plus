@@ -23,6 +23,11 @@ export class DoctorProfile {
   @Prop()
   qualification?: string;
 
+  // Shown on the prescription preview's "Reg. No." line when present; no
+  // admin UI to edit this yet, so it's set directly in the DB for now.
+  @Prop()
+  medicalRegistrationNumber?: string;
+
   @Prop()
   bio?: string;
 

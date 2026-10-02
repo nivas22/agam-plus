@@ -1,11 +1,14 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { DatabaseModule } from './database/database.module';
 import { RepositoriesModule } from './repositories/repositories.module';
 import { EmailModule } from './email/email.module';
+import { SmsModule } from './sms/sms.module';
 import { AuthModule } from './auth/auth.module';
+import { PatientAuthModule } from './patient-auth/patient-auth.module';
 import { HospitalsModule } from './hospitals/hospitals.module';
 import { DoctorsModule } from './doctors/doctors.module';
 import { PatientsModule } from './patients/patients.module';
@@ -19,19 +22,27 @@ import { TeamModule } from './team/team.module';
 import { ApprovalsModule } from './approvals/approvals.module';
 import { ChargeCatalogModule } from './charge-catalog/charge-catalog.module';
 import { HospitalHolidaysModule } from './hospital-holidays/hospital-holidays.module';
+import { WhatsappModule } from './whatsapp/whatsapp.module';
 import { ReportsModule } from './reports/reports.module';
 import { MedicinesModule } from './medicines/medicines.module';
+import { MedicinePacksModule } from './medicine-packs/medicine-packs.module';
 import { PrescriptionsModule } from './prescriptions/prescriptions.module';
 import { LeaveRequestsModule } from './leave-requests/leave-requests.module';
 import { DoctorDashboardModule } from './doctor-dashboard/doctor-dashboard.module';
+import { DoctorPresenceModule } from './doctor-presence/doctor-presence.module';
+import { SubscriptionsModule } from './subscriptions/subscriptions.module';
+import { InternalCronModule } from './internal/internal-cron.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    ScheduleModule.forRoot(),
     DatabaseModule,
     RepositoriesModule,
     EmailModule,
+    SmsModule,
     AuthModule,
+    PatientAuthModule,
     PermissionsModule,
     AuditModule,
     HospitalsModule,
@@ -44,12 +55,17 @@ import { DoctorDashboardModule } from './doctor-dashboard/doctor-dashboard.modul
     ApprovalsModule,
     ChargeCatalogModule,
     HospitalHolidaysModule,
+    WhatsappModule,
     ReportsModule,
     MedicinesModule,
+    MedicinePacksModule,
     PrescriptionsModule,
     LeaveRequestsModule,
     DoctorDashboardModule,
+    DoctorPresenceModule,
+    SubscriptionsModule,
     PlatformAdminModule,
+    InternalCronModule,
   ],
   controllers: [AppController],
   providers: [AppService],

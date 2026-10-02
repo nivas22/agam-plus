@@ -3,6 +3,7 @@ import { PrescriptionRepository } from '../repositories/prescription.repository'
 import { AppointmentRepository } from '../repositories/appointment.repository';
 import { PatientRepository } from '../repositories/patient.repository';
 import { MedicineRepository } from '../repositories/medicine.repository';
+import { AppointmentsService } from '../appointments/appointments.service';
 import { AuditService } from '../audit/audit.service';
 import { ApiError } from '../common/errors/api-error';
 import { PRESCRIPTION_STATUS } from '../constants';
@@ -32,6 +33,7 @@ interface SavePrescriptionData {
   items: PrescriptionItemInput[];
   allergyOverrides: AllergyOverrideInput[];
   advice?: string;
+  followUpOption?: string;
 }
 
 // Bidirectional substring match, lowercased — catches both a patient allergy
@@ -60,6 +62,7 @@ export class PrescriptionsService {
     private readonly appointmentRepository: AppointmentRepository,
     private readonly patientRepository: PatientRepository,
     private readonly medicineRepository: MedicineRepository,
+    private readonly appointmentsService: AppointmentsService,
     private readonly auditService: AuditService,
   ) {}
 
@@ -131,6 +134,7 @@ export class PrescriptionsService {
         items: data.items,
         allergyOverrides,
         advice: data.advice,
+        followUpOption: data.followUpOption,
       },
     );
 
@@ -150,13 +154,43 @@ export class PrescriptionsService {
     appointmentId: string,
     actor: HospitalUserProfile,
     status: 'draft' | 'signed',
+    followUpOption?: string,
   ) {
     const appointment = await this.getVerifiedAppointment(hospitalId, appointmentId);
     const existing = await this.prescriptionRepository.getByAppointment(hospitalId, appointmentId);
     if (!existing) throw ApiError.notFound('No prescription to update for this appointment');
 
     const updates: Record<string, any> = { status };
-    if (status === PRESCRIPTION_STATUS.SIGNED) updates.issuedAt = new Date();
+    if (status === PRESCRIPTION_STATUS.SIGNED) {
+      updates.issuedAt = new Date();
+
+      // Assigned once — re-signing ("Re-sign & update") never burns a second number.
+      if (!(existing as any).rxNumber) {
+        const sequence = await this.prescriptionRepository.getNextRxSequence(hospitalId);
+        updates.rxNumber = `RX-${sequence}`;
+      }
+
+      // Also create-once: re-signing with a different followUpOption doesn't
+      // create a second appointment or reschedule the first one.
+      if (followUpOption && followUpOption !== 'none' && !(existing as any).followUpAppointmentId) {
+        const followUpAppointmentId = await this.appointmentsService.createFollowUpAppointment({
+          hospitalId,
+          doctorProfileId: appointment.doctorProfileId,
+          doctorName: appointment.doctorName,
+          patientId: appointment.patientId,
+          patientName: appointment.patientName,
+          time: appointment.time,
+          followUpOption,
+          notes: 'Follow-up scheduled from prescription sign-off',
+          createdBy: actor.userId,
+          userRole: actor.role,
+        });
+        if (followUpAppointmentId) {
+          updates.followUpOption = followUpOption;
+          updates.followUpAppointmentId = followUpAppointmentId;
+        }
+      }
+    }
 
     const updated = await this.prescriptionRepository.updateFields(hospitalId, existing.id, updates);
 
@@ -169,5 +203,19 @@ export class PrescriptionsService {
     });
 
     return updated;
+  }
+
+  // Backs "Repeat last" in the prescription writer — only offers the same
+  // doctor's own last signed prescription for this patient, not any
+  // doctor's, so it reflects continuity of care the requesting doctor
+  // actually gave.
+  async getLastSignedForRepeat(hospitalId: string, appointmentId: string) {
+    const appointment = await this.getVerifiedAppointment(hospitalId, appointmentId);
+    const last = await this.prescriptionRepository.getLastSignedByDoctorAndPatient(
+      hospitalId,
+      appointment.doctorProfileId,
+      appointment.patientId,
+    );
+    return { prescription: last || null };
   }
 }

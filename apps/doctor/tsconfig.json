@@ -1,0 +1,13 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    // Hoisted node_modules exposes unrelated ambient @types; "node" is kept for
+    // process.env.EXPO_PUBLIC_* in src/lib/api.ts.
+    "types": ["react", "node"],
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts"]
+}

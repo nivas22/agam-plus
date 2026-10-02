@@ -1,0 +1,600 @@
+"use client";
+
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Loader2, Settings2, ToggleLeft } from "lucide-react";
+import { useState } from "react";
+import toast from "react-hot-toast";
+import { inputClass, ToggleSwitch } from "@/components/common/EditFormControls";
+import { apiUrl, fetchWithAuth } from "@/lib/api";
+
+type BillingCycle = "monthly" | "annual";
+type SubscriptionStatus =
+  | "trialing"
+  | "active"
+  | "past_due"
+  | "suspended"
+  | "exempt"
+  | "cancelled";
+type FeatureKey = "whatsapp" | "reports" | "packages" | "medicinePacks";
+
+interface SubscriptionRow {
+  hospitalId: string;
+  hospitalName: string;
+  billingCycle: BillingCycle;
+  status: SubscriptionStatus;
+  doctorCount: number;
+  staffCount: number;
+  totalAmount: number;
+  features: Record<FeatureKey, boolean>;
+  pendingInvoice: {
+    id: string;
+    invoiceNumber: string;
+    status: string;
+    totalAmount: number;
+    paymentReference?: string;
+  } | null;
+}
+
+interface PlanConfig {
+  includedDoctors: number;
+  includedStaff: number;
+  basePriceMonthly: number;
+  basePriceAnnual: number;
+  doctorAddonPriceMonthly: number;
+  doctorAddonPriceAnnual: number;
+  staffAddonPriceMonthly: number;
+  staffAddonPriceAnnual: number;
+}
+
+const STATUS_LABELS: Record<SubscriptionStatus, string> = {
+  trialing: "Trial",
+  active: "Active",
+  past_due: "Payment due",
+  suspended: "Suspended",
+  exempt: "Exempt",
+  cancelled: "Cancelled",
+};
+
+const STATUS_STYLES: Record<SubscriptionStatus, string> = {
+  trialing: "bg-brand-violet-soft text-brand-violet",
+  active: "bg-status-open-soft text-status-open",
+  past_due: "bg-status-warning-soft text-status-warning",
+  suspended: "bg-status-danger-soft text-status-danger",
+  exempt: "bg-surface-canvas text-ink-700",
+  cancelled: "bg-surface-canvas text-ink-500",
+};
+
+const FEATURE_LABELS: { key: FeatureKey; label: string }[] = [
+  { key: "whatsapp", label: "WhatsApp" },
+  { key: "reports", label: "Reports" },
+  { key: "packages", label: "Packages" },
+  { key: "medicinePacks", label: "Medicine packs" },
+];
+
+function money(v: number): string {
+  return `₹${Math.round(v).toLocaleString("en-IN")}`;
+}
+
+async function fetchSubscriptions(): Promise<SubscriptionRow[]> {
+  const response = await fetchWithAuth(apiUrl("/platform-admin/subscriptions"));
+  if (!response.ok) throw new Error("Failed to load subscriptions");
+  return response.json();
+}
+
+async function fetchPlanConfig(): Promise<PlanConfig> {
+  const response = await fetchWithAuth(
+    apiUrl("/platform-admin/subscription-plan-config"),
+  );
+  if (!response.ok) throw new Error("Failed to load plan pricing");
+  return response.json();
+}
+
+async function updatePlanConfig(data: PlanConfig): Promise<void> {
+  const response = await fetchWithAuth(
+    apiUrl("/platform-admin/subscription-plan-config"),
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    },
+  );
+  if (!response.ok) {
+    const error = await response.json().catch(() => null);
+    throw new Error(
+      error?.error || error?.message || "Failed to update plan pricing",
+    );
+  }
+}
+
+async function confirmPayment(invoiceId: string): Promise<void> {
+  const response = await fetchWithAuth(
+    apiUrl(
+      `/platform-admin/subscriptions/invoices/${invoiceId}/confirm-payment`,
+    ),
+    {
+      method: "POST",
+    },
+  );
+  if (!response.ok) {
+    const error = await response.json().catch(() => null);
+    throw new Error(
+      error?.error || error?.message || "Failed to confirm payment",
+    );
+  }
+}
+
+async function setExempt(hospitalId: string, exempt: boolean): Promise<void> {
+  const response = await fetchWithAuth(
+    apiUrl(`/platform-admin/hospitals/${hospitalId}/subscription/exempt`),
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ exempt }),
+    },
+  );
+  if (!response.ok) {
+    const error = await response.json().catch(() => null);
+    throw new Error(
+      error?.error || error?.message || "Failed to update billing exemption",
+    );
+  }
+}
+
+async function setCancelled(
+  hospitalId: string,
+  cancelled: boolean,
+): Promise<void> {
+  const response = await fetchWithAuth(
+    apiUrl(`/platform-admin/hospitals/${hospitalId}/subscription/cancel`),
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ cancelled }),
+    },
+  );
+  if (!response.ok) {
+    const error = await response.json().catch(() => null);
+    throw new Error(
+      error?.error || error?.message || "Failed to update subscription",
+    );
+  }
+}
+
+async function setFeature(
+  hospitalId: string,
+  feature: FeatureKey,
+  enabled: boolean,
+): Promise<void> {
+  const response = await fetchWithAuth(
+    apiUrl(`/platform-admin/hospitals/${hospitalId}/subscription/features`),
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ feature, enabled }),
+    },
+  );
+  if (!response.ok) {
+    const error = await response.json().catch(() => null);
+    throw new Error(
+      error?.error || error?.message || "Failed to update feature",
+    );
+  }
+}
+
+type Tab = "overview" | "pricing" | "features";
+
+const TABS: { key: Tab; label: string }[] = [
+  { key: "overview", label: "Overview" },
+  { key: "pricing", label: "Plan pricing" },
+  { key: "features", label: "Features" },
+];
+
+export default function SubscriptionsPage() {
+  const [tab, setTab] = useState<Tab>("overview");
+
+  return (
+    <div>
+      <h1 className="font-display tracking-tight text-xl font-bold text-ink-900 mb-1">
+        Subscriptions
+      </h1>
+      <p className="text-sm text-ink-500 mb-5">
+        Billing status across every hospital, plan pricing, and per-hospital
+        feature access.
+      </p>
+
+      <div className="flex gap-2 mb-5">
+        {TABS.map((t) => (
+          <button
+            key={t.key}
+            type="button"
+            onClick={() => setTab(t.key)}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              tab === t.key
+                ? "bg-brand-violet text-white"
+                : "bg-surface-paper border border-border text-ink-700 hover:bg-surface-canvas"
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "overview" && <OverviewTab />}
+      {tab === "pricing" && <PricingTab />}
+      {tab === "features" && <FeaturesTab />}
+    </div>
+  );
+}
+
+function ConfirmPaymentButton({
+  invoice,
+  onConfirm,
+  disabled,
+}: {
+  invoice: NonNullable<SubscriptionRow["pendingInvoice"]>;
+  onConfirm: (invoiceId: string) => void;
+  disabled: boolean;
+}) {
+  const awaitingSubmission = invoice.status !== "payment_submitted";
+
+  return (
+    <button
+      type="button"
+      onClick={() => onConfirm(invoice.id)}
+      disabled={disabled || awaitingSubmission}
+      title={
+        awaitingSubmission
+          ? "Awaiting the hospital to submit a payment reference"
+          : undefined
+      }
+      className="px-3 py-1.5 rounded-lg bg-brand-violet hover:bg-brand-violet-hover text-white text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+    >
+      Confirm {money(invoice.totalAmount)}
+    </button>
+  );
+}
+
+function OverviewTab() {
+  const queryClient = useQueryClient();
+
+  const { data: rows = [], isLoading } = useQuery({
+    queryKey: ["platform-admin", "subscriptions"],
+    queryFn: fetchSubscriptions,
+  });
+
+  const invalidate = () =>
+    queryClient.invalidateQueries({
+      queryKey: ["platform-admin", "subscriptions"],
+    });
+
+  const confirmMutation = useMutation({
+    mutationFn: (invoiceId: string) => confirmPayment(invoiceId),
+    onSuccess: () => {
+      invalidate();
+      toast.success("Payment confirmed");
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const exemptMutation = useMutation({
+    mutationFn: ({
+      hospitalId,
+      exempt,
+    }: {
+      hospitalId: string;
+      exempt: boolean;
+    }) => setExempt(hospitalId, exempt),
+    onSuccess: () => {
+      invalidate();
+      toast.success("Billing exemption updated");
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const cancelMutation = useMutation({
+    mutationFn: ({
+      hospitalId,
+      cancelled,
+    }: {
+      hospitalId: string;
+      cancelled: boolean;
+    }) => setCancelled(hospitalId, cancelled),
+    onSuccess: () => {
+      invalidate();
+      toast.success("Subscription updated");
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center py-16">
+        <div className="animate-spin rounded-full h-8 w-8 border-2 border-brand-violet/20 border-t-brand-violet" />
+      </div>
+    );
+  }
+
+  return (
+    <section className="bg-surface-paper rounded-xl border border-border shadow-sm overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-border text-left text-xs text-ink-500 uppercase tracking-wide">
+              <th className="px-4 py-3 font-semibold">Hospital</th>
+              <th className="px-4 py-3 font-semibold">Plan</th>
+              <th className="px-4 py-3 font-semibold">Status</th>
+              <th className="px-4 py-3 font-semibold">Seats</th>
+              <th className="px-4 py-3 font-semibold">Next bill</th>
+              <th className="px-4 py-3 font-semibold">Pending payment</th>
+              <th className="px-4 py-3 font-semibold text-right">Exempt</th>
+              <th className="px-4 py-3 font-semibold text-right">Cancelled</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr
+                key={row.hospitalId}
+                className="border-b border-border last:border-0"
+              >
+                <td className="px-4 py-3 font-medium text-ink-900">
+                  {row.hospitalName}
+                </td>
+                <td className="px-4 py-3 text-ink-700 capitalize">
+                  {row.billingCycle}
+                </td>
+                <td className="px-4 py-3">
+                  <span
+                    className={`px-2 py-0.5 rounded-full text-[11px] font-semibold ${STATUS_STYLES[row.status]}`}
+                  >
+                    {STATUS_LABELS[row.status]}
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-ink-700 tabular-nums">
+                  {row.doctorCount} doctors, {row.staffCount} staff
+                </td>
+                <td className="px-4 py-3 text-ink-900 font-mono tabular-nums">
+                  {money(row.totalAmount)}
+                </td>
+                <td className="px-4 py-3">
+                  {row.pendingInvoice ? (
+                    <ConfirmPaymentButton
+                      invoice={row.pendingInvoice}
+                      onConfirm={(invoiceId) =>
+                        confirmMutation.mutate(invoiceId)
+                      }
+                      disabled={confirmMutation.isPending}
+                    />
+                  ) : (
+                    <span className="text-ink-500 text-xs">—</span>
+                  )}
+                </td>
+                <td className="px-4 py-3 text-right">
+                  <ToggleSwitch
+                    checked={row.status === "exempt"}
+                    onChange={(value) =>
+                      exemptMutation.mutate({
+                        hospitalId: row.hospitalId,
+                        exempt: value,
+                      })
+                    }
+                    disabled={exemptMutation.isPending}
+                  />
+                </td>
+                <td className="px-4 py-3 text-right">
+                  <ToggleSwitch
+                    checked={row.status === "cancelled"}
+                    onChange={(value) =>
+                      cancelMutation.mutate({
+                        hospitalId: row.hospitalId,
+                        cancelled: value,
+                      })
+                    }
+                    disabled={cancelMutation.isPending}
+                  />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {rows.length === 0 && (
+        <p className="text-sm text-ink-500 italic px-4 py-8 text-center">
+          No hospitals yet
+        </p>
+      )}
+    </section>
+  );
+}
+
+function PricingTab() {
+  const queryClient = useQueryClient();
+  const [form, setForm] = useState<PlanConfig | null>(null);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["platform-admin", "subscription-plan-config"],
+    queryFn: fetchPlanConfig,
+  });
+
+  const config = form ?? data ?? null;
+
+  const saveMutation = useMutation({
+    mutationFn: (payload: PlanConfig) => updatePlanConfig(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["platform-admin", "subscription-plan-config"],
+      });
+      toast.success(
+        "Plan pricing updated — applies to new subscriptions and plan changes from now on",
+      );
+      setForm(null);
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  if (isLoading || !config) {
+    return (
+      <div className="flex justify-center py-16">
+        <div className="animate-spin rounded-full h-8 w-8 border-2 border-brand-violet/20 border-t-brand-violet" />
+      </div>
+    );
+  }
+
+  function update<K extends keyof PlanConfig>(key: K, value: number) {
+    setForm({ ...(config as PlanConfig), [key]: value });
+  }
+
+  const FIELDS: { key: keyof PlanConfig; label: string }[] = [
+    { key: "includedDoctors", label: "Included doctors" },
+    { key: "includedStaff", label: "Included staff seats" },
+    { key: "basePriceMonthly", label: "Base price — monthly (₹)" },
+    { key: "basePriceAnnual", label: "Base price — annual (₹)" },
+    { key: "doctorAddonPriceMonthly", label: "Extra doctor — monthly (₹)" },
+    { key: "doctorAddonPriceAnnual", label: "Extra doctor — annual (₹)" },
+    { key: "staffAddonPriceMonthly", label: "Extra staff seat — monthly (₹)" },
+    { key: "staffAddonPriceAnnual", label: "Extra staff seat — annual (₹)" },
+  ];
+
+  return (
+    <section className="bg-surface-paper rounded-xl border border-border shadow-sm p-5 md:p-6">
+      <div className="mb-4">
+        <h2 className="text-lg font-bold text-ink-900 flex items-center gap-2 font-display tracking-tight">
+          <Settings2 className="w-5 h-5 text-brand-violet" />
+          Plan pricing
+        </h2>
+        <p className="text-sm text-ink-500">
+          Only affects new hospitals and plan changes from now on — existing
+          subscriptions keep the price they were sold at.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {FIELDS.map((field) => (
+          <label key={field.key} className="block">
+            <span className="text-xs font-medium text-ink-700 mb-1 block">
+              {field.label}
+            </span>
+            <input
+              type="number"
+              min={0}
+              value={config[field.key]}
+              onChange={(e) => update(field.key, Number(e.target.value))}
+              className={inputClass}
+            />
+          </label>
+        ))}
+      </div>
+
+      <div className="mt-5 flex justify-end">
+        <button
+          type="button"
+          disabled={!form || saveMutation.isPending}
+          onClick={() => form && saveMutation.mutate(form)}
+          className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-brand-violet hover:bg-brand-violet-hover text-white text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {saveMutation.isPending && (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          )}
+          Save pricing
+        </button>
+      </div>
+    </section>
+  );
+}
+
+function FeaturesTab() {
+  const queryClient = useQueryClient();
+
+  const { data: rows = [], isLoading } = useQuery({
+    queryKey: ["platform-admin", "subscriptions"],
+    queryFn: fetchSubscriptions,
+  });
+
+  const featureMutation = useMutation({
+    mutationFn: ({
+      hospitalId,
+      feature,
+      enabled,
+    }: {
+      hospitalId: string;
+      feature: FeatureKey;
+      enabled: boolean;
+    }) => setFeature(hospitalId, feature, enabled),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["platform-admin", "subscriptions"],
+      });
+      toast.success("Feature access updated");
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center py-16">
+        <div className="animate-spin rounded-full h-8 w-8 border-2 border-brand-violet/20 border-t-brand-violet" />
+      </div>
+    );
+  }
+
+  return (
+    <section className="bg-surface-paper rounded-xl border border-border shadow-sm overflow-hidden">
+      <div className="px-5 py-4 border-b border-border">
+        <h2 className="text-lg font-bold text-ink-900 flex items-center gap-2 font-display tracking-tight">
+          <ToggleLeft className="w-5 h-5 text-brand-violet" />
+          Features by hospital
+        </h2>
+        <p className="text-sm text-ink-500">
+          Turn off a module for a hospital independent of its billing status.
+        </p>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-border text-left text-xs text-ink-500 uppercase tracking-wide">
+              <th className="px-4 py-3 font-semibold">Hospital</th>
+              {FEATURE_LABELS.map((f) => (
+                <th key={f.key} className="px-4 py-3 font-semibold text-center">
+                  {f.label}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr
+                key={row.hospitalId}
+                className="border-b border-border last:border-0"
+              >
+                <td className="px-4 py-3 font-medium text-ink-900">
+                  {row.hospitalName}
+                </td>
+                {FEATURE_LABELS.map((f) => (
+                  <td key={f.key} className="px-4 py-3">
+                    <div className="flex justify-center">
+                      <ToggleSwitch
+                        checked={row.features?.[f.key] !== false}
+                        onChange={(value) =>
+                          featureMutation.mutate({
+                            hospitalId: row.hospitalId,
+                            feature: f.key,
+                            enabled: value,
+                          })
+                        }
+                        disabled={featureMutation.isPending}
+                      />
+                    </div>
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {rows.length === 0 && (
+        <p className="text-sm text-ink-500 italic px-4 py-8 text-center">
+          No hospitals yet
+        </p>
+      )}
+    </section>
+  );
+}

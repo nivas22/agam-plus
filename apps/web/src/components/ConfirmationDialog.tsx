@@ -12,6 +12,7 @@ interface ConfirmationDialogProps {
   confirmText?: string;
   confirmColor?: "red" | "blue" | "green" | "gray";
   cancelText?: string;
+  hideCancel?: boolean;
 }
 
 export default function ConfirmationDialog({
@@ -23,6 +24,7 @@ export default function ConfirmationDialog({
   confirmText = "Confirm",
   confirmColor = "blue",
   cancelText = "Cancel",
+  hideCancel = false,
 }: ConfirmationDialogProps) {
   if (!isOpen) return null;
 
@@ -55,12 +57,14 @@ export default function ConfirmationDialog({
 
         {/* Actions */}
         <div className="flex gap-3 justify-end">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 border border-border text-ink-700 rounded-lg hover:bg-surface-canvas transition-colors"
-          >
-            {cancelText}
-          </button>
+          {!hideCancel && (
+            <button
+              onClick={onClose}
+              className="px-4 py-2 border border-border text-ink-700 rounded-lg hover:bg-surface-canvas transition-colors"
+            >
+              {cancelText}
+            </button>
+          )}
           <button
             onClick={onConfirm}
             className={`px-4 py-2 text-white rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${colorClasses[confirmColor]}`}

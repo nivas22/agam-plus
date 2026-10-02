@@ -1,81 +1,94 @@
 export enum DB_COLLECTIONS {
-  USERS = 'users_new',
-  DOCTOR_PROFILES = 'doctorProfiles_new_1',
-  PATIENTS = 'patients_new_1',
-  APPOINTMENTS = 'appointments_new',
-  HOSPITALS = 'hospitals_new',
-  HOSPITAL_MEMBERS = 'hospitalMembers_new_1',
-  REVIEWS = 'reviews',
-  DOCTOR_ACTIVIES = 'doctor_activities',
-  PAYMENTS = 'payments',
-  PAYMENT_DAY_CLOSES = 'payment_day_closes',
-  PACKAGES = 'packages',
-  TEAM_MEMBER_PROFILES = 'team_member_profiles',
-  ROLE_PERMISSIONS = 'role_permissions',
-  AUDIT_LOG = 'audit_log',
-  APPROVAL_REQUESTS = 'approval_requests',
-  CHARGE_CATALOG_ITEMS = 'charge_catalog_items',
-  HOSPITAL_HOLIDAYS = 'hospital_holidays',
-  MEDICINES = 'medicines',
-  PRESCRIPTIONS = 'prescriptions',
-  LEAVE_REQUESTS = 'leave_requests',
+  USERS = "users",
+  DOCTOR_PROFILES = "doctor_profiles",
+  PATIENTS = "patients",
+  APPOINTMENTS = "appointments",
+  HOSPITALS = "hospitals",
+  HOSPITAL_MEMBERS = "hospital_members",
+  REVIEWS = "reviews",
+  DOCTOR_ACTIVIES = "doctor_activities",
+  PAYMENTS = "payments",
+  PAYMENT_DAY_CLOSES = "payment_day_closes",
+  PACKAGES = "packages",
+  TEAM_MEMBER_PROFILES = "team_member_profiles",
+  ROLE_PERMISSIONS = "role_permissions",
+  AUDIT_LOG = "audit_log",
+  APPROVAL_REQUESTS = "approval_requests",
+  CHARGE_CATALOG_ITEMS = "charge_catalog_items",
+  HOSPITAL_HOLIDAYS = "hospital_holidays",
+  MEDICINES = "medicines",
+  MEDICINE_PACKS = "medicine_packs",
+  PRESCRIPTIONS = "prescriptions",
+  LEAVE_REQUESTS = "leave_requests",
+  COUNTERS = "counters",
+  DOCTOR_PRESENCE = "doctor_presence",
+  PATIENT_ACCOUNTS = "patient_accounts",
+  SESSIONS = "sessions",
+  WHATSAPP_CONFIGS = "whatsapp_configs",
+  WHATSAPP_SESSIONS = "whatsapp_sessions",
+  WHATSAPP_ENQUIRIES = "whatsapp_enquiries",
+  WHATSAPP_PROCESSED_MESSAGES = "whatsapp_processed_messages",
+  SUBSCRIPTIONS = "subscriptions",
+  SUBSCRIPTION_INVOICES = "subscription_invoices",
+  SUBSCRIPTION_PLAN_CONFIG = "subscription_plan_config",
 }
 
 // FRONT_DESK/NURSE/ACCOUNTANT replace the old unused STAFF value — nothing
-// ever created a 'staff' membership, these are the first real non-admin,
+// ever created a "staff" membership, these are the first real non-admin,
 // non-clinical roles in the system (see the Team/Roles & permissions feature).
 export enum ROLE {
-  ADMIN = 'admin',
-  DOCTOR = 'doctor',
-  PATIENT = 'patient',
-  FRONT_DESK = 'front_desk',
-  NURSE = 'nurse',
-  ACCOUNTANT = 'accountant',
+  ADMIN = "admin",
+  DOCTOR = "doctor",
+  PATIENT = "patient",
+  FRONT_DESK = "front_desk",
+  NURSE = "nurse",
+  ACCOUNTANT = "accountant",
 }
 
 export const STAFF_ROLES = [ROLE.FRONT_DESK, ROLE.NURSE, ROLE.ACCOUNTANT];
 
 export enum MEMBERSHIP_STATUS {
-  PENDING = 'pending',
-  APPROVED = 'approved',
-  REJECTED = 'rejected',
-  SUSPENDED = 'suspended',
-  DEACTIVATED = 'deactivated',
+  PENDING = "pending",
+  APPROVED = "approved",
+  REJECTED = "rejected",
+  SUSPENDED = "suspended",
+  DEACTIVATED = "deactivated",
 }
 
 // The three states a permission action can be in for a given role — see
 // permissions/permission-catalog.ts for the full action catalog.
 export enum PERMISSION_STATE {
-  ALLOWED = 'allowed',
-  NEEDS_APPROVAL = 'needs_approval',
-  BLOCKED = 'blocked',
+  ALLOWED = "allowed",
+  NEEDS_APPROVAL = "needs_approval",
+  BLOCKED = "blocked",
 }
 
 export enum GENDER {
-  MALE = 'Male',
-  FEMALE = 'Female',
-  OTHER = 'Other',
+  MALE = "Male",
+  FEMALE = "Female",
+  OTHER = "Other",
 }
 
-// Appointment lifecycle. PENDING is reserved for a future patient
-// self-booking flow (not reachable today — admin/staff-created
-// appointments start at CONFIRMED). This also lays the groundwork for a
+// Appointment lifecycle. PENDING means a patient self-booked (today: via
+// WhatsApp) and staff have not confirmed yet — admin/staff-created
+// appointments still start at CONFIRMED. This also lays the groundwork for a
 // hospital queue: CHECKED_IN -> WAITING -> IN_CONSULTATION.
 export enum APPOINTMENT_STATUS {
-  PENDING = 'pending',
-  CONFIRMED = 'confirmed',
-  CHECKED_IN = 'checked-in',
-  WAITING = 'waiting',
-  IN_CONSULTATION = 'in-consultation',
-  COMPLETED = 'completed',
-  CANCELLED = 'cancelled',
-  NO_SHOW = 'no-show',
-  RESCHEDULED = 'rescheduled',
+  PENDING = "pending",
+  CONFIRMED = "confirmed",
+  CHECKED_IN = "checked-in",
+  WAITING = "waiting",
+  IN_CONSULTATION = "in-consultation",
+  AWAITING_PAYMENT = "awaiting-payment",
+  COMPLETED = "completed",
+  CANCELLED = "cancelled",
+  NO_SHOW = "no-show",
+  RESCHEDULED = "rescheduled",
 }
 
 export const APPOINTMENT_STATUS_VALUES = Object.values(APPOINTMENT_STATUS);
 
-// Statuses that still hold a claim on the doctor's schedule for that slot.
+// Statuses that still hold a claim on the doctor"s schedule for that slot.
 export const ACTIVE_APPOINTMENT_STATUSES: APPOINTMENT_STATUS[] = [
   APPOINTMENT_STATUS.PENDING,
   APPOINTMENT_STATUS.CONFIRMED,
@@ -84,13 +97,23 @@ export const ACTIVE_APPOINTMENT_STATUSES: APPOINTMENT_STATUS[] = [
   APPOINTMENT_STATUS.IN_CONSULTATION,
 ];
 
+// Statuses meaning "this patient was actually seen today" — the clinical
+// session happened, whether or not payment has been collected yet. Use this
+// (not a strict === COMPLETED check) for visit history/counts/durations;
+// keep strict COMPLETED only where "fully billed and closed" is the intent
+// (e.g. package-visit redemption).
+export const VISIT_FINISHED_STATUSES: APPOINTMENT_STATUS[] = [
+  APPOINTMENT_STATUS.AWAITING_PAYMENT,
+  APPOINTMENT_STATUS.COMPLETED,
+];
+
 // Legacy documents predate this state machine and were all written as
-// 'scheduled'. Normalize them to CONFIRMED for transition checks only —
-// the stored value is left untouched until the appointment's next update.
+// "scheduled". Normalize them to CONFIRMED for transition checks only —
+// the stored value is left untouched until the appointment"s next update.
 export function normalizeAppointmentStatus(
   status: string | undefined | null,
 ): APPOINTMENT_STATUS {
-  if (status === 'scheduled' || !status) return APPOINTMENT_STATUS.CONFIRMED;
+  if (status === "scheduled" || !status) return APPOINTMENT_STATUS.CONFIRMED;
   return status as APPOINTMENT_STATUS;
 }
 
@@ -107,7 +130,7 @@ export const APPOINTMENT_STATUS_TRANSITIONS: Record<
   ],
   [APPOINTMENT_STATUS.CONFIRMED]: [
     APPOINTMENT_STATUS.CHECKED_IN,
-    APPOINTMENT_STATUS.IN_CONSULTATION, // doctor-direct fast path when front-desk check-in isn't used
+    APPOINTMENT_STATUS.IN_CONSULTATION, // doctor-direct fast path when front-desk check-in isn"t used
     APPOINTMENT_STATUS.CANCELLED,
     APPOINTMENT_STATUS.NO_SHOW,
     APPOINTMENT_STATUS.RESCHEDULED,
@@ -122,8 +145,13 @@ export const APPOINTMENT_STATUS_TRANSITIONS: Record<
     APPOINTMENT_STATUS.CANCELLED,
   ],
   [APPOINTMENT_STATUS.IN_CONSULTATION]: [
+    APPOINTMENT_STATUS.AWAITING_PAYMENT,
+    APPOINTMENT_STATUS.CANCELLED,
+  ],
+  [APPOINTMENT_STATUS.AWAITING_PAYMENT]: [
     APPOINTMENT_STATUS.COMPLETED,
     APPOINTMENT_STATUS.CANCELLED,
+    APPOINTMENT_STATUS.CONFIRMED, // reopen
   ],
   [APPOINTMENT_STATUS.COMPLETED]: [APPOINTMENT_STATUS.CONFIRMED], // reopen
   [APPOINTMENT_STATUS.CANCELLED]: [
@@ -154,18 +182,18 @@ export function isValidAppointmentTransition(
 // completion (see FOLLOW_UP_DAY_OFFSETS / PaymentsService.completeVisit).
 // PACKAGE appointments carry packageId/packageVisitNumber.
 export enum APPOINTMENT_TYPE {
-  REGULAR = 'regular',
-  PACKAGE = 'package',
-  FOLLOW_UP = 'follow-up',
+  REGULAR = "regular",
+  PACKAGE = "package",
+  FOLLOW_UP = "follow-up",
 }
 
 export const APPOINTMENT_TYPE_VALUES = Object.values(APPOINTMENT_TYPE);
 
 export enum PACKAGE_STATUS {
-  ACTIVE = 'active',
-  EXPIRED = 'expired',
-  CANCELLED = 'cancelled',
-  REFUNDED = 'refunded',
+  ACTIVE = "active",
+  EXPIRED = "expired",
+  CANCELLED = "cancelled",
+  REFUNDED = "refunded",
 }
 
 export const PACKAGE_STATUS_VALUES = Object.values(PACKAGE_STATUS);
@@ -174,22 +202,22 @@ export const PACKAGE_STATUS_VALUES = Object.values(PACKAGE_STATUS);
 // packages become LAPSING inside the expiry window, USED_UP once every visit
 // is consumed, or LAPSED once past validUntil with visits still unused.
 export enum PACKAGE_DISPLAY_STATUS {
-  ACTIVE = 'active',
-  LAPSING = 'lapsing',
-  USED_UP = 'used_up',
-  LAPSED = 'lapsed',
-  REFUNDED = 'refunded',
-  CANCELLED = 'cancelled',
+  ACTIVE = "active",
+  LAPSING = "lapsing",
+  USED_UP = "used_up",
+  LAPSED = "lapsed",
+  REFUNDED = "refunded",
+  CANCELLED = "cancelled",
 }
 
-// A package still holding unused visits gets flagged once it's this many
+// A package still holding unused visits gets flagged once it"s this many
 // days (or fewer) from validUntil.
 export const PACKAGE_LAPSING_WINDOW_DAYS = 30;
 
 export enum PACKAGE_PAYMENT_METHOD {
-  CASH = 'cash',
-  UPI = 'upi',
-  CARD = 'card',
+  CASH = "cash",
+  UPI = "upi",
+  CARD = "card",
 }
 
 export const PACKAGE_PAYMENT_METHOD_VALUES = Object.values(
@@ -199,10 +227,10 @@ export const PACKAGE_PAYMENT_METHOD_VALUES = Object.values(
 // Fixed bundle sizes offered for a prepaid package.
 export const PACKAGE_VISIT_TIERS = [5, 10, 20];
 
-// A package stays redeemable for 6 months from the date it's sold.
+// A package stays redeemable for 6 months from the date it"s sold.
 export const PACKAGE_VALIDITY_MONTHS = 6;
 
-// Per-visit price for a prepaid package — roughly 5/6 of the doctor's normal
+// Per-visit price for a prepaid package — roughly 5/6 of the doctor"s normal
 // consultation fee, rounded to the nearest ₹5 so bulk pricing reads clean.
 export function computePackagePricePerVisit(consultationFee: number): number {
   return Math.round((consultationFee * 0.8333) / 5) * 5;
@@ -211,55 +239,55 @@ export function computePackagePricePerVisit(consultationFee: number): number {
 // How a completed visit was settled. SPLIT covers cash+UPI combined; DUE
 // records the visit as unpaid rather than blocking completion on collection.
 export enum PAYMENT_METHOD {
-  CASH = 'cash',
-  UPI = 'upi',
-  SPLIT = 'split',
-  DUE = 'due',
+  CASH = "cash",
+  UPI = "upi",
+  SPLIT = "split",
+  DUE = "due",
 }
 
 export const PAYMENT_METHOD_VALUES = Object.values(PAYMENT_METHOD);
 
 export enum PAYMENT_STATUS {
-  PAID = 'paid',
-  DUE = 'due',
-  REFUNDED = 'refunded',
+  PAID = "paid",
+  DUE = "due",
+  REFUNDED = "refunded",
 }
 
 export const PAYMENT_STATUS_VALUES = Object.values(PAYMENT_STATUS);
 
 // Offsets for the optional draft follow-up appointment created alongside a
-// completed visit. 'none' skips it — value keys double as the select's option value.
+// completed visit. "none" skips it — value keys double as the select"s option value.
 export const FOLLOW_UP_OPTIONS = [
-  { value: 'none', label: 'No follow-up needed' },
-  { value: '3-days', label: 'In 3 days' },
-  { value: '1-week', label: 'In 1 week' },
-  { value: '2-weeks', label: 'In 2 weeks' },
-  { value: '1-month', label: 'In 1 month' },
+  { value: "none", label: "No follow-up needed" },
+  { value: "3-days", label: "In 3 days" },
+  { value: "1-week", label: "In 1 week" },
+  { value: "2-weeks", label: "In 2 weeks" },
+  { value: "1-month", label: "In 1 month" },
 ] as const;
 
 export const FOLLOW_UP_DAY_OFFSETS: Record<string, number> = {
-  '3-days': 3,
-  '1-week': 7,
-  '2-weeks': 14,
-  '1-month': 30,
+  "3-days": 3,
+  "1-week": 7,
+  "2-weeks": 14,
+  "1-month": 30,
 };
 
 export const PAYMENT_DUE_REASONS = [
-  'Patient will pay at pharmacy counter',
-  'Insurance / TPA claim',
-  'Hospital staff — waived',
-  'Other',
+  "Patient will pay at pharmacy counter",
+  "Insurance / TPA claim",
+  "Hospital staff — waived",
+  "Other",
 ] as const;
 
-// Groups every billable item that isn't a doctor's consultation fee (that
+// Groups every billable item that isn"t a doctor"s consultation fee (that
 // stays hospital-member-scoped — see doctors.service.ts). Drives the
 // Settings > Charge catalog sidebar and the bill line-item picker.
 export enum CHARGE_CATALOG_CATEGORY {
-  PROCEDURES = 'procedures',
-  INJECTIONS = 'injections',
-  CONSUMABLES = 'consumables',
-  LAB_DIAGNOSTICS = 'lab_diagnostics',
-  OTHER = 'other',
+  PROCEDURES = "procedures",
+  INJECTIONS = "injections",
+  CONSUMABLES = "consumables",
+  LAB_DIAGNOSTICS = "lab_diagnostics",
+  OTHER = "other",
 }
 
 export const CHARGE_CATALOG_CATEGORY_VALUES = Object.values(
@@ -267,28 +295,28 @@ export const CHARGE_CATALOG_CATEGORY_VALUES = Object.values(
 );
 
 export const CHARGE_CATALOG_CATEGORY_LABELS: Record<string, string> = {
-  [CHARGE_CATALOG_CATEGORY.PROCEDURES]: 'Procedures',
-  [CHARGE_CATALOG_CATEGORY.INJECTIONS]: 'Injections',
-  [CHARGE_CATALOG_CATEGORY.CONSUMABLES]: 'Consumables',
-  [CHARGE_CATALOG_CATEGORY.LAB_DIAGNOSTICS]: 'Lab & diagnostics',
-  [CHARGE_CATALOG_CATEGORY.OTHER]: 'Other',
+  [CHARGE_CATALOG_CATEGORY.PROCEDURES]: "Procedures",
+  [CHARGE_CATALOG_CATEGORY.INJECTIONS]: "Injections",
+  [CHARGE_CATALOG_CATEGORY.CONSUMABLES]: "Consumables",
+  [CHARGE_CATALOG_CATEGORY.LAB_DIAGNOSTICS]: "Lab & diagnostics",
+  [CHARGE_CATALOG_CATEGORY.OTHER]: "Other",
 };
 
-// Two-digit prefix used to build a catalog item's auto code, e.g. CH-1001.
+// Two-digit prefix used to build a catalog item"s auto code, e.g. CH-1001.
 // Purely cosmetic grouping — not enforced as a real numbering authority.
 export const CHARGE_CATALOG_CODE_PREFIX: Record<string, string> = {
-  [CHARGE_CATALOG_CATEGORY.PROCEDURES]: '10',
-  [CHARGE_CATALOG_CATEGORY.INJECTIONS]: '20',
-  [CHARGE_CATALOG_CATEGORY.LAB_DIAGNOSTICS]: '30',
-  [CHARGE_CATALOG_CATEGORY.CONSUMABLES]: '40',
-  [CHARGE_CATALOG_CATEGORY.OTHER]: '50',
+  [CHARGE_CATALOG_CATEGORY.PROCEDURES]: "10",
+  [CHARGE_CATALOG_CATEGORY.INJECTIONS]: "20",
+  [CHARGE_CATALOG_CATEGORY.LAB_DIAGNOSTICS]: "30",
+  [CHARGE_CATALOG_CATEGORY.CONSUMABLES]: "40",
+  [CHARGE_CATALOG_CATEGORY.OTHER]: "50",
 };
 
 export const GST_RATES = [0, 5, 12, 18];
 
 // Seeded once per hospital the first time its charge catalog is read empty
 // (see ChargeCatalogService) — a reasonable starting point so the bill
-// line-item picker isn't blank on day one. Purely a starting point: every
+// line-item picker isn"t blank on day one. Purely a starting point: every
 // field is editable/archivable afterwards like any other catalog item.
 // Dressing/Injection — Tetanus toxoid/ECG carry over the exact prices the
 // old hardcoded COMMON_BILL_ITEMS shortlist used, so existing hospitals see
@@ -299,30 +327,30 @@ export const DEFAULT_CHARGE_CATALOG_ITEMS: {
   price: number;
   gstPercent: number;
 }[] = [
-  { name: 'Dressing', category: CHARGE_CATALOG_CATEGORY.PROCEDURES, price: 150, gstPercent: 0 },
-  { name: 'Injection — Tetanus toxoid', category: CHARGE_CATALOG_CATEGORY.INJECTIONS, price: 250, gstPercent: 0 },
-  { name: 'Injection — Vitamin B12', category: CHARGE_CATALOG_CATEGORY.INJECTIONS, price: 180, gstPercent: 0 },
-  { name: 'Nebulisation', category: CHARGE_CATALOG_CATEGORY.PROCEDURES, price: 200, gstPercent: 0 },
-  { name: 'Suture removal', category: CHARGE_CATALOG_CATEGORY.PROCEDURES, price: 120, gstPercent: 0 },
-  { name: 'ECG', category: CHARGE_CATALOG_CATEGORY.LAB_DIAGNOSTICS, price: 300, gstPercent: 0 },
-  { name: 'Blood sugar — random', category: CHARGE_CATALOG_CATEGORY.LAB_DIAGNOSTICS, price: 80, gstPercent: 0 },
-  { name: 'Paracetamol 650 — strip of 10', category: CHARGE_CATALOG_CATEGORY.CONSUMABLES, price: 40, gstPercent: 12 },
+  { name: "Dressing", category: CHARGE_CATALOG_CATEGORY.PROCEDURES, price: 150, gstPercent: 0 },
+  { name: "Injection — Tetanus toxoid", category: CHARGE_CATALOG_CATEGORY.INJECTIONS, price: 250, gstPercent: 0 },
+  { name: "Injection — Vitamin B12", category: CHARGE_CATALOG_CATEGORY.INJECTIONS, price: 180, gstPercent: 0 },
+  { name: "Nebulisation", category: CHARGE_CATALOG_CATEGORY.PROCEDURES, price: 200, gstPercent: 0 },
+  { name: "Suture removal", category: CHARGE_CATALOG_CATEGORY.PROCEDURES, price: 120, gstPercent: 0 },
+  { name: "ECG", category: CHARGE_CATALOG_CATEGORY.LAB_DIAGNOSTICS, price: 300, gstPercent: 0 },
+  { name: "Blood sugar — random", category: CHARGE_CATALOG_CATEGORY.LAB_DIAGNOSTICS, price: 80, gstPercent: 0 },
+  { name: "Paracetamol 650 — strip of 10", category: CHARGE_CATALOG_CATEGORY.CONSUMABLES, price: 40, gstPercent: 12 },
 ];
 
 // How a Hospital Holiday closes the day. `full`/`opd_closed` both block every
 // booking for the day (the difference is informational — whether the hospital
 // stays staffed for emergencies) — `half_day` only truncates the window.
 export enum HOLIDAY_CLOSURE_TYPE {
-  FULL = 'full',
-  OPD_CLOSED = 'opd_closed',
-  HALF_DAY = 'half_day',
+  FULL = "full",
+  OPD_CLOSED = "opd_closed",
+  HALF_DAY = "half_day",
 }
 
 export const HOLIDAY_CLOSURE_TYPE_VALUES = Object.values(HOLIDAY_CLOSURE_TYPE);
 
 // Seed data for the Settings > Hospital holidays "Import Tamil Nadu list"
 // button — fixed-date holidays only. Deepavali/Ramzan follow lunar calendars
-// and can't be safely hardcoded, so hospitals still add those by hand.
+// and can"t be safely hardcoded, so hospitals still add those by hand.
 // `month`/`day` are shifted onto the target year at import/generate time.
 export const TN_HOLIDAY_SEED_LIST: {
   name: string;
@@ -334,7 +362,7 @@ export const TN_HOLIDAY_SEED_LIST: {
   repeatsAnnually: boolean;
 }[] = [
   {
-    name: 'Pongal',
+    name: "Pongal",
     startMonth: 1,
     startDay: 14,
     endMonth: 1,
@@ -343,7 +371,7 @@ export const TN_HOLIDAY_SEED_LIST: {
     repeatsAnnually: false,
   },
   {
-    name: 'Republic Day',
+    name: "Republic Day",
     startMonth: 1,
     startDay: 26,
     endMonth: 1,
@@ -352,7 +380,7 @@ export const TN_HOLIDAY_SEED_LIST: {
     repeatsAnnually: true,
   },
   {
-    name: 'Independence Day',
+    name: "Independence Day",
     startMonth: 8,
     startDay: 15,
     endMonth: 8,
@@ -361,7 +389,7 @@ export const TN_HOLIDAY_SEED_LIST: {
     repeatsAnnually: true,
   },
   {
-    name: 'Gandhi Jayanti',
+    name: "Gandhi Jayanti",
     startMonth: 10,
     startDay: 2,
     endMonth: 10,
@@ -370,7 +398,7 @@ export const TN_HOLIDAY_SEED_LIST: {
     repeatsAnnually: true,
   },
   {
-    name: 'Christmas',
+    name: "Christmas",
     startMonth: 12,
     startDay: 25,
     endMonth: 12,
@@ -380,52 +408,56 @@ export const TN_HOLIDAY_SEED_LIST: {
   },
 ];
 
-// A hospital's own free-text medicine catalog — not a fixed drug database.
+// A hospital"s own free-text medicine catalog — not a fixed drug database.
 // `classes` on a Medicine (e.g. "penicillin", "nsaid") are hospital-curated
-// tags matched against a patient's `allergies` strings for the prescription
-// writer's allergy warning — see PrescriptionsService.
+// tags matched against a patient"s `allergies` strings for the prescription
+// writer"s allergy warning — see PrescriptionsService.
 export enum MEDICINE_FORM {
-  TABLET = 'tablet',
-  CAPSULE = 'capsule',
-  SYRUP = 'syrup',
-  INJECTION = 'injection',
-  DROPS = 'drops',
-  OINTMENT = 'ointment',
-  INHALER = 'inhaler',
-  OTHER = 'other',
+  TABLET = "tablet",
+  CAPSULE = "capsule",
+  SYRUP = "syrup",
+  INJECTION = "injection",
+  DROPS = "drops",
+  OINTMENT = "ointment",
+  INHALER = "inhaler",
+  OTHER = "other",
 }
 
 export const MEDICINE_FORM_VALUES = Object.values(MEDICINE_FORM);
 
 export const FOOD_TIMING_OPTIONS = [
-  'before_food',
-  'after_food',
-  'with_food',
-  'anytime',
+  "before_food",
+  "after_food",
+  "with_food",
+  "anytime",
 ] as const;
+
+export const HOW_OFTEN_VALUES = ["1-0-0", "0-0-1", "1-0-1", "1-1-1", "SOS"] as const;
+
+export const FOLLOW_UP_REVIEW_VALUES = ["none", "1-week", "2-weeks", "1-month"] as const;
 
 // A prescription is a draft until the doctor signs it — signing just stamps
 // issuedAt; it can still be resaved afterwards (no immutability lock in v1).
 export enum PRESCRIPTION_STATUS {
-  DRAFT = 'draft',
-  SIGNED = 'signed',
+  DRAFT = "draft",
+  SIGNED = "signed",
 }
 
 export const PRESCRIPTION_STATUS_VALUES = Object.values(PRESCRIPTION_STATUS);
 
-// A doctor's leave request needs admin sign-off before it's treated as
-// blocking their schedule — mirrors ApprovalRequest's status wording.
+// A doctor"s leave request needs admin sign-off before it"s treated as
+// blocking their schedule — mirrors ApprovalRequest"s status wording.
 export enum LEAVE_REQUEST_STATUS {
-  PENDING = 'pending',
-  APPROVED = 'approved',
-  DECLINED = 'declined',
+  PENDING = "pending",
+  APPROVED = "approved",
+  DECLINED = "declined",
 }
 
 export const LEAVE_REQUEST_STATUS_VALUES = Object.values(LEAVE_REQUEST_STATUS);
 
 // Seeded once per hospital the first time its medicine catalog is read empty
 // (see MedicinesService) — same one-time-seed idea as
-// DEFAULT_CHARGE_CATALOG_ITEMS, so a fresh hospital isn't blank on day one.
+// DEFAULT_CHARGE_CATALOG_ITEMS, so a fresh hospital isn"t blank on day one.
 // A spread of classes (penicillin/nsaid/cephalosporin/macrolide/tetracycline)
 // is included on purpose so the allergy-warning flow has something to catch
 // in testing without any manual catalog setup.
@@ -440,130 +472,230 @@ export const DEFAULT_MEDICINES: {
   defaultFoodTiming?: (typeof FOOD_TIMING_OPTIONS)[number];
 }[] = [
   {
-    name: 'Amoxicillin',
-    genericName: 'Amoxicillin',
-    classes: ['penicillin'],
+    name: "Amoxicillin",
+    genericName: "Amoxicillin",
+    classes: ["penicillin"],
     form: MEDICINE_FORM.CAPSULE,
-    strength: '500mg',
-    defaultDose: '1-0-1',
-    defaultFrequency: 'Twice daily',
-    defaultFoodTiming: 'after_food',
+    strength: "500mg",
+    defaultDose: "1-0-1",
+    defaultFrequency: "Twice daily",
+    defaultFoodTiming: "after_food",
   },
   {
-    name: 'Augmentin',
-    genericName: 'Amoxicillin + Clavulanic acid',
-    classes: ['penicillin'],
+    name: "Augmentin",
+    genericName: "Amoxicillin + Clavulanic acid",
+    classes: ["penicillin"],
     form: MEDICINE_FORM.TABLET,
-    strength: '625mg',
-    defaultDose: '1-0-1',
-    defaultFrequency: 'Twice daily',
-    defaultFoodTiming: 'after_food',
+    strength: "625mg",
+    defaultDose: "1-0-1",
+    defaultFrequency: "Twice daily",
+    defaultFoodTiming: "after_food",
   },
   {
-    name: 'Azithromycin',
-    genericName: 'Azithromycin',
-    classes: ['macrolide'],
+    name: "Azithromycin",
+    genericName: "Azithromycin",
+    classes: ["macrolide"],
     form: MEDICINE_FORM.TABLET,
-    strength: '500mg',
-    defaultDose: '1-0-0',
-    defaultFrequency: 'Once daily',
-    defaultFoodTiming: 'before_food',
+    strength: "500mg",
+    defaultDose: "1-0-0",
+    defaultFrequency: "Once daily",
+    defaultFoodTiming: "before_food",
   },
   {
-    name: 'Doxycycline',
-    genericName: 'Doxycycline',
-    classes: ['tetracycline'],
+    name: "Doxycycline",
+    genericName: "Doxycycline",
+    classes: ["tetracycline"],
     form: MEDICINE_FORM.CAPSULE,
-    strength: '100mg',
-    defaultDose: '1-0-1',
-    defaultFrequency: 'Twice daily',
-    defaultFoodTiming: 'after_food',
+    strength: "100mg",
+    defaultDose: "1-0-1",
+    defaultFrequency: "Twice daily",
+    defaultFoodTiming: "after_food",
   },
   {
-    name: 'Cefuroxime',
-    genericName: 'Cefuroxime axetil',
-    classes: ['cephalosporin'],
+    name: "Cefuroxime",
+    genericName: "Cefuroxime axetil",
+    classes: ["cephalosporin"],
     form: MEDICINE_FORM.TABLET,
-    strength: '500mg',
-    defaultDose: '1-0-1',
-    defaultFrequency: 'Twice daily',
-    defaultFoodTiming: 'after_food',
+    strength: "500mg",
+    defaultDose: "1-0-1",
+    defaultFrequency: "Twice daily",
+    defaultFoodTiming: "after_food",
   },
   {
-    name: 'Etoricoxib',
-    genericName: 'Etoricoxib',
-    classes: ['nsaid'],
+    name: "Etoricoxib",
+    genericName: "Etoricoxib",
+    classes: ["nsaid"],
     form: MEDICINE_FORM.TABLET,
-    strength: '60mg',
-    defaultDose: '1-0-0',
-    defaultFrequency: 'Once daily',
-    defaultFoodTiming: 'after_food',
+    strength: "60mg",
+    defaultDose: "1-0-0",
+    defaultFrequency: "Once daily",
+    defaultFoodTiming: "after_food",
   },
   {
-    name: 'Ibuprofen',
-    genericName: 'Ibuprofen',
-    classes: ['nsaid'],
+    name: "Ibuprofen",
+    genericName: "Ibuprofen",
+    classes: ["nsaid"],
     form: MEDICINE_FORM.TABLET,
-    strength: '400mg',
-    defaultDose: '1-1-1',
-    defaultFrequency: 'Thrice daily',
-    defaultFoodTiming: 'after_food',
+    strength: "400mg",
+    defaultDose: "1-1-1",
+    defaultFrequency: "Thrice daily",
+    defaultFoodTiming: "after_food",
   },
   {
-    name: 'Paracetamol',
-    genericName: 'Paracetamol',
+    name: "Paracetamol",
+    genericName: "Paracetamol",
     classes: [],
     form: MEDICINE_FORM.TABLET,
-    strength: '650mg',
-    defaultDose: '1-1-1',
-    defaultFrequency: 'Thrice daily',
-    defaultFoodTiming: 'after_food',
+    strength: "650mg",
+    defaultDose: "1-1-1",
+    defaultFrequency: "Thrice daily",
+    defaultFoodTiming: "after_food",
   },
   {
-    name: 'Pantoprazole',
-    genericName: 'Pantoprazole',
+    name: "Pantoprazole",
+    genericName: "Pantoprazole",
     classes: [],
     form: MEDICINE_FORM.TABLET,
-    strength: '40mg',
-    defaultDose: '1-0-0',
-    defaultFrequency: 'Once daily',
-    defaultFoodTiming: 'before_food',
+    strength: "40mg",
+    defaultDose: "1-0-0",
+    defaultFrequency: "Once daily",
+    defaultFoodTiming: "before_food",
   },
   {
-    name: 'Cetirizine',
-    genericName: 'Cetirizine',
+    name: "Cetirizine",
+    genericName: "Cetirizine",
     classes: [],
     form: MEDICINE_FORM.TABLET,
-    strength: '10mg',
-    defaultDose: '0-0-1',
-    defaultFrequency: 'Once daily, at night',
-    defaultFoodTiming: 'anytime',
+    strength: "10mg",
+    defaultDose: "0-0-1",
+    defaultFrequency: "Once daily, at night",
+    defaultFoodTiming: "anytime",
   },
 ];
 
 export const MEDICAL_SPECIALIZATIONS = [
-  'Cardiology',
-  'Dermatology',
-  'Endocrinology',
-  'Gastroenterology',
-  'General Medicine',
-  'General Surgery',
-  'Gynecology',
-  'Neurology',
-  'Oncology',
-  'Ophthalmology',
-  'Orthopedics',
-  'Otolaryngology (ENT)',
-  'Pediatrics',
-  'Psychiatry',
-  'Pulmonology',
-  'Radiology',
-  'Rheumatology',
-  'Urology',
-  'Anesthesiology',
-  'Emergency Medicine',
-  'Nephrology',
-  'Pathology',
-  'Physical Medicine',
-  'Plastic Surgery',
+  "Cardiology",
+  "Dermatology",
+  "Endocrinology",
+  "Gastroenterology",
+  "General Medicine",
+  "General Surgery",
+  "Gynecology",
+  "Neurology",
+  "Oncology",
+  "Ophthalmology",
+  "Orthopedics",
+  "Otolaryngology (ENT)",
+  "Pediatrics",
+  "Psychiatry",
+  "Pulmonology",
+  "Radiology",
+  "Rheumatology",
+  "Urology",
+  "Anesthesiology",
+  "Emergency Medicine",
+  "Nephrology",
+  "Pathology",
+  "Physical Medicine",
+  "Plastic Surgery",
+  "Dentistry",
 ] as const;
+
+// Steps in the WhatsApp booking/enquiry conversation. The bot always replies
+// with interactive buttons or lists, so the reply we get back is an option id
+// for the current step rather than free text (the enquiry body is the one
+// exception).
+export enum WHATSAPP_STEP {
+  MAIN_MENU = "main_menu",
+  CHOOSE_DOCTOR = "choose_doctor",
+  CHOOSE_DATE = "choose_date",
+  CHOOSE_TIME = "choose_time",
+  CONFIRM = "confirm",
+  ENQUIRY_CAPTURE = "enquiry_capture",
+  MY_APPOINTMENTS = "my_appointments",
+  APPOINTMENT_ACTION = "appointment_action",
+  CANCEL_CONFIRM = "cancel_confirm",
+}
+
+export enum WHATSAPP_ENQUIRY_STATUS {
+  NEW = "new",
+  RESOLVED = "resolved",
+}
+
+// Abandoned conversations expire rather than trapping a patient mid-flow.
+export const WHATSAPP_SESSION_TTL_MINUTES = 30;
+
+export enum SUBSCRIPTION_BILLING_CYCLE {
+  MONTHLY = "monthly",
+  ANNUAL = "annual",
+}
+
+export const SUBSCRIPTION_BILLING_CYCLE_VALUES = Object.values(SUBSCRIPTION_BILLING_CYCLE);
+
+// `exempt` is a platform-admin-only override (pilot/demo hospitals) that
+// always passes the HospitalContextGuard billing check, regardless of dates.
+export enum SUBSCRIPTION_STATUS {
+  TRIALING = "trialing",
+  ACTIVE = "active",
+  PAST_DUE = "past_due",
+  SUSPENDED = "suspended",
+  EXEMPT = "exempt",
+  CANCELLED = "cancelled",
+}
+
+export const SUBSCRIPTION_STATUS_VALUES = Object.values(SUBSCRIPTION_STATUS);
+
+export enum SUBSCRIPTION_INVOICE_STATUS {
+  DUE = "due",
+  PAYMENT_SUBMITTED = "payment_submitted",
+  PAID = "paid",
+  FAILED = "failed",
+}
+
+export const SUBSCRIPTION_INVOICE_STATUS_VALUES = Object.values(SUBSCRIPTION_INVOICE_STATUS);
+
+// New hospitals get this many days to start using the product before the
+// first invoice is due — see SubscriptionsService.provisionForNewHospital.
+export const SUBSCRIPTION_TRIAL_DAYS = 14;
+
+// Days a past_due subscription keeps working before the renewal sweep
+// suspends it (see SubscriptionsService.runRenewalSweep).
+export const SUBSCRIPTION_GRACE_DAYS = 7;
+
+// How far ahead of trialEndsAt the renewal sweep sends the one-time
+// trial-ending-soon email.
+export const SUBSCRIPTION_TRIAL_REMINDER_DAYS_BEFORE = 3;
+
+// The base bundle covers one hospital with up to this many doctor/staff
+// seats; STAFF_ROLES (front_desk/nurse/accountant) share the one staff
+// allowance rather than each getting their own. Admins are never billed.
+export const SUBSCRIPTION_INCLUDED_DOCTORS = 5;
+export const SUBSCRIPTION_INCLUDED_STAFF = 1;
+
+export const SUBSCRIPTION_BASE_PRICE: Record<SUBSCRIPTION_BILLING_CYCLE, number> = {
+  [SUBSCRIPTION_BILLING_CYCLE.MONTHLY]: 799,
+  [SUBSCRIPTION_BILLING_CYCLE.ANNUAL]: 7990,
+};
+
+export const SUBSCRIPTION_DOCTOR_ADDON_PRICE: Record<SUBSCRIPTION_BILLING_CYCLE, number> = {
+  [SUBSCRIPTION_BILLING_CYCLE.MONTHLY]: 299,
+  [SUBSCRIPTION_BILLING_CYCLE.ANNUAL]: 2990,
+};
+
+export const SUBSCRIPTION_STAFF_ADDON_PRICE: Record<SUBSCRIPTION_BILLING_CYCLE, number> = {
+  [SUBSCRIPTION_BILLING_CYCLE.MONTHLY]: 149,
+  [SUBSCRIPTION_BILLING_CYCLE.ANNUAL]: 1490,
+};
+
+// Modules a platform admin can individually turn off for a hospital,
+// independent of billing status — see Subscription.features and
+// RequiresFeature(). All default to enabled (SubscriptionsService
+// provisioning) so no existing hospital loses access until explicitly toggled.
+export enum SUBSCRIPTION_FEATURE {
+  WHATSAPP = "whatsapp",
+  REPORTS = "reports",
+  PACKAGES = "packages",
+  MEDICINE_PACKS = "medicinePacks",
+}
+
+export const SUBSCRIPTION_FEATURE_VALUES = Object.values(SUBSCRIPTION_FEATURE);

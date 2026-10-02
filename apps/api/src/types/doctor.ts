@@ -44,6 +44,12 @@ export interface DoctorProfile {
   appointmentDuration?: number;
   bufferMinutes?: number;
   patientsPerSlot?: number;
+  acceptWalkIns?: boolean;
+  heldSlotsPerSession?: number;
+  releaseHeldSlotsBeforeMinutes?: number | null;
+  overCapacityPolicy?: 'allow' | 'warn' | 'block';
+  lateArrivalGraceMinutes?: number;
+  noShowReleaseMinutes?: number;
   membershipId?: string | null;
   membershipStatus?: string;
   joinedAt?: Date | string | null;

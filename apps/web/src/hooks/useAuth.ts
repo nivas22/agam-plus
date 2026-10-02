@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { apiUrl, fetchWithAuth } from "@/lib/api";
-import { loginWithGoogle, logout } from "@/lib/auth";
+import { loginWithGoogle, loginWithPassword, logout } from "@/lib/auth";
 import type { AuthData, AuthError, Hospital, LoginSuccess } from "@/types/auth";
 import type { HospitalMember } from "@/types/doctorNew";
 import { MEMBERSHIP_STATUS, ROLE, STAFF_CONSOLE_ROLES } from "../constants";
@@ -130,6 +130,38 @@ export function useAuth() {
     },
   });
 
+  const passwordLoginMutation = useMutation<
+    LoginSuccess,
+    Error,
+    { username: string; password: string; keepSignedIn?: boolean }
+  >({
+    mutationFn: async ({ username, password, keepSignedIn }) => {
+      try {
+        return await loginWithPassword(username, password, keepSignedIn);
+      } catch (error: any) {
+        throw new Error(error?.message || "Failed to login");
+      }
+    },
+
+    onSuccess: (data) => {
+      queryClient.setQueryData(authKeys.user(), {
+        user: data.userData,
+        hospitals: data.hospitals || [],
+        currentHospital: data.currentHospital,
+      });
+
+      if (data.mustChangePassword) {
+        router.push("/change-password");
+      } else {
+        handlePostLoginRedirect(data.hospitals || [], router);
+      }
+    },
+
+    onError: (err: Error) => {
+      console.error("Password login failed:", err.message);
+    },
+  });
+
   const logoutMutation = useMutation({
     mutationFn: logout,
     onSuccess: () => {
@@ -174,9 +206,16 @@ export function useAuth() {
   });
 
   const loading =
-    userLoading || googleLoginMutation.isPending || logoutMutation.isPending;
+    userLoading ||
+    googleLoginMutation.isPending ||
+    passwordLoginMutation.isPending ||
+    logoutMutation.isPending;
 
-  const error = googleLoginMutation.error || logoutMutation.error || userError;
+  const error =
+    googleLoginMutation.error ||
+    passwordLoginMutation.error ||
+    logoutMutation.error ||
+    userError;
 
   // Helper functions
   const isAuthenticated = !!user;
@@ -294,12 +333,14 @@ export function useAuth() {
 
     // Auth methods
     loginWithGoogle: googleLoginMutation.mutateAsync,
+    loginWithPassword: passwordLoginMutation.mutateAsync,
     logout: logoutMutation.mutateAsync,
     switchHospital: switchHospitalMutation.mutateAsync,
     refetchUser,
 
     // Mutation states
     isLoggingInWithGoogle: googleLoginMutation.isPending,
+    isLoggingInWithPassword: passwordLoginMutation.isPending,
     isLoggingOut: logoutMutation.isPending,
     isSwitchingHospital: switchHospitalMutation.isPending,
 

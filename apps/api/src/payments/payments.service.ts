@@ -28,7 +28,6 @@ import {
   PAYMENT_METHOD,
   PAYMENT_STATUS,
   PERMISSION_STATE,
-  FOLLOW_UP_DAY_OFFSETS,
 } from '../constants';
 
 interface DayTotals {
@@ -182,8 +181,7 @@ export class PaymentsService {
       throw ApiError.forbidden('Unauthorized - Access denied to this hospital');
     }
 
-    const { appointmentId, sessionNotes, followUp, items, discount, method } =
-      body;
+    const { appointmentId, sessionNotes, items, discount, method } = body;
 
     const appointment =
       await this.appointmentRepository.getAppointmentById(appointmentId);
@@ -213,7 +211,7 @@ export class PaymentsService {
       )
     ) {
       throw ApiError.badRequest(
-        `Cannot complete an appointment from status '${existingData.status}'`,
+        `Cannot collect payment on an appointment from status '${existingData.status}' — finish the session first`,
       );
     }
 
@@ -350,11 +348,10 @@ export class PaymentsService {
     }
 
     const invoiceYear = new Date().getFullYear();
-    const sequence =
-      (await this.paymentRepository.countPaymentsForYear(
-        hospitalId,
-        invoiceYear,
-      )) + 1;
+    const sequence = await this.paymentRepository.getNextInvoiceSequence(
+      hospitalId,
+      invoiceYear,
+    );
     paymentData.invoiceYear = invoiceYear;
     paymentData.invoiceNumber = `INV-${invoiceYear}-${String(sequence).padStart(4, '0')}`;
 
@@ -373,7 +370,7 @@ export class PaymentsService {
 
     const updateData: Record<string, any> = {
       status: APPOINTMENT_STATUS.COMPLETED,
-      completedAt: new Date().toISOString(),
+      paymentCollectedAt: new Date().toISOString(),
       updatedBy: user.uid,
       updatedByRole: userRole,
     };
@@ -401,35 +398,6 @@ export class PaymentsService {
       );
     }
 
-    let followUpAppointmentId: string | null = null;
-    const followUpDays = followUp ? FOLLOW_UP_DAY_OFFSETS[followUp] : undefined;
-    if (followUpDays) {
-      const followUpDate = new Date();
-      followUpDate.setDate(followUpDate.getDate() + followUpDays);
-
-      // Drafted as PENDING — the front desk still has to confirm it, matching
-      // the state machine's reserved "not yet confirmed" status.
-      followUpAppointmentId =
-        await this.appointmentRepository.createAppointment({
-          hospitalId,
-          doctorProfileId: existingData.doctorProfileId,
-          doctorName: existingData.doctorName,
-          doctorSpecialization: existingData.doctorSpecialization,
-          patientId: existingData.patientId,
-          patientName: existingData.patientName,
-          // Local date components, not `.toISOString()` — that converts to
-          // UTC first and shifts the date back a day in timezones ahead of
-          // UTC (e.g. IST).
-          date: `${followUpDate.getFullYear()}-${String(followUpDate.getMonth() + 1).padStart(2, '0')}-${String(followUpDate.getDate()).padStart(2, '0')}`,
-          time: existingData.time,
-          status: APPOINTMENT_STATUS.PENDING,
-          type: APPOINTMENT_TYPE.FOLLOW_UP,
-          notes: 'Follow-up scheduled at visit completion',
-          createdBy: user.uid,
-          userRole,
-        });
-    }
-
     return {
       success: true,
       message:
@@ -437,7 +405,6 @@ export class PaymentsService {
           ? `Visit completed with ${total} due`
           : 'Visit completed and payment recorded',
       payment,
-      followUpAppointmentId,
     };
   }
 

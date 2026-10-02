@@ -1,18 +1,11 @@
 // components/prescriptions/PrescriptionWriterPage.tsx
 "use client";
 
-import {
-  AlertTriangle,
-  ArrowLeft,
-  Loader2,
-  MessageCircle,
-  Printer,
-  Search,
-  X,
-} from "lucide-react";
+import { AlertTriangle, ArrowLeft, Search } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
+import { computeDispenseQuantity, toLegacyFields } from "@agam/shared";
 import { inputClass } from "@/components/common/EditFormControls";
 import { useAuth } from "@/hooks/useAuth";
 import { useMedicines } from "@/hooks/useMedicineApi";
@@ -25,9 +18,14 @@ import {
   useSetPrescriptionStatus,
 } from "@/hooks/usePrescriptionApi";
 import { ApiRequestError } from "@/lib/api";
-import type { FoodTiming, Medicine } from "@/types/medicine";
-import { FOOD_TIMING_OPTIONS } from "@/types/medicine";
-import type { AllergyOverride, PrescriptionItem } from "@/types/prescription";
+import type { Medicine } from "@/types/medicine";
+import { MEDICINE_FORM_UNIT_NOUN } from "@/types/medicine";
+import type { AllergyOverride, FollowUpOption, PrescriptionItem } from "@/types/prescription";
+import AdviceAndFollowUp from "./AdviceAndFollowUp";
+import MedicineRow from "./MedicineRow";
+import PatientContextBar from "./PatientContextBar";
+import PrescriptionPreviewPanel from "./PrescriptionPreviewPanel";
+import QuickStartRow from "./QuickStartRow";
 
 interface PrescriptionWriterPageProps {
   hospitalId: string;
@@ -40,23 +38,15 @@ function lower(s?: string): string {
 
 // Bidirectional substring match — mirrors PrescriptionsService's server-side
 // check so the doctor sees the warning before saving, not just on rejection.
-function findAllergyMatch(
-  allergies: string[],
-  medicine: Medicine,
-): string | null {
-  const haystacks = [
-    medicine.name,
-    medicine.genericName,
-    ...(medicine.classes || []),
-  ]
+function findAllergyMatch(allergies: string[], medicine: Medicine): string | null {
+  const haystacks = [medicine.name, medicine.genericName, ...(medicine.classes || [])]
     .filter(Boolean)
     .map((s) => lower(s as string));
 
   for (const raw of allergies) {
     const allergy = lower(raw);
     if (!allergy) continue;
-    if (haystacks.some((h) => h.includes(allergy) || allergy.includes(h)))
-      return raw;
+    if (haystacks.some((h) => h.includes(allergy) || allergy.includes(h))) return raw;
   }
   return null;
 }
@@ -67,6 +57,24 @@ function todayDisplay(): string {
     month: "short",
     year: "numeric",
   });
+}
+
+function defaultItemForMedicine(medicine: Medicine): PrescriptionItem {
+  const structured = {
+    howOften: "1-0-0" as const,
+    foodTiming: medicine.defaultFoodTiming || ("after_food" as const),
+    days: 3,
+    dispenseQty: computeDispenseQuantity("1-0-0", 3),
+  };
+  const unitNoun = MEDICINE_FORM_UNIT_NOUN[medicine.form]?.en || "dose";
+  return {
+    medicineId: medicine.id,
+    medicineName: medicine.name,
+    strength: medicine.strength,
+    form: medicine.form,
+    structuredDose: structured,
+    ...toLegacyFields(structured, unitNoun),
+  };
 }
 
 export default function PrescriptionWriterPage({
@@ -82,37 +90,34 @@ export default function PrescriptionWriterPage({
   );
   const appointment = apptData?.appointment;
 
-  const { data: patientData } = useHospitalPatient(
-    appointment?.patientId || "",
-    hospitalId,
-  );
+  const { data: patientData } = useHospitalPatient(appointment?.patientId || "", hospitalId);
   const patient = patientData?.patient;
   const allergies = useMemo(() => patient?.allergies || [], [patient]);
+  const conditions = useMemo(() => patient?.conditions || [], [patient]);
+  const flags = useMemo(() => patient?.flags || [], [patient]);
 
-  const { data: doctorData } = useHospitalDoctor(
-    appointment?.doctorProfileId || "",
-    hospitalId,
-  );
+  const { data: doctorData } = useHospitalDoctor(appointment?.doctorProfileId || "", hospitalId);
   const doctor = doctorData?.doctor;
 
   const { data: medicineData } = useMedicines(hospitalId, { status: "active" });
   const medicines = medicineData?.items || [];
-
-  const { data: rxData, isLoading: rxLoading } = usePrescription(
-    appointmentId,
-    hospitalId,
+  const medicineById = useMemo(
+    () => new Map(medicines.map((m) => [m.id, m])),
+    [medicines],
   );
+
+  const { data: rxData, isLoading: rxLoading } = usePrescription(appointmentId, hospitalId);
   const existing = rxData?.prescription;
 
   const saveMutation = useSavePrescription(appointmentId, hospitalId);
   const statusMutation = useSetPrescriptionStatus(appointmentId, hospitalId);
 
   const [items, setItems] = useState<PrescriptionItem[]>([]);
-  const [allergyOverrides, setAllergyOverrides] = useState<AllergyOverride[]>(
-    [],
-  );
+  const [allergyOverrides, setAllergyOverrides] = useState<AllergyOverride[]>([]);
   const [advice, setAdvice] = useState("");
+  const [followUpOption, setFollowUpOption] = useState<FollowUpOption>("none");
   const [loadedFromExisting, setLoadedFromExisting] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
 
   const [query, setQuery] = useState("");
   const [pendingConflict, setPendingConflict] = useState<{
@@ -126,6 +131,7 @@ export default function PrescriptionWriterPage({
       setItems(existing.items || []);
       setAllergyOverrides(existing.allergyOverrides || []);
       setAdvice(existing.advice || "");
+      setFollowUpOption(existing.followUpOption || "none");
       setLoadedFromExisting(true);
     }
   }, [existing, loadedFromExisting]);
@@ -142,25 +148,30 @@ export default function PrescriptionWriterPage({
       .slice(0, 8);
   }, [medicines, query]);
 
-  function addMedicine(
-    medicine: Medicine,
-    override?: { matchedTerm: string; reason: string },
-  ) {
-    setItems((prev) => [
-      ...prev,
-      {
-        medicineId: medicine.id,
-        medicineName: medicine.name,
-        strength: medicine.strength,
-        form: medicine.form,
-        dose: medicine.defaultDose || "",
-        frequency: medicine.defaultFrequency || "",
-        foodTiming: medicine.defaultFoodTiming,
-        duration: "",
-        quantity: "",
-        note: "",
-      },
-    ]);
+  // Appends new items, replacing an existing one by medicineId (so quick-start
+  // shortcuts compose instead of clobbering the whole list).
+  function applyItems(newItems: PrescriptionItem[]) {
+    setItems((prev) => {
+      const byId = new Map<string, PrescriptionItem>(prev.map((it) => [it.medicineId, it]));
+      for (const ni of newItems) byId.set(ni.medicineId, ni);
+      const seen = new Set<string>();
+      const result: PrescriptionItem[] = [];
+      for (const it of prev) {
+        result.push(byId.get(it.medicineId)!);
+        seen.add(it.medicineId);
+      }
+      for (const ni of newItems) {
+        if (!seen.has(ni.medicineId)) {
+          result.push(ni);
+          seen.add(ni.medicineId);
+        }
+      }
+      return result;
+    });
+  }
+
+  function addMedicine(medicine: Medicine, override?: { matchedTerm: string; reason: string }) {
+    applyItems([defaultItemForMedicine(medicine)]);
     if (override) {
       setAllergyOverrides((prev) => [
         ...prev,
@@ -177,9 +188,7 @@ export default function PrescriptionWriterPage({
   }
 
   function handlePick(medicine: Medicine) {
-    const matchedTerm = allergies.length
-      ? findAllergyMatch(allergies, medicine)
-      : null;
+    const matchedTerm = allergies.length ? findAllergyMatch(allergies, medicine) : null;
     if (matchedTerm) {
       setPendingConflict({ medicine, matchedTerm });
       setOverrideReason("");
@@ -199,17 +208,13 @@ export default function PrescriptionWriterPage({
   }
 
   function updateItem(index: number, patch: Partial<PrescriptionItem>) {
-    setItems((prev) =>
-      prev.map((it, i) => (i === index ? { ...it, ...patch } : it)),
-    );
+    setItems((prev) => prev.map((it, i) => (i === index ? { ...it, ...patch } : it)));
   }
 
   function removeItem(index: number) {
     const removed = items[index];
     setItems((prev) => prev.filter((_, i) => i !== index));
-    setAllergyOverrides((prev) =>
-      prev.filter((o) => o.medicineId !== removed.medicineId),
-    );
+    setAllergyOverrides((prev) => prev.filter((o) => o.medicineId !== removed.medicineId));
   }
 
   async function handleSave() {
@@ -218,14 +223,11 @@ export default function PrescriptionWriterPage({
         items,
         allergyOverrides,
         advice: advice || undefined,
+        followUpOption,
       });
       toast.success("Prescription saved");
     } catch (err) {
-      toast.error(
-        err instanceof ApiRequestError
-          ? err.message
-          : "Failed to save prescription",
-      );
+      toast.error(err instanceof ApiRequestError ? err.message : "Failed to save prescription");
     }
   }
 
@@ -235,15 +237,12 @@ export default function PrescriptionWriterPage({
         items,
         allergyOverrides,
         advice: advice || undefined,
+        followUpOption,
       });
-      await statusMutation.mutateAsync("signed");
+      await statusMutation.mutateAsync({ status: "signed", followUpOption });
       toast.success("Prescription signed");
     } catch (err) {
-      toast.error(
-        err instanceof ApiRequestError
-          ? err.message
-          : "Failed to sign prescription",
-      );
+      toast.error(err instanceof ApiRequestError ? err.message : "Failed to sign prescription");
     }
   }
 
@@ -266,13 +265,33 @@ export default function PrescriptionWriterPage({
       advice ? `Advice: ${advice}` : "",
     ].filter(Boolean);
     const text = encodeURIComponent(lines.join("\n"));
-    const phone = appointment?.patientPhone
-      ? appointment.patientPhone.replace(/\D/g, "")
-      : "";
-    const url = phone
-      ? `https://wa.me/91${phone}?text=${text}`
-      : `https://wa.me/?text=${text}`;
+    const phone = appointment?.patientPhone ? appointment.patientPhone.replace(/\D/g, "") : "";
+    const url = phone ? `https://wa.me/91${phone}?text=${text}` : `https://wa.me/?text=${text}`;
     window.open(url, "_blank");
+  }
+
+  async function handleExportPdf() {
+    const node = document.getElementById("prescription-print-area");
+    if (!node) return;
+    setExportingPdf(true);
+    try {
+      const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([
+        import("jspdf"),
+        import("html2canvas"),
+      ]);
+      const canvas = await html2canvas(node, { scale: 2, backgroundColor: "#ffffff" });
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF({ unit: "pt", format: "a5" });
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = (canvas.height * pageWidth) / canvas.width;
+      pdf.addImage(imgData, "PNG", 0, 0, pageWidth, pageHeight);
+      pdf.save(`prescription-${existing?.rxNumber || appointmentId}.pdf`);
+    } catch (err) {
+      console.error("PDF export failed:", err);
+      toast.error("Failed to export PDF");
+    } finally {
+      setExportingPdf(false);
+    }
   }
 
   const isEmpty = items.length === 0;
@@ -281,9 +300,7 @@ export default function PrescriptionWriterPage({
 
   if (apptLoading || rxLoading) {
     return (
-      <div className="min-h-screen grid place-items-center text-ink-500 text-sm">
-        Loading…
-      </div>
+      <div className="min-h-screen grid place-items-center text-ink-500 text-sm">Loading…</div>
     );
   }
 
@@ -310,28 +327,20 @@ export default function PrescriptionWriterPage({
         <span className="font-semibold text-ink-900">Prescription</span>
         {isSigned && (
           <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-status-open-soft text-status-open">
-            Signed
+            Signed{existing?.rxNumber ? ` · ${existing.rxNumber}` : ""}
           </span>
         )}
+      </div>
+
+      <div className="max-w-6xl mx-auto px-4 mb-4">
+        <PatientContextBar allergies={allergies} conditions={conditions} flags={flags} />
       </div>
 
       <div className="max-w-6xl mx-auto px-4 grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6 items-start">
         {/* editor */}
         <div className="space-y-5">
-          {allergies.length > 0 && (
-            <div className="flex items-start gap-2.5 bg-status-danger-soft border border-status-danger/20 rounded-xl px-3.5 py-3 text-sm text-status-danger">
-              <AlertTriangle className="w-4 h-4 flex-none mt-0.5" />
-              <span>
-                <b>{appointment.patientName}</b> is allergic to:{" "}
-                {allergies.join(", ")}
-              </span>
-            </div>
-          )}
-
-          <div className="bg-surface-paper border border-border rounded-xl p-4">
-            <label className="block text-sm font-semibold text-ink-900 mb-2">
-              Add a medicine
-            </label>
+          <div className="bg-surface-paper border border-border rounded-xl p-4 space-y-3">
+            <label className="block text-sm font-semibold text-ink-900">Add a medicine</label>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-500" />
               <input
@@ -342,12 +351,9 @@ export default function PrescriptionWriterPage({
               />
             </div>
             {candidates.length > 0 && (
-              <div className="mt-2 border border-border rounded-lg overflow-hidden divide-y divide-border">
+              <div className="border border-border rounded-lg overflow-hidden divide-y divide-border">
                 {candidates.map((m) => {
-                  const conflict =
-                    allergies.length > 0
-                      ? findAllergyMatch(allergies, m)
-                      : null;
+                  const conflict = allergies.length > 0 ? findAllergyMatch(allergies, m) : null;
                   return (
                     <button
                       key={m.id}
@@ -376,15 +382,22 @@ export default function PrescriptionWriterPage({
               </div>
             )}
             {query.trim() && candidates.length === 0 && (
-              <p className="text-xs text-ink-500 mt-2">
-                No matching medicine in the catalog.
-              </p>
+              <p className="text-xs text-ink-500">No matching medicine in the catalog.</p>
             )}
+
+            <QuickStartRow
+              hospitalId={hospitalId}
+              appointmentId={appointmentId}
+              medicines={medicines}
+              onApplyItems={applyItems}
+            />
           </div>
 
           <div className="bg-surface-paper border border-border rounded-xl overflow-hidden">
             <div className="px-4 py-3 border-b border-border flex items-center justify-between">
-              <h2 className="text-sm font-bold text-ink-900 font-display tracking-tight">Prescription</h2>
+              <h2 className="text-sm font-bold text-ink-900 font-display tracking-tight">
+                Prescription
+              </h2>
               <span className="text-xs text-ink-500">
                 {items.length} medicine{items.length === 1 ? "" : "s"}
               </span>
@@ -395,246 +408,65 @@ export default function PrescriptionWriterPage({
               </div>
             ) : (
               <div className="divide-y divide-border">
-                {items.map((item, index) => {
-                  const override = allergyOverrides.find(
-                    (o) => o.medicineId === item.medicineId,
-                  );
-                  return (
-                    <div key={`${item.medicineId}-${index}`} className="p-4">
-                      <div className="flex items-start justify-between gap-2 mb-3">
-                        <div>
-                          <div className="text-sm font-semibold text-ink-900">
-                            {index + 1}. {item.medicineName}{" "}
-                            {item.strength ? `— ${item.strength}` : ""}
-                          </div>
-                          {override && (
-                            <div className="text-[11px] text-status-danger mt-0.5">
-                              Overrode &quot;{override.matchedAllergyTerm}&quot;
-                              allergy: {override.reason}
-                            </div>
-                          )}
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => removeItem(index)}
-                          className="text-ink-500 hover:text-status-danger"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                      </div>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
-                        <input
-                          placeholder="Dose e.g. 1-0-1"
-                          value={item.dose}
-                          onChange={(e) =>
-                            updateItem(index, { dose: e.target.value })
-                          }
-                          className={inputClass}
-                        />
-                        <input
-                          placeholder="Frequency"
-                          value={item.frequency || ""}
-                          onChange={(e) =>
-                            updateItem(index, { frequency: e.target.value })
-                          }
-                          className={inputClass}
-                        />
-                        <select
-                          value={item.foodTiming || ""}
-                          onChange={(e) =>
-                            updateItem(index, {
-                              foodTiming: (e.target.value || undefined) as
-                                | FoodTiming
-                                | undefined,
-                            })
-                          }
-                          className={inputClass}
-                        >
-                          <option value="">Food timing</option>
-                          {FOOD_TIMING_OPTIONS.map((opt) => (
-                            <option key={opt.value} value={opt.value}>
-                              {opt.label}
-                            </option>
-                          ))}
-                        </select>
-                        <input
-                          placeholder="Duration e.g. 5 days"
-                          value={item.duration || ""}
-                          onChange={(e) =>
-                            updateItem(index, { duration: e.target.value })
-                          }
-                          className={inputClass}
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 gap-2.5 mt-2.5">
-                        <input
-                          placeholder="Quantity e.g. 10 tablets"
-                          value={item.quantity || ""}
-                          onChange={(e) =>
-                            updateItem(index, { quantity: e.target.value })
-                          }
-                          className={inputClass}
-                        />
-                        <input
-                          placeholder="Patient note (optional)"
-                          value={item.note || ""}
-                          onChange={(e) =>
-                            updateItem(index, { note: e.target.value })
-                          }
-                          className={inputClass}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          <div className="bg-surface-paper border border-border rounded-xl p-4">
-            <label className="block text-sm font-semibold text-ink-900 mb-2">
-              Advice &amp; follow-up
-            </label>
-            <textarea
-              value={advice}
-              onChange={(e) => setAdvice(e.target.value)}
-              rows={3}
-              placeholder="Any general advice for the patient..."
-              className={`${inputClass} resize-none`}
-            />
-          </div>
-        </div>
-
-        {/* preview */}
-        <div className="lg:sticky lg:top-4 space-y-3">
-          <div
-            id="prescription-print-area"
-            className="bg-surface-paper border border-border rounded-xl p-5 text-sm"
-          >
-            <div className="border-b-2 border-brand-violet pb-3 mb-3">
-              <div className="text-base font-bold text-ink-900">
-                {currentHospital?.name || "Prescription"}
-              </div>
-              {currentHospital?.address && (
-                <div className="text-xs text-ink-500 mt-0.5">
-                  {currentHospital.address}
-                </div>
-              )}
-            </div>
-            <div className="flex items-baseline justify-between gap-2 text-xs text-ink-500 pb-3 mb-3 border-b border-dashed border-border">
-              <span>
-                <span className="block text-sm font-bold text-ink-900">
-                  Dr. {appointment.doctorName}
-                </span>
-                {[doctor?.qualification, doctor?.specialization]
-                  .filter(Boolean)
-                  .join(" · ")}
-              </span>
-              <span className="shrink-0 font-mono tabular">{todayDisplay()}</span>
-            </div>
-            <div className="flex items-baseline justify-between gap-2 text-xs pb-3 mb-3 border-b border-border">
-              <span>
-                <span className="font-bold text-ink-900">
-                  {appointment.patientName}
-                </span>
-                {appointment.patientGender
-                  ? ` · ${appointment.patientGender}`
-                  : ""}
-                {appointment.patientAge != null
-                  ? ` · ${appointment.patientAge}y`
-                  : ""}
-              </span>
-              <span className="font-mono text-ink-500 shrink-0">
-                {patient?.patientId ? `P-${patient.patientId}` : ""}
-              </span>
-            </div>
-            {items.length === 0 ? (
-              <p className="text-xs text-ink-500">No medicines added yet.</p>
-            ) : (
-              <div className="space-y-3">
                 {items.map((item, index) => (
-                  <div
+                  <MedicineRow
                     key={`${item.medicineId}-${index}`}
-                    className="pb-2.5 border-b border-dashed border-border last:border-0"
-                  >
-                    <div className="text-sm font-semibold text-ink-900">
-                      {index + 1}. {item.medicineName}{" "}
-                      {item.strength ? `— ${item.strength}` : ""}
-                    </div>
-                    <div className="text-xs text-ink-700 mt-0.5">
-                      {[
-                        item.dose,
-                        item.frequency,
-                        item.foodTiming?.replace("_", " "),
-                        item.duration,
-                      ]
-                        .filter(Boolean)
-                        .join(" · ")}
-                    </div>
-                    {item.quantity && (
-                      <div className="text-[11px] text-ink-500">
-                        Dispense {item.quantity}
-                      </div>
-                    )}
-                    {item.note && (
-                      <div className="text-[11px] text-ink-500 mt-0.5">
-                        {item.note}
-                      </div>
-                    )}
-                  </div>
+                    item={item}
+                    index={index}
+                    medicine={medicineById.get(item.medicineId)}
+                    override={allergyOverrides.find((o) => o.medicineId === item.medicineId)}
+                    patientAllergies={allergies}
+                    onUpdate={(patch) => updateItem(index, patch)}
+                    onRemove={() => removeItem(index)}
+                  />
                 ))}
               </div>
             )}
-            {advice && (
-              <div className="mt-3 pt-3 border-t border-border text-xs text-ink-700">
-                <b className="text-ink-900">Advice: </b>
-                {advice}
-              </div>
-            )}
-            <div className="mt-4 pt-3 border-t border-border text-[10.5px] text-ink-500">
-              Printed on {todayDisplay()}
-            </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-2">
-            <button
-              type="button"
-              onClick={handlePrint}
-              className="flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg border border-border text-xs font-semibold text-ink-700"
-            >
-              <Printer className="w-3.5 h-3.5" /> Print
-            </button>
-            <button
-              type="button"
-              onClick={handleWhatsApp}
-              className="flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg border border-status-open/30 bg-status-open-soft text-status-open text-xs font-semibold"
-            >
-              <MessageCircle className="w-3.5 h-3.5" /> WhatsApp
-            </button>
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={isEmpty || saving}
-              className="flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg border border-border text-xs font-semibold text-ink-700 disabled:opacity-50"
-            >
-              {saveMutation.isPending && (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              )}
-              Save draft
-            </button>
-          </div>
+          <AdviceAndFollowUp
+            advice={advice}
+            onAdviceChange={setAdvice}
+            followUpOption={followUpOption}
+            onFollowUpOptionChange={setFollowUpOption}
+          />
+
           <button
             type="button"
-            onClick={handleSign}
+            onClick={handleSave}
             disabled={isEmpty || saving}
-            className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg bg-brand-violet hover:bg-brand-violet-hover text-white text-sm font-semibold disabled:opacity-50"
+            className="text-sm font-semibold text-ink-700 underline disabled:opacity-50"
           >
-            {statusMutation.isPending && (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            )}
-            {isSigned ? "Re-sign & update" : "Sign & issue"}
+            Save draft
           </button>
         </div>
+
+        {/* preview */}
+        <PrescriptionPreviewPanel
+          hospitalName={currentHospital?.name}
+          hospitalAddress={currentHospital?.address}
+          hospitalRegistrationNumber={currentHospital?.registrationNumber}
+          doctorName={appointment.doctorName}
+          doctorQualification={doctor?.qualification}
+          doctorSpecialization={doctor?.specialization}
+          doctorRegistrationNumber={doctor?.medicalRegistrationNumber}
+          dateDisplay={todayDisplay()}
+          patientName={appointment.patientName}
+          patientGender={appointment.patientGender}
+          patientAge={appointment.patientAge}
+          patientCode={patient?.patientId ? `P-${patient.patientId}` : undefined}
+          items={items}
+          medicineById={medicineById}
+          advice={advice}
+          rxNumber={existing?.rxNumber}
+          isSigned={isSigned}
+          onSign={handleSign}
+          onPrint={handlePrint}
+          onWhatsApp={handleWhatsApp}
+          onExportPdf={handleExportPdf}
+          saving={saving}
+          exportingPdf={exportingPdf}
+        />
       </div>
 
       {pendingConflict && (
@@ -652,12 +484,11 @@ export default function PrescriptionWriterPage({
               </span>
               <div>
                 <h3 className="text-base font-semibold text-ink-900 font-display tracking-tight">
-                  {pendingConflict.medicine.name} can&apos;t go on this
-                  prescription
+                  {pendingConflict.medicine.name} can&apos;t go on this prescription
                 </h3>
                 <p className="text-sm text-ink-500 mt-0.5">
-                  {appointment.patientName} is allergic to &quot;
-                  {pendingConflict.matchedTerm}&quot;.
+                  {appointment.patientName} is allergic to &quot;{pendingConflict.matchedTerm}
+                  &quot;.
                 </p>
               </div>
             </div>

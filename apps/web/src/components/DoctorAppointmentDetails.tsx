@@ -16,7 +16,10 @@ import {
   Stethoscope
 } from "lucide-react";
 import { AppointmentWithDetails } from "@/types/appointment";
-import { useUpdateHospitalAppointmentStatus } from "@/hooks/useNewAppointmentsApi";
+import {
+  useFinishSession,
+  useUpdateHospitalAppointmentStatus,
+} from "@/hooks/useNewAppointmentsApi";
 import { toast } from "react-hot-toast";
 import { APPOINTMENT_STATUS, normalizeAppointmentStatus } from "../constants";
 
@@ -37,6 +40,7 @@ export default function DoctorAppointmentBottomSheet({
   const [showConfirmNoShow, setShowConfirmNoShow] = useState(false);
   const [showConfirmNotAvailable, setShowConfirmNotAvailable] = useState(false);
   const updateStatusMutation = useUpdateHospitalAppointmentStatus();
+  const finishSession = useFinishSession();
   const appointmentDate = new Date(appointment.date);
   const isPast = appointmentDate < new Date();
   const status = normalizeAppointmentStatus(appointment.status);
@@ -99,13 +103,28 @@ export default function DoctorAppointmentBottomSheet({
     setShowNotesModal(true);
   };
 
-  const handleSaveNotesAndComplete = async () => {
+  // Finishes the clinical part of the visit (in-consultation ->
+  // awaiting-payment) without billing — collecting payment is a separate,
+  // later step (see CompleteVisitDialog / payments flow).
+  const handleSaveNotesAndFinish = async () => {
     if (!sessionNotes.trim()) {
       toast.error("Please enter session notes");
       return;
     }
-    await handleUpdateStatus(APPOINTMENT_STATUS.COMPLETED, sessionNotes);
-    setShowNotesModal(false);
+    try {
+      await finishSession.mutateAsync({
+        appointmentId: appointment.id,
+        sessionNotes,
+      });
+      toast.success("Session finished — ready for payment");
+      setShowNotesModal(false);
+      if (onRefetch) await onRefetch();
+      onClose();
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Couldn't finish the session",
+      );
+    }
   };
 
   const handleCancelAppointment = async () => {
@@ -130,6 +149,8 @@ export default function DoctorAppointmentBottomSheet({
       "px-3 py-1.5 rounded-full text-sm font-medium border";
 
     switch (normalizeAppointmentStatus(rawStatus)) {
+      case APPOINTMENT_STATUS.AWAITING_PAYMENT:
+        return `${baseClasses} bg-status-warning-soft text-status-warning border-status-warning/20`;
       case APPOINTMENT_STATUS.COMPLETED:
         return `${baseClasses} bg-status-open-soft text-status-open border-status-open/20`;
       case APPOINTMENT_STATUS.CANCELLED:
@@ -338,7 +359,7 @@ export default function DoctorAppointmentBottomSheet({
                 ) : (
                   <CheckCircle className="w-4 h-4" />
                 )}
-                <span className="text-sm font-medium">Complete</span>
+                <span className="text-sm font-medium">Finish session</span>
               </button>
 
               <button
@@ -354,7 +375,8 @@ export default function DoctorAppointmentBottomSheet({
         )}
 
         {/* View-only actions */}
-        {(status === APPOINTMENT_STATUS.COMPLETED ||
+        {(status === APPOINTMENT_STATUS.AWAITING_PAYMENT ||
+          status === APPOINTMENT_STATUS.COMPLETED ||
           status === APPOINTMENT_STATUS.CANCELLED ||
           status === APPOINTMENT_STATUS.NO_SHOW ||
           status === APPOINTMENT_STATUS.RESCHEDULED) && (
@@ -402,16 +424,16 @@ export default function DoctorAppointmentBottomSheet({
                 Cancel
               </button>
               <button
-                onClick={handleSaveNotesAndComplete}
-                disabled={!sessionNotes.trim() || updateStatusMutation.isPending}
+                onClick={handleSaveNotesAndFinish}
+                disabled={!sessionNotes.trim() || finishSession.isPending}
                 className="px-4 py-2 bg-brand-violet text-white rounded-lg hover:bg-brand-violet-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
-                {updateStatusMutation.isPending ? (
+                {finishSession.isPending ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
                   <CheckCircle className="w-4 h-4" />
                 )}
-                Save Notes & Complete
+                Save Notes & Finish
               </button>
             </div>
           </div>
