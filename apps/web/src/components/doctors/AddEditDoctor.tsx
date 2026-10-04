@@ -19,7 +19,10 @@ import {
 import DoctorAvatar from "@/components/doctors/DoctorAvatar";
 import { useAuth } from "@/hooks/useAuth";
 import { useDoctorDashboardPracticeStats } from "@/hooks/useDoctorDashboardApi";
-import { useHospitalSpecializations } from "@/hooks/useHospitalSpecializationsApi";
+import {
+  useHospitalSpecializations,
+  useUpdateHospitalSpecializations,
+} from "@/hooks/useHospitalSpecializationsApi";
 import { useHospitalDoctor, useNewDoctorApi, useResetDoctorPassword } from "@/hooks/useNewDoctorApi";
 import TempPasswordModal from "@/components/common/TempPasswordModal";
 import { ApiRequestError } from "@/lib/api";
@@ -65,6 +68,7 @@ const OVER_CAPACITY_OPTIONS: {
 const GRACE_MINUTE_OPTIONS = [5, 10, 15];
 const NO_SHOW_RELEASE_OPTIONS = [15, 20, 30];
 const GENDERS = [GENDER.MALE, GENDER.FEMALE, GENDER.OTHER];
+const ADD_SPECIALIZATION_VALUE = "__add_new__";
 const DEFAULT_SPECIALIZATIONS = [
   "General Practitioner",
   "Cardiologist",
@@ -320,6 +324,9 @@ export default function AddEditDoctor({
   const [tempPassword, setTempPassword] = useState<string | null>(null);
   const { data: hospitalSpecializationsData } =
     useHospitalSpecializations(hospitalId);
+  const updateSpecializations = useUpdateHospitalSpecializations(hospitalId);
+  const [addingSpecialization, setAddingSpecialization] = useState(false);
+  const [newSpecialization, setNewSpecialization] = useState("");
   const specializationOptions =
     hospitalSpecializationsData?.specializations?.length
       ? hospitalSpecializationsData.specializations
@@ -458,6 +465,39 @@ export default function AddEditDoctor({
 
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
     setFormData((prev) => ({ ...prev, [key]: value }));
+  }
+
+  async function addSpecialization() {
+    const name = newSpecialization.trim();
+    if (!name) {
+      toast.error("Please enter a specialization");
+      return;
+    }
+    const existing = specializationOptions.find(
+      (s) => s.toLowerCase() === name.toLowerCase(),
+    );
+    if (existing) {
+      update("specialization", existing);
+    } else {
+      try {
+        // The dropdown shows the defaults while the hospital list is empty, so
+        // save them alongside the new entry rather than replacing them.
+        await updateSpecializations.mutateAsync([
+          ...specializationOptions,
+          name,
+        ]);
+        update("specialization", name);
+        toast.success(`Added "${name}" to specializations`);
+      } catch (err) {
+        console.error("Error adding specialization:", err);
+        toast.error(
+          err instanceof Error ? err.message : "Failed to add specialization",
+        );
+        return;
+      }
+    }
+    setNewSpecialization("");
+    setAddingSpecialization(false);
   }
 
   function scrollToSection(ref: React.RefObject<HTMLDivElement | null>) {
@@ -1022,23 +1062,76 @@ export default function AddEditDoctor({
                 required
                 hint="Patients filter by this when booking."
               >
-                <select
-                  value={formData.specialization}
-                  disabled={!canEdit}
-                  onChange={(e) => update("specialization", e.target.value)}
-                  className={inputClass}
-                >
-                  <option value="">Select a specialization</option>
-                  {(formData.specialization &&
-                  !specializationOptions.includes(formData.specialization)
-                    ? [formData.specialization, ...specializationOptions]
-                    : specializationOptions
-                  ).map((s) => (
-                    <option key={s} value={s}>
-                      {s}
+                {addingSpecialization ? (
+                  <div className="flex gap-2">
+                    <input
+                      autoFocus
+                      value={newSpecialization}
+                      onChange={(e) => setNewSpecialization(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          addSpecialization();
+                        } else if (e.key === "Escape") {
+                          setAddingSpecialization(false);
+                          setNewSpecialization("");
+                        }
+                      }}
+                      maxLength={100}
+                      placeholder="e.g. Nephrologist"
+                      className={inputClass}
+                    />
+                    <button
+                      type="button"
+                      onClick={addSpecialization}
+                      disabled={updateSpecializations.isPending}
+                      className="shrink-0 inline-flex items-center gap-1 rounded-lg bg-brand-violet px-3 text-sm font-semibold text-white disabled:opacity-60"
+                    >
+                      {updateSpecializations.isPending ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        "Add"
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAddingSpecialization(false);
+                        setNewSpecialization("");
+                      }}
+                      className="shrink-0 rounded-lg border border-border px-3 text-sm text-ink-700"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <select
+                    value={formData.specialization}
+                    disabled={!canEdit}
+                    onChange={(e) => {
+                      if (e.target.value === ADD_SPECIALIZATION_VALUE) {
+                        setAddingSpecialization(true);
+                        return;
+                      }
+                      update("specialization", e.target.value);
+                    }}
+                    className={inputClass}
+                  >
+                    <option value="">Select a specialization</option>
+                    {(formData.specialization &&
+                    !specializationOptions.includes(formData.specialization)
+                      ? [formData.specialization, ...specializationOptions]
+                      : specializationOptions
+                    ).map((s) => (
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
+                    ))}
+                    <option value={ADD_SPECIALIZATION_VALUE}>
+                      + Add new specialization…
                     </option>
-                  ))}
-                </select>
+                  </select>
+                )}
               </Field>
               <Field
                 label="Years of experience"
