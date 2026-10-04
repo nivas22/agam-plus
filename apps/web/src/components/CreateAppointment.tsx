@@ -20,6 +20,7 @@ import { toast } from "react-hot-toast";
 import SellPackageDialog from "@/components/appointments/SellPackageDialog";
 import { Field, inputClass } from "@/components/common/EditFormControls";
 import { useAuth } from "@/hooks/useAuth";
+import { useModuleEnabled } from "@/hooks/useHospitalModulesApi";
 import { useDoctorSlots } from "@/hooks/useDoctorSlots";
 import { useHospitalAppointmentsApi } from "@/hooks/useNewAppointmentsApi";
 import { useHospitalDoctors } from "@/hooks/useNewDoctorApi";
@@ -288,6 +289,7 @@ export default function CreateAppointment({
   const { data: doctorsData = { doctors: [] }, isLoading: doctorsLoading } =
     useHospitalDoctors(hospitalId, undefined, true);
   const { navigateToHospitalRoute, currentHospitalMembership } = useAuth();
+  const packagesOn = useModuleEnabled(hospitalId).isEnabled("packages");
 
   const { addAppointment } = useHospitalAppointmentsApi(
     hospitalId,
@@ -665,15 +667,17 @@ export default function CreateAppointment({
               you confirm.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => setShowSellPackage(true)}
-            disabled={!selectedPatient}
-            title={selectedPatient ? undefined : "Choose a patient first"}
-            className="mt-0.5 h-9 px-3.5 rounded-lg border border-brand-violet text-brand-violet text-sm font-medium flex items-center gap-1.5 hover:bg-brand-violet-soft transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent shrink-0"
-          >
-            <PackageIcon className="w-4 h-4" /> Sell package
-          </button>
+          {packagesOn && (
+            <button
+              type="button"
+              onClick={() => setShowSellPackage(true)}
+              disabled={!selectedPatient}
+              title={selectedPatient ? undefined : "Choose a patient first"}
+              className="mt-0.5 h-9 px-3.5 rounded-lg border border-brand-violet text-brand-violet text-sm font-medium flex items-center gap-1.5 hover:bg-brand-violet-soft transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent shrink-0"
+            >
+              <PackageIcon className="w-4 h-4" /> Sell package
+            </button>
+          )}
         </div>
 
         <form
@@ -1148,7 +1152,7 @@ export default function CreateAppointment({
         </form>
       </div>
 
-      {showSellPackage && selectedPatient && (
+      {packagesOn && showSellPackage && selectedPatient && (
         <SellPackageDialog
           hospitalId={hospitalId}
           patient={selectedPatient}

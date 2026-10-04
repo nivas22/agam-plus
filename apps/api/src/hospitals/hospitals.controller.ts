@@ -5,13 +5,18 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { JwtUser } from '../auth/decorators/current-user.decorator';
 import { HospitalContextGuard } from '../auth/guards/hospital-context.guard';
 import { PlatformAdminGuard } from '../auth/guards/platform-admin.guard';
+import { RequiresModule } from '../auth/decorators/requires-module.decorator';
+import { CurrentHospitalUser } from '../auth/decorators/current-user.decorator';
+import type { HospitalUserProfile } from '../auth/decorators/current-user.decorator';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import {
   createHospitalSchema,
   requestAccessSchema,
+  updateHospitalModulesSchema,
   updateHospitalSpecializationsSchema,
   updatePatientNoteFieldsSchema,
 } from '../common/validation/schemas';
+import { HOSPITAL_MODULE } from '../constants';
 import type { PatientNoteField } from '../constants';
 
 @Controller('hospitals')
@@ -98,8 +103,30 @@ export class HospitalsController {
   @Put(':id/patient-note-fields')
   @UseGuards(HospitalContextGuard)
   @Roles('admin')
+  @RequiresModule(HOSPITAL_MODULE.PATIENT_FIELDS)
   @UsePipes(new ZodValidationPipe(updatePatientNoteFieldsSchema))
   updatePatientNoteFields(@Param('id') id: string, @Body() body: { fields: PatientNoteField[] }) {
     return this.hospitalsService.updatePatientNoteFields(id, body.fields);
+  }
+
+  // Settings > Features. Every role reads it (the web app hides switched-off
+  // modules from everyone); only admins can flip switches.
+  @Get(':id/modules')
+  @UseGuards(HospitalContextGuard)
+  @Roles('admin', 'doctor', 'front_desk', 'nurse', 'accountant')
+  getModules(@Param('id') id: string) {
+    return this.hospitalsService.getModules(id);
+  }
+
+  @Put(':id/modules')
+  @UseGuards(HospitalContextGuard)
+  @Roles('admin')
+  @UsePipes(new ZodValidationPipe(updateHospitalModulesSchema))
+  updateModules(
+    @Param('id') id: string,
+    @CurrentHospitalUser() userProfile: HospitalUserProfile,
+    @Body() body: { modules: Partial<Record<HOSPITAL_MODULE, boolean>> },
+  ) {
+    return this.hospitalsService.updateModules(id, body.modules, userProfile);
   }
 }

@@ -12,6 +12,7 @@ import {
   toISODate,
 } from "@/components/queue/queueBoard";
 import { useAuth } from "@/hooks/useAuth";
+import { useModuleEnabled } from "@/hooks/useHospitalModulesApi";
 import { useDoctorPresence } from "@/hooks/useDoctorPresenceApi";
 import {
   useDoctorDashboardFollowUps,
@@ -205,6 +206,7 @@ export default function DoctorDashboardPage({
   ];
 
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
+  const { isEnabled } = useModuleEnabled(hospitalId);
 
   const isLoading = !doctor || appointmentsLoading || pendingLoading;
   if (isLoading) {
@@ -332,13 +334,15 @@ export default function DoctorDashboardPage({
           >
             {presence.label}
           </span>
-          <button
-            type="button"
-            onClick={() => setShowLeaveDialog(true)}
-            className="h-9 px-4 rounded-lg border border-border text-sm font-medium text-ink-700 hover:bg-surface-canvas"
-          >
-            Apply for leave
-          </button>
+          {isEnabled("leaveRequests") && (
+            <button
+              type="button"
+              onClick={() => setShowLeaveDialog(true)}
+              className="h-9 px-4 rounded-lg border border-border text-sm font-medium text-ink-700 hover:bg-surface-canvas"
+            >
+              Apply for leave
+            </button>
+          )}
         </span>
       </div>
 
@@ -357,13 +361,15 @@ export default function DoctorDashboardPage({
             />
             <StatMini value={newPatientAppts.length} label="New" />
           </div>
-          <button
-            type="button"
-            onClick={() => navigateToHospitalRoute("/today")}
-            className="h-10 px-5 rounded-lg bg-white text-brand-violet text-sm font-bold hover:bg-white/90"
-          >
-            Open Today →
-          </button>
+          {isEnabled("queue") && (
+            <button
+              type="button"
+              onClick={() => navigateToHospitalRoute("/today")}
+              className="h-10 px-5 rounded-lg bg-white text-brand-violet text-sm font-bold hover:bg-white/90"
+            >
+              Open Today →
+            </button>
+          )}
         </div>
       </div>
 
@@ -371,9 +377,25 @@ export default function DoctorDashboardPage({
         <div className="space-y-4">
           {/* waiting on you */}
           <WaitingOnYouCard
-            pending={pending || null}
+            pending={
+              pending
+                ? {
+                    ...pending,
+                    unsignedPrescriptions: isEnabled("prescriptions")
+                      ? pending.unsignedPrescriptions
+                      : [],
+                    pendingLeaveRequest: isEnabled("leaveRequests")
+                      ? pending.pendingLeaveRequest
+                      : null,
+                  }
+                : null
+            }
             hospitalId={hospitalId}
-            onGoToday={() => navigateToHospitalRoute("/today")}
+            onGoToday={() =>
+              navigateToHospitalRoute(
+                isEnabled("queue") ? "/today" : "/appointments",
+              )
+            }
             onOpenPrescription={(appointmentId) =>
               navigateToHospitalRoute(
                 `/appointments/${appointmentId}/prescription`,
@@ -419,7 +441,9 @@ export default function DoctorDashboardPage({
           <FollowUpsDueCard followUps={followUps} />
 
           {/* patients on packages */}
-          <PackagesCard packages={packagesData?.packages || []} />
+          {isEnabled("packages") && (
+            <PackagesCard packages={packagesData?.packages || []} />
+          )}
 
           {/* yesterday */}
           <YesterdayCard summary={yesterday || null} />

@@ -7,6 +7,7 @@ import { X, Search, Users2, CalendarClock, Ban, AlertTriangle, ArrowRight } from
 import { AppointmentWithDetails } from "@/types/appointment";
 import { Doctor } from "@/types/doctorNew";
 import { useDoctorSlots } from "@/hooks/useDoctorSlots";
+import { useModuleEnabled } from "@/hooks/useHospitalModulesApi";
 import { paletteFor } from "@/lib/avatarPalette";
 import { APPOINTMENT_STATUS } from "../../constants";
 
@@ -207,6 +208,8 @@ const ALREADY_ARRIVED_STATUSES = new Set<string>([
 ]);
 
 export function ChangeDoctorDialog({ appointment, doctors, allAppointments, patientCode, now, onClose, updateAppointmentStatus, onSuccess }: ChangeDoctorDialogProps) {
+  // Only offer to text the patient while SMS is on (Settings > Features).
+  const smsOn = useModuleEnabled().isEnabled("sms");
   const [query, setQuery] = useState("");
   const [picked, setPicked] = useState<Doctor | null>(null);
   const [notify, setNotify] = useState(true);
@@ -379,13 +382,15 @@ export function ChangeDoctorDialog({ appointment, doctors, allAppointments, pati
           {candidates.length === 0 && <div className="text-sm text-ink-500 text-center py-8">No other doctors found</div>}
         </div>
         <div className="mt-1">
-          <CheckboxOption
-            id="changedoc-notify"
-            label={`Tell ${appointment.patientName.split(" ")[0]} by SMS`}
-            hint="Sends the new doctor's name, same date and time."
-            checked={notify}
-            onChange={setNotify}
-          />
+          {smsOn && (
+            <CheckboxOption
+              id="changedoc-notify"
+              label={`Tell ${appointment.patientName.split(" ")[0]} by SMS`}
+              hint="Sends the new doctor's name, same date and time."
+              checked={notify}
+              onChange={setNotify}
+            />
+          )}
         </div>
       </div>
     </DialogShell>
@@ -407,6 +412,8 @@ interface RescheduleDialogProps {
 }
 
 export function RescheduleDialog({ appointment, doctor, hospitalId, patientCode, onClose, updateAppointmentStatus, onSuccess }: RescheduleDialogProps) {
+  // Only offer to text the patient while SMS is on (Settings > Features).
+  const smsOn = useModuleEnabled().isEnabled("sms");
   const [date, setDate] = useState(appointment.date);
   const [time, setTime] = useState<string | null>(null);
   const [notify, setNotify] = useState(true);
@@ -546,13 +553,15 @@ export function RescheduleDialog({ appointment, doctor, hospitalId, patientCode,
           </div>
         )}
         <div className="mt-3">
-          <CheckboxOption
-            id="reschedule-notify"
-            label={`Tell ${appointment.patientName.split(" ")[0]} by SMS`}
-            hint="Sends the new date and time with a confirm link."
-            checked={notify}
-            onChange={setNotify}
-          />
+          {smsOn && (
+            <CheckboxOption
+              id="reschedule-notify"
+              label={`Tell ${appointment.patientName.split(" ")[0]} by SMS`}
+              hint="Sends the new date and time with a confirm link."
+              checked={notify}
+              onChange={setNotify}
+            />
+          )}
           <CheckboxOption
             id="reschedule-release"
             label="Release the old slot"
@@ -581,6 +590,8 @@ interface CancelDialogProps {
 }
 
 export function CancelDialog({ appointment, patientCode, onClose, updateAppointmentStatus, onSuccess }: CancelDialogProps) {
+  // Only offer to text the patient while SMS is on (Settings > Features).
+  const smsOn = useModuleEnabled().isEnabled("sms");
   const [reason, setReason] = useState<string | null>(null);
   const [note, setNote] = useState("");
   const [notify, setNotify] = useState(true);
@@ -659,13 +670,15 @@ export function CancelDialog({ appointment, patientCode, onClose, updateAppointm
           />
         )}
         <div className="mt-4">
-          <CheckboxOption
-            id="cancel-notify"
-            label={`Tell ${appointment.patientName.split(" ")[0]} by SMS`}
-            hint="Includes a link to rebook."
-            checked={notify}
-            onChange={setNotify}
-          />
+          {smsOn && (
+            <CheckboxOption
+              id="cancel-notify"
+              label={`Tell ${appointment.patientName.split(" ")[0]} by SMS`}
+              hint="Includes a link to rebook."
+              checked={notify}
+              onChange={setNotify}
+            />
+          )}
           <CheckboxOption
             id="cancel-release"
             label="Release the slot"
@@ -695,6 +708,8 @@ interface NoShowDialogProps {
 }
 
 export function NoShowDialog({ appointment, doctorName, patientCode, onClose, updateAppointmentStatus, onSuccess }: NoShowDialogProps) {
+  // Only offer to text the patient while SMS is on (Settings > Features).
+  const smsOn = useModuleEnabled().isEnabled("sms");
   const [reason, setReason] = useState<string | null>(null);
   const [sendRebookLink, setSendRebookLink] = useState(true);
   const [releaseSlot, setReleaseSlot] = useState(true);
@@ -758,13 +773,15 @@ export function NoShowDialog({ appointment, doctorName, patientCode, onClose, up
           ))}
         </div>
         <div className="mt-4">
-          <CheckboxOption
-            id="noshow-rebook"
-            label="Send a rebooking link"
-            hint={`SMS with the next three open slots${doctorName ? ` for Dr. ${doctorName.split(" ")[0]}` : ""}.`}
-            checked={sendRebookLink}
-            onChange={setSendRebookLink}
-          />
+          {smsOn && (
+            <CheckboxOption
+              id="noshow-rebook"
+              label="Send a rebooking link"
+              hint={`SMS with the next three open slots${doctorName ? ` for Dr. ${doctorName.split(" ")[0]}` : ""}.`}
+              checked={sendRebookLink}
+              onChange={setSendRebookLink}
+            />
+          )}
           <CheckboxOption
             id="noshow-release"
             label="Release the slot"

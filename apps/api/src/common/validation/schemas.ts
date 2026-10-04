@@ -376,6 +376,32 @@ export const updateHospitalSpecializationsSchema = z.object({
     .max(100, 'Too many specializations'),
 });
 
+// Partial: only the switches being changed need to be sent. Keys are
+// HOSPITAL_MODULE values — kept as a literal list like
+// setSubscriptionFeatureSchema below.
+export const updateHospitalModulesSchema = z.object({
+  modules: z
+    .object({
+      appointments: z.boolean(),
+      queue: z.boolean(),
+      packages: z.boolean(),
+      prescriptions: z.boolean(),
+      payments: z.boolean(),
+      sms: z.boolean(),
+      whatsapp: z.boolean(),
+      reports: z.boolean(),
+      audit: z.boolean(),
+      leaveRequests: z.boolean(),
+      hospitalHolidays: z.boolean(),
+      chargeCatalog: z.boolean(),
+      medicines: z.boolean(),
+      medicinePacks: z.boolean(),
+      patientFields: z.boolean(),
+    })
+    .partial()
+    .strict(),
+});
+
 export const updatePatientNoteFieldsSchema = z.object({
   fields: z
     .array(

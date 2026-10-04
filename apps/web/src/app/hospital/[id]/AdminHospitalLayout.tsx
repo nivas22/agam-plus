@@ -27,12 +27,15 @@ import { useParams, usePathname, useRouter } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { FaHospital, FaUserMd } from "react-icons/fa";
 import ApprovalModal from "@/components/approvals/ApprovalModal";
+import ModuleRouteGate from "@/components/common/ModuleRouteGate";
 import SubscriptionStatusBanner from "@/components/billing/SubscriptionStatusBanner";
 import GlobalSearch from "@/components/GlobalSearch";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { usePendingApprovals } from "@/hooks/useApprovalsApi";
 import { useAuth } from "@/hooks/useAuth";
+import { useModuleEnabled } from "@/hooks/useHospitalModulesApi";
 import { apiUrl, fetchWithAuth } from "@/lib/api";
+import type { HospitalModuleKey } from "@/lib/hospitalModules";
 import type { ApprovalRequest } from "@/types/audit";
 
 interface HospitalLayoutProps {
@@ -93,8 +96,18 @@ export default function AdminHospitalLayout({
   };
   const userInitials = getInitials(displayName);
 
-  // Dynamic navigation items with actual hospital ID
-  const navItems = [
+  const { isEnabled: isModuleEnabled } = useModuleEnabled(actualHospitalId);
+
+  // Dynamic navigation items with actual hospital ID. Items tagged with a
+  // `module` disappear while that module is off (Settings > Features).
+  const allNavItems: {
+    to: string;
+    label: string;
+    icon: React.ReactNode;
+    category: string;
+    isNew?: boolean;
+    module?: HospitalModuleKey;
+  }[] = [
     {
       to: "/dashboard",
       label: "Dashboard",
@@ -126,18 +139,21 @@ export default function AdminHospitalLayout({
     {
       to: "/appointments",
       label: "Appointments",
+      module: "appointments" as const,
       icon: <Calendar size={18} />,
       category: "care",
     },
     {
       to: "/queue",
       label: "Today's queue",
+      module: "queue" as const,
       icon: <ListChecks size={18} />,
       category: "care",
     },
     {
       to: "/payments",
       label: "Payments",
+      module: "payments" as const,
       icon: <IndianRupee size={18} />,
       isNew: true,
       category: "frontDesk",
@@ -147,6 +163,7 @@ export default function AdminHospitalLayout({
           {
             to: "/enquiries",
             label: "Enquiries",
+            module: "whatsapp" as const,
             icon: <MessageCircle size={18} />,
             isNew: true,
             category: "frontDesk",
@@ -158,12 +175,14 @@ export default function AdminHospitalLayout({
           {
             to: "/reports",
             label: "Reports",
+            module: "reports" as const,
             icon: <TrendingUp size={18} />,
             category: "admin",
           },
           {
             to: "/settings/audit",
             label: "Audit trail",
+            module: "audit" as const,
             icon: <ClipboardList size={18} />,
             category: "admin",
           },
@@ -176,6 +195,9 @@ export default function AdminHospitalLayout({
         ]
       : []),
   ];
+  const navItems = allNavItems.filter(
+    (item) => !item.module || isModuleEnabled(item.module),
+  );
 
   // Desktop sidebar groups
   const navGroups = [
@@ -1016,7 +1038,9 @@ export default function AdminHospitalLayout({
                   hospitalId={actualHospitalId}
                   isAdmin={isAdmin}
                 />
-                {children}
+                <ModuleRouteGate hospitalId={actualHospitalId}>
+                  {children}
+                </ModuleRouteGate>
               </div>
             </Suspense>
           </div>

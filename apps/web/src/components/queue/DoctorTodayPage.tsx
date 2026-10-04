@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import CompleteVisitDialog from "@/components/appointments/CompleteVisitDialog";
 import { useAuth } from "@/hooks/useAuth";
 import { useChargeCatalogItems } from "@/hooks/useChargeCatalogApi";
+import { useModuleEnabled } from "@/hooks/useHospitalModulesApi";
 import {
   useDoctorPresence,
   useSetDoctorPresence,
@@ -410,8 +411,10 @@ export default function DoctorTodayPage({
     ]);
   };
 
+  const { isEnabled: isModuleEnabled } = useModuleEnabled(hospitalId);
+  const prescriptionsOn = isModuleEnabled("prescriptions");
   const { data: prescriptionResult } = usePrescription(
-    selectedAppt?.id || "",
+    prescriptionsOn ? selectedAppt?.id || "" : "",
     hospitalId,
   );
   const prescription = prescriptionResult?.prescription;
@@ -432,7 +435,7 @@ export default function DoctorTodayPage({
     : ((selectedAppt?.givenItems as PaymentItem[] | undefined) ?? []);
 
   const { data: notesModalPrescriptionResult } = usePrescription(
-    notesModalAppt?.id || "",
+    prescriptionsOn ? notesModalAppt?.id || "" : "",
     hospitalId,
   );
   const notesModalPrescription = notesModalPrescriptionResult?.prescription;
@@ -464,7 +467,7 @@ export default function DoctorTodayPage({
     (a) => a.status === APPOINTMENT_STATUS.NO_SHOW,
   ).length;
   const { data: lastPrescriptionResult } = usePrescription(
-    lastVisit?.id || "",
+    prescriptionsOn ? lastVisit?.id || "" : "",
     hospitalId,
   );
   const lastPrescription = lastPrescriptionResult?.prescription;
@@ -1390,6 +1393,7 @@ function ConsultationPanel({
   const isOver = elapsedMs > durationMin * 60000;
   const allergy = allergySummary(patient);
   const vRows = vitalsRows(appt.vitals);
+  const { isEnabled: isModuleEnabled } = useModuleEnabled(hospitalId);
   const prescriptionItemCount = prescription?.items.length ?? 0;
   const unsignedPrescription =
     prescriptionItemCount > 0 && prescription?.status !== "signed";
@@ -1603,6 +1607,8 @@ function ConsultationPanel({
             </div>
           )}
 
+          {isModuleEnabled("prescriptions") && (
+            <>
           <div className="text-[12px] uppercase tracking-wide text-ink-500 font-bold mb-2 mt-4">
             Prescription
           </div>
@@ -1624,6 +1630,8 @@ function ConsultationPanel({
               Open
             </a>
           </div>
+            </>
+          )}
         </div>
 
         <div className="p-5 border-t md:border-t-0 md:border-l border-lineSoft bg-surface-canvas/30 min-w-0">
@@ -1850,6 +1858,7 @@ function PreCallPanel({
   onCallIn: () => void;
   onCollectPayment?: () => void;
 }) {
+  const { isEnabled: isModuleEnabled } = useModuleEnabled(hospitalId);
   const age = resolveAge(appt, patient);
   const waitStart = stageStart(appt, appt.waitingAt || appt.checkedInAt);
   const waitMinutes = minutesBetween(waitStart, now);
@@ -1962,6 +1971,8 @@ function PreCallPanel({
                 )}
               </div>
 
+              {isModuleEnabled("prescriptions") && (
+                <>
               <div className="text-[12px] uppercase tracking-wide text-ink-500 font-bold mb-2 mt-4">
                 Prescription
               </div>
@@ -1989,6 +2000,8 @@ function PreCallPanel({
                     </div>
                   ))}
                 </div>
+              )}
+                </>
               )}
             </>
           ) : (
@@ -2153,6 +2166,7 @@ function NotesModal({
   onSave: () => void;
   onClose: () => void;
 }) {
+  const { isEnabled: isModuleEnabled } = useModuleEnabled(hospitalId);
   const age = resolveAge(appt, patient);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink-900/35 px-4">
@@ -2221,6 +2235,8 @@ function NotesModal({
             )}
           </div>
 
+          {isModuleEnabled("prescriptions") && (
+            <>
           <div className="flex items-center gap-2 mb-2 mt-4">
             <div className="text-[12px] uppercase tracking-wide text-ink-500 font-bold">
               Prescription
@@ -2279,6 +2295,8 @@ function NotesModal({
           >
             Open prescription
           </a>
+            </>
+          )}
         </div>
 
         <div className="flex items-center justify-end gap-3 px-5 py-4 border-t border-lineSoft">

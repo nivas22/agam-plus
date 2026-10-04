@@ -1,6 +1,8 @@
 import { Body, Controller, Get, Param, Patch, Post, Put, Query, UseGuards, UsePipes } from '@nestjs/common';
 import { ChargeCatalogService } from './charge-catalog.service';
 import { HospitalContextGuard } from '../auth/guards/hospital-context.guard';
+import { RequiresModule } from '../auth/decorators/requires-module.decorator';
+import { HOSPITAL_MODULE } from '../constants';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentHospitalUser } from '../auth/decorators/current-user.decorator';
 import type { HospitalUserProfile } from '../auth/decorators/current-user.decorator';
@@ -18,6 +20,7 @@ import {
 @Controller('hospitals/:id/charge-catalog')
 @UseGuards(HospitalContextGuard)
 @Roles('admin', 'doctor', 'front_desk', 'nurse', 'accountant')
+@RequiresModule(HOSPITAL_MODULE.CHARGE_CATALOG)
 export class ChargeCatalogController {
   constructor(private readonly chargeCatalogService: ChargeCatalogService) {}
 

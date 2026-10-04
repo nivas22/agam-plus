@@ -8,6 +8,7 @@ import { useMemo } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useDoctorPresence } from "@/hooks/useDoctorPresenceApi";
 import { useHospitalHolidays } from "@/hooks/useHospitalHolidaysApi";
+import { useModuleEnabled } from "@/hooks/useHospitalModulesApi";
 import { useLeaveRequests } from "@/hooks/useLeaveRequestsApi";
 import { useHospitalAppointments } from "@/hooks/useNewAppointmentsApi";
 import {
@@ -434,6 +435,7 @@ export default function DoctorProfilePage({
     hospitalId,
   );
   const { data: approvedLeave } = useLeaveRequests("approved", hospitalId);
+  const { isEnabled: isModuleEnabled } = useModuleEnabled(hospitalId);
 
   const paymentByAppointmentId = useMemo(() => {
     const map = new Map<string, Payment>();
@@ -753,13 +755,15 @@ export default function DoctorProfilePage({
           <b className="text-ink-900 font-semibold">Dr. {doctor.name}</b>
         </span>
         <span className="flex-1" />
-        <button
-          type="button"
-          onClick={() => router.push(`/hospital/${hospitalId}/queue`)}
-          className="h-8 px-3 rounded-lg border border-border bg-surface-paper text-xs font-medium text-ink-700 hover:bg-surface-canvas"
-        >
-          Open in queue
-        </button>
+        {isModuleEnabled("queue") && (
+          <button
+            type="button"
+            onClick={() => router.push(`/hospital/${hospitalId}/queue`)}
+            className="h-8 px-3 rounded-lg border border-border bg-surface-paper text-xs font-medium text-ink-700 hover:bg-surface-canvas"
+          >
+            Open in queue
+          </button>
+        )}
         <button
           type="button"
           onClick={handleToggleActive}
@@ -1101,17 +1105,19 @@ export default function DoctorProfilePage({
           <div className="bg-surface-paper border border-border rounded-xl shadow-sm overflow-hidden">
             <h2 className="text-sm font-semibold text-ink-900 px-4 py-3 border-b border-border font-display tracking-tight flex items-center gap-2">
               Time off <span className="flex-1" />
-              <button
-                type="button"
-                onClick={() =>
-                  router.push(
-                    `/hospital/${hospitalId}/settings/hospital-holidays`,
-                  )
-                }
-                className="text-xs font-normal text-brand-violet underline"
-              >
-                Add
-              </button>
+              {isModuleEnabled("hospitalHolidays") && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    router.push(
+                      `/hospital/${hospitalId}/settings/hospital-holidays`,
+                    )
+                  }
+                  className="text-xs font-normal text-brand-violet underline"
+                >
+                  Add
+                </button>
+              )}
             </h2>
             <div className="px-4 py-1">
               {timeOffItems.length === 0 ? (

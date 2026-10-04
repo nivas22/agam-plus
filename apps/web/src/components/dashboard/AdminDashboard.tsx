@@ -32,6 +32,7 @@ import StackedDayBars from "@/components/reports/charts/StackedDayBars";
 import { usePendingApprovals } from "@/hooks/useApprovalsApi";
 import { useAuditLog } from "@/hooks/useAuditApi";
 import { useAuth } from "@/hooks/useAuth";
+import { useModuleEnabled } from "@/hooks/useHospitalModulesApi";
 import { useChargeCatalogItems } from "@/hooks/useChargeCatalogApi";
 import { useDoctorPresence } from "@/hooks/useDoctorPresenceApi";
 import { useHospitalHolidays } from "@/hooks/useHospitalHolidaysApi";
@@ -53,6 +54,7 @@ export default function AdminDashboardClient() {
   const { id: hospitalId } = useParams<{ id: string }>();
   const router = useRouter();
   const { user } = useAuth();
+  const { isEnabled } = useModuleEnabled(hospitalId);
 
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
@@ -221,7 +223,10 @@ export default function AdminDashboardClient() {
       detail: presence.detail,
       actionLabel: "Handle now",
       actionCls: "bg-status-danger text-white",
-      onAction: () => router.push(`/hospital/${hospitalId}/queue`),
+      onAction: () =>
+        router.push(
+          `/hospital/${hospitalId}/${isEnabled("queue") ? "queue" : "appointments"}`,
+        ),
     });
   }
 
@@ -444,20 +449,24 @@ export default function AdminDashboardClient() {
           </p>
         </div>
         <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => router.push(`/hospital/${hospitalId}/reports`)}
-            className="px-3.5 py-2 text-sm font-semibold rounded-lg border border-border bg-surface-paper text-ink-700 hover:bg-surface-canvas transition-colors"
-          >
-            Reports
-          </button>
-          <button
-            type="button"
-            onClick={() => router.push(`/hospital/${hospitalId}/queue`)}
-            className="px-3.5 py-2 text-sm font-semibold rounded-lg border border-border bg-surface-paper text-ink-700 hover:bg-surface-canvas transition-colors"
-          >
-            Day sheet
-          </button>
+          {isEnabled("reports") && (
+            <button
+              type="button"
+              onClick={() => router.push(`/hospital/${hospitalId}/reports`)}
+              className="px-3.5 py-2 text-sm font-semibold rounded-lg border border-border bg-surface-paper text-ink-700 hover:bg-surface-canvas transition-colors"
+            >
+              Reports
+            </button>
+          )}
+          {isEnabled("queue") && (
+            <button
+              type="button"
+              onClick={() => router.push(`/hospital/${hospitalId}/queue`)}
+              className="px-3.5 py-2 text-sm font-semibold rounded-lg border border-border bg-surface-paper text-ink-700 hover:bg-surface-canvas transition-colors"
+            >
+              Day sheet
+            </button>
+          )}
         </div>
       </div>
 
@@ -628,6 +637,8 @@ export default function AdminDashboardClient() {
             )}
           </div>
 
+          {isEnabled("reports") && (
+          <>
           {/* Money today */}
           <div className="bg-surface-paper border border-border rounded-xl overflow-hidden shadow-sm">
             <div className="flex items-center gap-2.5 px-4 py-3 border-b border-border">
@@ -813,6 +824,8 @@ export default function AdminDashboardClient() {
               </div>
             )}
           </div>
+          </>
+          )}
         </div>
 
         {/* Rail */}
@@ -823,13 +836,15 @@ export default function AdminDashboardClient() {
                 Queue right now
               </h2>
               <span className="flex-1" />
-              <button
-                type="button"
-                onClick={() => router.push(`/hospital/${hospitalId}/queue`)}
-                className="text-[11.5px] font-semibold px-2.5 py-1.5 rounded-lg border border-border text-ink-700 hover:bg-surface-canvas"
-              >
-                Open
-              </button>
+              {isEnabled("queue") && (
+                <button
+                  type="button"
+                  onClick={() => router.push(`/hospital/${hospitalId}/queue`)}
+                  className="text-[11.5px] font-semibold px-2.5 py-1.5 rounded-lg border border-border text-ink-700 hover:bg-surface-canvas"
+                >
+                  Open
+                </button>
+              )}
             </div>
             {visibleQueueRows.length === 0 ? (
               <div className="p-5 text-center text-[12.5px] text-ink-500">
@@ -901,6 +916,7 @@ export default function AdminDashboardClient() {
             )}
           </div>
 
+          {isEnabled("audit") && (
           <div className="bg-surface-paper border border-border rounded-xl overflow-hidden shadow-sm">
             <div className="flex items-center gap-2.5 px-4 py-3 border-b border-border">
               <h2 className="font-display tracking-tight text-[14.5px] font-bold text-ink-900">
@@ -949,6 +965,7 @@ export default function AdminDashboardClient() {
               ))
             )}
           </div>
+          )}
         </div>
       </div>
     </div>

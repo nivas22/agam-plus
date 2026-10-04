@@ -2,11 +2,14 @@ import { Controller, Get, Param, Query, Res, UseGuards } from '@nestjs/common';
 import type { Response } from 'express';
 import { AuditService } from './audit.service';
 import { HospitalContextGuard } from '../auth/guards/hospital-context.guard';
+import { RequiresModule } from '../auth/decorators/requires-module.decorator';
+import { HOSPITAL_MODULE } from '../constants';
 import { Roles } from '../auth/decorators/roles.decorator';
 
 @Controller('hospitals/:id/audit')
 @UseGuards(HospitalContextGuard)
 @Roles('admin')
+@RequiresModule(HOSPITAL_MODULE.AUDIT)
 export class AuditController {
   constructor(private readonly auditService: AuditService) {}
 

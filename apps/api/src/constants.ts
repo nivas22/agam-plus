@@ -701,6 +701,72 @@ export enum SUBSCRIPTION_FEATURE {
 
 export const SUBSCRIPTION_FEATURE_VALUES = Object.values(SUBSCRIPTION_FEATURE);
 
+// Modules a hospital admin can switch on/off for their own hospital under
+// Settings > Features — see Hospital.modules, RequiresModule() and
+// resolveHospitalModules(). Missing keys mean enabled, so no existing
+// hospital loses anything until an admin turns it off. Keep in sync with
+// apps/web/src/lib/hospitalModules.ts.
+export enum HOSPITAL_MODULE {
+  APPOINTMENTS = "appointments",
+  QUEUE = "queue",
+  PACKAGES = "packages",
+  PRESCRIPTIONS = "prescriptions",
+  PAYMENTS = "payments",
+  SMS = "sms",
+  WHATSAPP = "whatsapp",
+  REPORTS = "reports",
+  AUDIT = "audit",
+  LEAVE_REQUESTS = "leaveRequests",
+  HOSPITAL_HOLIDAYS = "hospitalHolidays",
+  CHARGE_CATALOG = "chargeCatalog",
+  MEDICINES = "medicines",
+  MEDICINE_PACKS = "medicinePacks",
+  PATIENT_FIELDS = "patientFields",
+}
+
+export const HOSPITAL_MODULE_VALUES = Object.values(HOSPITAL_MODULE);
+
+// Used in audit-log summaries; the web app has its own copy with descriptions.
+export const HOSPITAL_MODULE_LABELS: Record<HOSPITAL_MODULE, string> = {
+  [HOSPITAL_MODULE.APPOINTMENTS]: "Appointments",
+  [HOSPITAL_MODULE.QUEUE]: "Today's queue",
+  [HOSPITAL_MODULE.PACKAGES]: "Package appointments",
+  [HOSPITAL_MODULE.PRESCRIPTIONS]: "Prescriptions",
+  [HOSPITAL_MODULE.PAYMENTS]: "Payments",
+  [HOSPITAL_MODULE.SMS]: "SMS to patients",
+  [HOSPITAL_MODULE.WHATSAPP]: "WhatsApp",
+  [HOSPITAL_MODULE.REPORTS]: "Reports",
+  [HOSPITAL_MODULE.AUDIT]: "Audit trail",
+  [HOSPITAL_MODULE.LEAVE_REQUESTS]: "Doctor leave requests",
+  [HOSPITAL_MODULE.HOSPITAL_HOLIDAYS]: "Hospital holidays",
+  [HOSPITAL_MODULE.CHARGE_CATALOG]: "Charge catalog",
+  [HOSPITAL_MODULE.MEDICINES]: "Medicines",
+  [HOSPITAL_MODULE.MEDICINE_PACKS]: "Medicine packs",
+  [HOSPITAL_MODULE.PATIENT_FIELDS]: "Custom patient fields",
+};
+
+// A module is only usable while every module it builds on is too — e.g. the
+// queue is a view over appointments, and the prescription writer can only
+// add medicines from the hospital's catalog.
+export const HOSPITAL_MODULE_DEPENDENCIES: Partial<Record<HOSPITAL_MODULE, HOSPITAL_MODULE[]>> = {
+  [HOSPITAL_MODULE.QUEUE]: [HOSPITAL_MODULE.APPOINTMENTS],
+  [HOSPITAL_MODULE.PACKAGES]: [HOSPITAL_MODULE.APPOINTMENTS],
+  [HOSPITAL_MODULE.PRESCRIPTIONS]: [HOSPITAL_MODULE.APPOINTMENTS, HOSPITAL_MODULE.MEDICINES],
+  [HOSPITAL_MODULE.WHATSAPP]: [HOSPITAL_MODULE.APPOINTMENTS],
+  [HOSPITAL_MODULE.MEDICINE_PACKS]: [HOSPITAL_MODULE.MEDICINES],
+  [HOSPITAL_MODULE.CHARGE_CATALOG]: [HOSPITAL_MODULE.PAYMENTS],
+};
+
+// Modules a platform admin can also withhold via the plan
+// (Subscription.features). The plan always wins — a hospital admin can't
+// switch on something their plan doesn't include.
+export const HOSPITAL_MODULE_PLAN_FEATURE: Partial<Record<HOSPITAL_MODULE, SUBSCRIPTION_FEATURE>> = {
+  [HOSPITAL_MODULE.WHATSAPP]: SUBSCRIPTION_FEATURE.WHATSAPP,
+  [HOSPITAL_MODULE.REPORTS]: SUBSCRIPTION_FEATURE.REPORTS,
+  [HOSPITAL_MODULE.PACKAGES]: SUBSCRIPTION_FEATURE.PACKAGES,
+  [HOSPITAL_MODULE.MEDICINE_PACKS]: SUBSCRIPTION_FEATURE.MEDICINE_PACKS,
+};
+
 // A "Book a demo" submission from the marketing site (apps/www). NEW until a
 // platform admin has reached out, then CONTACTED — mirrors the
 // WHATSAPP_ENQUIRY_STATUS new/resolved shape.

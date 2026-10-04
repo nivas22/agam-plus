@@ -24,6 +24,7 @@ import { toast } from "react-hot-toast";
 import { useDoctorSlots, useNextAvailableSlots } from "@/hooks/useDoctorSlots";
 import { useUpdateHospitalAppointmentStatus } from "@/hooks/useNewAppointmentsApi";
 import { usePaymentForAppointment } from "@/hooks/useNewPaymentApi";
+import { useModuleEnabled } from "@/hooks/useHospitalModulesApi";
 import { usePrescription } from "@/hooks/usePrescriptionApi";
 import type { AppointmentWithDetails } from "@/types/appointment";
 import type { Doctor } from "@/types/doctorNew";
@@ -87,8 +88,11 @@ export default function AppointmentDetails({
   selectedApp,
 }: AppointmentDetailsProps) {
   const updateStatusMutation = useUpdateHospitalAppointmentStatus(hospitalId);
+  const { isEnabled: isModuleEnabled } = useModuleEnabled(
+    hospitalId || undefined,
+  );
   const { data: prescriptionData } = usePrescription(
-    selectedApp?.id || "",
+    isModuleEnabled("prescriptions") ? selectedApp?.id || "" : "",
     hospitalId || undefined,
   );
   const prescription = prescriptionData?.prescription;
@@ -1207,6 +1211,7 @@ export default function AppointmentDetails({
 
                   <div className="space-y-5">
                     {/* Bill */}
+                    {isModuleEnabled("payments") && (
                     <div>
                       <div className="flex items-baseline justify-between gap-2 mb-2">
                         <h4 className="text-sm font-semibold text-ink-900">
@@ -1294,9 +1299,12 @@ export default function AppointmentDetails({
                         </p>
                       )}
                     </div>
+                    )}
 
                     {/* Prescription */}
-                    {hospitalId && selectedApp && (
+                    {hospitalId &&
+                      selectedApp &&
+                      isModuleEnabled("prescriptions") && (
                       <div>
                         <div className="flex items-baseline justify-between gap-2 mb-2">
                           <h4 className="text-sm font-semibold text-ink-900">

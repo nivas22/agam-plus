@@ -24,6 +24,11 @@ export class Hospital {
   @Prop({ type: [Object], default: undefined })
   patientNoteFields?: Record<string, any>[];
 
+  // Hospital-admin on/off switches per HOSPITAL_MODULE (Settings > Features).
+  // A missing key means on — see resolveHospitalModules.
+  @Prop({ type: Object, default: undefined })
+  modules?: Record<string, boolean>;
+
   // Shown on the prescription preview's "Reg. No." line when present; no
   // admin UI to edit this yet, so it's set directly in the DB for now.
   @Prop()

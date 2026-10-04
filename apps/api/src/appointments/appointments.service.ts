@@ -13,7 +13,9 @@ import { AppointmentWithDetails, Vitals } from '../types/appointment';
 import { JwtUser, HospitalUserProfile } from '../auth/decorators/current-user.decorator';
 import { CreateAppointmentBody, UpdateAppointmentBody, FinishSessionBody, AppointmentListQuery } from './appointments.types';
 import { findHolidayForDate, filterSlotsForHoliday } from '../hospital-holidays/holiday-availability.util';
+import { isHospitalModuleEnabled } from '../hospitals/hospital-modules.util';
 import {
+  HOSPITAL_MODULE,
   APPOINTMENT_STATUS,
   APPOINTMENT_TYPE,
   ACTIVE_APPOINTMENT_STATUSES,
@@ -983,8 +985,17 @@ export class AppointmentsService {
       throw ApiError.badRequest(`Cannot finish a session from status '${currentStatus}'`);
     }
 
+    // With Payments switched off (Settings > Features) there's no collection
+    // step to wait for, so the visit closes here instead of parking in
+    // awaiting-payment where nobody could ever move it on.
+    const paymentsEnabled = isHospitalModuleEnabled(
+      HOSPITAL_MODULE.PAYMENTS,
+      userProfile?.currentHospital?.modules,
+      undefined,
+    );
+
     const updateData: any = {
-      status: APPOINTMENT_STATUS.AWAITING_PAYMENT,
+      status: paymentsEnabled ? APPOINTMENT_STATUS.AWAITING_PAYMENT : APPOINTMENT_STATUS.COMPLETED,
       completedAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       updatedBy: user.uid,

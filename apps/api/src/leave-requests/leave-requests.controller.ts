@@ -1,6 +1,8 @@
 import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { LeaveRequestsService } from './leave-requests.service';
 import { HospitalContextGuard } from '../auth/guards/hospital-context.guard';
+import { RequiresModule } from '../auth/decorators/requires-module.decorator';
+import { HOSPITAL_MODULE } from '../constants';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentHospitalUser } from '../auth/decorators/current-user.decorator';
 import type { HospitalUserProfile } from '../auth/decorators/current-user.decorator';
@@ -14,6 +16,7 @@ function scopeFor(userProfile: HospitalUserProfile): string | undefined {
 
 @Controller('hospitals/:id/leave-requests')
 @UseGuards(HospitalContextGuard)
+@RequiresModule(HOSPITAL_MODULE.LEAVE_REQUESTS)
 export class LeaveRequestsController {
   constructor(private readonly leaveRequestsService: LeaveRequestsService) {}
 

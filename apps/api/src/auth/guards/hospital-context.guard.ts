@@ -4,9 +4,11 @@ import { MembershipRepository } from '../../repositories/membership.repository';
 import { HospitalRepository } from '../../repositories/hospital.repository';
 import { DoctorRepository } from '../../repositories/doctor.repository';
 import { SubscriptionRepository } from '../../repositories/subscription.repository';
-import { SUBSCRIPTION_FEATURE, SUBSCRIPTION_STATUS } from '../../constants';
+import { HOSPITAL_MODULE, SUBSCRIPTION_FEATURE, SUBSCRIPTION_STATUS } from '../../constants';
+import { resolveHospitalModules } from '../../hospitals/hospital-modules.util';
 import { ROLES_KEY } from '../decorators/roles.decorator';
 import { REQUIRES_FEATURE_KEY } from '../decorators/requires-feature.decorator';
+import { REQUIRES_MODULE_KEY } from '../decorators/requires-module.decorator';
 import { JwtUser } from '../decorators/current-user.decorator';
 
 // GET requests always pass (read-only access stays available while
@@ -68,6 +70,21 @@ export class HospitalContextGuard implements CanActivate {
 
     const userRole = (membership as any).role || 'doctor';
     const hospitalProfile = await this.hospitalRepository.getHospitalById(hospitalId);
+
+    const requiredModule = this.reflector.getAllAndOverride<HOSPITAL_MODULE | undefined>(REQUIRES_MODULE_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+    if (requiredModule) {
+      const module = resolveHospitalModules((hospitalProfile as any)?.modules, subscription?.features)[requiredModule];
+      if (!module.enabled) {
+        throw new ForbiddenException(
+          module.disabledReason === 'plan'
+            ? `This feature isn't included on this hospital's plan.`
+            : 'This feature is turned off for this hospital — an admin can turn it on under Settings > Features.',
+        );
+      }
+    }
 
     let doctorProfile: any | undefined;
     if (userRole === 'doctor') {
