@@ -710,3 +710,62 @@ export enum DEMO_REQUEST_STATUS {
 }
 
 export const DEMO_REQUEST_STATUS_VALUES = Object.values(DEMO_REQUEST_STATUS);
+
+// Fields shown in the Notes section of the patient Add/Edit form. Each
+// hospital can switch these on/off, relabel them and add its own custom
+// fields (see HospitalsService.getPatientNoteFields). Built-in keys map to
+// top-level Patient properties consumed elsewhere (allergies → prescription
+// allergy check, conditions/flags → prescription writer badges); custom
+// fields live under Patient.customFields[key]. Keep in sync with
+// apps/web/src/lib/patientNoteFields.ts.
+export type PatientNoteFieldType = "tags" | "text";
+
+export interface PatientNoteField {
+  key: string;
+  label: string;
+  type: PatientNoteFieldType;
+  enabled: boolean;
+  hint?: string;
+  placeholder?: string;
+  builtIn?: boolean;
+}
+
+export const BUILT_IN_PATIENT_NOTE_FIELDS: PatientNoteField[] = [
+  {
+    key: "allergies",
+    label: "Allergies",
+    type: "tags",
+    enabled: true,
+    builtIn: true,
+    hint: "Checked against a medicine's allergy class tags when a doctor writes a prescription.",
+    placeholder: "Type an allergy and press Enter (e.g. Penicillin)",
+  },
+  {
+    key: "conditions",
+    label: "Conditions",
+    type: "tags",
+    enabled: true,
+    builtIn: true,
+    hint: "Shown as badges on the prescription writer, e.g. diabetic, hypertensive.",
+    placeholder: "Type a condition and press Enter (e.g. Diabetic)",
+  },
+  {
+    key: "flags",
+    label: "Flags",
+    type: "tags",
+    enabled: true,
+    builtIn: true,
+    hint: "Any other context worth surfacing on the prescription writer, e.g. eGFR normal.",
+    placeholder: "Type a flag and press Enter (e.g. eGFR normal)",
+  },
+  {
+    key: "notes",
+    label: "Additional notes",
+    type: "text",
+    enabled: true,
+    builtIn: true,
+    placeholder: "Any additional information about the patient...",
+  },
+];
+
+export const BUILT_IN_PATIENT_NOTE_FIELD_KEYS = BUILT_IN_PATIENT_NOTE_FIELDS.map((f) => f.key);

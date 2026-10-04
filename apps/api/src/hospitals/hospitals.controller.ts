@@ -10,7 +10,9 @@ import {
   createHospitalSchema,
   requestAccessSchema,
   updateHospitalSpecializationsSchema,
+  updatePatientNoteFieldsSchema,
 } from '../common/validation/schemas';
+import type { PatientNoteField } from '../constants';
 
 @Controller('hospitals')
 export class HospitalsController {
@@ -82,5 +84,22 @@ export class HospitalsController {
   @UsePipes(new ZodValidationPipe(updateHospitalSpecializationsSchema))
   updateSpecializations(@Param('id') id: string, @Body() body: { specializations: string[] }) {
     return this.hospitalsService.updateSpecializations(id, body.specializations);
+  }
+
+  // Which fields the patient Add/Edit form's Notes section collects. Read by
+  // everyone who can open that form; configured by admins only.
+  @Get(':id/patient-note-fields')
+  @UseGuards(HospitalContextGuard)
+  @Roles('admin', 'doctor', 'front_desk', 'nurse', 'accountant')
+  getPatientNoteFields(@Param('id') id: string) {
+    return this.hospitalsService.getPatientNoteFields(id);
+  }
+
+  @Put(':id/patient-note-fields')
+  @UseGuards(HospitalContextGuard)
+  @Roles('admin')
+  @UsePipes(new ZodValidationPipe(updatePatientNoteFieldsSchema))
+  updatePatientNoteFields(@Param('id') id: string, @Body() body: { fields: PatientNoteField[] }) {
+    return this.hospitalsService.updatePatientNoteFields(id, body.fields);
   }
 }

@@ -8,7 +8,13 @@ import { DashboardRepository } from '../repositories/dashboard.repository';
 import { UserRepository } from '../repositories/user.repository';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { ApiError } from '../common/errors/api-error';
-import { DB_COLLECTIONS, ROLE, VISIT_FINISHED_STATUSES } from '../constants';
+import {
+  BUILT_IN_PATIENT_NOTE_FIELDS,
+  DB_COLLECTIONS,
+  ROLE,
+  VISIT_FINISHED_STATUSES,
+} from '../constants';
+import type { PatientNoteField } from '../constants';
 import { getDateCategory } from '../utils/dateUtils';
 import { JwtUser } from '../auth/decorators/current-user.decorator';
 import { AdminDashboardData, DoctorDashboardData } from '../types/dashboard';
@@ -118,6 +124,55 @@ export class HospitalsService {
     const deduped = [...new Set(specializations.map((s) => s.trim()).filter(Boolean))];
     const hospital = await this.hospitalRepository.updateHospital(hospitalId, { specializations: deduped });
     return { specializations: hospital.specializations || [] };
+  }
+
+  // Always returns the full, ordered list the patient form should render:
+  // the hospital's saved config with any missing built-ins appended (so
+  // hospitals that never configured this get today's four fields), and
+  // built-in types pinned so a saved config can't turn allergies into text.
+  async getPatientNoteFields(hospitalId: string) {
+    const hospital = await this.getHospitalById(hospitalId);
+    return { fields: this.resolvePatientNoteFields((hospital as any).patientNoteFields) };
+  }
+
+  async updatePatientNoteFields(hospitalId: string, fields: PatientNoteField[]) {
+    const seen = new Set<string>();
+    for (const field of fields) {
+      if (seen.has(field.key)) {
+        throw ApiError.badRequest(`Duplicate field key: ${field.key}`);
+      }
+      seen.add(field.key);
+    }
+
+    const resolved = this.resolvePatientNoteFields(fields);
+    // builtIn is derived on read, not stored.
+    const toStore = resolved.map(({ builtIn: _builtIn, ...rest }) => rest);
+    await this.hospitalRepository.updateHospital(hospitalId, { patientNoteFields: toStore });
+    return { fields: resolved };
+  }
+
+  private resolvePatientNoteFields(saved: unknown): PatientNoteField[] {
+    const savedList: PatientNoteField[] = Array.isArray(saved) ? saved : [];
+    const builtIns = new Map(BUILT_IN_PATIENT_NOTE_FIELDS.map((f) => [f.key, f]));
+    const result: PatientNoteField[] = [];
+    const seen = new Set<string>();
+
+    for (const field of savedList) {
+      if (!field?.key || seen.has(field.key)) continue;
+      seen.add(field.key);
+      const builtIn = builtIns.get(field.key);
+      result.push(
+        builtIn
+          ? { ...builtIn, ...field, type: builtIn.type, builtIn: true }
+          : { ...field, builtIn: false },
+      );
+    }
+
+    for (const builtIn of BUILT_IN_PATIENT_NOTE_FIELDS) {
+      if (!seen.has(builtIn.key)) result.push({ ...builtIn });
+    }
+
+    return result;
   }
 
   async deleteHospital(hospitalId: string) {

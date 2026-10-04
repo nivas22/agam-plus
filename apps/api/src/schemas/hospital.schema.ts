@@ -18,6 +18,12 @@ export class Hospital {
   @Prop({ type: [String], default: [] })
   specializations?: string[];
 
+  // Hospital-admin-configured fields for the patient form's Notes section
+  // (built-ins on/off + relabelled, plus custom fields). Empty means the
+  // built-in defaults — see HospitalsService.getPatientNoteFields.
+  @Prop({ type: [Object], default: undefined })
+  patientNoteFields?: Record<string, any>[];
+
   // Shown on the prescription preview's "Reg. No." line when present; no
   // admin UI to edit this yet, so it's set directly in the DB for now.
   @Prop()

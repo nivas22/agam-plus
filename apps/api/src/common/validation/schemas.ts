@@ -376,6 +376,23 @@ export const updateHospitalSpecializationsSchema = z.object({
     .max(100, 'Too many specializations'),
 });
 
+export const updatePatientNoteFieldsSchema = z.object({
+  fields: z
+    .array(
+      z.object({
+        key: z
+          .string()
+          .regex(/^[a-zA-Z][a-zA-Z0-9_]{0,39}$/, 'Invalid field key'),
+        label: z.string().trim().min(1, 'Label cannot be empty').max(60),
+        type: z.enum(['tags', 'text']),
+        enabled: z.boolean(),
+        hint: z.string().trim().max(200).optional(),
+        placeholder: z.string().trim().max(120).optional(),
+      }),
+    )
+    .max(30, 'Too many fields'),
+});
+
 /* -------------------------------------------------------------------------- */
 /*                          SUBSCRIPTION SCHEMAS                              */
 /* -------------------------------------------------------------------------- */

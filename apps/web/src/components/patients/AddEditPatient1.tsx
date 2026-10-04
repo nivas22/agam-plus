@@ -21,9 +21,17 @@ import {
   PillGroup,
 } from "@/components/common/EditFormControls";
 import { useAuth } from "@/hooks/useAuth";
+import { useHospitalPatientNoteFields } from "@/hooks/useHospitalPatientNoteFieldsApi";
 import { useHospitalPatient, usePatientApi } from "@/hooks/useNewPatientApi";
 import { ApiRequestError } from "@/lib/api";
 import { paletteFor } from "@/lib/avatarPalette";
+import {
+  DEFAULT_NOTE_TAG_CLASS,
+  DEFAULT_PATIENT_NOTE_FIELDS,
+  isBuiltInNoteField,
+  NOTE_TAG_CLASSES,
+  type PatientNoteField,
+} from "@/lib/patientNoteFields";
 import { patientStatusConfig } from "@/lib/patientStatus";
 import type { CreatePatientData, UpdatePatientData } from "@/types/patientNew";
 import { calculateAge } from "@/utils/dateUtils";
@@ -56,13 +64,12 @@ type FormState = {
   allergies: string[];
   conditions: string[];
   flags: string[];
+  // Values for the hospital's custom Notes fields, keyed by field key.
+  customFields: Record<string, string | string[]>;
   status: "active" | "inactive" | "archived" | "approved" | "pending";
 };
 
-// The three tag-array fields (allergies, conditions, flags) share the same
-// add/remove/Enter-to-commit behavior, so their input state and handlers are
-// generic over the field name rather than tripling the same logic.
-type TagField = "allergies" | "conditions" | "flags";
+type NoteValue = string | string[];
 
 const EMPTY_FORM: FormState = {
   name: "",
@@ -76,6 +83,7 @@ const EMPTY_FORM: FormState = {
   allergies: [],
   conditions: [],
   flags: [],
+  customFields: {},
   status: "active",
 };
 
@@ -122,11 +130,16 @@ export default function AddEditPatient1({
   const [duplicateMatches, setDuplicateMatches] = useState<
     DuplicateMatch[] | null
   >(null);
-  const [tagInputs, setTagInputs] = useState<Record<TagField, string>>({
-    allergies: "",
-    conditions: "",
-    flags: "",
-  });
+  // The Notes section is driven by the hospital's configured fields
+  // (Settings > Patient fields). Built-in keys map to top-level patient
+  // properties; custom keys live in formData.customFields.
+  const { data: noteFieldsData } = useHospitalPatientNoteFields(hospitalId);
+  const noteFields: PatientNoteField[] = (
+    noteFieldsData?.fields ?? DEFAULT_PATIENT_NOTE_FIELDS
+  ).filter((f) => f.enabled);
+  // Tag fields share the same add/remove/Enter-to-commit behavior, so their
+  // input state and handlers are keyed by field rather than duplicated.
+  const [tagInputs, setTagInputs] = useState<Record<string, string>>({});
   const [activeSection, setActiveSection] = useState<
     "personal" | "contact" | "notes"
   >("personal");
@@ -150,6 +163,7 @@ export default function AddEditPatient1({
         allergies: p.allergies || [],
         conditions: p.conditions || [],
         flags: p.flags || [],
+        customFields: p.customFields || {},
         status: (p.status as FormState["status"]) || "active",
       };
       setFormData(next);
@@ -197,6 +211,30 @@ export default function AddEditPatient1({
   ].filter(Boolean).length;
   const age = formData.dateOfBirth ? calculateAge(formData.dateOfBirth) : null;
 
+  function getNoteValue(field: PatientNoteField): NoteValue {
+    const value = isBuiltInNoteField(field.key)
+      ? formData[field.key]
+      : formData.customFields[field.key];
+    if (field.type === "tags") return Array.isArray(value) ? value : [];
+    return typeof value === "string" ? value : "";
+  }
+
+  function setNoteValue(field: PatientNoteField, value: NoteValue) {
+    if (isBuiltInNoteField(field.key)) {
+      update(field.key, value as never);
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        customFields: { ...prev.customFields, [field.key]: value },
+      }));
+    }
+  }
+
+  const notesFilled = noteFields.filter((f) => {
+    const value = getNoteValue(f);
+    return Array.isArray(value) ? value.length > 0 : !!value.trim();
+  }).length;
+
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
     setFormData((prev) => ({ ...prev, [key]: value }));
   }
@@ -207,25 +245,29 @@ export default function AddEditPatient1({
 
   function discardChanges() {
     setFormData(initialData);
-    setTagInputs({ allergies: "", conditions: "", flags: "" });
+    setTagInputs({});
   }
 
-  function addTag(field: TagField) {
-    const value = tagInputs[field].trim();
-    if (value && !formData[field].includes(value)) {
-      update(field, [...formData[field], value]);
+  function addTag(field: PatientNoteField) {
+    const value = (tagInputs[field.key] || "").trim();
+    const current = getNoteValue(field) as string[];
+    if (value && !current.includes(value)) {
+      setNoteValue(field, [...current, value]);
     }
-    setTagInputs((prev) => ({ ...prev, [field]: "" }));
+    setTagInputs((prev) => ({ ...prev, [field.key]: "" }));
   }
 
-  function removeTag(field: TagField, value: string) {
-    update(
+  function removeTag(field: PatientNoteField, value: string) {
+    setNoteValue(
       field,
-      formData[field].filter((a) => a !== value),
+      (getNoteValue(field) as string[]).filter((a) => a !== value),
     );
   }
 
-  function onTagKeyDown(field: TagField, e: KeyboardEvent<HTMLInputElement>) {
+  function onTagKeyDown(
+    field: PatientNoteField,
+    e: KeyboardEvent<HTMLInputElement>,
+  ) {
     if (e.key === "Enter" || e.key === ",") {
       e.preventDefault();
       addTag(field);
@@ -260,6 +302,9 @@ export default function AddEditPatient1({
         allergies: formData.allergies,
         conditions: formData.conditions,
         flags: formData.flags,
+        // Sent whole (including values for fields since switched off) so an
+        // update's $set doesn't wipe data the form isn't currently showing.
+        customFields: formData.customFields,
       };
 
       if (isNew) {
@@ -447,8 +492,8 @@ export default function AddEditPatient1({
                 key: "notes" as const,
                 ref: notesRef,
                 label: "Notes",
-                value: formData.notes.trim() ? "Added" : "Empty",
-                done: !!formData.notes.trim(),
+                value: `${notesFilled}/${noteFields.length}`,
+                done: notesFilled > 0,
               },
             ].map((item) => (
               <button
@@ -633,132 +678,83 @@ export default function AddEditPatient1({
                 Internal notes — not shown to the patient
               </p>
             </div>
-            <Field
-              label="Allergies"
-              optional
-              hint="Checked against a medicine's allergy class tags when a doctor writes a prescription."
-            >
-              <div className="flex flex-wrap gap-1.5 mb-2">
-                {formData.allergies.map((a) => (
-                  <span
-                    key={a}
-                    className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold bg-status-danger-soft text-status-danger"
-                  >
-                    {a}
-                    {canEdit && (
-                      <button
-                        type="button"
-                        onClick={() => removeTag("allergies", a)}
-                        className="hover:opacity-70"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    )}
-                  </span>
-                ))}
-              </div>
-              <input
-                type="text"
-                value={tagInputs.allergies}
-                disabled={!canEdit}
-                onChange={(e) =>
-                  setTagInputs((prev) => ({ ...prev, allergies: e.target.value }))
+            {noteFields.length === 0 && (
+              <p className="text-sm text-ink-500">
+                No note fields are enabled for this hospital. An admin can
+                turn them on in Settings &rarr; Patient fields.
+              </p>
+            )}
+            <div className="space-y-5">
+              {noteFields.map((field) => {
+                const value = getNoteValue(field);
+                if (field.type === "text") {
+                  return (
+                    <Field
+                      key={field.key}
+                      label={field.label}
+                      optional
+                      hint={field.hint}
+                    >
+                      <textarea
+                        value={value as string}
+                        disabled={!canEdit}
+                        onChange={(e) => setNoteValue(field, e.target.value)}
+                        placeholder={field.placeholder}
+                        rows={field.key === "notes" ? 4 : 2}
+                        className={`${inputClass} resize-none`}
+                      />
+                    </Field>
+                  );
                 }
-                onKeyDown={(e) => onTagKeyDown("allergies", e)}
-                onBlur={() => addTag("allergies")}
-                placeholder="Type an allergy and press Enter (e.g. Penicillin)"
-                className={inputClass}
-              />
-            </Field>
-            <div className="mt-5">
-              <Field
-                label="Conditions"
-                optional
-                hint="Shown as badges on the prescription writer, e.g. diabetic, hypertensive."
-              >
-                <div className="flex flex-wrap gap-1.5 mb-2">
-                  {formData.conditions.map((c) => (
-                    <span
-                      key={c}
-                      className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold bg-status-warning-soft text-status-warning"
-                    >
-                      {c}
-                      {canEdit && (
-                        <button
-                          type="button"
-                          onClick={() => removeTag("conditions", c)}
-                          className="hover:opacity-70"
+                const chipClass =
+                  NOTE_TAG_CLASSES[field.key] ?? DEFAULT_NOTE_TAG_CLASS;
+                return (
+                  <Field
+                    key={field.key}
+                    label={field.label}
+                    optional
+                    hint={field.hint}
+                  >
+                    <div className="flex flex-wrap gap-1.5 mb-2">
+                      {(value as string[]).map((tag) => (
+                        <span
+                          key={tag}
+                          className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold ${chipClass}`}
                         >
-                          <X className="w-3 h-3" />
-                        </button>
-                      )}
-                    </span>
-                  ))}
-                </div>
-                <input
-                  type="text"
-                  value={tagInputs.conditions}
-                  disabled={!canEdit}
-                  onChange={(e) =>
-                    setTagInputs((prev) => ({ ...prev, conditions: e.target.value }))
-                  }
-                  onKeyDown={(e) => onTagKeyDown("conditions", e)}
-                  onBlur={() => addTag("conditions")}
-                  placeholder="Type a condition and press Enter (e.g. Diabetic)"
-                  className={inputClass}
-                />
-              </Field>
-            </div>
-            <div className="mt-5">
-              <Field
-                label="Flags"
-                optional
-                hint="Any other context worth surfacing on the prescription writer, e.g. eGFR normal."
-              >
-                <div className="flex flex-wrap gap-1.5 mb-2">
-                  {formData.flags.map((f) => (
-                    <span
-                      key={f}
-                      className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold bg-status-open-soft text-status-open"
-                    >
-                      {f}
-                      {canEdit && (
-                        <button
-                          type="button"
-                          onClick={() => removeTag("flags", f)}
-                          className="hover:opacity-70"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      )}
-                    </span>
-                  ))}
-                </div>
-                <input
-                  type="text"
-                  value={tagInputs.flags}
-                  disabled={!canEdit}
-                  onChange={(e) =>
-                    setTagInputs((prev) => ({ ...prev, flags: e.target.value }))
-                  }
-                  onKeyDown={(e) => onTagKeyDown("flags", e)}
-                  onBlur={() => addTag("flags")}
-                  placeholder="Type a flag and press Enter (e.g. eGFR normal)"
-                  className={inputClass}
-                />
-              </Field>
-            </div>
-            <div className="mt-5">
-              <Field label="Additional notes" optional>
-                <textarea
-                  value={formData.notes}
-                  disabled={!canEdit}
-                  onChange={(e) => update("notes", e.target.value)}
-                  placeholder="Any additional information about the patient..."
-                  rows={4}
-                  className={`${inputClass} resize-none`}
-                />
-              </Field>
+                          {tag}
+                          {canEdit && (
+                            <button
+                              type="button"
+                              onClick={() => removeTag(field, tag)}
+                              className="hover:opacity-70"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          )}
+                        </span>
+                      ))}
+                    </div>
+                    <input
+                      type="text"
+                      value={tagInputs[field.key] || ""}
+                      disabled={!canEdit}
+                      onChange={(e) =>
+                        setTagInputs((prev) => ({
+                          ...prev,
+                          [field.key]: e.target.value,
+                        }))
+                      }
+                      onKeyDown={(e) => onTagKeyDown(field, e)}
+                      onBlur={() => addTag(field)}
+                      placeholder={
+                        field.placeholder ||
+                        `Type ${field.label.toLowerCase()} and press Enter`
+                      }
+                      className={inputClass}
+                    />
+                  </Field>
+                );
+              })}
             </div>
           </section>
         </div>

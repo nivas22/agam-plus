@@ -9,6 +9,25 @@ const generatePatientId = (): string => {
   return Math.floor(100000 + Math.random() * 900000).toString();
 };
 
+const toTagList = (value: unknown): string[] =>
+  Array.isArray(value)
+    ? value.filter((v): v is string => typeof v === 'string' && !!v.trim())
+    : [];
+
+// Values for hospital-configured custom note fields (see
+// HospitalsService.getPatientNoteFields): each is either free text or a tag
+// list. Anything else is dropped rather than stored.
+const sanitizeCustomFields = (value: unknown): Record<string, string | string[]> => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  const result: Record<string, string | string[]> = {};
+  for (const [key, v] of Object.entries(value as Record<string, unknown>)) {
+    if (!/^[a-zA-Z][a-zA-Z0-9_]{0,39}$/.test(key)) continue;
+    if (typeof v === 'string') result[key] = v;
+    else if (Array.isArray(v)) result[key] = toTagList(v);
+  }
+  return result;
+};
+
 @Injectable()
 export class PatientsService {
   constructor(
@@ -189,9 +208,11 @@ export class PatientsService {
       bloodGroup: patientData.bloodGroup || null,
       address: patientData.address || '',
       medicalHistory: patientData.medicalHistory || '',
-      allergies: Array.isArray(patientData.allergies)
-        ? patientData.allergies.filter(Boolean)
-        : [],
+      allergies: toTagList(patientData.allergies),
+      conditions: toTagList(patientData.conditions),
+      flags: toTagList(patientData.flags),
+      notes: typeof patientData.notes === 'string' ? patientData.notes : '',
+      customFields: sanitizeCustomFields(patientData.customFields),
       lookingForSpecialization: patientData.lookingForSpecialization || null,
       status: 'active',
       createdBy: user.uid,
@@ -249,7 +270,10 @@ export class PatientsService {
       }
     }
 
-    const updateData = { ...updates, updatedAt: new Date().toISOString() };
+    const updateData: Record<string, any> = { ...updates, updatedAt: new Date().toISOString() };
+    if (updates.customFields !== undefined) {
+      updateData.customFields = sanitizeCustomFields(updates.customFields);
+    }
     await this.patientRepository.updatePatient(patientId, updateData);
 
     const updatedPatient =

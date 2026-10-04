@@ -3,6 +3,7 @@
 import {
   AlertTriangle,
   CalendarOff,
+  ClipboardList,
   CreditCard,
   Layers,
   MessageCircle,
@@ -61,6 +62,14 @@ export default function SettingsHubPage() {
           title: "Specializations",
           description:
             "The options offered in each doctor's specialization dropdown.",
+          adminOnly: false,
+        },
+        {
+          href: `/hospital/${hospitalId}/settings/patient-fields`,
+          icon: <ClipboardList size={20} />,
+          title: "Patient fields",
+          description:
+            "Choose what the patient form's Notes section collects, and add your own fields.",
           adminOnly: false,
         },
       ],

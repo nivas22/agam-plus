@@ -17,6 +17,7 @@ export interface Patient {
   allergies?: string[];
   conditions?: string[];
   flags?: string[];
+  customFields?: Record<string, string | string[]>;
   status: "active" | "inactive" | "archived" | "approved" | "pending";
   createdAt: any;
   updatedAt?: any;
@@ -54,6 +55,7 @@ export interface CreatePatientData {
   allergies?: string[];
   conditions?: string[];
   flags?: string[];
+  customFields?: Record<string, string | string[]>;
   currentMedications?: string[];
   insuranceInfo?: {
     provider: string;
@@ -84,6 +86,7 @@ export interface UpdatePatientData {
   allergies?: string[];
   conditions?: string[];
   flags?: string[];
+  customFields?: Record<string, string | string[]>;
   currentMedications?: string[];
   insuranceInfo?: {
     provider: string;
