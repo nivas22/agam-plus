@@ -10,6 +10,7 @@ export type HospitalModuleKey =
   | "prescriptions"
   | "payments"
   | "sms"
+  | "whatsappNotify"
   | "whatsapp"
   | "reports"
   | "audit"
@@ -111,6 +112,14 @@ export const HOSPITAL_MODULES: HospitalModuleInfo[] = [
     description:
       "Offer to text patients when an appointment is moved, cancelled or missed.",
     offNote: 'The "Tell the patient by SMS" options are hidden.',
+    group: "frontDesk",
+  },
+  {
+    key: "whatsappNotify",
+    label: "WhatsApp to patients",
+    description:
+      "Offer to message patients on WhatsApp when an appointment is moved, cancelled or missed.",
+    offNote: 'The "Tell the patient by WhatsApp" options are hidden.',
     group: "frontDesk",
   },
   {

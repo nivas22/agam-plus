@@ -388,6 +388,7 @@ export const updateHospitalModulesSchema = z.object({
       prescriptions: z.boolean(),
       payments: z.boolean(),
       sms: z.boolean(),
+      whatsappNotify: z.boolean(),
       whatsapp: z.boolean(),
       reports: z.boolean(),
       audit: z.boolean(),

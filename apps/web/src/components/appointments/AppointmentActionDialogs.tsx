@@ -208,11 +208,15 @@ const ALREADY_ARRIVED_STATUSES = new Set<string>([
 ]);
 
 export function ChangeDoctorDialog({ appointment, doctors, allAppointments, patientCode, now, onClose, updateAppointmentStatus, onSuccess }: ChangeDoctorDialogProps) {
-  // Only offer to text the patient while SMS is on (Settings > Features).
-  const smsOn = useModuleEnabled().isEnabled("sms");
+  // Only offer to message the patient on a channel that's on
+  // (Settings > Features) — SMS and WhatsApp are switched separately.
+  const { isEnabled } = useModuleEnabled();
+  const smsOn = isEnabled("sms");
+  const whatsappOn = isEnabled("whatsappNotify");
   const [query, setQuery] = useState("");
   const [picked, setPicked] = useState<Doctor | null>(null);
   const [notify, setNotify] = useState(true);
+  const [notifyWhatsApp, setNotifyWhatsApp] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
   const current = doctors.find((d) => d.id === appointment.doctorProfileId) || null;
@@ -391,6 +395,15 @@ export function ChangeDoctorDialog({ appointment, doctors, allAppointments, pati
               onChange={setNotify}
             />
           )}
+          {whatsappOn && (
+            <CheckboxOption
+              id="changedoc-notify-whatsapp"
+              label={`Tell ${appointment.patientName.split(" ")[0]} by WhatsApp`}
+              hint="Sends the new doctor's name, same date and time."
+              checked={notifyWhatsApp}
+              onChange={setNotifyWhatsApp}
+            />
+          )}
         </div>
       </div>
     </DialogShell>
@@ -412,11 +425,15 @@ interface RescheduleDialogProps {
 }
 
 export function RescheduleDialog({ appointment, doctor, hospitalId, patientCode, onClose, updateAppointmentStatus, onSuccess }: RescheduleDialogProps) {
-  // Only offer to text the patient while SMS is on (Settings > Features).
-  const smsOn = useModuleEnabled().isEnabled("sms");
+  // Only offer to message the patient on a channel that's on
+  // (Settings > Features) — SMS and WhatsApp are switched separately.
+  const { isEnabled } = useModuleEnabled();
+  const smsOn = isEnabled("sms");
+  const whatsappOn = isEnabled("whatsappNotify");
   const [date, setDate] = useState(appointment.date);
   const [time, setTime] = useState<string | null>(null);
   const [notify, setNotify] = useState(true);
+  const [notifyWhatsApp, setNotifyWhatsApp] = useState(true);
   const [releaseSlot, setReleaseSlot] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
@@ -562,6 +579,15 @@ export function RescheduleDialog({ appointment, doctor, hospitalId, patientCode,
               onChange={setNotify}
             />
           )}
+          {whatsappOn && (
+            <CheckboxOption
+              id="reschedule-notify-whatsapp"
+              label={`Tell ${appointment.patientName.split(" ")[0]} by WhatsApp`}
+              hint="Sends the new date and time with a confirm link."
+              checked={notifyWhatsApp}
+              onChange={setNotifyWhatsApp}
+            />
+          )}
           <CheckboxOption
             id="reschedule-release"
             label="Release the old slot"
@@ -590,11 +616,15 @@ interface CancelDialogProps {
 }
 
 export function CancelDialog({ appointment, patientCode, onClose, updateAppointmentStatus, onSuccess }: CancelDialogProps) {
-  // Only offer to text the patient while SMS is on (Settings > Features).
-  const smsOn = useModuleEnabled().isEnabled("sms");
+  // Only offer to message the patient on a channel that's on
+  // (Settings > Features) — SMS and WhatsApp are switched separately.
+  const { isEnabled } = useModuleEnabled();
+  const smsOn = isEnabled("sms");
+  const whatsappOn = isEnabled("whatsappNotify");
   const [reason, setReason] = useState<string | null>(null);
   const [note, setNote] = useState("");
   const [notify, setNotify] = useState(true);
+  const [notifyWhatsApp, setNotifyWhatsApp] = useState(true);
   const [releaseSlot, setReleaseSlot] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
@@ -679,6 +709,15 @@ export function CancelDialog({ appointment, patientCode, onClose, updateAppointm
               onChange={setNotify}
             />
           )}
+          {whatsappOn && (
+            <CheckboxOption
+              id="cancel-notify-whatsapp"
+              label={`Tell ${appointment.patientName.split(" ")[0]} by WhatsApp`}
+              hint="Includes a link to rebook."
+              checked={notifyWhatsApp}
+              onChange={setNotifyWhatsApp}
+            />
+          )}
           <CheckboxOption
             id="cancel-release"
             label="Release the slot"
@@ -708,10 +747,14 @@ interface NoShowDialogProps {
 }
 
 export function NoShowDialog({ appointment, doctorName, patientCode, onClose, updateAppointmentStatus, onSuccess }: NoShowDialogProps) {
-  // Only offer to text the patient while SMS is on (Settings > Features).
-  const smsOn = useModuleEnabled().isEnabled("sms");
+  // Only offer to message the patient on a channel that's on
+  // (Settings > Features) — SMS and WhatsApp are switched separately.
+  const { isEnabled } = useModuleEnabled();
+  const smsOn = isEnabled("sms");
+  const whatsappOn = isEnabled("whatsappNotify");
   const [reason, setReason] = useState<string | null>(null);
   const [sendRebookLink, setSendRebookLink] = useState(true);
+  const [sendRebookLinkWhatsApp, setSendRebookLinkWhatsApp] = useState(true);
   const [releaseSlot, setReleaseSlot] = useState(true);
   const [applyFee, setApplyFee] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -776,10 +819,19 @@ export function NoShowDialog({ appointment, doctorName, patientCode, onClose, up
           {smsOn && (
             <CheckboxOption
               id="noshow-rebook"
-              label="Send a rebooking link"
+              label="Send a rebooking link by SMS"
               hint={`SMS with the next three open slots${doctorName ? ` for Dr. ${doctorName.split(" ")[0]}` : ""}.`}
               checked={sendRebookLink}
               onChange={setSendRebookLink}
+            />
+          )}
+          {whatsappOn && (
+            <CheckboxOption
+              id="noshow-rebook-whatsapp"
+              label="Send a rebooking link by WhatsApp"
+              hint={`WhatsApp message with the next three open slots${doctorName ? ` for Dr. ${doctorName.split(" ")[0]}` : ""}.`}
+              checked={sendRebookLinkWhatsApp}
+              onChange={setSendRebookLinkWhatsApp}
             />
           )}
           <CheckboxOption
