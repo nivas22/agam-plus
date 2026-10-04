@@ -198,6 +198,7 @@ export class DoctorsService {
       phone: string;
       specialization?: string;
       qualification?: string;
+      medicalRegistrationNumber?: string;
       experience?: string;
       bio?: string;
       consultationFee?: number;
@@ -330,6 +331,7 @@ export class DoctorsService {
       name: doctorData.name,
       specialization: doctorData.specialization || null,
       qualification: doctorData.qualification || null,
+      medicalRegistrationNumber: doctorData.medicalRegistrationNumber || null,
       experience: doctorData.experience || null,
       bio: doctorData.bio || '',
       gender: doctorData.gender || null,

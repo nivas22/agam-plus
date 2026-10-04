@@ -65,7 +65,6 @@ const OVER_CAPACITY_OPTIONS: {
 const GRACE_MINUTE_OPTIONS = [5, 10, 15];
 const NO_SHOW_RELEASE_OPTIONS = [15, 20, 30];
 const GENDERS = [GENDER.MALE, GENDER.FEMALE, GENDER.OTHER];
-const MARITAL_STATUSES = ["Single", "Married"];
 const DEFAULT_SPECIALIZATIONS = [
   "General Practitioner",
   "Cardiologist",
@@ -103,11 +102,10 @@ type FormState = {
   specialization: string;
   experience: string;
   qualification: string;
+  medicalRegistrationNumber: string;
   consultationFee: number | undefined;
   gender: string;
-  maritalStatus: string;
   status: "active" | "inactive" | "pending";
-  address: string;
   availability: TimeSlot[];
   appointmentDuration: number;
   bufferMinutes: number;
@@ -130,11 +128,10 @@ const EMPTY_FORM: FormState = {
   specialization: "",
   experience: "",
   qualification: "",
+  medicalRegistrationNumber: "",
   consultationFee: undefined,
   gender: "",
-  maritalStatus: "",
   status: "pending",
-  address: "",
   availability: [],
   appointmentDuration: 30,
   bufferMinutes: 0,
@@ -336,6 +333,9 @@ export default function AddEditDoctor({
     DuplicateMatch[] | null
   >(null);
   const [addingDay, setAddingDay] = useState<string | null>(null);
+  // Days switched on that don't have any hours yet. A day stays open after its
+  // last slot is removed, and switching a day on doesn't invent hours for it.
+  const [emptyOpenDays, setEmptyOpenDays] = useState<string[]>([]);
   const [slotDraft, setSlotDraft] = useState({ start: "09:00", end: "10:00" });
   const [activeSection, setActiveSection] = useState<
     "personal" | "professional" | "availability"
@@ -358,11 +358,10 @@ export default function AddEditDoctor({
         specialization: d.specialization || "",
         experience: d.experience || "",
         qualification: d.qualification || "",
+        medicalRegistrationNumber: d.medicalRegistrationNumber || "",
         consultationFee: d.consultationFee ?? undefined,
         gender: d.gender || "",
-        maritalStatus: d.maritalStatus || "",
         status: (d.status as FormState["status"]) || "pending",
-        address: d.address || "",
         availability: d.availability || [],
         appointmentDuration: d.appointmentDuration || 30,
         bufferMinutes: d.bufferMinutes ?? 0,
@@ -376,6 +375,7 @@ export default function AddEditDoctor({
       };
       setFormData(next);
       setInitialData(next);
+      setEmptyOpenDays([]);
     }
   }, [isNew, doctorData]);
 
@@ -422,6 +422,7 @@ export default function AddEditDoctor({
     formData.specialization,
     formData.experience,
     formData.qualification,
+    formData.medicalRegistrationNumber,
     formData.consultationFee != null ? String(formData.consultationFee) : "",
   ].filter(Boolean).length;
   const weeklyCapacity = weekCapacity(
@@ -469,23 +470,23 @@ export default function AddEditDoctor({
       .sort((a, b) => a.startTime.localeCompare(b.startTime));
   }
 
+  function isDayOpen(day: string) {
+    return (
+      emptyOpenDays.includes(day) ||
+      formData.availability.some((s) => s.day === day)
+    );
+  }
+
   function toggleDay(day: string, open: boolean) {
-    setFormData((prev) => {
-      if (open) {
-        if (prev.availability.some((s) => s.day === day)) return prev;
-        return {
-          ...prev,
-          availability: [
-            ...prev.availability,
-            { day, startTime: "09:00", endTime: "13:00" },
-          ],
-        };
-      }
-      return {
-        ...prev,
-        availability: prev.availability.filter((s) => s.day !== day),
-      };
-    });
+    if (open) {
+      setEmptyOpenDays((prev) => (prev.includes(day) ? prev : [...prev, day]));
+      return;
+    }
+    setFormData((prev) => ({
+      ...prev,
+      availability: prev.availability.filter((s) => s.day !== day),
+    }));
+    setEmptyOpenDays((prev) => prev.filter((d) => d !== day));
     setAddingDay((cur) => (cur === day ? null : cur));
   }
 
@@ -502,22 +503,28 @@ export default function AddEditDoctor({
       next.splice(idx, 1);
       return { ...prev, availability: next };
     });
+    // Keep the day switched on even when its last slot goes.
+    setEmptyOpenDays((prev) => (prev.includes(day) ? prev : [...prev, day]));
   }
 
   function openAddSlot(day: string) {
     const slots = daySlots(day);
     const last = slots[slots.length - 1];
-    const start = last ? last.endTime : "09:00";
+    const start = last ? last.endTime : "";
     const end = last
       ? minutesToTime(minutesSinceMidnight(last.endTime) + 60)
-      : "10:00";
+      : "";
     setSlotDraft({ start, end });
     setAddingDay(day);
   }
 
   function confirmAddSlot(day: string) {
     const { start, end } = slotDraft;
-    if (!start || !end || start >= end) {
+    if (!start || !end) {
+      toast.error("Please choose a start and end time");
+      return;
+    }
+    if (start >= end) {
       toast.error("End time must be after start time");
       return;
     }
@@ -538,9 +545,7 @@ export default function AddEditDoctor({
 
   function copyToAllOpenDays(sourceDay: string) {
     const source = daySlots(sourceDay);
-    const openDays = DAYS.filter(
-      (d) => d !== sourceDay && formData.availability.some((s) => s.day === d),
-    );
+    const openDays = DAYS.filter((d) => d !== sourceDay && isDayOpen(d));
     if (!openDays.length) {
       toast.error("No other open days to copy to");
       return;
@@ -565,6 +570,7 @@ export default function AddEditDoctor({
 
   function applyPreset(preset: (typeof PRESETS)[number]) {
     update("availability", preset.apply());
+    setEmptyOpenDays([]);
   }
 
   function barStyle(slot: TimeSlot) {
@@ -583,12 +589,29 @@ export default function AddEditDoctor({
 
   function discardChanges() {
     setFormData(initialData);
+    setEmptyOpenDays([]);
     setAddingDay(null);
   }
 
   async function saveDoctor(confirmDuplicate = false) {
     if (!formData.name.trim() || !formData.email.trim()) {
       toast.error("Please fill in Name and Email");
+      return;
+    }
+    if (!formData.experience.toString().trim()) {
+      toast.error("Please fill in Years of experience");
+      return;
+    }
+    if (!formData.qualification.trim()) {
+      toast.error("Please fill in Qualification");
+      return;
+    }
+    if (!formData.medicalRegistrationNumber.trim()) {
+      toast.error("Please fill in MCI / RCI number");
+      return;
+    }
+    if (formData.consultationFee == null) {
+      toast.error("Please fill in Consultation fee");
       return;
     }
     if (isNew) {
@@ -615,11 +638,10 @@ export default function AddEditDoctor({
         specialization: formData.specialization,
         experience: formData.experience,
         qualification: formData.qualification,
+        medicalRegistrationNumber: formData.medicalRegistrationNumber.trim(),
         consultationFee: formData.consultationFee,
         gender: formData.gender,
-        maritalStatus: formData.maritalStatus,
         status: formData.status,
-        address: formData.address,
         availability: formData.availability,
         appointmentDuration: formData.appointmentDuration,
         bufferMinutes: formData.bufferMinutes,
@@ -796,7 +818,7 @@ export default function AddEditDoctor({
                 key: "professional" as const,
                 ref: professionalRef,
                 label: "Professional",
-                value: `${professionalFilled}/4`,
+                value: `${professionalFilled}/5`,
                 done: professionalFilled > 0,
               },
               {
@@ -979,15 +1001,6 @@ export default function AddEditDoctor({
                   onClear={() => update("gender", "")}
                 />
               </Field>
-              <Field label="Marital status" optional>
-                <PillGroup
-                  options={MARITAL_STATUSES}
-                  value={formData.maritalStatus}
-                  disabled={!canEdit}
-                  onChange={(v) => update("maritalStatus", v)}
-                  onClear={() => update("maritalStatus", "")}
-                />
-              </Field>
             </div>
           </section>
 
@@ -1029,7 +1042,7 @@ export default function AddEditDoctor({
               </Field>
               <Field
                 label="Years of experience"
-                optional
+                required
                 hint="Shown on the doctor's profile card."
               >
                 <input
@@ -1044,7 +1057,7 @@ export default function AddEditDoctor({
               </Field>
               <Field
                 label="Qualification"
-                optional
+                required
                 hint="Degrees and certifications, comma separated."
               >
                 <input
@@ -1056,8 +1069,23 @@ export default function AddEditDoctor({
                 />
               </Field>
               <Field
+                label="MCI / RCI number"
+                required
+                hint="Medical council registration number, printed on prescriptions."
+              >
+                <input
+                  value={formData.medicalRegistrationNumber}
+                  disabled={!canEdit}
+                  onChange={(e) =>
+                    update("medicalRegistrationNumber", e.target.value)
+                  }
+                  placeholder="e.g. TN-123456"
+                  className={`${inputClass} font-mono tabular`}
+                />
+              </Field>
+              <Field
                 label="Consultation fee"
-                optional
+                required
                 hint="Per appointment, before taxes."
               >
                 <div className="flex gap-2">
@@ -1080,22 +1108,6 @@ export default function AddEditDoctor({
                   />
                 </div>
               </Field>
-              <div className="md:col-span-2">
-                <Field
-                  label="Clinic address"
-                  optional
-                  hint="Appears in booking confirmations and reminders."
-                >
-                  <textarea
-                    value={formData.address}
-                    disabled={!canEdit}
-                    onChange={(e) => update("address", e.target.value)}
-                    placeholder="Block, street, area, city, PIN"
-                    rows={3}
-                    className={`${inputClass} resize-none`}
-                  />
-                </Field>
-              </div>
             </div>
           </section>
 
@@ -1337,7 +1349,7 @@ export default function AddEditDoctor({
             <div className="border-t border-border">
               {DAYS.map((day) => {
                 const slots = daySlots(day);
-                const open = slots.length > 0;
+                const open = isDayOpen(day);
                 return (
                   <div
                     key={day}
@@ -1399,6 +1411,12 @@ export default function AddEditDoctor({
                             })}
                           </div>
                           <div className="flex flex-wrap items-center gap-2">
+                            {slots.length === 0 && addingDay !== day && (
+                              <span className="text-xs text-ink-500">
+                                No hours yet — patients can&apos;t book until
+                                you add some.
+                              </span>
+                            )}
                             {slots.map((slot, i) => {
                               const total = slotCapacity(
                                 slot,
