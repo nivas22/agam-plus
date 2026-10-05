@@ -37,6 +37,21 @@ export class LeaveRequestRepository {
     return toPlainList(docs);
   }
 
+  // Approved leave overlapping [startDate, endDate] across the whole
+  // hospital — backs the "on leave" markers on the queue and calendar.
+  async listApprovedInRange(hospitalId: string, startDate: string, endDate: string) {
+    const docs = await this.model
+      .find({
+        hospitalId,
+        status: 'approved',
+        startDate: { $lte: endDate },
+        endDate: { $gte: startDate },
+      })
+      .sort({ startDate: 1 })
+      .lean();
+    return toPlainList(docs);
+  }
+
   // Leave ranges that overlap [startDate, endDate] for a given doctor —
   // backs the "Your week" leave banner and the missed-follow-up-adjacent
   // pending-leave card, so both pending and already-approved leave show up.

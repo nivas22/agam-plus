@@ -739,7 +739,7 @@ export const HOSPITAL_MODULE_LABELS: Record<HOSPITAL_MODULE, string> = {
   [HOSPITAL_MODULE.WHATSAPP]: "WhatsApp",
   [HOSPITAL_MODULE.REPORTS]: "Reports",
   [HOSPITAL_MODULE.AUDIT]: "Audit trail",
-  [HOSPITAL_MODULE.LEAVE_REQUESTS]: "Doctor leave requests",
+  [HOSPITAL_MODULE.LEAVE_REQUESTS]: "Leave requests",
   [HOSPITAL_MODULE.HOSPITAL_HOLIDAYS]: "Hospital holidays",
   [HOSPITAL_MODULE.CHARGE_CATALOG]: "Charge catalog",
   [HOSPITAL_MODULE.MEDICINES]: "Medicines",

@@ -93,10 +93,10 @@ export const HOSPITAL_MODULES: HospitalModuleInfo[] = [
   },
   {
     key: "leaveRequests",
-    label: "Doctor leave requests",
+    label: "Leave requests",
     description:
-      "Doctors apply for leave and admins approve it, with impact on booked visits.",
-    offNote: "Doctors can't apply for leave from the app.",
+      "Doctors and staff apply for leave and admins approve it, with impact on booked visits.",
+    offNote: "Doctors and staff can't apply for leave from the app.",
     group: "care",
   },
   {
@@ -208,6 +208,7 @@ const ROUTE_MODULES: { pattern: RegExp; module: HospitalModuleKey }[] = [
   { pattern: /^\/payments(\/|$)/, module: "payments" },
   { pattern: /^\/enquiries(\/|$)/, module: "whatsapp" },
   { pattern: /^\/reports(\/|$)/, module: "reports" },
+  { pattern: /^\/leave-requests(\/|$)/, module: "leaveRequests" },
   { pattern: /^\/settings\/audit(\/|$)/, module: "audit" },
   { pattern: /^\/settings\/whatsapp(\/|$)/, module: "whatsapp" },
   {

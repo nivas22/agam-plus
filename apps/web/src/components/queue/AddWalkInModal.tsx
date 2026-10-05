@@ -5,12 +5,14 @@ import { AlertCircle, Loader2, Search, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { inputClass } from "@/components/common/EditFormControls";
 import { useDoctorSlots } from "@/hooks/useDoctorSlots";
+import { findLeaveOn } from "@/hooks/useLeaveRequestsApi";
 import { paletteFor } from "@/lib/avatarPalette";
 import type {
   AppointmentFormData,
   AppointmentWithDetails,
   Vitals,
 } from "@/types/appointment";
+import type { OnLeaveEntry } from "@/types/leaveRequest";
 import type { Patient } from "@/types/patientNew";
 import {
   computePresence,
@@ -83,6 +85,8 @@ interface AddWalkInModalProps {
   lanes: QueueLane[];
   patients: Patient[];
   presenceOverrides: Record<string, PresenceOverride>;
+  // Approved leave covering today — those doctors can't take a walk-in.
+  onLeaveToday?: OnLeaveEntry[];
   now: Date;
   initialDoctorId?: string | null;
   onClose: () => void;
@@ -103,6 +107,7 @@ export default function AddWalkInModal({
   lanes,
   patients,
   presenceOverrides,
+  onLeaveToday,
   now,
   initialDoctorId,
   onClose,
@@ -121,6 +126,7 @@ export default function AddWalkInModal({
             lane,
             presenceOverrides[lane.doctor.id],
             now,
+            findLeaveOn(onLeaveToday, lane.doctor.id, today),
           );
           const cap = sessionCapacity(lane, now);
           // Projected with +1 patient — "if we add this walk-in, how does the
@@ -137,10 +143,11 @@ export default function AddWalkInModal({
         .filter(
           (o) =>
             presenceOverrides[o.doctor.id]?.kind !== "leftForDay" &&
+            !findLeaveOn(onLeaveToday, o.doctor.id, today) &&
             o.availability.label !== "Session over" &&
             o.availability.label !== "Not consulting today",
         ),
-    [lanes, now, presenceOverrides],
+    [lanes, now, presenceOverrides, onLeaveToday, today],
   );
 
   function tileInfo(o: (typeof doctorOptions)[number]) {

@@ -4,6 +4,7 @@ import {
   ArrowLeft,
   Bell,
   Calendar,
+  CalendarOff,
   Check,
   ChevronDown,
   ChevronLeft,
@@ -118,6 +119,13 @@ export default function DoctorHospitalLayout({
       icon: <TrendingUp size={18} />,
       group: "operations",
       module: "reports",
+    },
+    {
+      to: "/leave-requests",
+      label: "My leave",
+      icon: <CalendarOff size={18} />,
+      group: "operations",
+      module: "leaveRequests",
     },
     {
       to: "/settings",

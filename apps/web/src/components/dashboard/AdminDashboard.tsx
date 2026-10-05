@@ -35,6 +35,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useModuleEnabled } from "@/hooks/useHospitalModulesApi";
 import { useChargeCatalogItems } from "@/hooks/useChargeCatalogApi";
 import { useDoctorPresence } from "@/hooks/useDoctorPresenceApi";
+import { findLeaveOn, useOnLeave } from "@/hooks/useLeaveRequestsApi";
 import { useHospitalHolidays } from "@/hooks/useHospitalHolidaysApi";
 import { useHospitalAppointmentsApi } from "@/hooks/useNewAppointmentsApi";
 import { useHospitalDoctors } from "@/hooks/useNewDoctorApi";
@@ -118,6 +119,12 @@ export default function AdminDashboardClient() {
     hospitalId,
     today,
   );
+  const { data: onLeaveToday } = useOnLeave(
+    today,
+    today,
+    hospitalId,
+    isEnabled("leaveRequests"),
+  );
 
   // ---- live strip -----------------------------------------------------
   const waitingNow = lanes.reduce((n, l) => n + l.waiting.length, 0);
@@ -150,7 +157,12 @@ export default function AdminDashboardClient() {
   );
   const presenceByLane = relevantLanes.map((lane) => ({
     lane,
-    presence: computePresence(lane, presenceOverrides[lane.doctor.id], now),
+    presence: computePresence(
+      lane,
+      presenceOverrides[lane.doctor.id],
+      now,
+      findLeaveOn(onLeaveToday, lane.doctor.id, today),
+    ),
   }));
   const notableDoctors = presenceByLane.filter(
     (p) => p.presence.tone !== "expected",
@@ -168,7 +180,12 @@ export default function AdminDashboardClient() {
     .map((lane) => ({
       lane,
       windows: todaysWindows(lane.doctor, now),
-      presence: computePresence(lane, presenceOverrides[lane.doctor.id], now),
+      presence: computePresence(
+      lane,
+      presenceOverrides[lane.doctor.id],
+      now,
+      findLeaveOn(onLeaveToday, lane.doctor.id, today),
+    ),
     }))
     .filter((d) => d.windows.length > 0)
     .sort((a, b) => a.windows[0].start - b.windows[0].start);

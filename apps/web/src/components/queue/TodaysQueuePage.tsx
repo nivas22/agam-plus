@@ -22,6 +22,8 @@ import {
   useHospitalAppointmentsApi,
 } from "@/hooks/useNewAppointmentsApi";
 import { useHospitalDoctors } from "@/hooks/useNewDoctorApi";
+import { useModuleEnabled } from "@/hooks/useHospitalModulesApi";
+import { findLeaveOn, useOnLeave } from "@/hooks/useLeaveRequestsApi";
 import { useHospitalPatients } from "@/hooks/useNewPatientApi";
 import { paletteFor } from "@/lib/avatarPalette";
 import type { AppointmentWithDetails } from "@/types/appointment";
@@ -132,6 +134,13 @@ export default function TodaysQueuePage({
     today,
   );
   const setDoctorPresence = useSetDoctorPresence(hospitalId);
+  const { isEnabled: isModuleEnabled } = useModuleEnabled(hospitalId);
+  const { data: onLeaveToday } = useOnLeave(
+    today,
+    today,
+    hospitalId,
+    isModuleEnabled("leaveRequests"),
+  );
 
   const params = useMemo(() => {
     const p = new URLSearchParams();
@@ -212,9 +221,13 @@ export default function TodaysQueuePage({
         status:
           presenceOverrides[lane.doctor.id]?.kind === "leftForDay"
             ? ({ label: "Session over", tone: "off" } as const)
-            : laneStatus(lane, now),
+            : // Kept on the active tab so bookings still sitting under an
+              // absent doctor get noticed and moved.
+              findLeaveOn(onLeaveToday, lane.doctor.id, today)
+              ? ({ label: "On leave", tone: "off" } as const)
+              : laneStatus(lane, now),
       })),
-    [lanes, now, presenceOverrides],
+    [lanes, now, presenceOverrides, onLeaveToday, today],
   );
   const activeLanes = lanesWithStatus.filter(
     (l) => l.status.label !== "Session over",
@@ -567,6 +580,7 @@ export default function TodaysQueuePage({
                       lane,
                       presenceOverrides[lane.doctor.id],
                       now,
+                      findLeaveOn(onLeaveToday, lane.doctor.id, today),
                     )}
                     now={now}
                     canEdit={canEdit}
@@ -866,6 +880,7 @@ export default function TodaysQueuePage({
           lanes={allLanes}
           patients={patientsData.patients}
           presenceOverrides={presenceOverrides}
+          onLeaveToday={onLeaveToday}
           now={now}
           initialDoctorId={walkInPresetDoctorId}
           onClose={() => {

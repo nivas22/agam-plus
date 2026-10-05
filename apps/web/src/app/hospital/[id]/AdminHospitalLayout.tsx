@@ -4,6 +4,7 @@ import {
   ArrowLeft,
   Bell,
   Calendar,
+  CalendarOff,
   Check,
   ChevronDown,
   ChevronLeft,
@@ -136,6 +137,13 @@ export default function AdminHospitalLayout({
           },
         ]
       : []),
+    {
+      to: "/leave-requests",
+      label: isAdmin ? "Leave requests" : "My leave",
+      module: "leaveRequests" as const,
+      icon: <CalendarOff size={18} />,
+      category: "people",
+    },
     {
       to: "/appointments",
       label: "Appointments",

@@ -26,6 +26,9 @@ export class LeaveRequest {
   @Prop({ required: true, index: true })
   hospitalId: string;
 
+  // The requester's userId. Named for the original doctor-only flow; staff
+  // (front desk, nurse, accountant) file under the same field — check
+  // requestedBy.role to tell them apart.
   @Prop({ required: true, index: true })
   doctorProfileId: string;
 
