@@ -3,12 +3,14 @@
 
 import { format } from "date-fns";
 import { Phone, Sparkles } from "lucide-react";
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import CompleteVisitDialog from "@/components/appointments/CompleteVisitDialog";
 import { useGenerateSessionNotes } from "@/hooks/useAiNotesApi";
 import { useAuth } from "@/hooks/useAuth";
 import { useChargeCatalogItems } from "@/hooks/useChargeCatalogApi";
 import { useModuleEnabled } from "@/hooks/useHospitalModulesApi";
+import { useNotesTemplates } from "@/hooks/useNotesTemplateApi";
 import {
   useDoctorPresence,
   useSetDoctorPresence,
@@ -1297,17 +1299,6 @@ const QUICK_FOLLOW_UP_VALUES = Object.keys(
   QUICK_FOLLOW_UP_LABELS,
 ) as FollowUpOption[];
 
-const TEMPLATES = [
-  {
-    label: "Continue medication",
-    text: "Continuing current medication at the same dose. Review as scheduled.",
-  },
-  {
-    label: "Advised rest",
-    text: "Advised rest and adequate hydration. Review if symptoms persist beyond a few days.",
-  },
-];
-
 function ConsultationPanel({
   appt,
   patient,
@@ -1397,6 +1388,9 @@ function ConsultationPanel({
   const { isEnabled: isModuleEnabled } = useModuleEnabled(hospitalId);
   const aiNotesOn = isModuleEnabled("aiNotes");
   const generateNotes = useGenerateSessionNotes(hospitalId);
+  // Managed under Settings > Notes templates.
+  const { data: notesTemplatesData } = useNotesTemplates(hospitalId);
+  const notesTemplates = notesTemplatesData?.items ?? [];
   // The doctor's own text from before the last AI format, so one click puts
   // it back if the draft isn't right.
   const [notesBeforeAi, setNotesBeforeAi] = useState<string | null>(null);
@@ -1562,10 +1556,11 @@ function ConsultationPanel({
               </span>
             </div>
           )}
-          <div className="flex gap-2 flex-wrap mt-2">
-            {TEMPLATES.map((t) => (
+          <div className="flex gap-2 flex-wrap items-center mt-2">
+            {notesTemplates.map((t) => (
               <button
-                key={t.label}
+                key={t.id}
+                title={t.text}
                 type="button"
                 onClick={() =>
                   setNotesDraft(
@@ -1577,6 +1572,12 @@ function ConsultationPanel({
                 {t.label}
               </button>
             ))}
+            <Link
+              href={`/hospital/${hospitalId}/settings/notes-templates`}
+              className="text-[12.5px] font-semibold text-brand-violet underline"
+            >
+              {notesTemplates.length > 0 ? "Manage templates" : "Add notes templates"}
+            </Link>
           </div>
 
           <div className="text-[12px] uppercase tracking-wide text-ink-500 font-bold mb-2 mt-4">

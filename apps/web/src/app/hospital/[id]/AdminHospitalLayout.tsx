@@ -142,7 +142,8 @@ export default function AdminHospitalLayout({
       label: isAdmin ? "Leave requests" : "My leave",
       module: "leaveRequests" as const,
       icon: <CalendarOff size={18} />,
-      category: "people",
+      // Admins manage everyone's leave; other staff only see their own.
+      category: isAdmin ? "people" : "personal",
     },
     {
       to: "/appointments",
@@ -213,6 +214,7 @@ export default function AdminHospitalLayout({
     { key: "people", label: "People" },
     { key: "frontDesk", label: "Front desk" },
     { key: "admin", label: "Admin" },
+    { key: "personal", label: "Personal" },
   ]
     .map((group) => ({
       ...group,

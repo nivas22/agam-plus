@@ -774,6 +774,16 @@ export const medicinePackStatusSchema = z.object({
   status: z.enum(['active', 'archived']),
 });
 
+export const createNotesTemplateSchema = z.object({
+  label: z.string().trim().min(1, 'Name is required').max(60),
+  text: z.string().trim().min(1, 'Text is required').max(4000),
+  shared: z.boolean().optional(),
+});
+
+export const updateNotesTemplateSchema = createNotesTemplateSchema
+  .omit({ shared: true })
+  .partial();
+
 // Hospitals can pause or resume their number without disconnecting it.
 export const whatsappEnabledSchema = z.object({
   enabled: z.boolean(),

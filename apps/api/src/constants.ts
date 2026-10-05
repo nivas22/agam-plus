@@ -18,6 +18,7 @@ export enum DB_COLLECTIONS {
   HOSPITAL_HOLIDAYS = "hospital_holidays",
   MEDICINES = "medicines",
   MEDICINE_PACKS = "medicine_packs",
+  NOTES_TEMPLATES = "notes_templates",
   PRESCRIPTIONS = "prescriptions",
   LEAVE_REQUESTS = "leave_requests",
   COUNTERS = "counters",
