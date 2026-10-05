@@ -19,6 +19,7 @@ import { ChargeCatalogItemRepository } from './charge-catalog-item.repository';
 import { HospitalHolidayRepository } from './hospital-holiday.repository';
 import { MedicineRepository } from './medicine.repository';
 import { MedicinePackRepository } from './medicine-pack.repository';
+import { NotesTemplateRepository } from './notes-template.repository';
 import { PrescriptionRepository } from './prescription.repository';
 import { LeaveRequestRepository } from './leave-request.repository';
 import { DoctorPresenceRepository } from './doctor-presence.repository';
@@ -68,6 +69,7 @@ import {
 } from '../schemas/hospital-holiday.schema';
 import { Medicine, MedicineSchema } from '../schemas/medicine.schema';
 import { MedicinePack, MedicinePackSchema } from '../schemas/medicine-pack.schema';
+import { NotesTemplate, NotesTemplateSchema } from '../schemas/notes-template.schema';
 import { Prescription, PrescriptionSchema } from '../schemas/prescription.schema';
 import { LeaveRequest, LeaveRequestSchema } from '../schemas/leave-request.schema';
 import { Counter, CounterSchema } from '../schemas/counter.schema';
@@ -124,6 +126,7 @@ const repositories = [
   HospitalHolidayRepository,
   MedicineRepository,
   MedicinePackRepository,
+  NotesTemplateRepository,
   PrescriptionRepository,
   LeaveRequestRepository,
   DoctorPresenceRepository,
@@ -161,6 +164,7 @@ const repositories = [
       { name: HospitalHoliday.name, schema: HospitalHolidaySchema },
       { name: Medicine.name, schema: MedicineSchema },
       { name: MedicinePack.name, schema: MedicinePackSchema },
+      { name: NotesTemplate.name, schema: NotesTemplateSchema },
       { name: Prescription.name, schema: PrescriptionSchema },
       { name: LeaveRequest.name, schema: LeaveRequestSchema },
       { name: Counter.name, schema: CounterSchema },

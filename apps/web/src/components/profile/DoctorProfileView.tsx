@@ -96,7 +96,7 @@ export default function DoctorProfileView() {
         actions={
           <button
             onClick={() =>
-              router.push(`/hospital/${hospitalId}/doctors/${doctorId}/add/availability`)
+              router.push(`/hospital/${hospitalId}/doctors/${doctorId}/availability`)
             }
             className="px-3.5 py-2 rounded-lg border border-border text-sm font-semibold text-ink-700 hover:bg-surface-canvas"
           >
@@ -138,7 +138,7 @@ export default function DoctorProfileView() {
             right={
               <button
                 onClick={() =>
-                  router.push(`/hospital/${hospitalId}/doctors/${doctorId}/add/availability`)
+                  router.push(`/hospital/${hospitalId}/doctors/${doctorId}/availability`)
                 }
                 className="text-xs font-medium text-brand-violet hover:underline"
               >

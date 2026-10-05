@@ -5,6 +5,7 @@ import {
   CalendarOff,
   ClipboardList,
   CreditCard,
+  FileText,
   Layers,
   MessageCircle,
   Package,
@@ -25,6 +26,8 @@ interface SettingsTile {
   title: string;
   description: string;
   adminOnly: boolean;
+  // Only for the people who write session notes (admins and doctors).
+  clinicalOnly?: boolean;
   // Hidden while this module is off — see Settings > Features.
   module?: HospitalModuleKey;
 }
@@ -33,7 +36,7 @@ export default function SettingsHubPage() {
   const params = useParams();
   const router = useRouter();
   const hospitalId = params.id as string;
-  const { isDoctor } = useAuth();
+  const { isAdmin, isDoctor } = useAuth();
   const { isEnabled } = useModuleEnabled(hospitalId);
 
   const categories: { title: string; tiles: SettingsTile[] }[] = [
@@ -92,7 +95,7 @@ export default function SettingsHubPage() {
           title: "Specializations",
           description:
             "The options offered in each doctor's specialization dropdown.",
-          adminOnly: false,
+          adminOnly: true,
         },
         {
           href: `/hospital/${hospitalId}/settings/patient-fields`,
@@ -101,7 +104,17 @@ export default function SettingsHubPage() {
           title: "Patient fields",
           description:
             "Choose what the patient form's Notes section collects, and add your own fields.",
+          adminOnly: true,
+        },
+        {
+          href: `/hospital/${hospitalId}/settings/notes-templates`,
+          icon: <FileText size={20} />,
+          title: "Notes templates",
+          description: isDoctor
+            ? "Your one-click snippets for session notes, plus the ones your hospital shares."
+            : "One-click snippets doctors drop into session notes from the Today screen.",
           adminOnly: false,
+          clinicalOnly: true,
         },
       ],
     },
@@ -163,8 +176,9 @@ export default function SettingsHubPage() {
     .map((category) => ({
       ...category,
       tiles: category.tiles.filter(
-        (tile) =>
+        (tile: SettingsTile) =>
           (!isDoctor || !tile.adminOnly) &&
+          (!tile.clinicalOnly || isAdmin || isDoctor) &&
           (!tile.module || isEnabled(tile.module)),
       ),
     }))

@@ -78,71 +78,79 @@ export default function DoctorHospitalLayout({
 
   const { isEnabled: isModuleEnabled } = useModuleEnabled(actualHospitalId);
 
-  // Doctor-specific navigation items. Items tagged with a `module` disappear
-  // while that module is off (Settings > Features).
+  // Doctor-specific navigation items, grouped like the admin sidebar
+  // (Care / People / Admin / Personal). Items tagged with a `module` disappear while
+  // that module is off (Settings > Features).
   const allNavItems: {
     to: string;
     label: string;
     icon: React.ReactNode;
-    group: "care" | "operations";
+    category: "care" | "people" | "admin" | "personal";
     module?: HospitalModuleKey;
   }[] = [
-    {
-      to: "/today",
-      label: "Today",
-      icon: <Clock size={18} />,
-      group: "care",
-      module: "queue",
-    },
     {
       to: "/dashboard",
       label: "Dashboard",
       icon: <LayoutDashboard size={18} />,
-      group: "care",
+      category: "care",
     },
     {
       to: "/appointments",
       label: "Appointments",
       icon: <Calendar size={18} />,
-      group: "care",
+      category: "care",
       module: "appointments",
+    },
+    {
+      to: "/today",
+      label: "Today",
+      icon: <Clock size={18} />,
+      category: "care",
+      module: "queue",
     },
     {
       to: "/patients",
       label: "Patients",
       icon: <FaUserInjured size={18} />,
-      group: "care",
-    },
-    {
-      to: "/reports",
-      label: "Reports",
-      icon: <TrendingUp size={18} />,
-      group: "operations",
-      module: "reports",
+      category: "people",
     },
     {
       to: "/leave-requests",
       label: "My leave",
       icon: <CalendarOff size={18} />,
-      group: "operations",
+      category: "personal",
       module: "leaveRequests",
+    },
+    {
+      to: "/reports",
+      label: "Reports",
+      icon: <TrendingUp size={18} />,
+      category: "admin",
+      module: "reports",
     },
     {
       to: "/settings",
       label: "Settings",
       icon: <Settings size={18} />,
-      group: "operations",
+      category: "admin",
     },
   ];
   const navItems = allNavItems.filter(
     (item) => !item.module || isModuleEnabled(item.module),
   );
 
-  // Desktop sidebar groups
-  const careItems = navItems.filter((item) => item.group === "care");
-  const operationsItems = navItems.filter(
-    (item) => item.group === "operations",
-  );
+  // Desktop sidebar groups — same labels and order as AdminHospitalLayout.
+  const navGroups = [
+    { key: "care", label: "Care" },
+    { key: "people", label: "People" },
+    { key: "admin", label: "Admin" },
+    { key: "personal", label: "Personal" },
+  ]
+    .map((group) => ({
+      ...group,
+      items: navItems.filter((item) => item.category === group.key),
+    }))
+    .filter((group) => group.items.length > 0);
 
   const toggleMenu = () => setIsOpen(!isOpen);
 
@@ -286,79 +294,44 @@ export default function DoctorHospitalLayout({
 
           {/* Navigation Links */}
           <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-4">
-            <div className="space-y-1">
-              {sidebarExpanded && (
-                <div className="px-3 pb-1 text-[10px] font-semibold text-night-muted uppercase tracking-wider">
-                  Care
-                </div>
-              )}
-              {careItems.map((item) => {
-                const active = isActive(item.to);
-                return (
-                  <button
-                    key={item.to}
-                    onClick={() => navigateTo(item.to)}
-                    className={`group relative flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 w-full text-left border-l-2 ${
-                      active
-                        ? "bg-night-active text-white border-status-open"
-                        : "text-night-muted hover:bg-night-hover hover:text-white border-transparent"
-                    }`}
-                    title={!sidebarExpanded ? item.label : undefined}
-                    aria-label={item.label}
-                  >
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                      <div className="flex-shrink-0 w-5 h-5 flex items-center justify-center">
-                        {item.icon}
+            {navGroups.map((group) => (
+              <div key={group.key} className="space-y-1">
+                {sidebarExpanded && (
+                  <div className="px-3 pb-1 text-[10px] font-semibold text-night-muted uppercase tracking-wider">
+                    {group.label}
+                  </div>
+                )}
+                {group.items.map((item) => {
+                  const active = isActive(item.to);
+                  return (
+                    <button
+                      key={item.to}
+                      onClick={() => navigateTo(item.to)}
+                      className={`group relative flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 w-full text-left border-l-2 ${
+                        active
+                          ? "bg-night-active text-white border-status-open"
+                          : "text-night-muted hover:bg-night-hover hover:text-white border-transparent"
+                      }`}
+                      title={!sidebarExpanded ? item.label : undefined}
+                      aria-label={item.label}
+                    >
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <div className="flex-shrink-0 w-5 h-5 flex items-center justify-center">
+                          {item.icon}
+                        </div>
+                        {sidebarExpanded && (
+                          <span
+                            className={`text-sm truncate ${active ? "font-semibold" : "font-medium"}`}
+                          >
+                            {item.label}
+                          </span>
+                        )}
                       </div>
-                      {sidebarExpanded && (
-                        <span
-                          className={`text-sm truncate ${active ? "font-semibold" : "font-medium"}`}
-                        >
-                          {item.label}
-                        </span>
-                      )}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="space-y-1">
-              {sidebarExpanded && (
-                <div className="px-3 pb-1 text-[10px] font-semibold text-night-muted uppercase tracking-wider">
-                  Operations
-                </div>
-              )}
-              {operationsItems.map((item) => {
-                const active = isActive(item.to);
-                return (
-                  <button
-                    key={item.to}
-                    onClick={() => navigateTo(item.to)}
-                    className={`group relative flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 w-full text-left border-l-2 ${
-                      active
-                        ? "bg-night-active text-white border-status-open"
-                        : "text-night-muted hover:bg-night-hover hover:text-white border-transparent"
-                    }`}
-                    title={!sidebarExpanded ? item.label : undefined}
-                    aria-label={item.label}
-                  >
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                      <div className="flex-shrink-0 w-5 h-5 flex items-center justify-center">
-                        {item.icon}
-                      </div>
-                      {sidebarExpanded && (
-                        <span
-                          className={`text-sm truncate ${active ? "font-semibold" : "font-medium"}`}
-                        >
-                          {item.label}
-                        </span>
-                      )}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
           </nav>
 
           {/* System status footer */}

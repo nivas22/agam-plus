@@ -23,7 +23,13 @@ import {
   useHospitalSpecializations,
   useUpdateHospitalSpecializations,
 } from "@/hooks/useHospitalSpecializationsApi";
-import { useHospitalDoctor, useNewDoctorApi, useResetDoctorPassword } from "@/hooks/useNewDoctorApi";
+import { useQueryClient } from "@tanstack/react-query";
+import { availabilityKeys } from "@/hooks/useAvailability";
+import {
+  useHospitalDoctor,
+  useNewDoctorApi,
+  useResetDoctorPassword,
+} from "@/hooks/useNewDoctorApi";
 import TempPasswordModal from "@/components/common/TempPasswordModal";
 import { ApiRequestError } from "@/lib/api";
 import type { TimeSlot } from "@/types/appointment";
@@ -36,6 +42,11 @@ interface AddEditDoctorProps {
   userRole?: string;
   canEdit?: boolean;
   hospitalId?: string;
+  // Shows only the Availability section and saves only schedule fields —
+  // used by the doctor's own "Manage availability" (no admin-only actions).
+  availabilityOnly?: boolean;
+  // Where the back arrow and a successful save go. Defaults to the roster.
+  backHref?: string;
 }
 
 const DAYS = [
@@ -311,8 +322,12 @@ export default function AddEditDoctor({
   id,
   hospitalId,
   canEdit = true,
+  availabilityOnly = false,
+  backHref,
 }: AddEditDoctorProps) {
   const router = useRouter();
+  const returnHref = backHref || `/hospital/${hospitalId}/doctors`;
+  const queryClient = useQueryClient();
   const { createDoctor, updateDoctor, deleteDoctor, isDeleting } =
     useNewDoctorApi(hospitalId, undefined, true);
   const { data: doctorData, isLoading: isDoctorLoading } = useHospitalDoctor(
@@ -321,16 +336,19 @@ export default function AddEditDoctor({
   );
   const { hospitals } = useAuth();
   const resetPassword = useResetDoctorPassword(hospitalId);
-  const [tempPassword, setTempPassword] = useState<{ password: string; username?: string } | null>(null);
+  const [tempPassword, setTempPassword] = useState<{
+    password: string;
+    username?: string;
+  } | null>(null);
   const { data: hospitalSpecializationsData } =
     useHospitalSpecializations(hospitalId);
   const updateSpecializations = useUpdateHospitalSpecializations(hospitalId);
   const [addingSpecialization, setAddingSpecialization] = useState(false);
   const [newSpecialization, setNewSpecialization] = useState("");
-  const specializationOptions =
-    hospitalSpecializationsData?.specializations?.length
-      ? hospitalSpecializationsData.specializations
-      : DEFAULT_SPECIALIZATIONS;
+  const specializationOptions = hospitalSpecializationsData?.specializations
+    ?.length
+    ? hospitalSpecializationsData.specializations
+    : DEFAULT_SPECIALIZATIONS;
 
   const [formData, setFormData] = useState<FormState>(EMPTY_FORM);
   const [initialData, setInitialData] = useState<FormState>(EMPTY_FORM);
@@ -346,7 +364,7 @@ export default function AddEditDoctor({
   const [slotDraft, setSlotDraft] = useState({ start: "09:00", end: "10:00" });
   const [activeSection, setActiveSection] = useState<
     "personal" | "professional" | "availability"
-  >("personal");
+  >(availabilityOnly ? "availability" : "personal");
 
   const personalRef = useRef<HTMLDivElement>(null);
   const professionalRef = useRef<HTMLDivElement>(null);
@@ -454,8 +472,7 @@ export default function AddEditDoctor({
   );
   const onlineWeeklyCapacity = weeklyCapacity - heldWeeklyCapacity;
 
-  const statsMonth =
-    !isNew && id ? format(new Date(), "yyyy-MM") : undefined;
+  const statsMonth = !isNew && id ? format(new Date(), "yyyy-MM") : undefined;
   const { data: practiceStats } = useDoctorDashboardPracticeStats(
     statsMonth || "",
     hospitalId,
@@ -633,7 +650,41 @@ export default function AddEditDoctor({
     setAddingDay(null);
   }
 
+  async function saveAvailability() {
+    if (!id) return;
+    setSaving(true);
+    try {
+      await updateDoctor(id, {
+        status: formData.status,
+        availability: formData.availability,
+        appointmentDuration: formData.appointmentDuration,
+        bufferMinutes: formData.bufferMinutes,
+        patientsPerSlot: formData.patientsPerSlot,
+        acceptWalkIns: formData.acceptWalkIns,
+        heldSlotsPerSession: formData.heldSlotsPerSession,
+        releaseHeldSlotsBeforeMinutes: formData.releaseHeldSlotsBeforeMinutes,
+        overCapacityPolicy: formData.overCapacityPolicy,
+        lateArrivalGraceMinutes: formData.lateArrivalGraceMinutes,
+        noShowReleaseMinutes: formData.noShowReleaseMinutes,
+      } as any);
+      // The profile's schedule card reads through the availability API.
+      queryClient.invalidateQueries({ queryKey: availabilityKeys.all });
+      toast.success("Availability updated");
+      setInitialData(formData);
+      setTimeout(() => router.push(returnHref), 400);
+    } catch (err) {
+      console.error("Error saving availability:", err);
+      toast.error("Failed to save availability. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function saveDoctor(confirmDuplicate = false) {
+    if (availabilityOnly) {
+      await saveAvailability();
+      return;
+    }
     if (!formData.name.trim() || !formData.email.trim()) {
       toast.error("Please fill in Name and Email");
       return;
@@ -708,7 +759,7 @@ export default function AddEditDoctor({
       }
 
       setDuplicateMatches(null);
-      setTimeout(() => router.push(`/hospital/${hospitalId}/doctors`), 400);
+      setTimeout(() => router.push(returnHref), 400);
     } catch (err) {
       if (err instanceof ApiRequestError && err.details?.duplicates?.length) {
         setDuplicateMatches(err.details.duplicates);
@@ -754,18 +805,20 @@ export default function AddEditDoctor({
       <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2 min-w-0 text-sm">
           <button
-            onClick={() => router.push(`/hospital/${hospitalId}/doctors`)}
+            onClick={() => router.push(returnHref)}
             className="flex items-center gap-2 p-2 -ml-2 rounded-lg text-ink-700 hover:bg-surface-paper transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
           </button>
-          <span className="text-ink-500">Doctors</span>
+          <span className="text-ink-500">
+            {availabilityOnly ? displayName : "Doctors"}
+          </span>
           <span className="text-ink-500">/</span>
           <span className="font-semibold text-ink-900 truncate">
-            {displayName}
+            {availabilityOnly ? "Manage availability" : displayName}
           </span>
         </div>
-        {!isNew && (
+        {!isNew && !availabilityOnly && (
           <div className="flex items-center gap-4 text-sm shrink-0">
             <button
               onClick={() => toast("Coming soon")}
@@ -871,39 +924,47 @@ export default function AddEditDoctor({
                     : `${weeklyCapacity} slots`,
                 done: weeklyCapacity > 0,
               },
-            ].map((item) => (
-              <button
-                key={item.key}
-                type="button"
-                onClick={() => scrollToSection(item.ref)}
-                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-colors ${
-                  activeSection === item.key
-                    ? "bg-brand-violet-soft text-brand-violet font-semibold"
-                    : "text-ink-700 hover:bg-surface-canvas"
-                }`}
-              >
-                <span className="flex items-center gap-2">
-                  <span
-                    className={`w-1.5 h-1.5 rounded-full ${item.done ? "bg-status-open" : "bg-border"}`}
-                  />
-                  {item.label}
-                </span>
-                <span className="text-xs text-ink-500">{item.value}</span>
-              </button>
-            ))}
+            ]
+              .filter(
+                (item) => !availabilityOnly || item.key === "availability",
+              )
+              .map((item) => (
+                <button
+                  key={item.key}
+                  type="button"
+                  onClick={() => scrollToSection(item.ref)}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-colors ${
+                    activeSection === item.key
+                      ? "bg-brand-violet-soft text-brand-violet font-semibold"
+                      : "text-ink-700 hover:bg-surface-canvas"
+                  }`}
+                >
+                  <span className="flex items-center gap-2">
+                    <span
+                      className={`w-1.5 h-1.5 rounded-full ${item.done ? "bg-status-open" : "bg-border"}`}
+                    />
+                    {item.label}
+                  </span>
+                  <span className="text-xs text-ink-500">{item.value}</span>
+                </button>
+              ))}
           </div>
 
           {!isNew && (
             <div className="px-1 text-xs text-ink-500 space-y-2">
               <p>Changes go live for patients as soon as you save.</p>
-              {canEdit && (
+              {canEdit && !availabilityOnly && (
                 <>
                   <button
                     type="button"
                     disabled={resetPassword.isPending}
                     onClick={() =>
                       resetPassword.mutate(id!, {
-                        onSuccess: (data) => setTempPassword({ password: data.tempPassword, username: data.username }),
+                        onSuccess: (data) =>
+                          setTempPassword({
+                            password: data.tempPassword,
+                            username: data.username,
+                          }),
                       })
                     }
                     className="block text-brand-violet hover:underline font-medium disabled:opacity-50"
@@ -925,294 +986,306 @@ export default function AddEditDoctor({
 
         {/* Main content */}
         <div className="space-y-6 min-w-0">
-          {/* Personal */}
-          <section
-            ref={personalRef}
-            id="personal"
-            className="bg-surface-paper rounded-xl border border-border shadow-sm p-5 md:p-6 scroll-mt-24"
-          >
-            <div className="mb-5">
-              <h2 className="font-display tracking-tight text-lg font-bold text-ink-900">Personal</h2>
-              <p className="text-sm text-ink-500">
-                How patients and staff identify this doctor
-              </p>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <Field
-                label="Full name"
-                required
-                hint="Patients see this name on booking and prescriptions."
+          {!availabilityOnly && (
+            <>
+              {/* Personal */}
+              <section
+                ref={personalRef}
+                id="personal"
+                className="bg-surface-paper rounded-xl border border-border shadow-sm p-5 md:p-6 scroll-mt-24"
               >
-                <input
-                  value={formData.name}
-                  disabled={!canEdit}
-                  onChange={(e) => update("name", e.target.value)}
-                  placeholder="Dr. Jane Doe"
-                  className={inputClass}
-                />
-              </Field>
-              <Field
-                label="Email"
-                required
-                hint="Used for communication, e.g. appointment alerts."
-              >
-                <input
-                  type="email"
-                  value={formData.email}
-                  disabled={!canEdit}
-                  onChange={(e) => {
-                    const email = e.target.value;
-                    update("email", email);
-                    if (formData.usernameSameAsEmail) update("username", email);
-                  }}
-                  placeholder="doctor@example.com"
-                  className={inputClass}
-                />
-              </Field>
-              {!isNew && (
-                <Field label="Username" hint="Used to log in. It can't be changed.">
-                  <input
-                    value={formData.username}
-                    disabled
-                    placeholder="—"
-                    className={inputClass}
-                  />
-                </Field>
-              )}
-              {isNew && (
-                <>
+                <div className="mb-5">
+                  <h2 className="font-display tracking-tight text-lg font-bold text-ink-900">
+                    Personal
+                  </h2>
+                  <p className="text-sm text-ink-500">
+                    How patients and staff identify this doctor
+                  </p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   <Field
-                    label="Username"
+                    label="Full name"
                     required
-                    hint="Used to log in. Must look like an email but doesn't have to be a real one."
+                    hint="Patients see this name on booking and prescriptions."
                   >
                     <input
-                      value={formData.username}
-                      disabled={!canEdit || formData.usernameSameAsEmail}
-                      onChange={(e) => update("username", e.target.value)}
+                      value={formData.name}
+                      disabled={!canEdit}
+                      onChange={(e) => update("name", e.target.value)}
+                      placeholder="Dr. Jane Doe"
+                      className={inputClass}
+                    />
+                  </Field>
+                  <Field
+                    label="Email"
+                    required
+                    hint="Used for communication, e.g. appointment alerts."
+                  >
+                    <input
+                      type="email"
+                      value={formData.email}
+                      disabled={!canEdit}
+                      onChange={(e) => {
+                        const email = e.target.value;
+                        update("email", email);
+                        if (formData.usernameSameAsEmail)
+                          update("username", email);
+                      }}
                       placeholder="doctor@example.com"
                       className={inputClass}
                     />
-                    <label className="mt-1.5 flex items-center gap-2 text-xs text-ink-500">
+                  </Field>
+                  {!isNew && (
+                    <Field
+                      label="Username"
+                      hint="Used to log in. It can't be changed."
+                    >
                       <input
-                        type="checkbox"
-                        checked={formData.usernameSameAsEmail}
+                        value={formData.username}
+                        disabled
+                        placeholder="—"
+                        className={inputClass}
+                      />
+                    </Field>
+                  )}
+                  {isNew && (
+                    <>
+                      <Field
+                        label="Username"
+                        required
+                        hint="Used to log in. Must look like an email but doesn't have to be a real one."
+                      >
+                        <input
+                          value={formData.username}
+                          disabled={!canEdit || formData.usernameSameAsEmail}
+                          onChange={(e) => update("username", e.target.value)}
+                          placeholder="doctor@example.com"
+                          className={inputClass}
+                        />
+                        <label className="mt-1.5 flex items-center gap-2 text-xs text-ink-500">
+                          <input
+                            type="checkbox"
+                            checked={formData.usernameSameAsEmail}
+                            disabled={!canEdit}
+                            onChange={(e) => {
+                              const checked = e.target.checked;
+                              update("usernameSameAsEmail", checked);
+                              if (checked) update("username", formData.email);
+                            }}
+                          />
+                          Username same as email
+                        </label>
+                      </Field>
+                      <Field
+                        label="Temporary password"
+                        required
+                        hint="Share this with the doctor. They'll be asked to change it on first sign-in."
+                      >
+                        <input
+                          type="text"
+                          value={formData.password}
+                          disabled={!canEdit}
+                          onChange={(e) => update("password", e.target.value)}
+                          placeholder="At least 8 characters"
+                          className={inputClass}
+                        />
+                      </Field>
+                    </>
+                  )}
+                  <Field label="Phone" hint="10 digits, no country code.">
+                    <div className="flex gap-2">
+                      <span className="font-mono tabular flex items-center px-3 rounded-lg border border-border bg-surface-canvas text-sm text-ink-700 shrink-0">
+                        +91
+                      </span>
+                      <input
+                        value={formData.phone}
+                        disabled={!canEdit}
+                        onChange={(e) =>
+                          update(
+                            "phone",
+                            e.target.value.replace(/\D/g, "").slice(0, 10),
+                          )
+                        }
+                        placeholder="98765 43210"
+                        className={`${inputClass} font-mono tabular`}
+                      />
+                    </div>
+                  </Field>
+                  <Field label="Gender" optional>
+                    <PillGroup
+                      options={GENDERS}
+                      value={formData.gender}
+                      disabled={!canEdit}
+                      onChange={(v) => update("gender", v)}
+                      onClear={() => update("gender", "")}
+                    />
+                  </Field>
+                </div>
+              </section>
+
+              {/* Professional */}
+              <section
+                ref={professionalRef}
+                id="professional"
+                className="bg-surface-paper rounded-xl border border-border shadow-sm p-5 md:p-6 scroll-mt-24"
+              >
+                <div className="mb-5">
+                  <h2 className="font-display tracking-tight text-lg font-bold text-ink-900">
+                    Professional
+                  </h2>
+                  <p className="text-sm text-ink-500">
+                    What this doctor practises and where
+                  </p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <Field
+                    label="Specialization"
+                    required
+                    hint="Patients filter by this when booking."
+                  >
+                    {addingSpecialization ? (
+                      <div className="flex gap-2">
+                        <input
+                          autoFocus
+                          value={newSpecialization}
+                          onChange={(e) => setNewSpecialization(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              addSpecialization();
+                            } else if (e.key === "Escape") {
+                              setAddingSpecialization(false);
+                              setNewSpecialization("");
+                            }
+                          }}
+                          maxLength={100}
+                          placeholder="e.g. Nephrologist"
+                          className={inputClass}
+                        />
+                        <button
+                          type="button"
+                          onClick={addSpecialization}
+                          disabled={updateSpecializations.isPending}
+                          className="shrink-0 inline-flex items-center gap-1 rounded-lg bg-brand-violet px-3 text-sm font-semibold text-white disabled:opacity-60"
+                        >
+                          {updateSpecializations.isPending ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            "Add"
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAddingSpecialization(false);
+                            setNewSpecialization("");
+                          }}
+                          className="shrink-0 rounded-lg border border-border px-3 text-sm text-ink-700"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <select
+                        value={formData.specialization}
                         disabled={!canEdit}
                         onChange={(e) => {
-                          const checked = e.target.checked;
-                          update("usernameSameAsEmail", checked);
-                          if (checked) update("username", formData.email);
+                          if (e.target.value === ADD_SPECIALIZATION_VALUE) {
+                            setAddingSpecialization(true);
+                            return;
+                          }
+                          update("specialization", e.target.value);
                         }}
-                      />
-                      Username same as email
-                    </label>
+                        className={inputClass}
+                      >
+                        <option value="">Select a specialization</option>
+                        {(formData.specialization &&
+                        !specializationOptions.includes(formData.specialization)
+                          ? [formData.specialization, ...specializationOptions]
+                          : specializationOptions
+                        ).map((s) => (
+                          <option key={s} value={s}>
+                            {s}
+                          </option>
+                        ))}
+                        <option value={ADD_SPECIALIZATION_VALUE}>
+                          + Add new specialization…
+                        </option>
+                      </select>
+                    )}
                   </Field>
                   <Field
-                    label="Temporary password"
+                    label="Years of experience"
                     required
-                    hint="Share this with the doctor. They'll be asked to change it on first sign-in."
+                    hint="Shown on the doctor's profile card."
                   >
                     <input
-                      type="text"
-                      value={formData.password}
+                      type="number"
+                      min={0}
+                      value={formData.experience}
                       disabled={!canEdit}
-                      onChange={(e) => update("password", e.target.value)}
-                      placeholder="At least 8 characters"
+                      onChange={(e) => update("experience", e.target.value)}
+                      placeholder="0"
                       className={inputClass}
                     />
                   </Field>
-                </>
-              )}
-              <Field label="Phone" hint="10 digits, no country code.">
-                <div className="flex gap-2">
-                  <span className="font-mono tabular flex items-center px-3 rounded-lg border border-border bg-surface-canvas text-sm text-ink-700 shrink-0">
-                    +91
-                  </span>
-                  <input
-                    value={formData.phone}
-                    disabled={!canEdit}
-                    onChange={(e) =>
-                      update(
-                        "phone",
-                        e.target.value.replace(/\D/g, "").slice(0, 10),
-                      )
-                    }
-                    placeholder="98765 43210"
-                    className={`${inputClass} font-mono tabular`}
-                  />
-                </div>
-              </Field>
-              <Field label="Gender" optional>
-                <PillGroup
-                  options={GENDERS}
-                  value={formData.gender}
-                  disabled={!canEdit}
-                  onChange={(v) => update("gender", v)}
-                  onClear={() => update("gender", "")}
-                />
-              </Field>
-            </div>
-          </section>
-
-          {/* Professional */}
-          <section
-            ref={professionalRef}
-            id="professional"
-            className="bg-surface-paper rounded-xl border border-border shadow-sm p-5 md:p-6 scroll-mt-24"
-          >
-            <div className="mb-5">
-              <h2 className="font-display tracking-tight text-lg font-bold text-ink-900">Professional</h2>
-              <p className="text-sm text-ink-500">
-                What this doctor practises and where
-              </p>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <Field
-                label="Specialization"
-                required
-                hint="Patients filter by this when booking."
-              >
-                {addingSpecialization ? (
-                  <div className="flex gap-2">
+                  <Field
+                    label="Qualification"
+                    required
+                    hint="Degrees and certifications, comma separated."
+                  >
                     <input
-                      autoFocus
-                      value={newSpecialization}
-                      onChange={(e) => setNewSpecialization(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          addSpecialization();
-                        } else if (e.key === "Escape") {
-                          setAddingSpecialization(false);
-                          setNewSpecialization("");
-                        }
-                      }}
-                      maxLength={100}
-                      placeholder="e.g. Nephrologist"
+                      value={formData.qualification}
+                      disabled={!canEdit}
+                      onChange={(e) => update("qualification", e.target.value)}
+                      placeholder="MBBS, MD"
                       className={inputClass}
                     />
-                    <button
-                      type="button"
-                      onClick={addSpecialization}
-                      disabled={updateSpecializations.isPending}
-                      className="shrink-0 inline-flex items-center gap-1 rounded-lg bg-brand-violet px-3 text-sm font-semibold text-white disabled:opacity-60"
-                    >
-                      {updateSpecializations.isPending ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        "Add"
-                      )}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setAddingSpecialization(false);
-                        setNewSpecialization("");
-                      }}
-                      className="shrink-0 rounded-lg border border-border px-3 text-sm text-ink-700"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                ) : (
-                  <select
-                    value={formData.specialization}
-                    disabled={!canEdit}
-                    onChange={(e) => {
-                      if (e.target.value === ADD_SPECIALIZATION_VALUE) {
-                        setAddingSpecialization(true);
-                        return;
-                      }
-                      update("specialization", e.target.value);
-                    }}
-                    className={inputClass}
+                  </Field>
+                  <Field
+                    label="MCI / RCI number"
+                    required
+                    hint="Medical council registration number, printed on prescriptions."
                   >
-                    <option value="">Select a specialization</option>
-                    {(formData.specialization &&
-                    !specializationOptions.includes(formData.specialization)
-                      ? [formData.specialization, ...specializationOptions]
-                      : specializationOptions
-                    ).map((s) => (
-                      <option key={s} value={s}>
-                        {s}
-                      </option>
-                    ))}
-                    <option value={ADD_SPECIALIZATION_VALUE}>
-                      + Add new specialization…
-                    </option>
-                  </select>
-                )}
-              </Field>
-              <Field
-                label="Years of experience"
-                required
-                hint="Shown on the doctor's profile card."
-              >
-                <input
-                  type="number"
-                  min={0}
-                  value={formData.experience}
-                  disabled={!canEdit}
-                  onChange={(e) => update("experience", e.target.value)}
-                  placeholder="0"
-                  className={inputClass}
-                />
-              </Field>
-              <Field
-                label="Qualification"
-                required
-                hint="Degrees and certifications, comma separated."
-              >
-                <input
-                  value={formData.qualification}
-                  disabled={!canEdit}
-                  onChange={(e) => update("qualification", e.target.value)}
-                  placeholder="MBBS, MD"
-                  className={inputClass}
-                />
-              </Field>
-              <Field
-                label="MCI / RCI number"
-                required
-                hint="Medical council registration number, printed on prescriptions."
-              >
-                <input
-                  value={formData.medicalRegistrationNumber}
-                  disabled={!canEdit}
-                  onChange={(e) =>
-                    update("medicalRegistrationNumber", e.target.value)
-                  }
-                  placeholder="e.g. TN-123456"
-                  className={`${inputClass} font-mono tabular`}
-                />
-              </Field>
-              <Field
-                label="Consultation fee"
-                required
-                hint="Per appointment, before taxes."
-              >
-                <div className="flex gap-2">
-                  <span className="font-mono tabular flex items-center px-3 rounded-lg border border-border bg-surface-canvas text-sm text-ink-700 shrink-0">
-                    ₹
-                  </span>
-                  <input
-                    type="number"
-                    min={0}
-                    value={formData.consultationFee ?? ""}
-                    disabled={!canEdit}
-                    onChange={(e) =>
-                      update(
-                        "consultationFee",
-                        e.target.value ? Number(e.target.value) : undefined,
-                      )
-                    }
-                    placeholder="500"
-                    className={`${inputClass} font-mono tabular`}
-                  />
+                    <input
+                      value={formData.medicalRegistrationNumber}
+                      disabled={!canEdit}
+                      onChange={(e) =>
+                        update("medicalRegistrationNumber", e.target.value)
+                      }
+                      placeholder="e.g. TN-123456"
+                      className={`${inputClass} font-mono tabular`}
+                    />
+                  </Field>
+                  <Field
+                    label="Consultation fee"
+                    required
+                    hint="Per appointment, before taxes."
+                  >
+                    <div className="flex gap-2">
+                      <span className="font-mono tabular flex items-center px-3 rounded-lg border border-border bg-surface-canvas text-sm text-ink-700 shrink-0">
+                        ₹
+                      </span>
+                      <input
+                        type="number"
+                        min={0}
+                        value={formData.consultationFee ?? ""}
+                        disabled={!canEdit}
+                        onChange={(e) =>
+                          update(
+                            "consultationFee",
+                            e.target.value ? Number(e.target.value) : undefined,
+                          )
+                        }
+                        placeholder="500"
+                        className={`${inputClass} font-mono tabular`}
+                      />
+                    </div>
+                  </Field>
                 </div>
-              </Field>
-            </div>
-          </section>
+              </section>
+            </>
+          )}
 
           {/* Availability */}
           <section
@@ -1221,7 +1294,9 @@ export default function AddEditDoctor({
             className="bg-surface-paper rounded-xl border border-border shadow-sm p-5 md:p-6 scroll-mt-24"
           >
             <div className="mb-5">
-              <h2 className="font-display tracking-tight text-lg font-bold text-ink-900">Availability</h2>
+              <h2 className="font-display tracking-tight text-lg font-bold text-ink-900">
+                Availability
+              </h2>
               <p className="text-sm text-ink-500">
                 The hours patients can book, and how long each visit runs
               </p>
@@ -1406,10 +1481,7 @@ export default function AddEditDoctor({
                         value={formData.noShowReleaseMinutes}
                         disabled={!canEdit}
                         onChange={(e) =>
-                          update(
-                            "noShowReleaseMinutes",
-                            Number(e.target.value),
-                          )
+                          update("noShowReleaseMinutes", Number(e.target.value))
                         }
                         className={`${inputClass} !w-auto`}
                       >
@@ -1702,7 +1774,8 @@ export default function AddEditDoctor({
                       : weeklyCapacity}
                   </div>
                   <div className="text-xs text-ink-500">
-                    Bookable {heldWeeklyCapacity > 0 ? "online" : "appointments"}
+                    Bookable{" "}
+                    {heldWeeklyCapacity > 0 ? "online" : "appointments"}
                   </div>
                 </div>
                 {heldWeeklyCapacity > 0 && (
