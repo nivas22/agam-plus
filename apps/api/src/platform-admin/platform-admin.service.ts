@@ -1,11 +1,12 @@
 import { Injectable } from '@nestjs/common';
-import { DB_COLLECTIONS, MEMBERSHIP_STATUS, ROLE, SUBSCRIPTION_FEATURE } from '../constants';
+import { DB_COLLECTIONS, HOSPITAL_MODULE, MEMBERSHIP_STATUS, ROLE } from '../constants';
 import { UserRepository } from '../repositories/user.repository';
 import { HospitalRepository } from '../repositories/hospital.repository';
 import { MembershipRepository } from '../repositories/membership.repository';
 import { DashboardRepository } from '../repositories/dashboard.repository';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { DemoRequestRepository } from '../repositories/demo-request.repository';
+import { PlatformFeatureCatalogRepository } from '../repositories/platform-feature-catalog.repository';
 import { ApiError } from '../common/errors/api-error';
 
 @Injectable()
@@ -17,6 +18,7 @@ export class PlatformAdminService {
     private readonly dashboardRepository: DashboardRepository,
     private readonly subscriptionsService: SubscriptionsService,
     private readonly demoRequestRepository: DemoRequestRepository,
+    private readonly featureCatalogRepository: PlatformFeatureCatalogRepository,
   ) {}
 
   listDemoRequests(status?: string) {
@@ -57,7 +59,7 @@ export class PlatformAdminService {
 
   setSubscriptionFeature(
     hospitalId: string,
-    feature: SUBSCRIPTION_FEATURE,
+    feature: HOSPITAL_MODULE,
     enabled: boolean,
     platformAdmin: { userId: string; name: string },
   ) {
@@ -66,6 +68,17 @@ export class PlatformAdminService {
       name: platformAdmin.name,
       role: 'platform_admin',
     });
+  }
+
+  getFeatureCatalog() {
+    return this.featureCatalogRepository.getCatalog();
+  }
+
+  updateFeatureCatalog(data: Record<string, any>, userId: string) {
+    return this.featureCatalogRepository.updateCatalog(
+      { moduleStatus: data.moduleStatus, upcoming: data.upcoming },
+      userId,
+    );
   }
 
   getPlanConfig() {

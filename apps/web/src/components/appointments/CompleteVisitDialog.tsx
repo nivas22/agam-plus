@@ -3,6 +3,7 @@
 
 import {
   AlertCircle,
+  CheckCircle2,
   Clock,
   Loader2,
   Package as PackageIcon,
@@ -17,9 +18,11 @@ import { usePackageLedger } from "@/hooks/useNewPackageApi";
 import { useCompleteVisit } from "@/hooks/useNewPaymentApi";
 import { useChargeCatalogItems } from "@/hooks/useChargeCatalogApi";
 import { useAuth } from "@/hooks/useAuth";
+import { useModuleEnabled } from "@/hooks/useHospitalModulesApi";
 import type { AppointmentWithDetails } from "@/types/appointment";
 import type { PaymentItem, PaymentMethod } from "@/types/payment";
 import {
+  APPOINTMENT_STATUS,
   APPOINTMENT_TYPE,
   PAYMENT_DUE_REASONS,
   PAYMENT_METHOD,
@@ -123,7 +126,110 @@ function PlaceholderQr({ seed }: { seed: number }) {
   );
 }
 
-export default function CompleteVisitDialog({
+// With Payments switched off (Settings > Features) there's nothing to
+// collect: new visits close straight from finish-session, and anything
+// already parked in awaiting-payment is closed here with just its notes.
+export default function CompleteVisitDialog(props: CompleteVisitDialogProps) {
+  const { isEnabled } = useModuleEnabled(props.hospitalId);
+  return isEnabled("payments") ? (
+    <CollectPaymentDialog {...props} />
+  ) : (
+    <CompleteWithoutPaymentDialog {...props} />
+  );
+}
+
+function CompleteWithoutPaymentDialog({
+  appointment,
+  doctorName,
+  patientCode,
+  updateAppointmentStatus,
+  onClose,
+  onSuccess,
+}: CompleteVisitDialogProps) {
+  const [sessionNotes, setSessionNotes] = useState(
+    appointment.sessionNotes ?? "",
+  );
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const complete = async () => {
+    setSaving(true);
+    setError(null);
+    try {
+      await updateAppointmentStatus(
+        appointment.id,
+        APPOINTMENT_STATUS.COMPLETED,
+        sessionNotes,
+      );
+      onSuccess("Visit completed");
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to complete visit");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <DialogShell
+      icon={<CheckCircle2 className="w-4.5 h-4.5" />}
+      iconTone="bg-status-open-soft text-status-open"
+      title={`Complete visit — ${appointment.patientName}`}
+      subtitle={doctorName ? `Dr. ${doctorName}` : undefined}
+      onClose={onClose}
+      footer={
+        <>
+          <button type="button" className={secondaryBtn} onClick={onClose}>
+            Cancel
+          </button>
+          <button
+            type="button"
+            className={`${primaryBtn} bg-brand-violet hover:bg-brand-violet-hover disabled:opacity-60`}
+            disabled={saving}
+            onClick={complete}
+          >
+            {saving ? (
+              <Loader2 className="w-4 h-4 animate-spin inline mr-1.5" />
+            ) : null}
+            Complete visit
+          </button>
+        </>
+      }
+    >
+      <ContextStrip appointment={appointment} patientCode={patientCode} />
+
+      {error && (
+        <div className="mx-5 mt-3 flex items-start gap-2 px-3.5 py-2.5 rounded-lg bg-status-danger-soft border border-status-danger/20 text-sm text-status-danger">
+          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+          {error}
+        </div>
+      )}
+
+      <div className="p-5 pt-4">
+        <label
+          htmlFor="complete-visit-notes"
+          className="text-xs font-semibold text-ink-700 mb-1 block"
+        >
+          Session notes
+        </label>
+        <p className="text-[11.5px] text-ink-500 mb-2">
+          Goes to the patient record. Payments are turned off for this
+          hospital, so no bill is recorded.
+        </p>
+        <textarea
+          id="complete-visit-notes"
+          value={sessionNotes}
+          onChange={(e) => setSessionNotes(e.target.value)}
+          placeholder="Details about the session, treatment provided, observations, etc."
+          rows={7}
+          className="w-full p-3 border border-border rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-brand-violet/20 focus:border-brand-violet"
+        />
+      </div>
+    </DialogShell>
+  );
+}
+
+function CollectPaymentDialog({
   appointment,
   hospitalId,
   consultationFee,

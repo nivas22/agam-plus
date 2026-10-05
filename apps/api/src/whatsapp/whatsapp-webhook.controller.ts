@@ -16,6 +16,10 @@ import { Public } from '../auth/decorators/public.decorator';
 import { WhatsappConfigRepository } from '../repositories/whatsapp-config.repository';
 import { WhatsappProcessedMessageRepository } from '../repositories/whatsapp-processed-message.repository';
 import { SubscriptionRepository } from '../repositories/subscription.repository';
+import { HospitalRepository } from '../repositories/hospital.repository';
+import { PlatformFeatureCatalogRepository } from '../repositories/platform-feature-catalog.repository';
+import { HOSPITAL_MODULE } from '../constants';
+import { resolveHospitalModules } from '../hospitals/hospital-modules.util';
 import { WhatsappConversationService } from './whatsapp-conversation.service';
 import type { InboundMessage } from './whatsapp-conversation.service';
 
@@ -30,6 +34,8 @@ export class WhatsappWebhookController {
     private readonly whatsappConfigRepository: WhatsappConfigRepository,
     private readonly processedMessageRepository: WhatsappProcessedMessageRepository,
     private readonly subscriptionRepository: SubscriptionRepository,
+    private readonly hospitalRepository: HospitalRepository,
+    private readonly featureCatalogRepository: PlatformFeatureCatalogRepository,
     private readonly conversationService: WhatsappConversationService,
   ) {}
 
@@ -110,12 +116,22 @@ export class WhatsappWebhookController {
           continue;
         }
 
-        // A platform admin can disable the WhatsApp feature independent of
-        // the hospital's own connect/disconnect toggle.
-        const subscription = await this.subscriptionRepository.getByHospitalId(config.hospitalId);
-        if (subscription?.features?.whatsapp === false) {
+        // The WhatsApp module can be off independent of the hospital's own
+        // connect/disconnect toggle — withheld by the plan (platform admin)
+        // or switched off under Settings > Features (hospital admin).
+        const [subscription, hospital, catalog] = await Promise.all([
+          this.subscriptionRepository.getByHospitalId(config.hospitalId),
+          this.hospitalRepository.getHospitalById(config.hospitalId),
+          this.featureCatalogRepository.getCatalog(),
+        ]);
+        const whatsappModule = resolveHospitalModules(
+          (hospital as any)?.modules,
+          subscription?.features,
+          catalog.moduleStatus,
+        )[HOSPITAL_MODULE.WHATSAPP];
+        if (!whatsappModule.enabled) {
           this.logger.warn(
-            `Ignoring message for hospital ${config.hospitalId} — WhatsApp feature disabled on its plan`,
+            `Ignoring message for hospital ${config.hospitalId} — WhatsApp module unavailable (${whatsappModule.disabledReason})`,
           );
           continue;
         }

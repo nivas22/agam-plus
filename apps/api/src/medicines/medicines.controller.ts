@@ -1,6 +1,8 @@
 import { Body, Controller, Get, Param, Patch, Post, Put, Query, UseGuards, UsePipes } from '@nestjs/common';
 import { MedicinesService } from './medicines.service';
 import { HospitalContextGuard } from '../auth/guards/hospital-context.guard';
+import { RequiresModule } from '../auth/decorators/requires-module.decorator';
+import { HOSPITAL_MODULE } from '../constants';
 import { PermissionGuard } from '../permissions/guards/permission.guard';
 import { RequirePermission } from '../permissions/decorators/require-permission.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -18,6 +20,7 @@ import {
 @Controller('hospitals/:id/medicines')
 @UseGuards(HospitalContextGuard, PermissionGuard)
 @Roles('admin', 'doctor', 'front_desk', 'nurse', 'accountant')
+@RequiresModule(HOSPITAL_MODULE.MEDICINES)
 export class MedicinesController {
   constructor(private readonly medicinesService: MedicinesService) {}
 

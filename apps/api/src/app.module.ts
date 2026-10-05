@@ -33,6 +33,7 @@ import { DoctorPresenceModule } from './doctor-presence/doctor-presence.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { InternalCronModule } from './internal/internal-cron.module';
 import { DemoRequestsModule } from './demo-requests/demo-requests.module';
+import { AiNotesModule } from './ai-notes/ai-notes.module';
 
 @Module({
   imports: [
@@ -68,6 +69,7 @@ import { DemoRequestsModule } from './demo-requests/demo-requests.module';
     PlatformAdminModule,
     InternalCronModule,
     DemoRequestsModule,
+    AiNotesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

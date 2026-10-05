@@ -12,6 +12,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useHospitalPackageSettings } from "@/hooks/useHospitalPackageSettingsApi";
 import {
   usePreviewPackageSchedule,
   useSellPackage,
@@ -25,8 +26,7 @@ import type {
 import type { Patient } from "@/types/patientNew";
 import {
   computePackagePricePerVisit,
-  PACKAGE_VALIDITY_MONTHS,
-  PACKAGE_VISIT_TIERS,
+  DEFAULT_PACKAGE_SETTINGS,
 } from "../../constants";
 import {
   DialogShell,
@@ -113,9 +113,20 @@ export default function SellPackageDialog({
   const [doctorId, setDoctorId] = useState(
     initialDoctorId || bookableDoctors[0]?.id || "",
   );
+  const { data: packageSettingsData } = useHospitalPackageSettings(hospitalId);
+  const packageSettings =
+    packageSettingsData?.settings ?? DEFAULT_PACKAGE_SETTINGS;
+  const visitTiers = packageSettings.visitTiers;
   const [packageCount, setPackageCount] = useState<number>(
-    PACKAGE_VISIT_TIERS[1] ?? 10,
+    visitTiers[1] ?? visitTiers[0] ?? 10,
   );
+  // Settings load after mount — snap to a tier the hospital actually offers.
+  useEffect(() => {
+    if (!visitTiers.includes(packageCount)) {
+      setPackageCount(visitTiers[1] ?? visitTiers[0]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visitTiers]);
   const today = useMemo(() => toISODate(new Date()), []);
   const [startDate, setStartDate] = useState(today);
   const [preferredTime, setPreferredTime] = useState("");
@@ -135,9 +146,12 @@ export default function SellPackageDialog({
   const [error, setError] = useState<string | null>(null);
 
   const selectedDoctor = bookableDoctors.find((d) => d.id === doctorId) || null;
+  const consultationFee = selectedDoctor?.consultationFee || 0;
   const pricePerVisit = computePackagePricePerVisit(
-    selectedDoctor?.consultationFee || 0,
+    consultationFee,
+    packageSettings,
   );
+  const hasDiscount = pricePerVisit < consultationFee;
   const totalPrice = pricePerVisit * packageCount;
   const bookNowCount =
     bookNowMode === "first4"
@@ -276,9 +290,9 @@ export default function SellPackageDialog({
   const lastVisit = placed.length ? placed[placed.length - 1] : null;
   const validUntilDate = useMemo(() => {
     const d = new Date(`${startDate}T00:00:00`);
-    d.setMonth(d.getMonth() + PACKAGE_VALIDITY_MONTHS);
+    d.setMonth(d.getMonth() + packageSettings.validityMonths);
     return toISODate(d);
-  }, [startDate]);
+  }, [startDate, packageSettings.validityMonths]);
   const lastVisitOutsideValidity = !!(
     lastVisit?.date && lastVisit.date > validUntilDate
   );
@@ -419,10 +433,12 @@ export default function SellPackageDialog({
           <div className="mt-4">
             <h4 className="text-sm font-semibold text-ink-900">Package</h4>
             <p className="text-[11.5px] text-ink-500 mb-2">
-              Priced from this doctor's consultation fee.
+              {hasDiscount
+                ? `Priced from this doctor's consultation fee, less the ${packageSettings.discountPercent}% package discount.`
+                : "Priced at this doctor's full consultation fee."}
             </p>
             <div className="grid grid-cols-3 gap-1.5">
-              {PACKAGE_VISIT_TIERS.map((n) => (
+              {visitTiers.map((n) => (
                 <button
                   key={n}
                   type="button"
@@ -447,6 +463,11 @@ export default function SellPackageDialog({
                   <div className="font-mono text-[10px] text-ink-500">
                     {money(pricePerVisit)} each
                   </div>
+                  {hasDiscount && (
+                    <div className="font-mono text-[10px] text-status-open">
+                      saves {money((consultationFee - pricePerVisit) * n)}
+                    </div>
+                  )}
                 </button>
               ))}
             </div>

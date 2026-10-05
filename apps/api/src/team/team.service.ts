@@ -318,7 +318,7 @@ export class TeamService {
 
     const tempPassword = generateTempPassword();
     const passwordHash = await bcrypt.hash(tempPassword, 10);
-    await this.userRepository.updateUser(memberId, { passwordHash, mustChangePassword: true });
+    const username = await this.userRepository.adminResetPassword(memberId, passwordHash);
 
     await this.auditService.log({
       hospitalId,
@@ -328,7 +328,7 @@ export class TeamService {
       summary: `Reset ${(profile as any).name}'s password — they'll be asked to change it at next sign-in`,
     });
 
-    return { success: true, tempPassword };
+    return { success: true, tempPassword, username };
   }
 
   async setOwnPin(hospitalId: string, actor: HospitalUserProfile, pin: string) {

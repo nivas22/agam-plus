@@ -19,6 +19,8 @@ import {
   useHospitalAppointmentsApi,
 } from "@/hooks/useNewAppointmentsApi";
 import { useHospitalDoctors } from "@/hooks/useNewDoctorApi";
+import { useModuleEnabled } from "@/hooks/useHospitalModulesApi";
+import { findLeaveOn, useOnLeave } from "@/hooks/useLeaveRequestsApi";
 import { useHospitalPatients } from "@/hooks/useNewPatientApi";
 import { paletteFor } from "@/lib/avatarPalette";
 import type { AppointmentWithDetails } from "@/types/appointment";
@@ -409,6 +411,18 @@ export default function AppointmentsPage({
   const { data: doctorsData = { doctors: [] }, isLoading: doctorsLoading } =
     useHospitalDoctors(hospitalId, undefined, true);
 
+  // Approved leave across the visible range (and today, for the doctor
+  // picker), so bookings left under an absent doctor stand out.
+  const { isEnabled: isModuleEnabled } = useModuleEnabled(hospitalId);
+  const leaveRangeStart = rangeDates.start < today ? rangeDates.start : today;
+  const leaveRangeEnd = rangeDates.end > today ? rangeDates.end : today;
+  const { data: onLeave } = useOnLeave(
+    leaveRangeStart,
+    leaveRangeEnd,
+    hospitalId,
+    isModuleEnabled("leaveRequests"),
+  );
+
   useEffect(() => {
     const futureMap: { [key: string]: AppointmentWithDetails[] } = {};
     const nowDate = new Date();
@@ -668,6 +682,10 @@ export default function AppointmentsPage({
       (d) => d.id === appt.doctorProfileId,
     );
     const duration = doctor?.appointmentDuration || 30;
+    // Only flag bookings that still need someone to act on them.
+    const doctorOnLeave =
+      isActiveStatus(appt.status) &&
+      !!findLeaveOn(onLeave, appt.doctorProfileId, appt.date);
 
     return (
       <div
@@ -707,6 +725,14 @@ export default function AppointmentsPage({
               className={`text-sm truncate ${dim ? "text-ink-500" : "text-ink-900"}`}
             >
               Dr. {appt.doctorName}
+              {doctorOnLeave && (
+                <span
+                  title="This doctor is on approved leave this day — change the doctor or reschedule"
+                  className="ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wide bg-status-danger-soft text-status-danger align-middle"
+                >
+                  On leave
+                </span>
+              )}
             </div>
             <div className="text-xs text-ink-500 flex items-center gap-1.5 mt-0.5">
               <SpecDot specialization={appt.doctorSpecialization} />
@@ -862,8 +888,22 @@ export default function AppointmentsPage({
           100,
       ),
     );
+    const awayToday = (onLeave || []).filter(
+      (e) =>
+        e.role === "doctor" &&
+        e.startDate <= date &&
+        e.endDate >= date &&
+        (doctorFilter === "all" || e.userId === doctorFilter),
+    );
+    const strandedCount = live.filter(
+      (a) =>
+        isActiveStatus(a.status) &&
+        awayToday.some((e) => e.userId === a.doctorProfileId),
+    ).length;
     const gaps =
-      selectedDoctor && view !== "past"
+      selectedDoctor &&
+      view !== "past" &&
+      !findLeaveOn(onLeave, selectedDoctor.id, date)
         ? computeGaps(
             selectedDoctor,
             date,
@@ -907,6 +947,20 @@ export default function AppointmentsPage({
             />
           </div>
         </div>
+        {awayToday.length > 0 && (
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 px-5 py-2 border-b border-status-danger/20 bg-status-danger-soft text-xs text-status-danger">
+            <span className="font-bold uppercase tracking-wide">On leave</span>
+            <span>
+              {awayToday.map((e) => `Dr. ${e.name ?? "Unknown"}`).join(", ")}
+            </span>
+            {strandedCount > 0 && (
+              <span className="font-semibold">
+                · {strandedCount} booking{strandedCount === 1 ? "" : "s"} still
+                need{strandedCount === 1 ? "s" : ""} a new doctor or time
+              </span>
+            )}
+          </div>
+        )}
         <div>
           {lines.map((line, i) => {
             if (line.type === "now")
@@ -1009,7 +1063,7 @@ export default function AppointmentsPage({
                       key={a.id}
                       type="button"
                       onClick={() => openDetailsModal(a)}
-                      title={`${a.time} · ${a.patientName} · Dr. ${a.doctorName} · ${cfg.label}`}
+                      title={`${a.time} · ${a.patientName} · Dr. ${a.doctorName}${findLeaveOn(onLeave, a.doctorProfileId, a.date) ? " (on leave)" : ""} · ${cfg.label}`}
                       className={`absolute left-0.5 right-0.5 rounded-md px-1.5 py-1 text-left overflow-hidden border-l-2 ${cfg.badge}`}
                       style={{ top, height, borderLeftColor: "currentColor" }}
                     >
@@ -1131,6 +1185,7 @@ export default function AppointmentsPage({
           {doctorsData.doctors.map((d) => (
             <option key={d.id} value={d.id}>
               Dr. {d.name} · {d.specialization}
+              {findLeaveOn(onLeave, d.id, today) ? " · on leave today" : ""}
             </option>
           ))}
         </select>

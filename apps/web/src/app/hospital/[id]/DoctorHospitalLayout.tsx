@@ -4,6 +4,7 @@ import {
   ArrowLeft,
   Bell,
   Calendar,
+  CalendarOff,
   Check,
   ChevronDown,
   ChevronLeft,
@@ -21,9 +22,12 @@ import {
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { FaHospital, FaUserInjured, FaUserMd } from "react-icons/fa";
+import ModuleRouteGate from "@/components/common/ModuleRouteGate";
 import GlobalSearch from "@/components/GlobalSearch";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { useAuth } from "@/hooks/useAuth";
+import { useModuleEnabled } from "@/hooks/useHospitalModulesApi";
+import type { HospitalModuleKey } from "@/lib/hospitalModules";
 
 interface DoctorHospitalLayoutProps {
   children: React.ReactNode;
@@ -72,43 +76,73 @@ export default function DoctorHospitalLayout({
   };
   const userInitials = getInitials(displayName);
 
-  // Doctor-specific navigation items
-  const navItems = [
+  const { isEnabled: isModuleEnabled } = useModuleEnabled(actualHospitalId);
+
+  // Doctor-specific navigation items. Items tagged with a `module` disappear
+  // while that module is off (Settings > Features).
+  const allNavItems: {
+    to: string;
+    label: string;
+    icon: React.ReactNode;
+    group: "care" | "operations";
+    module?: HospitalModuleKey;
+  }[] = [
     {
       to: "/today",
       label: "Today",
       icon: <Clock size={18} />,
+      group: "care",
+      module: "queue",
     },
     {
       to: "/dashboard",
       label: "Dashboard",
       icon: <LayoutDashboard size={18} />,
+      group: "care",
     },
     {
       to: "/appointments",
       label: "Appointments",
       icon: <Calendar size={18} />,
+      group: "care",
+      module: "appointments",
     },
     {
       to: "/patients",
       label: "Patients",
       icon: <FaUserInjured size={18} />,
+      group: "care",
     },
     {
       to: "/reports",
       label: "Reports",
       icon: <TrendingUp size={18} />,
+      group: "operations",
+      module: "reports",
+    },
+    {
+      to: "/leave-requests",
+      label: "My leave",
+      icon: <CalendarOff size={18} />,
+      group: "operations",
+      module: "leaveRequests",
     },
     {
       to: "/settings",
       label: "Settings",
       icon: <Settings size={18} />,
+      group: "operations",
     },
   ];
+  const navItems = allNavItems.filter(
+    (item) => !item.module || isModuleEnabled(item.module),
+  );
 
   // Desktop sidebar groups
-  const careItems = navItems.slice(0, 4);
-  const operationsItems = navItems.slice(4);
+  const careItems = navItems.filter((item) => item.group === "care");
+  const operationsItems = navItems.filter(
+    (item) => item.group === "operations",
+  );
 
   const toggleMenu = () => setIsOpen(!isOpen);
 
@@ -858,7 +892,11 @@ export default function DoctorHospitalLayout({
                 </div>
               }
             >
-              <div key={pathname}>{children}</div>
+              <div key={pathname}>
+                <ModuleRouteGate hospitalId={actualHospitalId}>
+                  {children}
+                </ModuleRouteGate>
+              </div>
             </Suspense>
           </div>
         </main>

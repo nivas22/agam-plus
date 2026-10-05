@@ -13,6 +13,9 @@ import {
   PRESCRIPTION_STATUS_VALUES,
   HOW_OFTEN_VALUES,
   FOLLOW_UP_REVIEW_VALUES,
+  FEATURE_RELEASE_STATUS_VALUES,
+  HOSPITAL_MODULE_GROUP_VALUES,
+  HOSPITAL_MODULE_VALUES,
 } from '../../constants';
 
 /* -------------------------------------------------------------------------- */
@@ -149,6 +152,16 @@ export const paymentItemSchema = z.object({
   isPackageCovered: z.boolean().optional(),
 });
 
+// Doctor's rough notes in, AI-formatted draft out — see AiNotesService.
+export const generateSessionNotesSchema = z.object({
+  appointmentId: z.string().min(1, 'Appointment ID is required'),
+  draft: z
+    .string()
+    .trim()
+    .min(3, 'Type a few rough notes first — the AI formats what you write')
+    .max(5000, 'Notes are too long to format in one go'),
+});
+
 // Finishes the clinical part of a visit (in-consultation -> awaiting-payment)
 // without billing — see AppointmentsService.finishSession. Billing/payment
 // collection is a separate, later step (PaymentsService.completeVisit).
@@ -243,6 +256,19 @@ export const sellPackageSchema = z.object({
   visits: z.array(sellPackageVisitSchema).default([]),
 });
 
+export const updatePackageSettingsSchema = z.object({
+  discountEnabled: z.boolean(),
+  discountPercent: z
+    .number()
+    .min(0, 'Discount cannot be negative')
+    .max(90, 'Discount cannot exceed 90%'),
+  visitTiers: z
+    .array(z.number().int().min(1, 'Visits must be at least 1').max(60, 'At most 60 visits per package'))
+    .min(1, 'Offer at least one package size')
+    .max(6, 'At most 6 package sizes'),
+  validityMonths: z.number().int().min(1).max(24),
+});
+
 export const extendPackageSchema = z.object({
   months: z.number().int().positive().max(24),
 });
@@ -289,10 +315,11 @@ export const createDoctorSchema = z.object({
   password: passwordSchema,
   phone: z.string().min(1, 'Phone is required'),
   specialization: z.string().optional(),
-  qualification: z.string().optional(),
-  experience: z.string().optional(),
+  qualification: z.string().trim().min(1, 'Qualification is required'),
+  experience: z.string().trim().min(1, 'Experience is required'),
+  medicalRegistrationNumber: z.string().trim().min(1, 'MCI / RCI number is required'),
   bio: z.string().optional(),
-  consultationFee: z.number().optional(),
+  consultationFee: z.number({ error: 'Consultation fee is required' }).min(0),
   gender: z.string().optional(),
   maritalStatus: z.string().optional(),
   address: z.string().optional(),
@@ -375,6 +402,50 @@ export const updateHospitalSpecializationsSchema = z.object({
     .max(100, 'Too many specializations'),
 });
 
+// Partial: only the switches being changed need to be sent. Keys are
+// HOSPITAL_MODULE values.
+export const updateHospitalModulesSchema = z.object({
+  modules: z
+    .object({
+      appointments: z.boolean(),
+      queue: z.boolean(),
+      packages: z.boolean(),
+      prescriptions: z.boolean(),
+      payments: z.boolean(),
+      sms: z.boolean(),
+      whatsappNotify: z.boolean(),
+      whatsapp: z.boolean(),
+      reports: z.boolean(),
+      audit: z.boolean(),
+      leaveRequests: z.boolean(),
+      hospitalHolidays: z.boolean(),
+      chargeCatalog: z.boolean(),
+      medicines: z.boolean(),
+      medicinePacks: z.boolean(),
+      patientFields: z.boolean(),
+      aiNotes: z.boolean(),
+    })
+    .partial()
+    .strict(),
+});
+
+export const updatePatientNoteFieldsSchema = z.object({
+  fields: z
+    .array(
+      z.object({
+        key: z
+          .string()
+          .regex(/^[a-zA-Z][a-zA-Z0-9_]{0,39}$/, 'Invalid field key'),
+        label: z.string().trim().min(1, 'Label cannot be empty').max(60),
+        type: z.enum(['tags', 'text']),
+        enabled: z.boolean(),
+        hint: z.string().trim().max(200).optional(),
+        placeholder: z.string().trim().max(120).optional(),
+      }),
+    )
+    .max(30, 'Too many fields'),
+});
+
 /* -------------------------------------------------------------------------- */
 /*                          SUBSCRIPTION SCHEMAS                              */
 /* -------------------------------------------------------------------------- */
@@ -396,8 +467,24 @@ export const setSubscriptionCancelledSchema = z.object({
 });
 
 export const setSubscriptionFeatureSchema = z.object({
-  feature: z.enum(['whatsapp', 'reports', 'packages', 'medicinePacks']),
+  feature: z.enum(HOSPITAL_MODULE_VALUES),
   enabled: z.boolean(),
+});
+
+// Platform Admin > Feature catalog. Both parts are replaced wholesale.
+export const updateFeatureCatalogSchema = z.object({
+  moduleStatus: z.partialRecord(z.enum(HOSPITAL_MODULE_VALUES), z.enum(FEATURE_RELEASE_STATUS_VALUES)),
+  upcoming: z
+    .array(
+      z.object({
+        key: z.string().regex(/^[a-z][a-zA-Z0-9]{0,39}$/, 'Invalid feature key'),
+        label: z.string().trim().min(1, 'Name cannot be empty').max(60),
+        description: z.string().trim().max(200).optional(),
+        group: z.enum(HOSPITAL_MODULE_GROUP_VALUES),
+      }),
+    )
+    .max(30, 'Too many upcoming features')
+    .refine((items) => new Set(items.map((i) => i.key)).size === items.length, 'Duplicate feature key'),
 });
 
 export const updateSubscriptionPlanConfigSchema = z.object({

@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { useModuleEnabled } from "@/hooks/useHospitalModulesApi";
 import {
   useCloseDay,
   useDayClose,
@@ -202,6 +203,7 @@ function StatusPill({ payment }: { payment: Payment }) {
 export default function PaymentsPage({ hospitalId }: PaymentsPageProps) {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>("transactions");
+  const packagesOn = useModuleEnabled(hospitalId).isEnabled("packages");
   const [range, setRange] = useState<Range>("today");
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
@@ -420,6 +422,7 @@ export default function PaymentsPage({ hospitalId }: PaymentsPageProps) {
         )}
       </div>
 
+      {packagesOn && (
       <div className="flex items-center gap-1 bg-surface-canvas border border-border rounded-xl p-1 mb-4 w-fit">
         {(
           [
@@ -441,8 +444,9 @@ export default function PaymentsPage({ hospitalId }: PaymentsPageProps) {
           </button>
         ))}
       </div>
+      )}
 
-      {activeTab === "package" ? (
+      {activeTab === "package" && packagesOn ? (
         <PackagesTab hospitalId={hospitalId} onToast={showToast} />
       ) : (
         <>

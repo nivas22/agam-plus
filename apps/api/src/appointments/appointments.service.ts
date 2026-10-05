@@ -13,7 +13,9 @@ import { AppointmentWithDetails, Vitals } from '../types/appointment';
 import { JwtUser, HospitalUserProfile } from '../auth/decorators/current-user.decorator';
 import { CreateAppointmentBody, UpdateAppointmentBody, FinishSessionBody, AppointmentListQuery } from './appointments.types';
 import { findHolidayForDate, filterSlotsForHoliday } from '../hospital-holidays/holiday-availability.util';
+import { isHospitalModuleEnabled } from '../hospitals/hospital-modules.util';
 import {
+  HOSPITAL_MODULE,
   APPOINTMENT_STATUS,
   APPOINTMENT_TYPE,
   ACTIVE_APPOINTMENT_STATUSES,
@@ -611,6 +613,69 @@ export class AppointmentsService {
     return appointments;
   }
 
+  // Bookable slots for one doctor on one date under the normal booking rules
+  // (working hours, slot capacity, holidays, left-for-the-day). Exposed for
+  // flows outside this service that have to move appointments — leave
+  // approval uses it to offer alternative doctors and reschedule slots.
+  async getOpenSlotsForDoctor(hospitalId: string, doctorProfileId: string, date: string) {
+    const membershipRef = await this.membershipRepository.getHospitalMembership(hospitalId, doctorProfileId);
+    if (membershipRef.empty) return [];
+    const doctor = await this.doctorRepository.getDoctorProfileById(doctorProfileId);
+    if (!doctor) return [];
+    return this.getAvailableSlots(doctor, membershipRef.docs[0].data(), date);
+  }
+
+  // Moves an appointment to another doctor and/or date+time, re-checking the
+  // target slot inside the same transaction as the write so two moves can't
+  // both claim the last place in a slot. Caller does its own audit logging.
+  async relocateAppointment(
+    hospitalId: string,
+    actor: HospitalUserProfile,
+    appointmentId: string,
+    target: { doctorProfileId: string; date: string; time: string },
+  ) {
+    const membershipRef = await this.membershipRepository.getHospitalMembership(hospitalId, target.doctorProfileId);
+    if (membershipRef.empty) throw ApiError.notFound('Doctor is not part of this hospital');
+    const membership = membershipRef.docs[0].data();
+    const doctor = await this.doctorRepository.getDoctorProfileById(target.doctorProfileId);
+    if (!doctor) throw ApiError.notFound('Doctor not found');
+
+    const existing = (await this.appointmentRepository.getAppointmentById(appointmentId)) as any;
+    if (!existing || existing.hospitalId !== hospitalId) throw ApiError.notFound('Appointment not found');
+    const doctorChanged = existing.doctorProfileId !== target.doctorProfileId;
+
+    await this.appointmentRepository.runInTransaction(async (session) => {
+      const slots = await this.getAvailableSlots(doctor, membership, target.date, session);
+      if (!slots.some((s) => s.time === target.time)) {
+        throw ApiError.conflict(
+          `${(doctor as any).name ?? 'That doctor'} has no free slot at ${target.date} ${target.time}`,
+        );
+      }
+
+      await this.appointmentRepository.updateAppointment(
+        appointmentId,
+        {
+          date: target.date,
+          time: target.time,
+          ...(doctorChanged
+            ? {
+                doctorProfileId: target.doctorProfileId,
+                doctorName: (doctor as any).name,
+                doctorSpecialization: (doctor as any).specialization,
+                ...(existing.doctorId ? { doctorId: target.doctorProfileId } : {}),
+              }
+            : {}),
+          rescheduledAt: new Date().toISOString(),
+          rescheduledBy: actor.userId,
+          updatedAt: new Date().toISOString(),
+        },
+        session,
+      );
+    });
+
+    return { appointmentId, doctorName: (doctor as any).name as string, date: target.date, time: target.time };
+  }
+
   private async findNextAvailableSlot(doctor: any, membership: any, date: string, preferredTime: string) {
     const slots = await this.getAvailableSlots(doctor, membership, date);
 
@@ -983,8 +1048,17 @@ export class AppointmentsService {
       throw ApiError.badRequest(`Cannot finish a session from status '${currentStatus}'`);
     }
 
+    // With Payments switched off (Settings > Features) there's no collection
+    // step to wait for, so the visit closes here instead of parking in
+    // awaiting-payment where nobody could ever move it on.
+    const paymentsEnabled = isHospitalModuleEnabled(
+      HOSPITAL_MODULE.PAYMENTS,
+      userProfile?.currentHospital?.modules,
+      undefined,
+    );
+
     const updateData: any = {
-      status: APPOINTMENT_STATUS.AWAITING_PAYMENT,
+      status: paymentsEnabled ? APPOINTMENT_STATUS.AWAITING_PAYMENT : APPOINTMENT_STATUS.COMPLETED,
       completedAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       updatedBy: user.uid,

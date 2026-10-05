@@ -30,6 +30,7 @@ import { WhatsappProcessedMessageRepository } from './whatsapp-processed-message
 import { SubscriptionRepository } from './subscription.repository';
 import { SubscriptionInvoiceRepository } from './subscription-invoice.repository';
 import { SubscriptionPlanConfigRepository } from './subscription-plan-config.repository';
+import { PlatformFeatureCatalogRepository } from './platform-feature-catalog.repository';
 import { DemoRequestRepository } from './demo-request.repository';
 import { User, UserSchema } from '../schemas/user.schema';
 import { Hospital, HospitalSchema } from '../schemas/hospital.schema';
@@ -100,6 +101,7 @@ import {
   SubscriptionPlanConfig,
   SubscriptionPlanConfigSchema,
 } from '../schemas/subscription-plan-config.schema';
+import { PlatformFeatureCatalog, PlatformFeatureCatalogSchema } from '../schemas/platform-feature-catalog.schema';
 import { DemoRequest, DemoRequestSchema } from '../schemas/demo-request.schema';
 
 const repositories = [
@@ -133,6 +135,7 @@ const repositories = [
   SubscriptionRepository,
   SubscriptionInvoiceRepository,
   SubscriptionPlanConfigRepository,
+  PlatformFeatureCatalogRepository,
   DemoRequestRepository,
 ];
 
@@ -173,6 +176,7 @@ const repositories = [
       { name: Subscription.name, schema: SubscriptionSchema },
       { name: SubscriptionInvoice.name, schema: SubscriptionInvoiceSchema },
       { name: SubscriptionPlanConfig.name, schema: SubscriptionPlanConfigSchema },
+      { name: PlatformFeatureCatalog.name, schema: PlatformFeatureCatalogSchema },
       { name: DemoRequest.name, schema: DemoRequestSchema },
     ]),
   ],

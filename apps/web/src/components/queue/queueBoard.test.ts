@@ -594,6 +594,40 @@ describe("earliestConsultationStart / computePresence", () => {
     const presence = computePresence(lane, undefined, now);
     expect(presence.detail).toBe(`In since ${format(now, "h:mm a")}`);
   });
+
+  const emptyLane = (): QueueLane => ({
+    doctor: makeDoctor(),
+    inConsultation: [],
+    waiting: [],
+    waitingOrder: [],
+    yetToArrive: [],
+    overdue: [],
+    awaitingPayment: [],
+    done: [],
+    all: [],
+  });
+
+  it("shows ON LEAVE for approved leave, over a stale 'here' flag", () => {
+    const presence = computePresence(
+      emptyLane(),
+      { kind: "here", setAt: "2026-08-25T09:00:00", setBy: "Desk" } as any,
+      t("10:00"),
+      { startDate: "2026-08-24", endDate: "2026-08-26" },
+    );
+    expect(presence.label).toBe("ON LEAVE");
+    expect(presence.tone).toBe("notIn");
+    expect(presence.detail).toBe("Approved leave · 24 Aug – 26 Aug");
+  });
+
+  it("still shows IN when a doctor on leave is actually mid-consultation", () => {
+    const appt = makeAppt({ id: "c", status: "in-consultation" });
+    const lane = { ...emptyLane(), inConsultation: [appt], all: [appt] };
+    const presence = computePresence(lane, undefined, t("10:00"), {
+      startDate: "2026-08-25",
+      endDate: "2026-08-25",
+    });
+    expect(presence.label).toBe("IN");
+  });
 });
 
 describe("projectFinish", () => {
