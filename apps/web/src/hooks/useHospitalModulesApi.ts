@@ -103,3 +103,17 @@ export const useModuleEnabled = (hospitalId?: string) => {
 
   return { isEnabled, modules: data?.modules, isLoading };
 };
+
+// For gating data fetches (not UI): unlike useModuleEnabled this stays false
+// until the module list has loaded, so a switched-off module's API is never
+// called on first render. If the list fails to load it falls back to true —
+// the API still enforces the real state.
+export const useModuleFetchAllowed = (
+  key: HospitalModuleKey,
+  hospitalId?: string,
+) => {
+  const { data, isLoading, isError } = useHospitalModules(hospitalId);
+  if (isLoading) return false;
+  if (isError || !data) return true;
+  return data.modules.find((m) => m.key === key)?.enabled ?? true;
+};

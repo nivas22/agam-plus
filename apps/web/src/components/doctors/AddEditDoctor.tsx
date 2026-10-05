@@ -887,12 +887,18 @@ export default function AddEditDoctor({
                   Accepting bookings
                 </div>
                 <div className="text-xs text-ink-500">
-                  Shown to patients when booking
+                  {formData.availability.length === 0
+                    ? "Add availability slots first"
+                    : "Shown to patients when booking"}
                 </div>
               </div>
+              {/* Can't accept bookings with no slots — the API forces it off too. */}
               <ToggleSwitch
-                checked={formData.status === "active"}
-                disabled={!canEdit}
+                checked={
+                  formData.status === "active" &&
+                  formData.availability.length > 0
+                }
+                disabled={!canEdit || formData.availability.length === 0}
                 onChange={(v) => update("status", v ? "active" : "inactive")}
               />
             </div>

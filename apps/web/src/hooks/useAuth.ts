@@ -368,7 +368,14 @@ export function useAuth() {
 
     // Current context
     isAdmin: getCurrentHospitalRole() === ROLE.ADMIN,
+    // `isDoctor` is the doctor *role* (restricted access). `practisesAsDoctor`
+    // also covers admins flagged isDoctor on their membership — use it for
+    // showing doctor features (own queue, prescriptions), never for gating
+    // admin-only ones.
     isDoctor: getCurrentHospitalRole() === ROLE.DOCTOR,
+    practisesAsDoctor:
+      getCurrentHospitalRole() === ROLE.DOCTOR ||
+      !!currentHospitalMembership?.isDoctor,
     isStaff: [ROLE.FRONT_DESK, ROLE.NURSE, ROLE.ACCOUNTANT].includes(
       getCurrentHospitalRole() as ROLE,
     ),

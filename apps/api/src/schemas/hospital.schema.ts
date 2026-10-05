@@ -39,6 +39,11 @@ export class Hospital {
   @Prop()
   registrationNumber?: string;
 
+  // IANA zone (e.g. 'Asia/Kolkata') appointment dates/times are written in.
+  // Unset means DEFAULT_HOSPITAL_TIMEZONE — see common/hospital-time.util.
+  @Prop()
+  timezone?: string;
+
   @Prop()
   createdAt?: Date;
 

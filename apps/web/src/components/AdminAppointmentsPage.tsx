@@ -890,7 +890,7 @@ export default function AppointmentsPage({
     );
     const awayToday = (onLeave || []).filter(
       (e) =>
-        e.role === "doctor" &&
+        (e.isDoctor ?? e.role === "doctor") &&
         e.startDate <= date &&
         e.endDate >= date &&
         (doctorFilter === "all" || e.userId === doctorFilter),

@@ -46,13 +46,18 @@ export interface TeamMember {
   email: string;
   phone?: string;
   employeeId: string;
-  role: TeamRole;
+  // Admins are listed too (read-only rows) so the Team screen can show who
+  // runs the hospital and whether they also see patients.
+  role: TeamRole | "admin";
   shift?: string | null;
   startDate?: string | null;
   handlesCash: boolean;
   pinSet: boolean;
   status: TeamMemberStatus;
   joinedAt?: string | null;
+  // Admin rows only.
+  isOwner?: boolean;
+  isDoctor?: boolean;
 }
 
 export interface TeamMemberStats {

@@ -4,6 +4,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
 import { ApiRequestError, apiUrl, fetchWithAuth } from "@/lib/api";
+import { useModuleFetchAllowed } from "@/hooks/useHospitalModulesApi";
 import type {
   BulkReviseChargeCatalogData,
   BulkReviseChargeCatalogResult,
@@ -120,14 +121,16 @@ export const chargeCatalogKeys = {
     [...chargeCatalogKeys.hospital(hospitalId), "detail", itemId] as const,
 };
 
+// Not fetched while the chargeCatalog module is off (Settings > Features).
 export const useChargeCatalogItems = (hospitalId?: string, filters?: ListFilters) => {
   const params = useParams();
   const actualHospitalId = hospitalId || (params.id as string);
+  const moduleOn = useModuleFetchAllowed("chargeCatalog", actualHospitalId);
 
   return useQuery({
     queryKey: chargeCatalogKeys.list(actualHospitalId, filters),
     queryFn: () => chargeCatalogApiFunctions.fetchItems(actualHospitalId, filters),
-    enabled: !!actualHospitalId,
+    enabled: !!actualHospitalId && moduleOn,
     staleTime: 60 * 1000,
   });
 };
@@ -135,11 +138,12 @@ export const useChargeCatalogItems = (hospitalId?: string, filters?: ListFilters
 export const useChargeCatalogItem = (itemId: string, hospitalId?: string) => {
   const params = useParams();
   const actualHospitalId = hospitalId || (params.id as string);
+  const moduleOn = useModuleFetchAllowed("chargeCatalog", actualHospitalId);
 
   return useQuery({
     queryKey: chargeCatalogKeys.detail(actualHospitalId, itemId),
     queryFn: () => chargeCatalogApiFunctions.fetchItem(actualHospitalId, itemId),
-    enabled: !!actualHospitalId && !!itemId,
+    enabled: !!actualHospitalId && !!itemId && moduleOn,
   });
 };
 

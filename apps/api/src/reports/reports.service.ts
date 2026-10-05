@@ -5,7 +5,7 @@ import { PackageRepository } from '../repositories/package.repository';
 import { AppointmentRepository } from '../repositories/appointment.repository';
 import { MembershipRepository } from '../repositories/membership.repository';
 import { DoctorRepository } from '../repositories/doctor.repository';
-import { APPOINTMENT_STATUS, MEMBERSHIP_STATUS, ROLE } from '../constants';
+import { APPOINTMENT_STATUS, MEMBERSHIP_STATUS } from '../constants';
 import { DateRangeQuery } from './reports.types';
 import {
   AGE_BUCKETS,
@@ -137,7 +137,7 @@ export class ReportsService {
     const [revenueByDoctorAll, appointmentsAll, doctorMembersAll] = await Promise.all([
       this.paymentRepository.aggregateRevenueByDoctor(hospitalId, start, end),
       this.appointmentRepository.getAppointmentsWithFilters({ hospitalId, startDate, endDate }),
-      this.membershipRepository.getHospitalMembers(hospitalId, { role: ROLE.DOCTOR, status: MEMBERSHIP_STATUS.APPROVED }),
+      this.membershipRepository.getPractisingDoctorMembers(hospitalId, { status: MEMBERSHIP_STATUS.APPROVED }),
     ]);
 
     // A doctor caller only ever gets their own row — filter every input
@@ -328,7 +328,7 @@ export class ReportsService {
     const [appointmentsAll, prevAppointmentsAll, doctorMembersAll] = await Promise.all([
       this.appointmentRepository.getAppointmentsWithFilters({ hospitalId, startDate, endDate }),
       this.appointmentRepository.getAppointmentsWithFilters({ hospitalId, startDate: prevStartIso, endDate: prevEndIso }),
-      this.membershipRepository.getHospitalMembers(hospitalId, { role: ROLE.DOCTOR }),
+      this.membershipRepository.getPractisingDoctorMembers(hospitalId),
     ]);
 
     // A doctor caller only ever gets their own row — filter every input

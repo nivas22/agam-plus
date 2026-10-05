@@ -395,13 +395,19 @@ export default function DoctorTodayPage({
     setShowAddItem(false);
   }, [selectedAppt?.id]);
 
+  const { isEnabled: isModuleEnabled } = useModuleEnabled(hospitalId);
+  // With the charge catalog off (Settings > Features) there's no "Given during
+  // the visit" capture — items are entered by hand at billing instead.
+  const chargeCatalogOn = isModuleEnabled("chargeCatalog");
   const { data: chargeCatalogData } = useChargeCatalogItems(hospitalId, {
     status: "active",
   });
-  const { isDoctor } = useAuth();
-  const quickAddItems = (chargeCatalogData?.items || []).filter(
-    (item) => isDoctor || item.frontDeskCanAdd,
-  );
+  const { practisesAsDoctor } = useAuth();
+  const quickAddItems = chargeCatalogOn
+    ? (chargeCatalogData?.items || []).filter(
+        (item) => practisesAsDoctor || item.frontDeskCanAdd,
+      )
+    : [];
 
   const addExtraItem = (
     name: string,
@@ -414,7 +420,6 @@ export default function DoctorTodayPage({
     ]);
   };
 
-  const { isEnabled: isModuleEnabled } = useModuleEnabled(hospitalId);
   const prescriptionsOn = isModuleEnabled("prescriptions");
   const { data: prescriptionResult } = usePrescription(
     prescriptionsOn ? selectedAppt?.id || "" : "",
@@ -1580,97 +1585,101 @@ function ConsultationPanel({
             </Link>
           </div>
 
-          <div className="text-[12px] uppercase tracking-wide text-ink-500 font-bold mb-2 mt-4">
-            Given during the visit
-          </div>
-          <div className="border border-border rounded-xl bg-surface-paper overflow-hidden">
-            {extraItems.length === 0 && (
-              <div className="px-3 py-3 text-xs text-ink-500">
-                Nothing added yet
+          {isModuleEnabled("chargeCatalog") && (
+            <>
+              <div className="text-[12px] uppercase tracking-wide text-ink-500 font-bold mb-2 mt-4">
+                Given during the visit
               </div>
-            )}
-            {extraItems.map((item, i) => (
-              <div
-                key={`${item.name}-${i}`}
-                className="flex items-center justify-between gap-2 px-3 py-2 text-[13px] border-t border-border first:border-t-0"
-              >
-                <span>{item.name}</span>
-                <span className="flex items-center gap-2">
-                  <span className="font-mono">₹{item.unitPrice}</span>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setExtraItems(extraItems.filter((_, idx) => idx !== i))
-                    }
-                    className="text-ink-500 hover:text-status-danger"
-                    aria-label={`Remove ${item.name}`}
+              <div className="border border-border rounded-xl bg-surface-paper overflow-hidden">
+                {extraItems.length === 0 && (
+                  <div className="px-3 py-3 text-xs text-ink-500">
+                    Nothing added yet
+                  </div>
+                )}
+                {extraItems.map((item, i) => (
+                  <div
+                    key={`${item.name}-${i}`}
+                    className="flex items-center justify-between gap-2 px-3 py-2 text-[13px] border-t border-border first:border-t-0"
                   >
-                    ×
-                  </button>
-                </span>
-              </div>
-            ))}
-            <button
-              type="button"
-              onClick={() => setShowAddItem(!showAddItem)}
-              className="w-full text-left px-3 py-2 text-xs font-semibold text-brand-violet border-t border-border"
-            >
-              + Add injection, dressing or test
-            </button>
-          </div>
-          {showAddItem && (
-            <div className="mt-2">
-              <div className="grid grid-cols-[1fr_78px_auto] gap-2">
-                <input
-                  type="text"
-                  value={newItemName}
-                  onChange={(e) => setNewItemName(e.target.value)}
-                  placeholder="Name"
-                  className="px-3 py-2 border border-border rounded-lg text-xs bg-surface-paper"
-                />
-                <input
-                  type="number"
-                  value={newItemPrice}
-                  onChange={(e) => setNewItemPrice(e.target.value)}
-                  placeholder="₹"
-                  className="px-3 py-2 border border-border rounded-lg text-xs bg-surface-paper"
-                />
+                    <span>{item.name}</span>
+                    <span className="flex items-center gap-2">
+                      <span className="font-mono">₹{item.unitPrice}</span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setExtraItems(extraItems.filter((_, idx) => idx !== i))
+                        }
+                        className="text-ink-500 hover:text-status-danger"
+                        aria-label={`Remove ${item.name}`}
+                      >
+                        ×
+                      </button>
+                    </span>
+                  </div>
+                ))}
                 <button
                   type="button"
-                  onClick={() => {
-                    const name = newItemName.trim();
-                    if (!name) return;
-                    addExtraItem(name, Number(newItemPrice) || 0);
-                    setNewItemName("");
-                    setNewItemPrice("");
-                    setShowAddItem(false);
-                  }}
-                  className="px-4 py-2 rounded-lg border border-status-open bg-status-open-soft text-status-open text-xs font-semibold"
+                  onClick={() => setShowAddItem(!showAddItem)}
+                  className="w-full text-left px-3 py-2 text-xs font-semibold text-brand-violet border-t border-border"
                 >
-                  Add
+                  + Add injection, dressing or test
                 </button>
               </div>
-              {quickAddItems.length > 0 && (
-                <div className="flex flex-wrap items-center gap-2 mt-2">
-                  {quickAddItems.map((c) => (
+              {showAddItem && (
+                <div className="mt-2">
+                  <div className="grid grid-cols-[1fr_78px_auto] gap-2">
+                    <input
+                      type="text"
+                      value={newItemName}
+                      onChange={(e) => setNewItemName(e.target.value)}
+                      placeholder="Name"
+                      className="px-3 py-2 border border-border rounded-lg text-xs bg-surface-paper"
+                    />
+                    <input
+                      type="number"
+                      value={newItemPrice}
+                      onChange={(e) => setNewItemPrice(e.target.value)}
+                      placeholder="₹"
+                      className="px-3 py-2 border border-border rounded-lg text-xs bg-surface-paper"
+                    />
                     <button
-                      key={c.id}
                       type="button"
                       onClick={() => {
-                        addExtraItem(c.name, c.currentPrice, c.id);
+                        const name = newItemName.trim();
+                        if (!name) return;
+                        addExtraItem(name, Number(newItemPrice) || 0);
+                        setNewItemName("");
+                        setNewItemPrice("");
                         setShowAddItem(false);
                       }}
-                      className="border border-dashed border-border rounded-md px-2 py-1 text-[12px] text-ink-700 hover:border-status-open hover:text-status-open hover:bg-status-open-soft"
+                      className="px-4 py-2 rounded-lg border border-status-open bg-status-open-soft text-status-open text-xs font-semibold"
                     >
-                      + {c.name}{" "}
-                      <span className="font-mono text-ink-500">
-                        ₹{c.currentPrice}
-                      </span>
+                      Add
                     </button>
-                  ))}
+                  </div>
+                  {quickAddItems.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-2 mt-2">
+                      {quickAddItems.map((c) => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => {
+                            addExtraItem(c.name, c.currentPrice, c.id);
+                            setShowAddItem(false);
+                          }}
+                          className="border border-dashed border-border rounded-md px-2 py-1 text-[12px] text-ink-700 hover:border-status-open hover:text-status-open hover:bg-status-open-soft"
+                        >
+                          + {c.name}{" "}
+                          <span className="font-mono text-ink-500">
+                            ₹{c.currentPrice}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
-            </div>
+            </>
           )}
 
           {isModuleEnabled("prescriptions") && (
@@ -2011,31 +2020,35 @@ function PreCallPanel({
                 {appt.sessionNotes || "No session notes were recorded."}
               </div>
 
-              <div className="text-[12px] uppercase tracking-wide text-ink-500 font-bold mb-2 mt-4">
-                Given during the visit
-              </div>
-              <div className="border border-border rounded-xl bg-surface-paper overflow-hidden">
-                {givenItems.length === 0 ? (
-                  <div className="px-3 py-3 text-xs text-ink-500">
-                    Nothing added during this visit
+              {(isModuleEnabled("chargeCatalog") || givenItems.length > 0) && (
+                <>
+                  <div className="text-[12px] uppercase tracking-wide text-ink-500 font-bold mb-2 mt-4">
+                    Given during the visit
                   </div>
-                ) : (
-                  givenItems.map((item, i) => (
-                    <div
-                      key={`${item.name}-${i}`}
-                      className="flex items-center justify-between gap-2 px-3 py-2 text-[13px] border-t border-border first:border-t-0"
-                    >
-                      <span>
-                        {item.name}
-                        {item.quantity > 1 ? ` × ${item.quantity}` : ""}
-                      </span>
-                      <span className="font-mono">
-                        ₹{item.unitPrice * item.quantity}
-                      </span>
-                    </div>
-                  ))
-                )}
-              </div>
+                  <div className="border border-border rounded-xl bg-surface-paper overflow-hidden">
+                    {givenItems.length === 0 ? (
+                      <div className="px-3 py-3 text-xs text-ink-500">
+                        Nothing added during this visit
+                      </div>
+                    ) : (
+                      givenItems.map((item, i) => (
+                        <div
+                          key={`${item.name}-${i}`}
+                          className="flex items-center justify-between gap-2 px-3 py-2 text-[13px] border-t border-border first:border-t-0"
+                        >
+                          <span>
+                            {item.name}
+                            {item.quantity > 1 ? ` × ${item.quantity}` : ""}
+                          </span>
+                          <span className="font-mono">
+                            ₹{item.unitPrice * item.quantity}
+                          </span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </>
+              )}
 
               {isModuleEnabled("prescriptions") && (
                 <>
@@ -2275,31 +2288,35 @@ function NotesModal({
             className="w-full p-3 border border-border rounded-lg text-[14px] leading-relaxed resize-y focus:outline-none focus:ring-2 focus:ring-brand-violet/20 focus:border-brand-violet"
           />
 
-          <div className="text-[12px] uppercase tracking-wide text-ink-500 font-bold mb-2 mt-4">
-            Given during the visit
-          </div>
-          <div className="border border-border rounded-xl bg-surface-paper overflow-hidden">
-            {givenItems.length === 0 ? (
-              <div className="px-3 py-3 text-xs text-ink-500">
-                Nothing added during this visit
+          {(isModuleEnabled("chargeCatalog") || givenItems.length > 0) && (
+            <>
+              <div className="text-[12px] uppercase tracking-wide text-ink-500 font-bold mb-2 mt-4">
+                Given during the visit
               </div>
-            ) : (
-              givenItems.map((item, i) => (
-                <div
-                  key={`${item.name}-${i}`}
-                  className="flex items-center justify-between gap-2 px-3 py-2 text-[13px] border-t border-border first:border-t-0"
-                >
-                  <span>
-                    {item.name}
-                    {item.quantity > 1 ? ` × ${item.quantity}` : ""}
-                  </span>
-                  <span className="font-mono">
-                    ₹{item.unitPrice * item.quantity}
-                  </span>
-                </div>
-              ))
-            )}
-          </div>
+              <div className="border border-border rounded-xl bg-surface-paper overflow-hidden">
+                {givenItems.length === 0 ? (
+                  <div className="px-3 py-3 text-xs text-ink-500">
+                    Nothing added during this visit
+                  </div>
+                ) : (
+                  givenItems.map((item, i) => (
+                    <div
+                      key={`${item.name}-${i}`}
+                      className="flex items-center justify-between gap-2 px-3 py-2 text-[13px] border-t border-border first:border-t-0"
+                    >
+                      <span>
+                        {item.name}
+                        {item.quantity > 1 ? ` × ${item.quantity}` : ""}
+                      </span>
+                      <span className="font-mono">
+                        ₹{item.unitPrice * item.quantity}
+                      </span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </>
+          )}
 
           {isModuleEnabled("prescriptions") && (
             <>

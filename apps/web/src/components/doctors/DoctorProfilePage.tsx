@@ -720,6 +720,9 @@ export default function DoctorProfilePage({
   }
 
   const isInactive = doctor.status === "inactive";
+  // Bookings can't be turned on until there's at least one availability slot
+  // (the API enforces this too).
+  const cannotActivate = isInactive && availability.length === 0;
 
   const handleToggleActive = () => {
     const message = isInactive
@@ -767,7 +770,8 @@ export default function DoctorProfilePage({
         <button
           type="button"
           onClick={handleToggleActive}
-          disabled={updateDoctorMutation.isPending}
+          disabled={updateDoctorMutation.isPending || cannotActivate}
+          title={cannotActivate ? "Add availability slots before accepting bookings" : undefined}
           className="h-8 px-3 rounded-lg border border-border bg-surface-paper text-xs font-medium text-ink-700 hover:bg-surface-canvas disabled:opacity-50"
         >
           {isInactive ? "Activate" : "Deactivate"}
