@@ -3,6 +3,7 @@
 import {
   ArrowLeft,
   Bell,
+  Boxes,
   Calendar,
   CalendarOff,
   Check,
@@ -185,6 +186,14 @@ export default function AdminHospitalLayout({
           },
         ]
       : []),
+    {
+      to: "/inventory",
+      label: "Inventory",
+      module: "inventory" as const,
+      icon: <Boxes size={18} />,
+      isNew: true,
+      category: "frontDesk",
+    },
     {
       to: "/leave-requests",
       label: isAdmin ? "Leave requests" : "My leave",

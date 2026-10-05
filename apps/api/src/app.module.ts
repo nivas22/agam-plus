@@ -35,6 +35,7 @@ import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { InternalCronModule } from './internal/internal-cron.module';
 import { DemoRequestsModule } from './demo-requests/demo-requests.module';
 import { AiNotesModule } from './ai-notes/ai-notes.module';
+import { InventoryModule } from './inventory/inventory.module';
 
 @Module({
   imports: [
@@ -72,6 +73,7 @@ import { AiNotesModule } from './ai-notes/ai-notes.module';
     InternalCronModule,
     DemoRequestsModule,
     AiNotesModule,
+    InventoryModule,
   ],
   controllers: [AppController],
   providers: [AppService],

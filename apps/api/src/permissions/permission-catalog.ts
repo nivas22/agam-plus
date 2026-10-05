@@ -2,7 +2,7 @@ import { PERMISSION_STATE, ROLE } from '../constants';
 
 export interface PermissionActionDef {
   key: string;
-  group: 'appointments' | 'money' | 'packages' | 'patients' | 'prescriptions';
+  group: 'appointments' | 'money' | 'packages' | 'patients' | 'prescriptions' | 'inventory';
   label: string;
   description: string;
   // Read-type actions can only be ALLOWED/BLOCKED — there's no natural way to
@@ -35,6 +35,11 @@ export const PERMISSION_CATALOG: PermissionActionDef[] = [
 
   { key: 'write_prescription', group: 'prescriptions', label: 'Write & edit prescriptions', description: 'Add medicines, override allergy warnings' },
   { key: 'manage_medicine_catalog', group: 'prescriptions', label: 'Manage the medicine catalog', description: 'Add/edit/archive medicines and their allergy tags' },
+
+  { key: 'manage_inventory_items', group: 'inventory', label: 'Manage inventory items', description: 'Add, edit and archive items and their reorder levels' },
+  { key: 'receive_stock', group: 'inventory', label: 'Receive stock', description: 'Record deliveries with batch, expiry and cost' },
+  { key: 'issue_stock', group: 'inventory', label: 'Issue stock', description: 'Hand stock out to a ward, room or person' },
+  { key: 'adjust_stock', group: 'inventory', label: 'Correct counts & write off', description: 'Fix a stock count, write off expired or damaged stock' },
 ];
 
 export type PermissionMatrix = Record<string, PERMISSION_STATE>;
@@ -48,7 +53,15 @@ const allAllowedExceptClosedInvoice: PermissionMatrix = Object.fromEntries(
 // Doctor's default mirrors what's actually true in the codebase today (see
 // the enforcement map in the plan) so introducing this permission layer
 // doesn't regress any existing doctor workflow.
-const DOCTOR_DEFAULTS: PermissionMatrix = { ...allAllowedExceptClosedInvoice };
+const DOCTOR_DEFAULTS: PermissionMatrix = {
+  ...allAllowedExceptClosedInvoice,
+  // Inventory is staff-console only for v1 — the API doesn't let doctors
+  // in at all, so show these as blocked rather than misleadingly allowed.
+  manage_inventory_items: BLOCKED,
+  receive_stock: BLOCKED,
+  issue_stock: BLOCKED,
+  adjust_stock: BLOCKED,
+};
 
 const FRONT_DESK_DEFAULTS: PermissionMatrix = {
   see_schedule: ALLOWED,
@@ -67,6 +80,10 @@ const FRONT_DESK_DEFAULTS: PermissionMatrix = {
   merge_duplicate_patients: NEEDS_APPROVAL,
   write_prescription: BLOCKED,
   manage_medicine_catalog: BLOCKED,
+  manage_inventory_items: BLOCKED,
+  receive_stock: ALLOWED,
+  issue_stock: ALLOWED,
+  adjust_stock: NEEDS_APPROVAL,
 };
 
 const NURSE_DEFAULTS: PermissionMatrix = {
@@ -86,6 +103,10 @@ const NURSE_DEFAULTS: PermissionMatrix = {
   merge_duplicate_patients: BLOCKED,
   write_prescription: BLOCKED,
   manage_medicine_catalog: BLOCKED,
+  manage_inventory_items: BLOCKED,
+  receive_stock: ALLOWED,
+  issue_stock: ALLOWED,
+  adjust_stock: NEEDS_APPROVAL,
 };
 
 const ACCOUNTANT_DEFAULTS: PermissionMatrix = {
@@ -105,6 +126,10 @@ const ACCOUNTANT_DEFAULTS: PermissionMatrix = {
   merge_duplicate_patients: BLOCKED,
   write_prescription: BLOCKED,
   manage_medicine_catalog: BLOCKED,
+  manage_inventory_items: BLOCKED,
+  receive_stock: ALLOWED,
+  issue_stock: BLOCKED,
+  adjust_stock: BLOCKED,
 };
 
 // Owner/admin are never looked up here — PermissionsService short-circuits
