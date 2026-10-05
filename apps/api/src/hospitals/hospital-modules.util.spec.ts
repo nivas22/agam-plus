@@ -42,8 +42,28 @@ describe('resolveHospitalModules', () => {
     expect(resolved[HOSPITAL_MODULE.WHATSAPP]).toMatchObject({ switchedOn: true, enabled: false, disabledReason: 'plan' });
   });
 
-  it('ignores plan features for modules the plan does not control', () => {
-    expect(isHospitalModuleEnabled(HOSPITAL_MODULE.PAYMENTS, undefined, { whatsapp: false })).toBe(true);
+  it('lets the plan withhold any module, cascading to dependents', () => {
+    const resolved = resolveHospitalModules(undefined, { payments: false });
+    expect(resolved[HOSPITAL_MODULE.PAYMENTS]).toMatchObject({ enabled: false, disabledReason: 'plan' });
+    expect(resolved[HOSPITAL_MODULE.CHARGE_CATALOG]).toMatchObject({ enabled: false, blockedBy: HOSPITAL_MODULE.PAYMENTS });
+    expect(resolved[HOSPITAL_MODULE.AUDIT].enabled).toBe(true);
+  });
+
+  it('puts the platform release status above the plan and the switch', () => {
+    const resolved = resolveHospitalModules(
+      { reports: false },
+      { reports: false, audit: false },
+      { reports: 'coming_soon', audit: 'hidden', queue: 'available' },
+    );
+    expect(resolved[HOSPITAL_MODULE.REPORTS]).toMatchObject({ enabled: false, disabledReason: 'coming_soon' });
+    expect(resolved[HOSPITAL_MODULE.AUDIT]).toMatchObject({ enabled: false, disabledReason: 'hidden' });
+    expect(resolved[HOSPITAL_MODULE.QUEUE].enabled).toBe(true);
+  });
+
+  it('blocks dependents of a coming-soon module', () => {
+    expect(
+      resolveHospitalModules(undefined, undefined, { medicines: 'coming_soon' })[HOSPITAL_MODULE.MEDICINE_PACKS],
+    ).toMatchObject({ enabled: false, disabledReason: 'requires', blockedBy: HOSPITAL_MODULE.MEDICINES });
   });
 });
 

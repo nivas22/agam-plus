@@ -43,6 +43,8 @@ describe('HospitalContextGuard', () => {
   let hospitalRepository: HospitalRepository;
   let doctorRepository: DoctorRepository;
   let subscriptionRepository: SubscriptionRepository;
+  let moduleStatus: Record<string, string> = {};
+  const featureCatalogRepository = { getCatalog: async () => ({ moduleStatus, upcoming: [] }) } as any;
 
   beforeAll(async () => {
     await connectTestMongo();
@@ -58,7 +60,10 @@ describe('HospitalContextGuard', () => {
     subscriptionRepository = new SubscriptionRepository(subscriptionModel);
   });
 
-  afterEach(async () => clearTestMongo());
+  afterEach(async () => {
+    moduleStatus = {};
+    await clearTestMongo();
+  });
   afterAll(async () => closeTestMongo());
 
   // Hospital._id is a real ObjectId (not a free-text string), so every test
@@ -93,6 +98,7 @@ describe('HospitalContextGuard', () => {
       hospitalRepository,
       doctorRepository,
       subscriptionRepository,
+      featureCatalogRepository,
     );
   }
 
@@ -211,5 +217,14 @@ describe('HospitalContextGuard', () => {
     await expect(
       guard.canActivate(contextFor('GET', hospitalId, `/hospitals/${hospitalId}/appointments/a1/prescription`)),
     ).resolves.toBe(true);
+  });
+
+  it('blocks a module the platform has marked coming soon, even when the plan grants it', async () => {
+    const hospitalId = await seedHospitalWithMembership();
+    moduleStatus = { reports: 'coming_soon' };
+    const guard = newGuard({ [REQUIRES_MODULE_KEY]: HOSPITAL_MODULE.REPORTS });
+    await expect(
+      guard.canActivate(contextFor('GET', hospitalId, `/hospitals/${hospitalId}/reports/no-shows`)),
+    ).rejects.toThrow(`isn't available yet`);
   });
 });

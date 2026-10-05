@@ -1,14 +1,15 @@
 import {
+  FEATURE_RELEASE_STATUS,
   HOSPITAL_MODULE,
   HOSPITAL_MODULE_DEPENDENCIES,
-  HOSPITAL_MODULE_PLAN_FEATURE,
   HOSPITAL_MODULE_VALUES,
 } from '../constants';
 
-// Why a module isn't usable, in precedence order: the plan withholds it
-// (only a platform admin can change that), the hospital admin switched it
-// off, or something it builds on is unusable.
-export type HospitalModuleDisabledReason = 'plan' | 'switched_off' | 'requires';
+// Why a module isn't usable, in precedence order: it hasn't shipped yet
+// (platform-wide catalog — 'hidden' or 'coming_soon'), the hospital's plan
+// withholds it (both only a platform admin can change), the hospital admin
+// switched it off, or something it builds on is unusable.
+export type HospitalModuleDisabledReason = 'hidden' | 'coming_soon' | 'plan' | 'switched_off' | 'requires';
 
 export interface ResolvedHospitalModule {
   key: HOSPITAL_MODULE;
@@ -24,6 +25,7 @@ export interface ResolvedHospitalModule {
 export function resolveHospitalModules(
   saved: unknown,
   planFeatures: Record<string, boolean | undefined> | undefined,
+  releaseStatus?: Record<string, string | undefined>,
 ): Record<HOSPITAL_MODULE, ResolvedHospitalModule> {
   const switches = saved && typeof saved === 'object' ? (saved as Record<string, unknown>) : {};
   const resolved = {} as Record<HOSPITAL_MODULE, ResolvedHospitalModule>;
@@ -34,10 +36,14 @@ export function resolveHospitalModules(
     if (resolved[key]) return resolved[key];
 
     const switchedOn = switches[key] !== false;
-    const planFeature = HOSPITAL_MODULE_PLAN_FEATURE[key];
+    const release = releaseStatus?.[key];
     let result: ResolvedHospitalModule;
 
-    if (planFeature && planFeatures?.[planFeature] === false) {
+    if (release === FEATURE_RELEASE_STATUS.HIDDEN) {
+      result = { key, switchedOn, enabled: false, disabledReason: 'hidden' };
+    } else if (release === FEATURE_RELEASE_STATUS.COMING_SOON) {
+      result = { key, switchedOn, enabled: false, disabledReason: 'coming_soon' };
+    } else if (planFeatures?.[key] === false) {
       result = { key, switchedOn, enabled: false, disabledReason: 'plan' };
     } else if (!switchedOn) {
       result = { key, switchedOn, enabled: false, disabledReason: 'switched_off' };
@@ -60,6 +66,7 @@ export function isHospitalModuleEnabled(
   module: HOSPITAL_MODULE,
   saved: unknown,
   planFeatures: Record<string, boolean | undefined> | undefined,
+  releaseStatus?: Record<string, string | undefined>,
 ): boolean {
-  return resolveHospitalModules(saved, planFeatures)[module].enabled;
+  return resolveHospitalModules(saved, planFeatures, releaseStatus)[module].enabled;
 }

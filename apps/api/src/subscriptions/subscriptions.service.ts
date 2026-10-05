@@ -13,7 +13,8 @@ import {
   ROLE,
   STAFF_ROLES,
   SUBSCRIPTION_BILLING_CYCLE,
-  SUBSCRIPTION_FEATURE,
+  HOSPITAL_MODULE,
+  HOSPITAL_MODULE_LABELS,
   SUBSCRIPTION_GRACE_DAYS,
   SUBSCRIPTION_INVOICE_STATUS,
   SUBSCRIPTION_STATUS,
@@ -267,9 +268,10 @@ export class SubscriptionsService {
     return updated;
   }
 
-  // Platform-admin-only toggle for an individual module (WhatsApp/Reports/
-  // Packages/Medicine packs) — see RequiresFeature() and SUBSCRIPTION_FEATURE.
-  async setFeatureFlag(hospitalId: string, feature: SUBSCRIPTION_FEATURE, enabled: boolean, actor: SubscriptionActor) {
+  // Platform-admin-only grant/withhold of any module for this hospital's
+  // plan — see resolveHospitalModules(). The plan beats the hospital admin's
+  // own switch under Settings > Features.
+  async setFeatureFlag(hospitalId: string, feature: HOSPITAL_MODULE, enabled: boolean, actor: SubscriptionActor) {
     const subscription = await this.getSubscription(hospitalId);
     const features = { ...subscription.features, [feature]: enabled };
     const updated = await this.subscriptionRepository.updateByHospitalId(hospitalId, { features });
@@ -279,7 +281,7 @@ export class SubscriptionsService {
       actor: { userId: actor.userId, name: actor.name, role: actor.role },
       action: 'subscription.feature_toggled',
       area: 'settings',
-      summary: `${enabled ? 'Enabled' : 'Disabled'} the ${feature} feature`,
+      summary: `${enabled ? 'Added' : 'Removed'} ${HOSPITAL_MODULE_LABELS[feature] ?? feature} ${enabled ? 'to' : 'from'} the plan`,
     });
 
     return updated;

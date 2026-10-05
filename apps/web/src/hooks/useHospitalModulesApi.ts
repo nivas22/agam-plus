@@ -8,6 +8,7 @@ import { ApiRequestError, apiUrl, fetchWithAuth } from "@/lib/api";
 import type {
   HospitalModuleKey,
   ResolvedHospitalModule,
+  UpcomingFeature,
 } from "@/lib/hospitalModules";
 
 async function parseJsonOrThrow(response: Response) {
@@ -23,7 +24,10 @@ async function parseJsonOrThrow(response: Response) {
   return response.json();
 }
 
-type ModulesResponse = { modules: ResolvedHospitalModule[] };
+type ModulesResponse = {
+  modules: ResolvedHospitalModule[];
+  upcoming?: UpcomingFeature[];
+};
 
 const hospitalModulesApiFunctions = {
   fetchModules: async (hospitalId: string): Promise<ModulesResponse> => {

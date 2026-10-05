@@ -1,7 +1,7 @@
 // components/settings/FeaturesSettingsPage.tsx
 "use client";
 
-import { AlertTriangle, Loader2, Lock } from "lucide-react";
+import { AlertTriangle, Loader2, Lock, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { ToggleSwitch } from "@/components/common/EditFormControls";
@@ -15,6 +15,7 @@ import {
   HOSPITAL_MODULE_GROUPS,
   HOSPITAL_MODULES,
   type HospitalModuleKey,
+  isPlatformLocked,
   resolveDraftModules,
 } from "@/lib/hospitalModules";
 
@@ -87,6 +88,13 @@ export default function FeaturesSettingsPage({
 
   const reset = () => setSwitches(serverSwitches);
 
+  // Modules the platform hasn't released are left out entirely; teasers for
+  // features still being built sit at the end of their section.
+  const visibleModules = HOSPITAL_MODULES.filter(
+    (m) => resolved[m.key].disabledReason !== "hidden",
+  );
+  const upcoming = data?.upcoming || [];
+
   return (
     <div>
       <h1 className="font-display tracking-tight text-xl font-bold text-ink-900 mb-1">
@@ -105,16 +113,24 @@ export default function FeaturesSettingsPage({
         </div>
       ) : (
         <div className="space-y-6">
-          {HOSPITAL_MODULE_GROUPS.map((group) => (
-            <div key={group.key}>
-              <h2 className="text-xs font-bold uppercase tracking-wide text-ink-500 mb-2.5">
-                {group.label}
-              </h2>
-              <ul className="bg-surface-paper border border-border rounded-xl divide-y divide-border overflow-hidden">
-                {HOSPITAL_MODULES.filter((m) => m.group === group.key).map(
-                  (info) => {
+          {HOSPITAL_MODULE_GROUPS.map((group) => {
+            const groupModules = visibleModules.filter(
+              (m) => m.group === group.key,
+            );
+            const groupUpcoming = upcoming.filter((u) => u.group === group.key);
+            if (groupModules.length === 0 && groupUpcoming.length === 0) {
+              return null;
+            }
+            return (
+              <div key={group.key}>
+                <h2 className="text-xs font-bold uppercase tracking-wide text-ink-500 mb-2.5">
+                  {group.label}
+                </h2>
+                <ul className="bg-surface-paper border border-border rounded-xl divide-y divide-border overflow-hidden">
+                  {groupModules.map((info) => {
                     const state = resolved[info.key];
-                    const planLocked = state.disabledReason === "plan";
+                    const planLocked = isPlatformLocked(state.disabledReason);
+                    const comingSoon = state.disabledReason === "coming_soon";
                     const switchedOn = switches[info.key] ?? true;
                     const turningOff =
                       !switchedOn && serverSwitches[info.key] !== false;
@@ -149,7 +165,8 @@ export default function FeaturesSettingsPage({
                             <span className="text-sm font-bold text-ink-900">
                               {info.label}
                             </span>
-                            {planLocked && (
+                            {comingSoon && <ComingSoonBadge />}
+                            {state.disabledReason === "plan" && (
                               <span className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-semibold bg-brand-violet-soft text-brand-violet">
                                 <Lock size={11} />
                                 Not on your plan
@@ -173,7 +190,7 @@ export default function FeaturesSettingsPage({
                                 : describeDisabledModule(state)}
                             </p>
                           )}
-                          {cascade.length > 0 && (
+                          {cascade.length > 0 && !planLocked && (
                             <p className="text-xs text-status-warning mt-1.5">
                               Also turns off{" "}
                               {cascade
@@ -185,11 +202,39 @@ export default function FeaturesSettingsPage({
                         </div>
                       </li>
                     );
-                  },
-                )}
-              </ul>
-            </div>
-          ))}
+                  })}
+                  {groupUpcoming.map((feature) => (
+                    <li
+                      key={`upcoming-${feature.key}`}
+                      className="flex items-start gap-3 px-4 py-3.5 bg-surface-canvas"
+                    >
+                      <div className="pt-0.5">
+                        <ToggleSwitch
+                          checked={false}
+                          disabled
+                          ariaLabel={feature.label}
+                          onChange={() => {}}
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-sm font-bold text-ink-900">
+                            {feature.label}
+                          </span>
+                          <ComingSoonBadge />
+                        </div>
+                        {feature.description && (
+                          <p className="text-xs text-ink-500 mt-0.5 leading-relaxed">
+                            {feature.description}
+                          </p>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -227,5 +272,14 @@ export default function FeaturesSettingsPage({
         </div>
       )}
     </div>
+  );
+}
+
+function ComingSoonBadge() {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-semibold bg-status-warning-soft text-status-warning">
+      <Sparkles size={11} />
+      Coming soon
+    </span>
   );
 }

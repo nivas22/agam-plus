@@ -7,6 +7,7 @@ import { PatientRepository } from '../repositories/patient.repository';
 import { DashboardRepository } from '../repositories/dashboard.repository';
 import { UserRepository } from '../repositories/user.repository';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
+import { PlatformFeatureCatalogRepository } from '../repositories/platform-feature-catalog.repository';
 import { AuditService } from '../audit/audit.service';
 import { ApiError } from '../common/errors/api-error';
 import {
@@ -59,6 +60,7 @@ export class HospitalsService {
     private readonly userRepository: UserRepository,
     private readonly subscriptionsService: SubscriptionsService,
     private readonly auditService: AuditService,
+    private readonly featureCatalogRepository: PlatformFeatureCatalogRepository,
   ) {}
 
   async getAllHospitals() {
@@ -135,7 +137,8 @@ export class HospitalsService {
 
   // Every module in catalog order with its switch and effective state, so
   // the web app can both render Settings > Features and hide whatever's
-  // unusable (plan-withheld, switched off, or missing a dependency).
+  // unusable (not released, plan-withheld, switched off, or missing a
+  // dependency) — plus the platform's teaser list of upcoming features.
   async getModules(hospitalId: string) {
     const hospital = await this.getHospitalById(hospitalId);
     return this.resolveModulesResponse(hospitalId, (hospital as any).modules);
@@ -171,9 +174,15 @@ export class HospitalsService {
   }
 
   private async resolveModulesResponse(hospitalId: string, saved: unknown) {
-    const subscription = await this.subscriptionsService.getSubscription(hospitalId);
-    const resolved = resolveHospitalModules(saved, subscription?.features as any);
-    return { modules: HOSPITAL_MODULE_VALUES.map((key) => resolved[key]) };
+    const [subscription, catalog] = await Promise.all([
+      this.subscriptionsService.getSubscription(hospitalId),
+      this.featureCatalogRepository.getCatalog(),
+    ]);
+    const resolved = resolveHospitalModules(saved, subscription?.features as any, catalog.moduleStatus);
+    return {
+      modules: HOSPITAL_MODULE_VALUES.map((key) => resolved[key]),
+      upcoming: catalog.upcoming,
+    };
   }
 
   // Always returns the full, ordered list the patient form should render:

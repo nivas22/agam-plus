@@ -21,7 +21,39 @@ export type HospitalModuleKey =
   | "medicinePacks"
   | "patientFields";
 
-export type HospitalModuleDisabledReason = "plan" | "switched_off" | "requires";
+export type HospitalModuleDisabledReason =
+  | "hidden"
+  | "coming_soon"
+  | "plan"
+  | "switched_off"
+  | "requires";
+
+// Platform-wide release state, set under Platform Admin > Feature catalog.
+// Mirrors FEATURE_RELEASE_STATUS in apps/api/src/constants.ts.
+export type FeatureReleaseStatus = "available" | "coming_soon" | "hidden";
+
+export const FEATURE_RELEASE_STATUS_OPTIONS: {
+  value: FeatureReleaseStatus;
+  label: string;
+}[] = [
+  { value: "available", label: "Available" },
+  { value: "coming_soon", label: "Coming soon" },
+  { value: "hidden", label: "Hidden" },
+];
+
+// A feature that isn't built yet, shown on Settings > Features as a teaser.
+export interface UpcomingFeature {
+  key: string;
+  label: string;
+  description?: string;
+  group: HospitalModuleGroup;
+}
+
+// Reasons only a platform admin can lift — a hospital admin's switch does
+// nothing for these, so the Features screen locks the toggle.
+export function isPlatformLocked(reason?: HospitalModuleDisabledReason) {
+  return reason === "hidden" || reason === "coming_soon" || reason === "plan";
+}
 
 export interface ResolvedHospitalModule {
   key: HospitalModuleKey;
@@ -231,7 +263,8 @@ export function moduleForHospitalPath(
 // Re-resolves the server's list against unsaved switch changes, so the
 // Features screen can preview cascades (turning off Appointments greys out
 // the queue) before saving. Same precedence as the API's
-// resolveHospitalModules: plan, then the switch, then dependencies.
+// resolveHospitalModules: release status and plan, then the switch, then
+// dependencies.
 export function resolveDraftModules(
   server: ResolvedHospitalModule[],
   switches: Partial<Record<HospitalModuleKey, boolean>>,
@@ -244,8 +277,14 @@ export function resolveDraftModules(
     const switchedOn = switches[key] ?? byKey.get(key)?.switchedOn ?? true;
     let result: ResolvedHospitalModule;
 
-    if (byKey.get(key)?.disabledReason === "plan") {
-      result = { key, switchedOn, enabled: false, disabledReason: "plan" };
+    const serverReason = byKey.get(key)?.disabledReason;
+    if (isPlatformLocked(serverReason)) {
+      result = {
+        key,
+        switchedOn,
+        enabled: false,
+        disabledReason: serverReason,
+      };
     } else if (!switchedOn) {
       result = {
         key,
@@ -278,6 +317,9 @@ export function resolveDraftModules(
 
 export function describeDisabledModule(module: ResolvedHospitalModule): string {
   switch (module.disabledReason) {
+    case "hidden":
+    case "coming_soon":
+      return "Coming soon — we'll let you know when it's ready.";
     case "plan":
       return "Not included in your plan — contact us to add it.";
     case "requires":

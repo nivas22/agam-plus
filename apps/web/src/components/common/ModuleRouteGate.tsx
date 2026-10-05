@@ -9,6 +9,7 @@ import { useHospitalModules } from "@/hooks/useHospitalModulesApi";
 import {
   describeDisabledModule,
   HOSPITAL_MODULE_BY_KEY,
+  isPlatformLocked,
   moduleForHospitalPath,
 } from "@/lib/hospitalModules";
 
@@ -48,6 +49,9 @@ export default function ModuleRouteGate({
   if (!state || state.enabled) return <>{children}</>;
 
   const info = HOSPITAL_MODULE_BY_KEY[moduleKey];
+  const adminCanFix = !isPlatformLocked(state.disabledReason);
+  const notReleased =
+    state.disabledReason === "coming_soon" || state.disabledReason === "hidden";
 
   return (
     <div className="max-w-md mx-auto text-center py-16 px-4">
@@ -55,16 +59,16 @@ export default function ModuleRouteGate({
         <ToggleRight size={22} />
       </div>
       <h1 className="font-display tracking-tight text-lg font-bold text-ink-900 mb-1.5">
-        {info.label} is off
+        {notReleased ? `${info.label} is coming soon` : `${info.label} is off`}
       </h1>
       <p className="text-sm text-ink-500 mb-5">
         {describeDisabledModule(state)}{" "}
-        {state.disabledReason !== "plan" &&
+        {adminCanFix &&
           (isAdmin
             ? "You can turn it back on under Settings > Features."
             : "Ask your hospital admin if you need it.")}
       </p>
-      {isAdmin && state.disabledReason !== "plan" && (
+      {isAdmin && adminCanFix && (
         <Link
           href={`${prefix}/settings/features`}
           className="inline-flex items-center gap-1.5 bg-brand-violet hover:bg-brand-violet-hover text-white text-sm font-semibold rounded-lg px-4 py-2 transition-colors"

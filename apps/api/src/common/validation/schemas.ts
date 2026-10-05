@@ -13,6 +13,9 @@ import {
   PRESCRIPTION_STATUS_VALUES,
   HOW_OFTEN_VALUES,
   FOLLOW_UP_REVIEW_VALUES,
+  FEATURE_RELEASE_STATUS_VALUES,
+  HOSPITAL_MODULE_GROUP_VALUES,
+  HOSPITAL_MODULE_VALUES,
 } from '../../constants';
 
 /* -------------------------------------------------------------------------- */
@@ -377,8 +380,7 @@ export const updateHospitalSpecializationsSchema = z.object({
 });
 
 // Partial: only the switches being changed need to be sent. Keys are
-// HOSPITAL_MODULE values — kept as a literal list like
-// setSubscriptionFeatureSchema below.
+// HOSPITAL_MODULE values.
 export const updateHospitalModulesSchema = z.object({
   modules: z
     .object({
@@ -441,8 +443,24 @@ export const setSubscriptionCancelledSchema = z.object({
 });
 
 export const setSubscriptionFeatureSchema = z.object({
-  feature: z.enum(['whatsapp', 'reports', 'packages', 'medicinePacks']),
+  feature: z.enum(HOSPITAL_MODULE_VALUES),
   enabled: z.boolean(),
+});
+
+// Platform Admin > Feature catalog. Both parts are replaced wholesale.
+export const updateFeatureCatalogSchema = z.object({
+  moduleStatus: z.partialRecord(z.enum(HOSPITAL_MODULE_VALUES), z.enum(FEATURE_RELEASE_STATUS_VALUES)),
+  upcoming: z
+    .array(
+      z.object({
+        key: z.string().regex(/^[a-z][a-zA-Z0-9]{0,39}$/, 'Invalid feature key'),
+        label: z.string().trim().min(1, 'Name cannot be empty').max(60),
+        description: z.string().trim().max(200).optional(),
+        group: z.enum(HOSPITAL_MODULE_GROUP_VALUES),
+      }),
+    )
+    .max(30, 'Too many upcoming features')
+    .refine((items) => new Set(items.map((i) => i.key)).size === items.length, 'Duplicate feature key'),
 });
 
 export const updateSubscriptionPlanConfigSchema = z.object({

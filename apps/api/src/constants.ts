@@ -31,6 +31,7 @@ export enum DB_COLLECTIONS {
   SUBSCRIPTIONS = "subscriptions",
   SUBSCRIPTION_INVOICES = "subscription_invoices",
   SUBSCRIPTION_PLAN_CONFIG = "subscription_plan_config",
+  PLATFORM_FEATURE_CATALOG = "platform_feature_catalog",
   DEMO_REQUESTS = "demo_requests",
 }
 
@@ -759,15 +760,24 @@ export const HOSPITAL_MODULE_DEPENDENCIES: Partial<Record<HOSPITAL_MODULE, HOSPI
   [HOSPITAL_MODULE.CHARGE_CATALOG]: [HOSPITAL_MODULE.PAYMENTS],
 };
 
-// Modules a platform admin can also withhold via the plan
-// (Subscription.features). The plan always wins — a hospital admin can't
-// switch on something their plan doesn't include.
-export const HOSPITAL_MODULE_PLAN_FEATURE: Partial<Record<HOSPITAL_MODULE, SUBSCRIPTION_FEATURE>> = {
-  [HOSPITAL_MODULE.WHATSAPP]: SUBSCRIPTION_FEATURE.WHATSAPP,
-  [HOSPITAL_MODULE.REPORTS]: SUBSCRIPTION_FEATURE.REPORTS,
-  [HOSPITAL_MODULE.PACKAGES]: SUBSCRIPTION_FEATURE.PACKAGES,
-  [HOSPITAL_MODULE.MEDICINE_PACKS]: SUBSCRIPTION_FEATURE.MEDICINE_PACKS,
-};
+// Whether a module ships at all, set platform-wide by a platform admin under
+// Platform Admin > Feature catalog (PlatformFeatureCatalog.moduleStatus). It
+// sits above both the per-hospital plan grant (Subscription.features — every
+// HOSPITAL_MODULE key, missing means granted) and the hospital admin's own
+// switch. A missing status means AVAILABLE.
+//   COMING_SOON — listed on Settings > Features with a badge, can't be used.
+//   HIDDEN      — not listed anywhere, can't be used (still being built).
+export enum FEATURE_RELEASE_STATUS {
+  AVAILABLE = "available",
+  COMING_SOON = "coming_soon",
+  HIDDEN = "hidden",
+}
+
+export const FEATURE_RELEASE_STATUS_VALUES = Object.values(FEATURE_RELEASE_STATUS);
+
+// Section a teaser ("upcoming") feature is listed under on Settings >
+// Features — mirrors HospitalModuleGroup in apps/web/src/lib/hospitalModules.ts.
+export const HOSPITAL_MODULE_GROUP_VALUES = ["care", "frontDesk", "admin", "setup"] as const;
 
 // A "Book a demo" submission from the marketing site (apps/www). NEW until a
 // platform admin has reached out, then CONTACTED — mirrors the

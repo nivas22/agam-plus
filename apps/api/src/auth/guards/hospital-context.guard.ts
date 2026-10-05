@@ -4,6 +4,7 @@ import { MembershipRepository } from '../../repositories/membership.repository';
 import { HospitalRepository } from '../../repositories/hospital.repository';
 import { DoctorRepository } from '../../repositories/doctor.repository';
 import { SubscriptionRepository } from '../../repositories/subscription.repository';
+import { PlatformFeatureCatalogRepository } from '../../repositories/platform-feature-catalog.repository';
 import { HOSPITAL_MODULE, SUBSCRIPTION_FEATURE, SUBSCRIPTION_STATUS } from '../../constants';
 import { resolveHospitalModules } from '../../hospitals/hospital-modules.util';
 import { ROLES_KEY } from '../decorators/roles.decorator';
@@ -32,6 +33,7 @@ export class HospitalContextGuard implements CanActivate {
     private readonly hospitalRepository: HospitalRepository,
     private readonly doctorRepository: DoctorRepository,
     private readonly subscriptionRepository: SubscriptionRepository,
+    private readonly featureCatalogRepository: PlatformFeatureCatalogRepository,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -76,12 +78,19 @@ export class HospitalContextGuard implements CanActivate {
       context.getClass(),
     ]);
     if (requiredModule) {
-      const module = resolveHospitalModules((hospitalProfile as any)?.modules, subscription?.features)[requiredModule];
+      const catalog = await this.featureCatalogRepository.getCatalog();
+      const module = resolveHospitalModules(
+        (hospitalProfile as any)?.modules,
+        subscription?.features,
+        catalog.moduleStatus,
+      )[requiredModule];
       if (!module.enabled) {
         throw new ForbiddenException(
-          module.disabledReason === 'plan'
-            ? `This feature isn't included on this hospital's plan.`
-            : 'This feature is turned off for this hospital — an admin can turn it on under Settings > Features.',
+          module.disabledReason === 'hidden' || module.disabledReason === 'coming_soon'
+            ? `This feature isn't available yet.`
+            : module.disabledReason === 'plan'
+              ? `This feature isn't included on this hospital's plan.`
+              : 'This feature is turned off for this hospital — an admin can turn it on under Settings > Features.',
         );
       }
     }
