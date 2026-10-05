@@ -34,6 +34,9 @@ export enum DB_COLLECTIONS {
   SUBSCRIPTION_PLAN_CONFIG = "subscription_plan_config",
   PLATFORM_FEATURE_CATALOG = "platform_feature_catalog",
   DEMO_REQUESTS = "demo_requests",
+  INVENTORY_ITEMS = "inventory_items",
+  INVENTORY_BATCHES = "inventory_batches",
+  INVENTORY_MOVEMENTS = "inventory_movements",
 }
 
 // FRONT_DESK/NURSE/ACCOUNTANT replace the old unused STAFF value — nothing
@@ -749,6 +752,7 @@ export enum HOSPITAL_MODULE {
   MEDICINE_PACKS = "medicinePacks",
   PATIENT_FIELDS = "patientFields",
   AI_NOTES = "aiNotes",
+  INVENTORY = "inventory",
 }
 
 export const HOSPITAL_MODULE_VALUES = Object.values(HOSPITAL_MODULE);
@@ -772,6 +776,7 @@ export const HOSPITAL_MODULE_LABELS: Record<HOSPITAL_MODULE, string> = {
   [HOSPITAL_MODULE.MEDICINE_PACKS]: "Medicine packs",
   [HOSPITAL_MODULE.PATIENT_FIELDS]: "Custom patient fields",
   [HOSPITAL_MODULE.AI_NOTES]: "AI session notes",
+  [HOSPITAL_MODULE.INVENTORY]: "Inventory",
 };
 
 // A module is only usable while every module it builds on is too — e.g. the
@@ -786,6 +791,50 @@ export const HOSPITAL_MODULE_DEPENDENCIES: Partial<Record<HOSPITAL_MODULE, HOSPI
   [HOSPITAL_MODULE.CHARGE_CATALOG]: [HOSPITAL_MODULE.PAYMENTS],
   [HOSPITAL_MODULE.AI_NOTES]: [HOSPITAL_MODULE.APPOINTMENTS],
 };
+
+// Everything the hospital stocks, sold to patients or not — medicines,
+// consumables, equipment, stationery. Deliberately not linked to the
+// Medicine or Charge catalogs in v1: stock goes out by hand (Issue / Write
+// off), never as a side effect of a prescription or a bill.
+export enum INVENTORY_CATEGORY {
+  MEDICINES = "medicines",
+  CONSUMABLES = "consumables",
+  SURGICAL = "surgical",
+  LAB = "lab",
+  EQUIPMENT = "equipment",
+  HOUSEKEEPING = "housekeeping",
+  STATIONERY = "stationery",
+  OTHER = "other",
+}
+
+export const INVENTORY_CATEGORY_VALUES = Object.values(INVENTORY_CATEGORY);
+
+// Every change to a batch's quantity is one movement. RECEIVED and positive
+// ADJUSTED rows add stock; everything else removes it. `quantity` on the
+// movement is signed accordingly, so summing an item's movements gives its
+// stock on hand.
+export enum INVENTORY_MOVEMENT_TYPE {
+  RECEIVED = "received",
+  ISSUED = "issued",
+  ADJUSTED = "adjusted",
+  EXPIRED = "expired",
+  DAMAGED = "damaged",
+  RETURNED = "returned",
+}
+
+export const INVENTORY_MOVEMENT_TYPE_VALUES = Object.values(INVENTORY_MOVEMENT_TYPE);
+
+// The write-off flavours of a batch adjustment — each removes a counted
+// quantity, unlike ADJUSTED which sets the batch to a physical count.
+export const INVENTORY_WRITE_OFF_TYPES = [
+  INVENTORY_MOVEMENT_TYPE.EXPIRED,
+  INVENTORY_MOVEMENT_TYPE.DAMAGED,
+  INVENTORY_MOVEMENT_TYPE.RETURNED,
+] as const;
+
+// A batch with stock left is flagged as expiring this many days (or fewer)
+// before its expiry date.
+export const INVENTORY_EXPIRY_WARNING_DAYS = 30;
 
 // Whether a module ships at all, set platform-wide by a platform admin under
 // Platform Admin > Feature catalog (PlatformFeatureCatalog.moduleStatus). It

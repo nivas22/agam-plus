@@ -16,6 +16,9 @@ import {
   FEATURE_RELEASE_STATUS_VALUES,
   HOSPITAL_MODULE_GROUP_VALUES,
   HOSPITAL_MODULE_VALUES,
+  INVENTORY_CATEGORY_VALUES,
+  INVENTORY_WRITE_OFF_TYPES,
+  INVENTORY_MOVEMENT_TYPE,
 } from '../../constants';
 
 /* -------------------------------------------------------------------------- */
@@ -428,6 +431,7 @@ export const updateHospitalModulesSchema = z.object({
       medicinePacks: z.boolean(),
       patientFields: z.boolean(),
       aiNotes: z.boolean(),
+      inventory: z.boolean(),
     })
     .partial()
     .strict(),
@@ -687,6 +691,68 @@ export const generateHolidayRepeatsSchema = z.object({
 export const importTnHolidayListSchema = z.object({
   year: z.number().int(),
 });
+
+/* -------------------------------------------------------------------------- */
+/*                             INVENTORY SCHEMAS                              */
+/* -------------------------------------------------------------------------- */
+
+const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use a YYYY-MM-DD date');
+
+export const createInventoryItemSchema = z.object({
+  name: z.string().trim().min(1, 'Name is required').max(200),
+  category: z.enum(INVENTORY_CATEGORY_VALUES as [string, ...string[]]),
+  unit: z.string().trim().min(1, 'Unit is required').max(40),
+  reorderLevel: z.number().min(0, 'Reorder level cannot be negative').default(0),
+  tracksExpiry: z.boolean().default(true),
+  location: z.string().trim().max(200).optional(),
+  notes: z.string().trim().max(1000).optional(),
+});
+
+export const updateInventoryItemSchema = createInventoryItemSchema
+  .omit({ reorderLevel: true, tracksExpiry: true })
+  .partial()
+  .extend({
+    reorderLevel: z.number().min(0).optional(),
+    tracksExpiry: z.boolean().optional(),
+  });
+
+export const inventoryItemStatusSchema = z.object({
+  status: z.enum(['active', 'archived']),
+});
+
+// Batch number and expiry are required by the service for items that
+// track expiry — the item, not the request, decides.
+export const receiveInventoryStockSchema = z.object({
+  quantity: z.number().positive('Quantity must be more than zero'),
+  batchNumber: z.string().trim().max(60).optional(),
+  expiryDate: isoDate.optional(),
+  unitCost: z.number().min(0, 'Cost cannot be negative').optional(),
+  supplier: z.string().trim().max(200).optional(),
+  invoiceNumber: z.string().trim().max(60).optional(),
+  note: z.string().trim().max(500).optional(),
+});
+
+// No batchId means take first-expiry-first-out across every batch.
+export const issueInventoryStockSchema = z.object({
+  quantity: z.number().positive('Quantity must be more than zero'),
+  batchId: z.string().min(1).optional(),
+  issuedTo: z.string().trim().max(200).optional(),
+  note: z.string().trim().max(500).optional(),
+});
+
+export const adjustInventoryBatchSchema = z.discriminatedUnion('type', [
+  // Stock count: set the batch to what's physically on the shelf.
+  z.object({
+    type: z.literal(INVENTORY_MOVEMENT_TYPE.ADJUSTED),
+    countedQuantity: z.number().min(0, 'Count cannot be negative'),
+    reason: z.string().trim().min(1, 'Say why the count is different').max(500),
+  }),
+  z.object({
+    type: z.enum(INVENTORY_WRITE_OFF_TYPES as unknown as [string, ...string[]]),
+    quantity: z.number().positive('Quantity must be more than zero'),
+    reason: z.string().trim().max(500).optional(),
+  }),
+]);
 
 /* -------------------------------------------------------------------------- */
 /*                            MEDICINE SCHEMAS                                */

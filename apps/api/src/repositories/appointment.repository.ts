@@ -2,12 +2,11 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { ClientSession, Model } from 'mongoose';
 import { ACTIVE_APPOINTMENT_STATUSES, VISIT_FINISHED_STATUSES } from '../constants';
-import { ApiError } from '../common/errors/api-error';
 import {
   Appointment,
   AppointmentDocument,
 } from '../schemas/appointment.schema';
-import { toPlain, toPlainList } from './mongo.util';
+import { runInTransaction, toPlain, toPlainList } from './mongo.util';
 import { DEFAULT_HOSPITAL_TIMEZONE, todayIso } from '../common/hospital-time.util';
 
 @Injectable()
@@ -21,42 +20,12 @@ export class AppointmentRepository {
 
   // Runs `fn` inside a Mongo transaction so a slot's availability check and
   // the appointment insert/update it gates can't interleave with a
-  // concurrent booking for the same slot. Falls back to running `fn`
-  // without a session if the deployment isn't a replica set/mongos (e.g. a
-  // standalone dev Mongo) — same behavior as before this existed, just no
-  // longer the only option in production.
+  // concurrent booking for the same slot (see runInTransaction for the
+  // standalone-Mongo fallback).
   async runInTransaction<T>(
     fn: (session: ClientSession | undefined) => Promise<T>,
   ): Promise<T> {
-    const session = await this.appointmentModel.db.startSession();
-    try {
-      let result: T;
-      await session.withTransaction(async () => {
-        result = await fn(session);
-      });
-      return result!;
-    } catch (error) {
-      // A business error thrown by `fn` itself (e.g. "slot no longer
-      // available") must always propagate as-is — never reinterpreted as a
-      // transactions-unavailable signal and retried, which would silently
-      // swallow it and re-run `fn` a second time.
-      if (error instanceof ApiError) throw error;
-
-      const message = (error as Error)?.message ?? '';
-      if (
-        /transaction numbers|illegalOperation|replica set|mongos|does not support retryable writes/i.test(
-          message,
-        )
-      ) {
-        this.logger.warn(
-          'Mongo transactions unavailable (not a replica set) — running without one',
-        );
-        return fn(undefined);
-      }
-      throw error;
-    } finally {
-      await session.endSession();
-    }
+    return runInTransaction(this.appointmentModel.db, this.logger, fn);
   }
 
   async getAppointmentsByHospitalId(hospitalId: string, limit?: number) {

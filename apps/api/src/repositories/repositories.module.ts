@@ -33,6 +33,7 @@ import { SubscriptionInvoiceRepository } from './subscription-invoice.repository
 import { SubscriptionPlanConfigRepository } from './subscription-plan-config.repository';
 import { PlatformFeatureCatalogRepository } from './platform-feature-catalog.repository';
 import { DemoRequestRepository } from './demo-request.repository';
+import { InventoryRepository } from './inventory.repository';
 import { User, UserSchema } from '../schemas/user.schema';
 import { Hospital, HospitalSchema } from '../schemas/hospital.schema';
 import {
@@ -105,6 +106,9 @@ import {
 } from '../schemas/subscription-plan-config.schema';
 import { PlatformFeatureCatalog, PlatformFeatureCatalogSchema } from '../schemas/platform-feature-catalog.schema';
 import { DemoRequest, DemoRequestSchema } from '../schemas/demo-request.schema';
+import { InventoryItem, InventoryItemSchema } from '../schemas/inventory-item.schema';
+import { InventoryBatch, InventoryBatchSchema } from '../schemas/inventory-batch.schema';
+import { InventoryMovement, InventoryMovementSchema } from '../schemas/inventory-movement.schema';
 
 const repositories = [
   UserRepository,
@@ -140,6 +144,7 @@ const repositories = [
   SubscriptionPlanConfigRepository,
   PlatformFeatureCatalogRepository,
   DemoRequestRepository,
+  InventoryRepository,
 ];
 
 @Global()
@@ -182,6 +187,9 @@ const repositories = [
       { name: SubscriptionPlanConfig.name, schema: SubscriptionPlanConfigSchema },
       { name: PlatformFeatureCatalog.name, schema: PlatformFeatureCatalogSchema },
       { name: DemoRequest.name, schema: DemoRequestSchema },
+      { name: InventoryItem.name, schema: InventoryItemSchema },
+      { name: InventoryBatch.name, schema: InventoryBatchSchema },
+      { name: InventoryMovement.name, schema: InventoryMovementSchema },
     ]),
   ],
   providers: repositories,

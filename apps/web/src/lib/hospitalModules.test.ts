@@ -28,6 +28,7 @@ describe("moduleForHospitalPath", () => {
     expect(moduleForHospitalPath("/settings/medicines")).toBe("medicines");
     expect(moduleForHospitalPath("/enquiries")).toBe("whatsapp");
     expect(moduleForHospitalPath("/today")).toBe("queue");
+    expect(moduleForHospitalPath("/inventory")).toBe("inventory");
     expect(moduleForHospitalPath("/settings")).toBeUndefined();
     expect(moduleForHospitalPath("/settings/features")).toBeUndefined();
     expect(moduleForHospitalPath("/patients")).toBeUndefined();

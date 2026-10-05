@@ -20,7 +20,8 @@ export type HospitalModuleKey =
   | "medicines"
   | "medicinePacks"
   | "patientFields"
-  | "aiNotes";
+  | "aiNotes"
+  | "inventory";
 
 export type HospitalModuleDisabledReason =
   | "hidden"
@@ -184,6 +185,15 @@ export const HOSPITAL_MODULES: HospitalModuleInfo[] = [
     group: "frontDesk",
   },
   {
+    key: "inventory",
+    label: "Inventory",
+    description:
+      "Track stock of medicines, consumables and supplies by batch and expiry — receive, issue and write off.",
+    offNote:
+      "The Inventory screen is hidden; stock records are kept for when it's turned back on.",
+    group: "admin",
+  },
+  {
     key: "reports",
     label: "Reports",
     description: "Daily collection, doctor revenue, dues ageing and no-shows.",
@@ -250,6 +260,7 @@ const ROUTE_MODULES: { pattern: RegExp; module: HospitalModuleKey }[] = [
   { pattern: /^\/payments(\/|$)/, module: "payments" },
   { pattern: /^\/enquiries(\/|$)/, module: "whatsapp" },
   { pattern: /^\/reports(\/|$)/, module: "reports" },
+  { pattern: /^\/inventory(\/|$)/, module: "inventory" },
   { pattern: /^\/leave-requests(\/|$)/, module: "leaveRequests" },
   { pattern: /^\/settings\/audit(\/|$)/, module: "audit" },
   { pattern: /^\/settings\/whatsapp(\/|$)/, module: "whatsapp" },
