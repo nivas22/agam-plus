@@ -24,6 +24,11 @@ export class Hospital {
   @Prop({ type: [Object], default: undefined })
   patientNoteFields?: Record<string, any>[];
 
+  // Hospital-admin-configured prepaid package discount, sizes and validity.
+  // Missing means the defaults — see HospitalsService.getPackageSettings.
+  @Prop({ type: Object, default: undefined })
+  packageSettings?: Record<string, any>;
+
   // Hospital-admin on/off switches per HOSPITAL_MODULE (Settings > Features).
   // A missing key means on — see resolveHospitalModules.
   @Prop({ type: Object, default: undefined })

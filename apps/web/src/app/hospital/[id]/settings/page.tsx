@@ -7,6 +7,7 @@ import {
   CreditCard,
   Layers,
   MessageCircle,
+  Package,
   Pill,
   Receipt,
   ShieldCheck,
@@ -114,6 +115,15 @@ export default function SettingsHubPage() {
           title: "Charge catalog",
           description:
             "Everything the front desk can add to a bill, and what it costs today.",
+          adminOnly: true,
+        },
+        {
+          href: `/hospital/${hospitalId}/settings/packages`,
+          module: "packages" as const,
+          icon: <Package size={20} />,
+          title: "Packages",
+          description:
+            "Discount, package sizes and validity for prepaid visit packages.",
           adminOnly: true,
         },
         {

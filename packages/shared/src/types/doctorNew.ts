@@ -15,6 +15,7 @@ export interface Doctor {
   hospitalId: string;
   name: string;
   email: string;
+  username?: string;
   specialization: string;
   qualification: string;
   medicalRegistrationNumber?: string;

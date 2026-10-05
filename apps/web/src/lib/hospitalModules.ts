@@ -19,7 +19,8 @@ export type HospitalModuleKey =
   | "chargeCatalog"
   | "medicines"
   | "medicinePacks"
-  | "patientFields";
+  | "patientFields"
+  | "aiNotes";
 
 export type HospitalModuleDisabledReason =
   | "hidden"
@@ -122,6 +123,15 @@ export const HOSPITAL_MODULES: HospitalModuleInfo[] = [
     offNote: "Saved prescriptions are kept but can't be opened or written.",
     group: "care",
     requires: ["appointments", "medicines"],
+  },
+  {
+    key: "aiNotes",
+    label: "AI session notes",
+    description:
+      "Doctors turn rough consultation notes into a clean, structured note with one click. Patient names and phone numbers are never sent.",
+    offNote: "The \"Format with AI\" button is hidden; notes are typed as usual.",
+    group: "care",
+    requires: ["appointments"],
   },
   {
     key: "leaveRequests",
@@ -251,6 +261,7 @@ const ROUTE_MODULES: { pattern: RegExp; module: HospitalModuleKey }[] = [
   { pattern: /^\/settings\/medicines(\/|$)/, module: "medicines" },
   { pattern: /^\/settings\/medicine-packs(\/|$)/, module: "medicinePacks" },
   { pattern: /^\/settings\/patient-fields(\/|$)/, module: "patientFields" },
+  { pattern: /^\/settings\/packages(\/|$)/, module: "packages" },
 ];
 
 // `subPath` is the part after /hospital/[id], e.g. "/appointments/add".

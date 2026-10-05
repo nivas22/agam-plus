@@ -375,7 +375,7 @@ export class DoctorsService {
 
     const tempPassword = generateTempPassword();
     const passwordHash = await bcrypt.hash(tempPassword, 10);
-    await this.userRepository.updateUser(doctorId, { passwordHash, mustChangePassword: true });
+    const username = await this.userRepository.adminResetPassword(doctorId, passwordHash);
 
     await this.auditService.log({
       hospitalId,
@@ -385,7 +385,7 @@ export class DoctorsService {
       summary: `Reset ${(profile as any).name}'s password — they'll be asked to change it at next sign-in`,
     });
 
-    return { success: true, tempPassword };
+    return { success: true, tempPassword, username };
   }
 
   async getDoctorById(hospitalId: string, doctorId: string) {
@@ -411,6 +411,7 @@ export class DoctorsService {
     // updateDoctor's allowedFields comment) — no profile fallback to merge.
     return {
       ...doctor,
+      username: doctorData.user?.username,
       status,
       specialization: membershipData?.specialization || doctorData.specialization,
       consultationFee: membershipData?.consultationFee,

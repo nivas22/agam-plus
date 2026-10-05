@@ -14,10 +14,11 @@ import {
   requestAccessSchema,
   updateHospitalModulesSchema,
   updateHospitalSpecializationsSchema,
+  updatePackageSettingsSchema,
   updatePatientNoteFieldsSchema,
 } from '../common/validation/schemas';
 import { HOSPITAL_MODULE } from '../constants';
-import type { PatientNoteField } from '../constants';
+import type { PackageSettings, PatientNoteField } from '../constants';
 
 @Controller('hospitals')
 export class HospitalsController {
@@ -107,6 +108,28 @@ export class HospitalsController {
   @UsePipes(new ZodValidationPipe(updatePatientNoteFieldsSchema))
   updatePatientNoteFields(@Param('id') id: string, @Body() body: { fields: PatientNoteField[] }) {
     return this.hospitalsService.updatePatientNoteFields(id, body.fields);
+  }
+
+  // Prepaid package discount, sizes and validity. Read by everyone who can
+  // open the Sell package dialog; configured by admins only.
+  @Get(':id/package-settings')
+  @UseGuards(HospitalContextGuard)
+  @Roles('admin', 'doctor', 'front_desk', 'nurse', 'accountant')
+  getPackageSettings(@Param('id') id: string) {
+    return this.hospitalsService.getPackageSettings(id);
+  }
+
+  @Put(':id/package-settings')
+  @UseGuards(HospitalContextGuard)
+  @Roles('admin')
+  @RequiresModule(HOSPITAL_MODULE.PACKAGES)
+  @UsePipes(new ZodValidationPipe(updatePackageSettingsSchema))
+  updatePackageSettings(
+    @Param('id') id: string,
+    @CurrentHospitalUser() userProfile: HospitalUserProfile,
+    @Body() body: PackageSettings,
+  ) {
+    return this.hospitalsService.updatePackageSettings(id, body, userProfile);
   }
 
   // Settings > Features. Every role reads it (the web app hides switched-off

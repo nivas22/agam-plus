@@ -2,9 +2,10 @@
 "use client";
 
 import { format } from "date-fns";
-import { Phone } from "lucide-react";
+import { Phone, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import CompleteVisitDialog from "@/components/appointments/CompleteVisitDialog";
+import { useGenerateSessionNotes } from "@/hooks/useAiNotesApi";
 import { useAuth } from "@/hooks/useAuth";
 import { useChargeCatalogItems } from "@/hooks/useChargeCatalogApi";
 import { useModuleEnabled } from "@/hooks/useHospitalModulesApi";
@@ -1394,6 +1395,31 @@ function ConsultationPanel({
   const allergy = allergySummary(patient);
   const vRows = vitalsRows(appt.vitals);
   const { isEnabled: isModuleEnabled } = useModuleEnabled(hospitalId);
+  const aiNotesOn = isModuleEnabled("aiNotes");
+  const generateNotes = useGenerateSessionNotes(hospitalId);
+  // The doctor's own text from before the last AI format, so one click puts
+  // it back if the draft isn't right.
+  const [notesBeforeAi, setNotesBeforeAi] = useState<string | null>(null);
+  const [aiNotesError, setAiNotesError] = useState<string | null>(null);
+  useEffect(() => {
+    setNotesBeforeAi(null);
+    setAiNotesError(null);
+  }, [appt.id]);
+
+  const handleFormatWithAi = () => {
+    const draft = notesDraft;
+    setAiNotesError(null);
+    generateNotes.mutate(
+      { appointmentId: appt.id, draft },
+      {
+        onSuccess: ({ notes }) => {
+          setNotesBeforeAi(draft);
+          setNotesDraft(notes);
+        },
+        onError: (error) => setAiNotesError(error.message),
+      },
+    );
+  };
   const prescriptionItemCount = prescription?.items.length ?? 0;
   const unsignedPrescription =
     prescriptionItemCount > 0 && prescription?.status !== "signed";
@@ -1493,10 +1519,49 @@ function ConsultationPanel({
           <textarea
             value={notesDraft}
             onChange={(e) => setNotesDraft(e.target.value)}
-            placeholder="Details about the session, treatment provided, observations, etc."
+            placeholder={
+              aiNotesOn
+                ? "Type rough notes (e.g. c/o fever x3d, throat congested, adv paracetamol) — then Format with AI"
+                : "Details about the session, treatment provided, observations, etc."
+            }
             rows={7}
-            className="w-full p-3 border border-border rounded-lg text-[14px] leading-relaxed resize-y focus:outline-none focus:ring-2 focus:ring-brand-violet/20 focus:border-brand-violet"
+            disabled={generateNotes.isPending}
+            className="w-full p-3 border border-border rounded-lg text-[14px] leading-relaxed resize-y focus:outline-none focus:ring-2 focus:ring-brand-violet/20 focus:border-brand-violet disabled:opacity-60"
           />
+          {aiNotesOn && (
+            <div className="flex items-center gap-3 flex-wrap mt-2">
+              <button
+                type="button"
+                onClick={handleFormatWithAi}
+                disabled={generateNotes.isPending || notesDraft.trim().length < 3}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-brand-violet hover:bg-brand-violet-hover px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
+              >
+                <Sparkles size={14} />
+                {generateNotes.isPending ? "Formatting…" : "Format with AI"}
+              </button>
+              {notesBeforeAi !== null && !generateNotes.isPending && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNotesDraft(notesBeforeAi);
+                    setNotesBeforeAi(null);
+                  }}
+                  className="text-[12.5px] font-semibold text-brand-violet underline"
+                >
+                  Undo AI format
+                </button>
+              )}
+              <span className="text-[11.5px] text-ink-500">
+                {aiNotesError ? (
+                  <span className="text-status-danger">{aiNotesError}</span>
+                ) : notesBeforeAi !== null ? (
+                  "AI draft — check it before finishing the visit."
+                ) : (
+                  "Uses vitals, allergies and the prescription. No name or phone is sent."
+                )}
+              </span>
+            </div>
+          )}
           <div className="flex gap-2 flex-wrap mt-2">
             {TEMPLATES.map((t) => (
               <button

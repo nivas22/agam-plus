@@ -2,7 +2,7 @@
 "use client";
 
 import { format } from "date-fns";
-import { Clock, Maximize2, Minimize2, Phone, Plus, UserPlus } from "lucide-react";
+import { CalendarOff, Clock, Maximize2, Minimize2, Phone, Plus, UserPlus } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   CancelDialog,
@@ -207,6 +207,31 @@ export default function TodaysQueuePage({
     [allLanes, now],
   );
 
+  // A doctor on approved leave doesn't get a queue lane — there's no room
+  // to run. They move to the "On leave today" card on the right instead,
+  // which still lists any booking left under them so it gets moved. The one
+  // exception is a doctor with a patient already waiting / in the room /
+  // awaiting payment, whose lane stays so that visit can be finished.
+  const leaveLanes = useMemo(
+    () =>
+      allLanes.flatMap((lane) => {
+        const leave = findLeaveOn(onLeaveToday, lane.doctor.id, today);
+        if (
+          !leave ||
+          lane.inConsultation.length > 0 ||
+          lane.waiting.length > 0 ||
+          lane.awaitingPayment.length > 0
+        )
+          return [];
+        return [{ lane, leave }];
+      }),
+    [allLanes, onLeaveToday, today],
+  );
+  const boardLanes = useMemo(() => {
+    const away = new Set(leaveLanes.map((l) => l.lane.doctor.id));
+    return lanes.filter((lane) => !away.has(lane.doctor.id));
+  }, [lanes, leaveLanes]);
+
   const [boardTab, setBoardTab] = useState<"active" | "sessionOver">("active");
   // A doctor marked "left for the day" always reads as session-over —
   // handleLeftForDay only lets that override land once the queue's already
@@ -216,18 +241,17 @@ export default function TodaysQueuePage({
   // later today.
   const lanesWithStatus = useMemo(
     () =>
-      lanes.map((lane) => ({
+      boardLanes.map((lane) => ({
         lane,
         status:
           presenceOverrides[lane.doctor.id]?.kind === "leftForDay"
             ? ({ label: "Session over", tone: "off" } as const)
-            : // Kept on the active tab so bookings still sitting under an
-              // absent doctor get noticed and moved.
+            : // Only reached when a patient is still mid-visit (see leaveLanes).
               findLeaveOn(onLeaveToday, lane.doctor.id, today)
               ? ({ label: "On leave", tone: "off" } as const)
               : laneStatus(lane, now),
       })),
-    [lanes, now, presenceOverrides, onLeaveToday, today],
+    [boardLanes, now, presenceOverrides, onLeaveToday, today],
   );
   const activeLanes = lanesWithStatus.filter(
     (l) => l.status.label !== "Session over",
@@ -395,6 +419,7 @@ export default function TodaysQueuePage({
       return h * 60 + m;
     };
     return doctorsData.doctors
+      .filter((doctor) => !findLeaveOn(onLeaveToday, doctor.id, today))
       .map((doctor) => {
         const windows = todaysWindows(doctor, now);
         const primary = primaryWindowToday(doctor, now);
@@ -423,7 +448,7 @@ export default function TodaysQueuePage({
       .filter((v): v is { doctor: Doctor; window: { start: number; end: number }; bookedCount: number } => v != null)
       .sort((a, b) => a.window.start - b.window.start)
       .slice(0, 2);
-  }, [doctorsData.doctors, appointments, now]);
+  }, [doctorsData.doctors, appointments, now, onLeaveToday, today]);
   const longestWait = waitTimes.length ? Math.max(...waitTimes) : 0;
 
   const isLoadingInitial = isLoading && appointments.length === 0;
@@ -524,7 +549,7 @@ export default function TodaysQueuePage({
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_292px] gap-4">
           <div>
-            {lanes.length > 0 && (
+            {boardLanes.length > 0 && (
               <div className="flex items-center gap-1 mb-3 bg-surface-canvas border border-border rounded-lg p-1 w-fit">
                 <button
                   type="button"
@@ -552,7 +577,19 @@ export default function TodaysQueuePage({
             )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 items-start">
-              {lanes.length === 0 ? (
+              {boardLanes.length === 0 && leaveLanes.length > 0 ? (
+                <div className="md:col-span-2 xl:col-span-3 bg-surface-paper border border-border rounded-xl py-14 px-6 text-center shadow-sm">
+                  <CalendarOff className="w-8 h-8 text-border mx-auto mb-3" />
+                  <h3 className="text-base font-semibold text-ink-900 mb-1 font-display tracking-tight">
+                    No doctor available today
+                  </h3>
+                  <p className="text-sm text-ink-500">
+                    {leaveLanes.length === 1
+                      ? `Dr. ${leaveLanes[0].lane.doctor.name} is on leave.`
+                      : "Every doctor is on leave."}
+                  </p>
+                </div>
+              ) : boardLanes.length === 0 ? (
                 <div className="md:col-span-2 xl:col-span-3 bg-surface-paper border border-border rounded-xl py-14 px-6 text-center shadow-sm">
                   <UserPlus className="w-8 h-8 text-border mx-auto mb-3" />
                   <h3 className="text-base font-semibold text-ink-900 mb-1 font-display tracking-tight">
@@ -610,6 +647,69 @@ export default function TodaysQueuePage({
           </div>
 
           <div className="space-y-4">
+            {leaveLanes.length > 0 && (
+              <div className="bg-surface-paper border border-border rounded-xl overflow-hidden">
+                <div className="px-4 py-3 border-b border-border flex items-center gap-2">
+                  <CalendarOff size={14} className="text-status-danger" />
+                  <h2 className="text-sm font-bold text-ink-900 font-display tracking-tight">
+                    On leave today
+                  </h2>
+                  <span className="ml-auto font-mono text-xs text-ink-500">
+                    {leaveLanes.length}
+                  </span>
+                </div>
+                {leaveLanes.map(({ lane, leave }) => (
+                  <div
+                    key={lane.doctor.id}
+                    className="px-4 py-3 border-t border-border first:border-t-0"
+                  >
+                    <div className="flex items-baseline gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setActiveDoctor(lane.doctor)}
+                        className="text-sm font-bold text-ink-900 hover:underline text-left"
+                      >
+                        Dr. {lane.doctor.name}
+                      </button>
+                      <span className="ml-auto shrink-0 rounded-md bg-status-danger-soft text-status-danger border border-status-danger/20 px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-wide">
+                        On leave
+                      </span>
+                    </div>
+                    <div className="text-xs text-ink-500 mt-1">
+                      {lane.doctor.specialization || "General"} ·{" "}
+                      {computePresence(lane, undefined, now, leave).detail}
+                    </div>
+                    {lane.yetToArrive.length > 0 && (
+                      <div className="mt-2 rounded-lg border border-status-warning/30 bg-status-warning-soft/40 px-3 py-2">
+                        <div className="text-[11px] font-semibold text-status-warning">
+                          {lane.yetToArrive.length} booking
+                          {lane.yetToArrive.length > 1 ? "s" : ""} still under
+                          this doctor — move or reschedule
+                        </div>
+                        <div className="mt-1.5 space-y-1">
+                          {lane.yetToArrive.map((appt) => (
+                            <button
+                              key={appt.id}
+                              type="button"
+                              onClick={() => setSelectedAppt(appt)}
+                              className="w-full flex items-baseline gap-2 text-left text-xs text-ink-700 hover:text-ink-900"
+                            >
+                              <span className="font-medium truncate">
+                                {appt.patientName}
+                              </span>
+                              <span className="ml-auto font-mono text-ink-500 shrink-0">
+                                {formatTime12h(appt.time)}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
             <div className="bg-surface-paper border border-border rounded-xl overflow-hidden">
               <div className="px-4 py-3 border-b border-border flex items-center gap-2">
                 <h2 className="text-sm font-bold text-ink-900 font-display tracking-tight">

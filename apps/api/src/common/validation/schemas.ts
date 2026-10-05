@@ -152,6 +152,16 @@ export const paymentItemSchema = z.object({
   isPackageCovered: z.boolean().optional(),
 });
 
+// Doctor's rough notes in, AI-formatted draft out — see AiNotesService.
+export const generateSessionNotesSchema = z.object({
+  appointmentId: z.string().min(1, 'Appointment ID is required'),
+  draft: z
+    .string()
+    .trim()
+    .min(3, 'Type a few rough notes first — the AI formats what you write')
+    .max(5000, 'Notes are too long to format in one go'),
+});
+
 // Finishes the clinical part of a visit (in-consultation -> awaiting-payment)
 // without billing — see AppointmentsService.finishSession. Billing/payment
 // collection is a separate, later step (PaymentsService.completeVisit).
@@ -244,6 +254,19 @@ export const sellPackageSchema = z.object({
     },
   ),
   visits: z.array(sellPackageVisitSchema).default([]),
+});
+
+export const updatePackageSettingsSchema = z.object({
+  discountEnabled: z.boolean(),
+  discountPercent: z
+    .number()
+    .min(0, 'Discount cannot be negative')
+    .max(90, 'Discount cannot exceed 90%'),
+  visitTiers: z
+    .array(z.number().int().min(1, 'Visits must be at least 1').max(60, 'At most 60 visits per package'))
+    .min(1, 'Offer at least one package size')
+    .max(6, 'At most 6 package sizes'),
+  validityMonths: z.number().int().min(1).max(24),
 });
 
 export const extendPackageSchema = z.object({
@@ -400,6 +423,7 @@ export const updateHospitalModulesSchema = z.object({
       medicines: z.boolean(),
       medicinePacks: z.boolean(),
       patientFields: z.boolean(),
+      aiNotes: z.boolean(),
     })
     .partial()
     .strict(),

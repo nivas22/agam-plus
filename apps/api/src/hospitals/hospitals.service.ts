@@ -19,7 +19,8 @@ import {
   ROLE,
   VISIT_FINISHED_STATUSES,
 } from '../constants';
-import type { PatientNoteField } from '../constants';
+import type { PackageSettings, PatientNoteField } from '../constants';
+import { resolvePackageSettings } from '../packages/package-settings.util';
 import { resolveHospitalModules } from './hospital-modules.util';
 import type { HospitalUserProfile } from '../auth/decorators/current-user.decorator';
 import { getDateCategory } from '../utils/dateUtils';
@@ -238,6 +239,30 @@ export class HospitalsService {
     }
 
     return result;
+  }
+
+  // Prepaid package discount, sizes and validity (Settings > Packages).
+  async getPackageSettings(hospitalId: string) {
+    const hospital = await this.getHospitalById(hospitalId);
+    return { settings: resolvePackageSettings((hospital as any).packageSettings) };
+  }
+
+  async updatePackageSettings(hospitalId: string, settings: PackageSettings, actor: HospitalUserProfile) {
+    const resolved = resolvePackageSettings(settings);
+    await this.getHospitalById(hospitalId);
+    await this.hospitalRepository.updateHospital(hospitalId, { packageSettings: resolved });
+
+    await this.auditService.log({
+      hospitalId,
+      actor: { userId: actor.userId, name: actor.name, role: actor.role },
+      action: 'hospital.package_settings_updated',
+      area: 'settings',
+      summary: resolved.discountEnabled
+        ? `Set package discount to ${resolved.discountPercent}% (${resolved.visitTiers.join('/')} visits, ${resolved.validityMonths} months)`
+        : `Turned off package discount (${resolved.visitTiers.join('/')} visits, ${resolved.validityMonths} months)`,
+    });
+
+    return { settings: resolved };
   }
 
   async deleteHospital(hospitalId: string) {

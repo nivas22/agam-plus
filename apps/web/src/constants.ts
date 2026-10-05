@@ -204,16 +204,42 @@ export const PACKAGE_PAYMENT_METHOD_VALUES = Object.values(
   PACKAGE_PAYMENT_METHOD,
 );
 
-// Fixed bundle sizes offered for a prepaid package.
+// Default bundle sizes offered for a prepaid package.
 export const PACKAGE_VISIT_TIERS = [5, 10, 20];
 
-// A package stays redeemable for 6 months from the date it"s sold.
+// By default a package stays redeemable for 6 months from the date it"s sold.
 export const PACKAGE_VALIDITY_MONTHS = 6;
 
-// Per-visit price for a prepaid package — roughly 5/6 of the doctor"s normal
-// consultation fee, rounded to the nearest ₹5 so bulk pricing reads clean.
-export function computePackagePricePerVisit(consultationFee: number): number {
-  return Math.round((consultationFee * 0.8333) / 5) * 5;
+// Hospital-admin-configurable package pricing/terms (Settings > Packages).
+// The API is the source of truth (GET /hospitals/:id/package-settings); these
+// defaults only cover the moment before it loads. Mirrors PackageSettings in
+// apps/api/src/constants.ts — keep in sync.
+export interface PackageSettings {
+  discountEnabled: boolean;
+  discountPercent: number;
+  visitTiers: number[];
+  validityMonths: number;
+}
+
+export const DEFAULT_PACKAGE_SETTINGS: PackageSettings = {
+  discountEnabled: true,
+  discountPercent: 16.67,
+  visitTiers: PACKAGE_VISIT_TIERS,
+  validityMonths: PACKAGE_VALIDITY_MONTHS,
+};
+
+// Per-visit price for a prepaid package — the doctor"s consultation fee less
+// the hospital"s package discount, rounded to the nearest ₹5 so bulk pricing
+// reads clean. With the discount off, it"s the plain consultation fee.
+export function computePackagePricePerVisit(
+  consultationFee: number,
+  settings: Pick<
+    PackageSettings,
+    "discountEnabled" | "discountPercent"
+  > = DEFAULT_PACKAGE_SETTINGS,
+): number {
+  const percent = settings.discountEnabled ? settings.discountPercent : 0;
+  return Math.round((consultationFee * (1 - percent / 100)) / 5) * 5;
 }
 
 // How a completed visit was settled. SPLIT covers cash+UPI combined; DUE

@@ -321,7 +321,7 @@ export default function AddEditDoctor({
   );
   const { hospitals } = useAuth();
   const resetPassword = useResetDoctorPassword(hospitalId);
-  const [tempPassword, setTempPassword] = useState<string | null>(null);
+  const [tempPassword, setTempPassword] = useState<{ password: string; username?: string } | null>(null);
   const { data: hospitalSpecializationsData } =
     useHospitalSpecializations(hospitalId);
   const updateSpecializations = useUpdateHospitalSpecializations(hospitalId);
@@ -358,8 +358,8 @@ export default function AddEditDoctor({
       const next: FormState = {
         name: d.name || "",
         email: d.email || "",
-        username: "",
-        usernameSameAsEmail: true,
+        username: d.username || "",
+        usernameSameAsEmail: false,
         password: "",
         phone: d.phone || "",
         specialization: d.specialization || "",
@@ -903,7 +903,7 @@ export default function AddEditDoctor({
                     disabled={resetPassword.isPending}
                     onClick={() =>
                       resetPassword.mutate(id!, {
-                        onSuccess: (data) => setTempPassword(data.tempPassword),
+                        onSuccess: (data) => setTempPassword({ password: data.tempPassword, username: data.username }),
                       })
                     }
                     className="block text-brand-violet hover:underline font-medium disabled:opacity-50"
@@ -969,6 +969,16 @@ export default function AddEditDoctor({
                   className={inputClass}
                 />
               </Field>
+              {!isNew && (
+                <Field label="Username" hint="Used to log in. It can't be changed.">
+                  <input
+                    value={formData.username}
+                    disabled
+                    placeholder="—"
+                    className={inputClass}
+                  />
+                </Field>
+              )}
               {isNew && (
                 <>
                   <Field
@@ -1783,7 +1793,8 @@ export default function AddEditDoctor({
       {tempPassword && (
         <TempPasswordModal
           name={displayName}
-          tempPassword={tempPassword}
+          tempPassword={tempPassword.password}
+          username={tempPassword.username}
           onClose={() => setTempPassword(null)}
         />
       )}

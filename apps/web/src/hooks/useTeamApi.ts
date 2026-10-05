@@ -76,7 +76,7 @@ const teamApiFunctions = {
     return parseJsonOrThrow(response);
   },
 
-  resetPassword: async (hospitalId: string, memberId: string): Promise<{ success: boolean; tempPassword: string }> => {
+  resetPassword: async (hospitalId: string, memberId: string): Promise<{ success: boolean; tempPassword: string; username?: string }> => {
     const response = await fetchWithAuth(apiUrl(`/hospitals/${hospitalId}/team/${memberId}/password/reset`), {
       method: "POST",
     });

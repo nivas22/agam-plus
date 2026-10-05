@@ -6,10 +6,11 @@ import { useState } from "react";
 interface TempPasswordModalProps {
   name: string;
   tempPassword: string;
+  username?: string;
   onClose: () => void;
 }
 
-export default function TempPasswordModal({ name, tempPassword, onClose }: TempPasswordModalProps) {
+export default function TempPasswordModal({ name, tempPassword, username, onClose }: TempPasswordModalProps) {
   const [copied, setCopied] = useState(false);
 
   const copy = async () => {
@@ -44,6 +45,17 @@ export default function TempPasswordModal({ name, tempPassword, onClose }: TempP
           Share this with them directly — it won&apos;t be shown again. They&apos;ll be asked to change it the
           next time they sign in.
         </p>
+
+        {username ? (
+          <p className="text-sm text-ink-700 mb-2">
+            Username: <span className="font-mono font-semibold text-ink-900">{username}</span>
+          </p>
+        ) : (
+          <p className="text-sm text-status-danger mb-2">
+            This account has no username yet, so it can&apos;t sign in with a password. Set its email to a unique
+            address and reset again.
+          </p>
+        )}
 
         <div className="flex items-center gap-2 bg-surface-canvas border border-border rounded-lg px-4 py-3 mb-5">
           <span className="flex-1 font-mono text-lg tracking-wide text-ink-900">{tempPassword}</span>

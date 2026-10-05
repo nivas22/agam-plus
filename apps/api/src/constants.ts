@@ -226,16 +226,39 @@ export const PACKAGE_PAYMENT_METHOD_VALUES = Object.values(
   PACKAGE_PAYMENT_METHOD,
 );
 
-// Fixed bundle sizes offered for a prepaid package.
+// Default bundle sizes offered for a prepaid package.
 export const PACKAGE_VISIT_TIERS = [5, 10, 20];
 
-// A package stays redeemable for 6 months from the date it"s sold.
+// By default a package stays redeemable for 6 months from the date it"s sold.
 export const PACKAGE_VALIDITY_MONTHS = 6;
 
-// Per-visit price for a prepaid package — roughly 5/6 of the doctor"s normal
-// consultation fee, rounded to the nearest ₹5 so bulk pricing reads clean.
-export function computePackagePricePerVisit(consultationFee: number): number {
-  return Math.round((consultationFee * 0.8333) / 5) * 5;
+// Hospital-admin-configurable package pricing/terms (Settings > Packages).
+// A hospital that never saved these gets DEFAULT_PACKAGE_SETTINGS — the
+// original ~1/6 discount, 5/10/20 tiers and 6-month validity. Keep in sync
+// with apps/web/src/constants.ts.
+export interface PackageSettings {
+  discountEnabled: boolean;
+  discountPercent: number;
+  visitTiers: number[];
+  validityMonths: number;
+}
+
+export const DEFAULT_PACKAGE_SETTINGS: PackageSettings = {
+  discountEnabled: true,
+  discountPercent: 16.67,
+  visitTiers: PACKAGE_VISIT_TIERS,
+  validityMonths: PACKAGE_VALIDITY_MONTHS,
+};
+
+// Per-visit price for a prepaid package — the doctor"s consultation fee less
+// the hospital's package discount, rounded to the nearest ₹5 so bulk pricing
+// reads clean. With the discount off, it's the plain consultation fee.
+export function computePackagePricePerVisit(
+  consultationFee: number,
+  settings: Pick<PackageSettings, "discountEnabled" | "discountPercent"> = DEFAULT_PACKAGE_SETTINGS,
+): number {
+  const percent = settings.discountEnabled ? settings.discountPercent : 0;
+  return Math.round((consultationFee * (1 - percent / 100)) / 5) * 5;
 }
 
 // How a completed visit was settled. SPLIT covers cash+UPI combined; DUE
@@ -724,6 +747,7 @@ export enum HOSPITAL_MODULE {
   MEDICINES = "medicines",
   MEDICINE_PACKS = "medicinePacks",
   PATIENT_FIELDS = "patientFields",
+  AI_NOTES = "aiNotes",
 }
 
 export const HOSPITAL_MODULE_VALUES = Object.values(HOSPITAL_MODULE);
@@ -746,6 +770,7 @@ export const HOSPITAL_MODULE_LABELS: Record<HOSPITAL_MODULE, string> = {
   [HOSPITAL_MODULE.MEDICINES]: "Medicines",
   [HOSPITAL_MODULE.MEDICINE_PACKS]: "Medicine packs",
   [HOSPITAL_MODULE.PATIENT_FIELDS]: "Custom patient fields",
+  [HOSPITAL_MODULE.AI_NOTES]: "AI session notes",
 };
 
 // A module is only usable while every module it builds on is too — e.g. the
@@ -758,6 +783,7 @@ export const HOSPITAL_MODULE_DEPENDENCIES: Partial<Record<HOSPITAL_MODULE, HOSPI
   [HOSPITAL_MODULE.WHATSAPP]: [HOSPITAL_MODULE.APPOINTMENTS],
   [HOSPITAL_MODULE.MEDICINE_PACKS]: [HOSPITAL_MODULE.MEDICINES],
   [HOSPITAL_MODULE.CHARGE_CATALOG]: [HOSPITAL_MODULE.PAYMENTS],
+  [HOSPITAL_MODULE.AI_NOTES]: [HOSPITAL_MODULE.APPOINTMENTS],
 };
 
 // Whether a module ships at all, set platform-wide by a platform admin under
