@@ -4,6 +4,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
 import { ApiRequestError, apiUrl, fetchWithAuth } from "@/lib/api";
+import { useModuleFetchAllowed } from "@/hooks/useHospitalModulesApi";
 import type {
   CreateHospitalHolidayData,
   HolidayDraft,
@@ -149,15 +150,17 @@ export const hospitalHolidaysKeys = {
     [...hospitalHolidaysKeys.hospital(hospitalId), "year", year] as const,
 };
 
+// Not fetched while the hospitalHolidays module is off (Settings > Features).
 export const useHospitalHolidays = (year: number, hospitalId?: string) => {
   const params = useParams();
   const actualHospitalId = hospitalId || (params.id as string);
+  const moduleOn = useModuleFetchAllowed("hospitalHolidays", actualHospitalId);
 
   return useQuery({
     queryKey: hospitalHolidaysKeys.year(actualHospitalId, year),
     queryFn: () =>
       hospitalHolidaysApiFunctions.fetchHolidays(actualHospitalId, year),
-    enabled: !!actualHospitalId,
+    enabled: !!actualHospitalId && moduleOn,
     staleTime: 60 * 1000,
   });
 };

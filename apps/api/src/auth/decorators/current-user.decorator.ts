@@ -25,6 +25,9 @@ export interface HospitalUserProfile {
   specialization?: string;
   role: string;
   isOwner?: boolean;
+  // True for doctor-role members and for admins who also practise (see
+  // PRACTISING_DOCTOR_FILTER). `role` is still the source of truth for access.
+  isDoctor?: boolean;
   currentHospital: any;
   doctorProfile?: any;
 }

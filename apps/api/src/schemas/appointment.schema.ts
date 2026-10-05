@@ -41,6 +41,22 @@ export class Appointment {
   @Prop({ index: true })
   packageId?: string;
 
+  // Follow-up the doctor asked for at finish-session ('2-weeks' etc.) and the
+  // date it works out to. Booking it is optional and happens at payment.
+  @Prop()
+  followUpOption?: string;
+
+  @Prop()
+  followUpDueDate?: string;
+
+  // Set on the original visit once its follow-up is booked.
+  @Prop()
+  followUpAppointmentId?: string;
+
+  // Set on a follow-up appointment: the visit it follows up on.
+  @Prop()
+  followUpOf?: string;
+
   @Prop()
   packageVisitNumber?: number;
 

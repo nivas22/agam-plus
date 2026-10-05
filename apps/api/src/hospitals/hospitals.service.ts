@@ -348,11 +348,7 @@ export class HospitalsService {
       const [totalPatients, totalDoctors, pendingDoctors, totalAppointments, todayAppointments, upcomingAppointmentsRaw, staffOnDuty] =
         await Promise.all([
           this.dashboardRepository.countDocuments(DB_COLLECTIONS.PATIENTS, { hospitalId }),
-          this.dashboardRepository.countDocuments(DB_COLLECTIONS.HOSPITAL_MEMBERS, {
-            hospitalId,
-            role: 'doctor',
-            status: 'approved',
-          }),
+          this.membershipRepository.countPractisingDoctors(hospitalId, 'approved'),
           this.dashboardRepository.countDocuments(DB_COLLECTIONS.HOSPITAL_MEMBERS, {
             hospitalId,
             role: 'doctor',

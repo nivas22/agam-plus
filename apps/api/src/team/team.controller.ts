@@ -9,6 +9,7 @@ import {
   createTeamMemberSchema,
   updateTeamMemberSchema,
   teamMemberStatusSchema,
+  teamMemberPractisingSchema,
   setPinSchema,
   verifyPinSchema,
 } from '../common/validation/schemas';
@@ -88,6 +89,18 @@ export class TeamController {
     @Body() body: { status: 'active' | 'suspended' | 'deactivated' },
   ) {
     return this.teamService.updateStatus(hospitalId, memberId, body.status, userProfile);
+  }
+
+  // Admins only: marks an admin as also seeing patients (HospitalMember.isDoctor).
+  @Patch(':memberId/practising')
+  @UsePipes(new ZodValidationPipe(teamMemberPractisingSchema))
+  setPractising(
+    @Param('id') hospitalId: string,
+    @Param('memberId') memberId: string,
+    @CurrentHospitalUser() userProfile: HospitalUserProfile,
+    @Body() body: { isDoctor: boolean },
+  ) {
+    return this.teamService.setAdminPractising(hospitalId, memberId, body.isDoctor, userProfile);
   }
 
   @Post(':memberId/pin/reset')

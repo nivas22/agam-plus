@@ -259,7 +259,11 @@ export default function AdminDashboardClient() {
         .join(", ")} — the drawer was never counted`,
       actionLabel: "Close them",
       actionCls: "bg-status-warning text-white",
-      onAction: () => router.push(`/hospital/${hospitalId}/reports`),
+      // Oldest first — the Payments page closes one day at a time.
+      onAction: () =>
+        router.push(
+          `/hospital/${hospitalId}/payments?closeDate=${unclosedDates[0]}`,
+        ),
     });
   }
 

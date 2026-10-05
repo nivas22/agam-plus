@@ -75,6 +75,15 @@ function dayCount(startDate: string, endDate: string) {
   return Math.round(ms / 86_400_000) + 1;
 }
 
+// Whether the requester practises — includes admins who also see patients.
+// Older rows have no isDoctor, so fall back to the role (or to "doctor" for
+// the oldest, from before staff could file leave).
+function isFromDoctor(r: LeaveRequest) {
+  const by = r.requestedBy;
+  if (!by?.role) return true;
+  return by.isDoctor ?? by.role === "doctor";
+}
+
 function isSameDay(iso: string | undefined, other: Date) {
   return !!iso && new Date(iso).toDateString() === other.toDateString();
 }
@@ -82,7 +91,7 @@ function isSameDay(iso: string | undefined, other: Date) {
 export default function LeaveRequestsPage({
   hospitalId,
 }: LeaveRequestsPageProps) {
-  const { getCurrentHospitalRole } = useAuth();
+  const { getCurrentHospitalRole, practisesAsDoctor } = useAuth();
   const role = getCurrentHospitalRole();
   const isAdmin = role === "admin";
 
@@ -106,8 +115,8 @@ export default function LeaveRequestsPage({
     if (!isAdmin || audience === "all") return all;
     return all.filter((r) =>
       audience === "doctors"
-        ? r.requestedBy?.role === "doctor"
-        : r.requestedBy?.role !== "doctor",
+        ? isFromDoctor(r)
+        : !isFromDoctor(r),
     );
   }, [data, audience, isAdmin]);
 
@@ -350,7 +359,7 @@ export default function LeaveRequestsPage({
       {showApply && (
         <ApplyForLeaveDialog
           hospitalId={hospitalId}
-          showImpact={role === "doctor"}
+          showImpact={practisesAsDoctor}
           onClose={() => setShowApply(false)}
         />
       )}
@@ -417,7 +426,7 @@ function ResolveLeaveDialog({
   const name = request.requestedBy?.name || request.doctorName || "this";
   const isApprove = action === "approve";
   const needsAppointmentCheck =
-    isApprove && request.requestedBy?.role === "doctor";
+    isApprove && isFromDoctor(request);
 
   const affected = useLeaveAffectedAppointments(
     needsAppointmentCheck ? request.id : undefined,

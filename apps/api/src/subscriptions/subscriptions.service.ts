@@ -172,7 +172,7 @@ export class SubscriptionsService {
     const now = new Date();
 
     const [doctorCount, staffCount] = await Promise.all([
-      this.membershipRepository.countApprovedMembersByRoles(hospitalId, [ROLE.DOCTOR]),
+      this.membershipRepository.countPractisingDoctors(hospitalId, 'approved'),
       this.membershipRepository.countApprovedMembersByRoles(hospitalId, STAFF_ROLES),
     ]);
 
@@ -319,7 +319,7 @@ export class SubscriptionsService {
     if (!subscription) return;
 
     const [doctorCount, staffCount] = await Promise.all([
-      this.membershipRepository.countApprovedMembersByRoles(hospitalId, [ROLE.DOCTOR]),
+      this.membershipRepository.countPractisingDoctors(hospitalId, 'approved'),
       this.membershipRepository.countApprovedMembersByRoles(hospitalId, STAFF_ROLES),
     ]);
 

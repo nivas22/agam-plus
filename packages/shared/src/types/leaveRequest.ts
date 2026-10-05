@@ -5,6 +5,10 @@ export interface LeaveRequestActor {
   userId: string;
   name: string;
   role: string;
+  // Set on requestedBy: the requester practises (doctor role, or an admin who
+  // also sees patients), so their leave affects appointments. Missing on
+  // older rows — fall back to role === "doctor".
+  isDoctor?: boolean;
 }
 
 export interface LeaveRequest {
@@ -88,6 +92,7 @@ export interface OnLeaveEntry {
   userId: string;
   name?: string;
   role: string;
+  isDoctor?: boolean;
   startDate: string;
   endDate: string;
 }

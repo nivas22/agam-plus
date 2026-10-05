@@ -40,6 +40,14 @@ function toMinutes(hhmm: string): number {
   return h * 60 + m;
 }
 
+// Older rows predate requestedBy.isDoctor (and the oldest predate requestedBy
+// entirely, when only doctors could file leave), so fall back to the role.
+export function leaveIsFromDoctor(leave: any): boolean {
+  const by = leave?.requestedBy;
+  if (!by?.role) return true;
+  return by.isDoctor ?? by.role === 'doctor';
+}
+
 @Injectable()
 export class LeaveRequestsService {
   constructor(
@@ -68,6 +76,7 @@ export class LeaveRequestsService {
       userId: r.doctorProfileId,
       name: r.requestedBy?.name ?? r.doctorName,
       role: r.requestedBy?.role ?? 'doctor',
+      isDoctor: leaveIsFromDoctor(r),
       startDate: r.startDate,
       endDate: r.endDate,
     }));
@@ -83,7 +92,7 @@ export class LeaveRequestsService {
     }
 
     const affectedAppointmentCount =
-      actor.role === 'doctor'
+      actor.isDoctor
         ? await this.appointmentRepository.getAppointmentCountInRange(
             hospitalId,
             actor.userId,
@@ -108,7 +117,7 @@ export class LeaveRequestsService {
       reason: draft.reason,
       affectedAppointmentCount,
       status: LEAVE_REQUEST_STATUS.PENDING,
-      requestedBy: { userId: actor.userId, name: actor.name, role: actor.role },
+      requestedBy: { userId: actor.userId, name: actor.name, role: actor.role, isDoctor: !!actor.isDoctor },
       requestedAt: new Date(),
     });
 
@@ -117,7 +126,7 @@ export class LeaveRequestsService {
       actor: { userId: actor.userId, name: actor.name, role: actor.role },
       action: 'leave_request.created',
       area: 'appointments',
-      summary: `${actor.name} applied for leave ${draft.startDate}${draft.endDate !== draft.startDate ? ` – ${draft.endDate}` : ''}${actor.role === 'doctor' ? ` — ${affectedAppointmentCount} appointment(s) would need moving` : ''}`,
+      summary: `${actor.name} applied for leave ${draft.startDate}${draft.endDate !== draft.startDate ? ` – ${draft.endDate}` : ''}${actor.isDoctor ? ` — ${affectedAppointmentCount} appointment(s) would need moving` : ''}`,
     });
 
     return leaveRequest;
@@ -321,7 +330,7 @@ export class LeaveRequestsService {
   // Leave filed by staff never has appointments attached. Past days inside
   // the range are skipped — there's nothing left to move for them.
   private async loadAffectedAppointments(hospitalId: string, leave: any): Promise<any[]> {
-    if (leave.requestedBy?.role && leave.requestedBy.role !== 'doctor') return [];
+    if (!leaveIsFromDoctor(leave)) return [];
     const today = todayIso(await this.hospitalRepository.getTimezone(hospitalId));
     const from = leave.startDate > today ? leave.startDate : today;
     if (from > leave.endDate) return [];
@@ -335,10 +344,7 @@ export class LeaveRequestsService {
   }
 
   private async otherDoctors(hospitalId: string, excludeDoctorId: string) {
-    const members = await this.membershipRepository.getHospitalMembers(hospitalId, {
-      role: 'doctor',
-      status: 'approved',
-    });
+    const members = await this.membershipRepository.getPractisingDoctorMembers(hospitalId, { status: 'approved' });
     return members.filter((m: any) => m.userId !== excludeDoctorId);
   }
 

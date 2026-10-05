@@ -10,6 +10,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ClipboardList,
+  Clock,
   IndianRupee,
   LayoutDashboard,
   ListChecks,
@@ -75,6 +76,7 @@ export default function AdminHospitalLayout({
     isSwitchingHospital,
     getRoleBasedRedirect,
     getCurrentHospitalRole,
+    practisesAsDoctor,
   } = useAuth();
   const currentRole = getCurrentHospitalRole();
   const isAdmin = currentRole === "admin";
@@ -138,14 +140,6 @@ export default function AdminHospitalLayout({
         ]
       : []),
     {
-      to: "/leave-requests",
-      label: isAdmin ? "Leave requests" : "My leave",
-      module: "leaveRequests" as const,
-      icon: <CalendarOff size={18} />,
-      // Admins manage everyone's leave; other staff only see their own.
-      category: isAdmin ? "people" : "personal",
-    },
-    {
       to: "/appointments",
       label: "Appointments",
       module: "appointments" as const,
@@ -159,6 +153,18 @@ export default function AdminHospitalLayout({
       icon: <ListChecks size={18} />,
       category: "care",
     },
+    // An admin who also practises gets their own single-doctor queue too.
+    ...(practisesAsDoctor
+      ? [
+          {
+            to: "/today",
+            label: "My patients today",
+            module: "queue" as const,
+            icon: <Clock size={18} />,
+            category: "care",
+          },
+        ]
+      : []),
     {
       to: "/payments",
       label: "Payments",
@@ -179,6 +185,15 @@ export default function AdminHospitalLayout({
           },
         ]
       : []),
+    {
+      to: "/leave-requests",
+      label: isAdmin ? "Leave requests" : "My leave",
+      module: "leaveRequests" as const,
+      icon: <CalendarOff size={18} />,
+      // Admins manage everyone's leave (alongside the other front-desk
+      // work); other staff only see their own.
+      category: isAdmin ? "frontDesk" : "personal",
+    },
     ...(isAdmin
       ? [
           {

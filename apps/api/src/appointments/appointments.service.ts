@@ -54,6 +54,7 @@ interface GenerateAppointmentsParams {
   bookingSource?: 'scheduled' | 'walk-in';
   forceSlot?: boolean;
   vitals?: Vitals;
+  followUpOf?: string;
 }
 
 @Injectable()
@@ -209,11 +210,23 @@ export class AppointmentsService {
       bookingSource,
       forceSlot,
       vitals,
+      followUpOf,
     } = body;
 
     // Verify user has access to this hospital
     if (userProfile.role !== 'admin' && userProfile.hospitalId !== hospitalId) {
       throw ApiError.forbidden('Access denied to this hospital');
+    }
+
+    // Booking a visit's follow-up: same patient, and only one per visit.
+    if (followUpOf) {
+      const source: any = await this.appointmentRepository.getAppointmentById(followUpOf);
+      if (!source || source.hospitalId !== hospitalId || source.patientId !== patientId) {
+        throw ApiError.badRequest('The visit this follows up on was not found for this patient');
+      }
+      if (source.followUpAppointmentId) {
+        throw ApiError.conflict('A follow-up is already booked for this visit');
+      }
     }
 
     const membershipRef = await this.membershipRepository.getHospitalMembership(hospitalId, doctorProfileId || userProfile.userId);
@@ -251,6 +264,7 @@ export class AppointmentsService {
       bookingSource,
       forceSlot,
       vitals,
+      followUpOf,
     });
 
     if (generatedAppointments.length === 0) {
@@ -259,6 +273,13 @@ export class AppointmentsService {
 
     // Save all appointments
     const appointmentIds = await this.appointmentRepository.createAppointmentsBatch(generatedAppointments);
+
+    if (followUpOf) {
+      await this.appointmentRepository.updateAppointment(followUpOf, {
+        followUpAppointmentId: appointmentIds[0],
+        updatedAt: new Date().toISOString(),
+      });
+    }
 
     return {
       success: true,
@@ -510,9 +531,12 @@ export class AppointmentsService {
     bookingSource,
     forceSlot,
     vitals,
+    followUpOf,
   }: GenerateAppointmentsParams) {
     const appointments: any[] = [];
     let count = 0;
+    // A follow-up is always a single visit.
+    if (followUpOf) frequency = 'once';
     const maxOccurrences = frequency === 'once' ? 1 : Math.max(1, numberOfOccurrences);
     let attempts = 0;
     const SAFETY_LIMIT = 1000;
@@ -545,6 +569,7 @@ export class AppointmentsService {
       ...(cleanedVitals && Object.keys(cleanedVitals).length > 0
         ? { vitals: cleanedVitals }
         : {}),
+      ...(followUpOf ? { type: APPOINTMENT_TYPE.FOLLOW_UP, followUpOf } : {}),
     };
 
     if (frequency === 'once') {
@@ -1063,7 +1088,21 @@ export class AppointmentsService {
       updateData.givenItems = givenItems;
     }
 
+    // With Payments on, the follow-up is only recorded here - the Collect
+    // payment dialog offers to book it (optional, with a real slot). With
+    // Payments off there's no such step, so it's booked straight away as before.
+    const followUpDays = followUp ? FOLLOW_UP_DAY_OFFSETS[followUp] : undefined;
+    if (paymentsEnabled && followUpDays) {
+      const tz = await this.hospitalRepository.getTimezone(hospitalId);
+      updateData.followUpOption = followUp;
+      updateData.followUpDueDate = todayIso(tz, followUpDays);
+    }
+
     await this.appointmentRepository.updateAppointment(appointmentId, updateData);
+
+    if (paymentsEnabled) {
+      return { success: true, message: 'Session finished — ready for payment', followUpAppointmentId: null };
+    }
 
     const followUpAppointmentId = await this.createFollowUpAppointment({
       hospitalId,
@@ -1077,6 +1116,7 @@ export class AppointmentsService {
       notes: 'Follow-up scheduled at visit completion',
       createdBy: user.uid,
       userRole,
+      followUpOf: appointmentId,
     });
 
     return {
@@ -1157,13 +1197,21 @@ export class AppointmentsService {
     notes: string;
     createdBy: string;
     userRole: string;
+    // The visit being followed up - linked both ways so a visit only ever
+    // gets one follow-up, however it's booked.
+    followUpOf?: string;
   }): Promise<string | null> {
     const days = FOLLOW_UP_DAY_OFFSETS[params.followUpOption];
     if (!days) return null;
 
+    if (params.followUpOf) {
+      const source: any = await this.appointmentRepository.getAppointmentById(params.followUpOf);
+      if (source?.followUpAppointmentId) return source.followUpAppointmentId;
+    }
+
     const tz = await this.hospitalRepository.getTimezone(params.hospitalId);
 
-    return this.appointmentRepository.createAppointment({
+    const id = await this.appointmentRepository.createAppointment({
       hospitalId: params.hospitalId,
       doctorProfileId: params.doctorProfileId,
       doctorName: params.doctorName,
@@ -1178,6 +1226,15 @@ export class AppointmentsService {
       notes: params.notes,
       createdBy: params.createdBy,
       userRole: params.userRole,
+      ...(params.followUpOf ? { followUpOf: params.followUpOf } : {}),
     });
+
+    if (params.followUpOf && id) {
+      await this.appointmentRepository.updateAppointment(params.followUpOf, {
+        followUpAppointmentId: id,
+        updatedAt: new Date().toISOString(),
+      });
+    }
+    return id;
   }
 }

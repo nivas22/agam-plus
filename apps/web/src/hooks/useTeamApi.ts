@@ -4,6 +4,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
 import { ApiRequestError, apiUrl, fetchWithAuth } from "@/lib/api";
+import { authKeys } from "@/hooks/useAuth";
+import { doctorKeys } from "@/hooks/useNewDoctorApi";
 import type {
   CreateTeamMemberData,
   TeamMember,
@@ -65,6 +67,15 @@ const teamApiFunctions = {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status }),
+    });
+    return parseJsonOrThrow(response);
+  },
+
+  setPractising: async (hospitalId: string, memberId: string, isDoctor: boolean) => {
+    const response = await fetchWithAuth(apiUrl(`/hospitals/${hospitalId}/team/${memberId}/practising`), {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ isDoctor }),
     });
     return parseJsonOrThrow(response);
   },
@@ -167,6 +178,25 @@ export const useUpdateTeamMemberStatus = (hospitalId?: string) => {
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: teamKeys.hospital(actualHospitalId) });
       queryClient.invalidateQueries({ queryKey: teamKeys.detail(actualHospitalId, variables.memberId) });
+    },
+  });
+};
+
+// Marks an admin as also seeing patients. Refreshes the doctors list (they
+// appear/disappear there) and the signed-in user's memberships, so the
+// "My patients today" nav item updates without a reload when it's yourself.
+export const useSetAdminPractising = (hospitalId?: string) => {
+  const queryClient = useQueryClient();
+  const params = useParams();
+  const actualHospitalId = hospitalId || (params.id as string);
+
+  return useMutation({
+    mutationFn: ({ memberId, isDoctor }: { memberId: string; isDoctor: boolean }) =>
+      teamApiFunctions.setPractising(actualHospitalId, memberId, isDoctor),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: teamKeys.hospital(actualHospitalId) });
+      queryClient.invalidateQueries({ queryKey: doctorKeys.hospital(actualHospitalId) });
+      queryClient.invalidateQueries({ queryKey: authKeys.user() });
     },
   });
 };

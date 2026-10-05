@@ -1,6 +1,6 @@
 import { CanActivate, ExecutionContext, ForbiddenException, HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { MembershipRepository } from '../../repositories/membership.repository';
+import { MembershipRepository, isPractisingDoctor } from '../../repositories/membership.repository';
 import { HospitalRepository } from '../../repositories/hospital.repository';
 import { DoctorRepository } from '../../repositories/doctor.repository';
 import { SubscriptionRepository } from '../../repositories/subscription.repository';
@@ -95,8 +95,12 @@ export class HospitalContextGuard implements CanActivate {
       }
     }
 
+    // An admin with isDoctor also practises here, so they get a doctorProfile
+    // too — but their role stays 'admin', so every "doctors only see their own
+    // data" check below and in the services keeps treating them as an admin.
+    const isDoctor = isPractisingDoctor({ role: userRole, isDoctor: (membership as any).isDoctor });
     let doctorProfile: any | undefined;
-    if (userRole === 'doctor') {
+    if (isDoctor) {
       doctorProfile = await this.doctorRepository.getDoctorProfileByHospitalAndUserId(hospitalId, user.userId);
     }
 
@@ -109,6 +113,7 @@ export class HospitalContextGuard implements CanActivate {
       specialization: doctorProfile?.specialization || '',
       role: userRole,
       isOwner: !!(membership as any).isOwner,
+      isDoctor,
       currentHospital: hospitalProfile,
       doctorProfile,
     };

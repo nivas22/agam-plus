@@ -84,6 +84,14 @@ export interface AppointmentWithDetails extends Appointment {
   packageId?: string;
   packageVisitNumber?: number;
   givenItems?: AppointmentGivenItem[];
+  // Follow-up the doctor asked for at finish-session; booking it is optional
+  // and offered in the Collect payment dialog.
+  followUpOption?: string;
+  followUpDueDate?: string;
+  // On the original visit once its follow-up is booked.
+  followUpAppointmentId?: string;
+  // On a follow-up appointment: the visit it follows up on.
+  followUpOf?: string;
 }
 
 export type AppointmentResponse = {
@@ -113,6 +121,8 @@ export interface AppointmentFormData {
   // skipping the normal slot-capacity search. See appointments.service.ts.
   forceSlot?: boolean;
   vitals?: Vitals;
+  // Books this as the follow-up of that visit (type 'follow-up', once only).
+  followUpOf?: string;
 }
 
 export interface AvailableSlot {

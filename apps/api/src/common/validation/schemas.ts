@@ -118,6 +118,10 @@ export const createAppointmentSchema = z.object({
   // still blocked server-side if the doctor's overCapacityPolicy is 'block'.
   forceSlot: z.boolean().optional().default(false),
   vitals: vitalsSchema.optional(),
+  // Booking the follow-up the doctor asked for, from the Collect payment
+  // dialog: the visit it follows up on. Implies type 'follow-up' and
+  // frequency 'once', and links both appointments (one follow-up per visit).
+  followUpOf: z.string().min(1).optional(),
 });
 
 export const updateAppointmentSchema = z.object({
@@ -558,6 +562,10 @@ export const updateTeamMemberSchema = z.object({
 
 export const teamMemberStatusSchema = z.object({
   status: z.enum(['active', 'suspended', 'deactivated']),
+});
+
+export const teamMemberPractisingSchema = z.object({
+  isDoctor: z.boolean(),
 });
 
 export const setPinSchema = z.object({
