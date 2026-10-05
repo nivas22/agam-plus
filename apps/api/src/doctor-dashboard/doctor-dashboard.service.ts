@@ -4,13 +4,11 @@ import { PrescriptionRepository } from '../repositories/prescription.repository'
 import { MembershipRepository } from '../repositories/membership.repository';
 import { HospitalHolidayRepository } from '../repositories/hospital-holiday.repository';
 import { LeaveRequestRepository } from '../repositories/leave-request.repository';
+import { HospitalRepository } from '../repositories/hospital.repository';
 import { ReportsService } from '../reports/reports.service';
 import { eachDateIso, slotsPerDay, toISODateLocal, weekdayName } from '../reports/reports.util';
+import { addDaysIso, isoDateInZone, todayIso } from '../common/hospital-time.util';
 import { APPOINTMENT_STATUS, APPOINTMENT_TYPE, HOLIDAY_CLOSURE_TYPE, LEAVE_REQUEST_STATUS, VISIT_FINISHED_STATUSES } from '../constants';
-
-function addDays(d: Date, n: number): Date {
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
-}
 
 function minutesBetween(from: Date, to: Date): number {
   return Math.round((to.getTime() - from.getTime()) / 60000);
@@ -24,6 +22,7 @@ export class DoctorDashboardService {
     private readonly membershipRepository: MembershipRepository,
     private readonly hospitalHolidayRepository: HospitalHolidayRepository,
     private readonly leaveRequestRepository: LeaveRequestRepository,
+    private readonly hospitalRepository: HospitalRepository,
     private readonly reportsService: ReportsService,
   ) {}
 
@@ -32,10 +31,11 @@ export class DoctorDashboardService {
   /* ------------------------------------------------------------------ */
 
   async getPending(hospitalId: string, doctorProfileId: string) {
-    const today = toISODateLocal(new Date());
-    const sinceDate = toISODateLocal(addDays(new Date(), -3));
-    const yesterday = toISODateLocal(addDays(new Date(), -1));
-    const followUpLookback = toISODateLocal(addDays(new Date(), -60));
+    const tz = await this.hospitalRepository.getTimezone(hospitalId);
+    const today = todayIso(tz);
+    const sinceDate = todayIso(tz, -3);
+    const yesterday = todayIso(tz, -1);
+    const followUpLookback = todayIso(tz, -60);
 
     const [unwrittenNotesRaw, unsignedPrescriptionsRaw, overdueFollowUpsRaw, pendingLeaveRequests] =
       await Promise.all([
@@ -91,9 +91,10 @@ export class DoctorDashboardService {
   /* ------------------------------------------------------------------ */
 
   async getFollowUpsDue(hospitalId: string, doctorProfileId: string, days: number) {
-    const today = toISODateLocal(new Date());
-    const fromDate = toISODateLocal(addDays(new Date(), -30));
-    const toDate = toISODateLocal(addDays(new Date(), days));
+    const tz = await this.hospitalRepository.getTimezone(hospitalId);
+    const today = todayIso(tz);
+    const fromDate = todayIso(tz, -30);
+    const toDate = todayIso(tz, days);
 
     const followUps = await this.appointmentRepository.getFollowUps(hospitalId, doctorProfileId, {
       fromDate,
@@ -129,7 +130,7 @@ export class DoctorDashboardService {
   /* ------------------------------------------------------------------ */
 
   async getWeekOverview(hospitalId: string, doctorProfileId: string, startDate: string) {
-    const dates = eachDateIso(startDate, toISODateLocal(addDays(new Date(`${startDate}T00:00:00`), 6)));
+    const dates = eachDateIso(startDate, addDaysIso(startDate, 6));
 
     const [membership, holidays, leaveRequests] = await Promise.all([
       this.membershipRepository.getHospitalMembershipData(doctorProfileId, hospitalId),
@@ -233,9 +234,10 @@ export class DoctorDashboardService {
     // Approximation: there's no dedicated "notes saved at" timestamp, so a
     // note counts as "same day" when the appointment's last update landed on
     // the same calendar day it was completed.
+    const tz = await this.hospitalRepository.getTimezone(hospitalId);
     const withNotes = (completedAppointments as any[]).filter((a) => a.sessionNotes);
     const sameDayNotes = withNotes.filter(
-      (a) => a.completedAt && a.updatedAt && toISODateLocal(new Date(a.completedAt)) === toISODateLocal(new Date(a.updatedAt)),
+      (a) => a.completedAt && a.updatedAt && isoDateInZone(a.completedAt, tz) === isoDateInZone(a.updatedAt, tz),
     );
     const notesSameDayPct = withNotes.length ? Math.round((sameDayNotes.length / withNotes.length) * 100) : null;
 
@@ -264,7 +266,7 @@ export class DoctorDashboardService {
   /* ------------------------------------------------------------------ */
 
   async getYesterdaySummary(hospitalId: string, doctorProfileId: string) {
-    const yesterday = toISODateLocal(addDays(new Date(), -1));
+    const yesterday = todayIso(await this.hospitalRepository.getTimezone(hospitalId), -1);
 
     const [completed, noShows, signedPrescriptions] = await Promise.all([
       this.appointmentRepository.getAppointmentsWithFilters({

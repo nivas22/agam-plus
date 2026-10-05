@@ -6,6 +6,8 @@ import { ApiError } from '../common/errors/api-error';
 import { HospitalUserProfile } from '../auth/decorators/current-user.decorator';
 import { MembershipRepository } from '../repositories/membership.repository';
 import { AppointmentsService } from '../appointments/appointments.service';
+import { HospitalRepository } from '../repositories/hospital.repository';
+import { todayIso } from '../common/hospital-time.util';
 import { ACTIVE_APPOINTMENT_STATUSES, LEAVE_REQUEST_STATUS } from '../constants';
 
 interface LeaveRequestDraft {
@@ -45,6 +47,7 @@ export class LeaveRequestsService {
     private readonly appointmentRepository: AppointmentRepository,
     private readonly auditService: AuditService,
     private readonly membershipRepository: MembershipRepository,
+    private readonly hospitalRepository: HospitalRepository,
     private readonly appointmentsService: AppointmentsService,
   ) {}
 
@@ -319,7 +322,7 @@ export class LeaveRequestsService {
   // the range are skipped — there's nothing left to move for them.
   private async loadAffectedAppointments(hospitalId: string, leave: any): Promise<any[]> {
     if (leave.requestedBy?.role && leave.requestedBy.role !== 'doctor') return [];
-    const today = toISODate(new Date());
+    const today = todayIso(await this.hospitalRepository.getTimezone(hospitalId));
     const from = leave.startDate > today ? leave.startDate : today;
     if (from > leave.endDate) return [];
     return (await this.appointmentRepository.getAppointmentsWithFilters({
@@ -362,7 +365,7 @@ export class LeaveRequestsService {
       );
     }
 
-    const today = toISODate(new Date());
+    const today = todayIso(await this.hospitalRepository.getTimezone(hospitalId));
     const doctorIds = new Set(
       (await this.otherDoctors(hospitalId, leave.doctorProfileId)).map((m: any) => m.userId),
     );

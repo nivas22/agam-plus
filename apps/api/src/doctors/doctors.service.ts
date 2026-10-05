@@ -7,6 +7,8 @@ import { UserRepository } from '../repositories/user.repository';
 import { AppointmentRepository } from '../repositories/appointment.repository';
 import { HospitalHolidayRepository } from '../repositories/hospital-holiday.repository';
 import { DoctorPresenceRepository } from '../repositories/doctor-presence.repository';
+import { HospitalRepository } from '../repositories/hospital.repository';
+import { addDaysIso, nowMinutes, todayIso, weekdayOf } from '../common/hospital-time.util';
 import { EmailService } from '../email/email.service';
 import { AuditService } from '../audit/audit.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
@@ -26,6 +28,7 @@ export class DoctorsService {
     private readonly appointmentRepository: AppointmentRepository,
     private readonly hospitalHolidayRepository: HospitalHolidayRepository,
     private readonly doctorPresenceRepository: DoctorPresenceRepository,
+    private readonly hospitalRepository: HospitalRepository,
     private readonly emailService: EmailService,
     private readonly auditService: AuditService,
     private readonly config: ConfigService,
@@ -766,32 +769,26 @@ export class DoctorsService {
     date: string,
     preferredTime?: string,
   ): Promise<{ date: string; time: string } | null> {
-    const currentDate = new Date(date);
+    let currentDate = date;
     let attempts = 0;
     const maxAttempts = 30; // Limit to prevent infinite loops
 
     while (attempts < maxAttempts) {
       // Get available slots for this date
-      const slots = await this.getAvailableSlots(doctor, currentDate.toISOString().split('T')[0]);
+      const slots = await this.getAvailableSlots(doctor, currentDate);
 
       if (slots.length > 0) {
         // If we have a preferred time and it's available, use it
         if (preferredTime && slots.some((s) => s.time === preferredTime)) {
-          return {
-            date: currentDate.toISOString().split('T')[0],
-            time: preferredTime,
-          };
+          return { date: currentDate, time: preferredTime };
         }
 
         // Otherwise, use the first available slot
-        return {
-          date: currentDate.toISOString().split('T')[0],
-          time: slots[0].time,
-        };
+        return { date: currentDate, time: slots[0].time };
       }
 
       // No slots available on this day, move to next day
-      currentDate.setDate(currentDate.getDate() + 1);
+      currentDate = addDaysIso(currentDate, 1);
       attempts++;
     }
 
@@ -807,9 +804,7 @@ export class DoctorsService {
     try {
       const doctorAvailability = doctor?.availability || [];
 
-      // Get day of week
-      const dateObj = new Date(date);
-      const dayOfWeek = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
+      const dayOfWeek = weekdayOf(date);
 
       // Check if doctor is available on this day — a day can have more than one
       // working window (e.g. a morning and an evening shift), so collect all of them.
@@ -834,10 +829,11 @@ export class DoctorsService {
         bookedCounts[appt.time] = (bookedCounts[appt.time] || 0) + 1;
       }
 
-      // Check if the date is today
-      const today = new Date();
-      const isToday = dateObj.toDateString() === today.toDateString();
-      const currentTime = isToday ? today : null;
+      // "Today" and "already past" are judged on the hospital's clock — the
+      // server runs on UTC, so its own clock would be hours off for IST.
+      const tz = doctor?.hospitalId ? await this.hospitalRepository.getTimezone(doctor.hospitalId) : '';
+      const isToday = date === todayIso(tz);
+      const currentMinutes = isToday ? nowMinutes(tz) : -1;
 
       // A doctor marked "left for the day" is done seeing patients — today's
       // remaining slots stop being bookable the moment that's set. Only
@@ -860,26 +856,28 @@ export class DoctorsService {
       const capacity = Math.max(1, doctor.patientsPerSlot || 1);
       const step = duration + gap;
 
+      // Wall-clock minutes, not Date objects — slot times are hospital-local
+      // and must not pick up the server's zone.
+      const toMins = (t: string) => {
+        const [h, m] = t.split(':').map(Number);
+        return h * 60 + m;
+      };
+      const toTime = (mins: number) =>
+        `${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`;
+
       for (const dayAvailability of dayWindows) {
-        const startTime = new Date(`${date}T${dayAvailability.startTime}`);
-        const endTime = new Date(`${date}T${dayAvailability.endTime}`);
-        const current = new Date(startTime);
+        const end = toMins(dayAvailability.endTime);
 
         // A slot only counts as bookable if the appointment fits before closing time.
-        while (current.getTime() + duration * 60000 <= endTime.getTime()) {
-          const timeString = current.toTimeString().substring(0, 5);
-
+        for (let cur = toMins(dayAvailability.startTime); cur + duration <= end; cur += step) {
           // Skip past time slots if the date is today
-          if (isToday && currentTime && current <= currentTime) {
-            current.setMinutes(current.getMinutes() + step);
-            continue;
-          }
+          if (cur <= currentMinutes) continue;
 
+          const timeString = toTime(cur);
           const booked = bookedCounts[timeString] || 0;
           if (booked < capacity) {
             slots.push({ time: timeString, remaining: capacity - booked, capacity });
           }
-          current.setMinutes(current.getMinutes() + step);
         }
       }
 

@@ -6,6 +6,7 @@ import { PatientRepository } from '../repositories/patient.repository';
 import { MembershipRepository } from '../repositories/membership.repository';
 import { HospitalHolidayRepository } from '../repositories/hospital-holiday.repository';
 import { DoctorPresenceRepository } from '../repositories/doctor-presence.repository';
+import { HospitalRepository } from '../repositories/hospital.repository';
 import { PermissionsService } from '../permissions/permissions.service';
 import { AuditService } from '../audit/audit.service';
 import { ApiError } from '../common/errors/api-error';
@@ -14,6 +15,8 @@ import { JwtUser, HospitalUserProfile } from '../auth/decorators/current-user.de
 import { CreateAppointmentBody, UpdateAppointmentBody, FinishSessionBody, AppointmentListQuery } from './appointments.types';
 import { findHolidayForDate, filterSlotsForHoliday } from '../hospital-holidays/holiday-availability.util';
 import { isHospitalModuleEnabled } from '../hospitals/hospital-modules.util';
+import { addDaysIso, addMonthsIso, nowMinutes, todayIso, weekdayOf } from '../common/hospital-time.util';
+import { slotsPerDay } from '../reports/reports.util';
 import {
   HOSPITAL_MODULE,
   APPOINTMENT_STATUS,
@@ -62,6 +65,7 @@ export class AppointmentsService {
     private readonly membershipRepository: MembershipRepository,
     private readonly hospitalHolidayRepository: HospitalHolidayRepository,
     private readonly doctorPresenceRepository: DoctorPresenceRepository,
+    private readonly hospitalRepository: HospitalRepository,
     private readonly permissionsService: PermissionsService,
     private readonly auditService: AuditService,
   ) {}
@@ -362,6 +366,7 @@ export class AppointmentsService {
       hospitalId,
       patientId,
       status: 'upcoming',
+      today: todayIso(await this.hospitalRepository.getTimezone(hospitalId)),
       limit,
     });
   }
@@ -507,7 +512,6 @@ export class AppointmentsService {
     vitals,
   }: GenerateAppointmentsParams) {
     const appointments: any[] = [];
-    const start = new Date(startDate);
     let count = 0;
     const maxOccurrences = frequency === 'once' ? 1 : Math.max(1, numberOfOccurrences);
     let attempts = 0;
@@ -574,11 +578,10 @@ export class AppointmentsService {
     }
 
     if (frequency === 'weekly') {
-      const cursor = new Date(start);
+      let cursor = startDate;
       while (count < maxOccurrences && attempts < SAFETY_LIMIT) {
-        const dayName = cursor.toLocaleDateString('en-US', { weekday: 'long' });
-        if (selectedDays.includes(dayName)) {
-          const slot = await this.findNextAvailableSlot(doctor, membership, cursor.toISOString().split('T')[0], preferredTime);
+        if (selectedDays.includes(weekdayOf(cursor))) {
+          const slot = await this.findNextAvailableSlot(doctor, membership, cursor, preferredTime);
           if (slot) {
             appointments.push({
               ...baseAppointmentData,
@@ -588,15 +591,16 @@ export class AppointmentsService {
             count++;
           }
         }
-        cursor.setDate(cursor.getDate() + 1);
+        cursor = addDaysIso(cursor, 1);
         attempts++;
       }
     }
 
     if (frequency === 'monthly') {
-      const cursor = new Date(start);
       while (count < maxOccurrences && attempts < SAFETY_LIMIT) {
-        const slot = await this.findNextAvailableSlot(doctor, membership, cursor.toISOString().split('T')[0], preferredTime);
+        // Offset from the start date each time (not month-by-month on a
+        // cursor) so the 31st doesn't drift to the 28th after February.
+        const slot = await this.findNextAvailableSlot(doctor, membership, addMonthsIso(startDate, attempts), preferredTime);
         if (slot) {
           appointments.push({
             ...baseAppointmentData,
@@ -605,7 +609,6 @@ export class AppointmentsService {
           });
           count++;
         }
-        cursor.setMonth(cursor.getMonth() + 1);
         attempts++;
       }
     }
@@ -701,9 +704,7 @@ export class AppointmentsService {
     try {
       const doctorAvailability = membership?.availability || [];
 
-      // Get day of week
-      const dateObj = new Date(date);
-      const dayOfWeek = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
+      const dayOfWeek = weekdayOf(date);
 
       // Check if doctor is available on this day — a day can have more than one
       // working window (e.g. a morning and an evening shift), so collect all of them.
@@ -726,10 +727,11 @@ export class AppointmentsService {
         bookedCounts[appt.time] = (bookedCounts[appt.time] || 0) + 1;
       }
 
-      // Check if the date is today
-      const today = new Date();
-      const isToday = dateObj.toDateString() === today.toDateString();
-      const currentTime = isToday ? today : null;
+      // "Today" and "already past" are judged on the hospital's clock — the
+      // server runs on UTC, so its own clock would be hours off for IST.
+      const tz = membership?.hospitalId ? await this.hospitalRepository.getTimezone(membership.hospitalId) : undefined;
+      const isToday = date === todayIso(tz ?? '');
+      const currentMinutes = isToday ? nowMinutes(tz ?? '') : -1;
 
       // A doctor marked "left for the day" is done seeing patients — today's
       // remaining slots stop being bookable the moment that's set, same as
@@ -753,27 +755,29 @@ export class AppointmentsService {
       const capacity = Math.max(1, membership?.patientsPerSlot || 1);
       const step = duration + gap;
 
+      // Wall-clock minutes, not Date objects — slot times are hospital-local
+      // and must not pick up the server's zone.
+      const toMins = (t: string) => {
+        const [h, m] = t.split(':').map(Number);
+        return h * 60 + m;
+      };
+      const toTime = (mins: number) =>
+        `${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`;
+
       for (const dayAvailability of dayWindows) {
-        const startTime = new Date(`${date}T${dayAvailability.startTime}`);
-        const endTime = new Date(`${date}T${dayAvailability.endTime}`);
-        const current = new Date(startTime);
+        const end = toMins(dayAvailability.endTime);
 
         // A slot only counts as bookable if the appointment fits before closing time.
-        while (current.getTime() + duration * 60000 <= endTime.getTime()) {
-          const timeString = current.toTimeString().substring(0, 5);
-
+        for (let cur = toMins(dayAvailability.startTime); cur + duration <= end; cur += step) {
           // Skip past time slots if the date is today
-          if (isToday && currentTime && current <= currentTime) {
-            current.setMinutes(current.getMinutes() + step);
-            continue;
-          }
+          if (cur <= currentMinutes) continue;
 
           // Only include slot if it hasn't reached capacity
+          const timeString = toTime(cur);
           const booked = bookedCounts[timeString] || 0;
           if (booked < capacity) {
             slots.push({ time: timeString, remaining: capacity - booked, capacity });
           }
-          current.setMinutes(current.getMinutes() + step);
         }
       }
 
@@ -807,7 +811,7 @@ export class AppointmentsService {
   // the same bucket (e.g. 09:00) that online-booking capacity is counted by,
   // instead of a bespoke minute (09:14) nothing else ever matches.
   private snapToSlotGrid(doctor: any, membership: any, date: string, timeStr: string): string {
-    const dayName = new Date(date).toLocaleDateString('en-US', { weekday: 'long' });
+    const dayName = weekdayOf(date);
     const windows = (membership?.availability || []).filter((a: any) => a.day === dayName);
     if (windows.length === 0) return timeStr;
 
@@ -842,27 +846,15 @@ export class AppointmentsService {
   private async assertWalkInCapacityAllowed(doctor: any, membership: any, date: string) {
     if ((membership?.overCapacityPolicy || 'warn') !== 'block') return;
 
-    const dayName = new Date(date).toLocaleDateString('en-US', { weekday: 'long' });
+    const dayName = weekdayOf(date);
     const windows = (membership?.availability || []).filter((a: any) => a.day === dayName);
     if (windows.length === 0) return;
 
     const duration = membership?.appointmentDuration || doctor.appointmentDuration || 30;
     const gap = Math.max(0, membership?.bufferMinutes || 0);
     const perSlot = Math.max(1, membership?.patientsPerSlot || 1);
-    const step = duration + gap;
 
-    let totalCapacity = 0;
-    for (const w of windows) {
-      const start = new Date(`${date}T${w.startTime}`);
-      const end = new Date(`${date}T${w.endTime}`);
-      let slotCount = 0;
-      const cur = new Date(start);
-      while (cur.getTime() + duration * 60000 <= end.getTime()) {
-        slotCount++;
-        cur.setMinutes(cur.getMinutes() + step);
-      }
-      totalCapacity += slotCount * perSlot;
-    }
+    const totalCapacity = slotsPerDay(windows, dayName, duration, gap) * perSlot;
 
     const existing = await this.appointmentRepository.getAppointmentsByDoctorAndDate(doctor.userId, date, [
       ...ACTIVE_APPOINTMENT_STATUSES,
@@ -1169,8 +1161,7 @@ export class AppointmentsService {
     const days = FOLLOW_UP_DAY_OFFSETS[params.followUpOption];
     if (!days) return null;
 
-    const date = new Date();
-    date.setDate(date.getDate() + days);
+    const tz = await this.hospitalRepository.getTimezone(params.hospitalId);
 
     return this.appointmentRepository.createAppointment({
       hospitalId: params.hospitalId,
@@ -1179,9 +1170,8 @@ export class AppointmentsService {
       doctorSpecialization: params.doctorSpecialization,
       patientId: params.patientId,
       patientName: params.patientName,
-      // Local date components, not `.toISOString()` — that converts to UTC
-      // first and shifts the date back a day in timezones ahead of UTC (e.g. IST).
-      date: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`,
+      // Counted from today on the hospital's clock, not the server's.
+      date: todayIso(tz, days),
       time: params.time,
       status: APPOINTMENT_STATUS.PENDING,
       type: APPOINTMENT_TYPE.FOLLOW_UP,

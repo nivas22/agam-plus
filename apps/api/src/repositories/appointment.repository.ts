@@ -8,15 +8,7 @@ import {
   AppointmentDocument,
 } from '../schemas/appointment.schema';
 import { toPlain, toPlainList } from './mongo.util';
-
-// Local calendar date (not `.toISOString()`, which shifts a day back in any
-// timezone ahead of UTC).
-function toISODateLocal(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-}
+import { DEFAULT_HOSPITAL_TIMEZONE, todayIso } from '../common/hospital-time.util';
 
 @Injectable()
 export class AppointmentRepository {
@@ -182,6 +174,8 @@ export class AppointmentRepository {
     type?: string;
     startDate?: string;
     endDate?: string;
+    // Hospital-local YYYY-MM-DD; only read for status 'upcoming'.
+    today?: string;
     limit?: number;
   }) {
     const filter: Record<string, any> = { hospitalId: options.hospitalId };
@@ -194,7 +188,9 @@ export class AppointmentRepository {
       // active and not in the past yet", so translate it into the
       // equivalent status/date filters rather than matching it literally.
       filter.status = { $in: ACTIVE_APPOINTMENT_STATUSES };
-      filter.date = { $gte: toISODateLocal(new Date()) };
+      // Callers pass the hospital's own "today"; the default zone is only a
+      // fallback so this never silently uses the server's UTC date.
+      filter.date = { $gte: options.today ?? todayIso(DEFAULT_HOSPITAL_TIMEZONE) };
     } else if (options.status) filter.status = options.status;
     if (options.type) filter.type = options.type;
     if (options.startDate && options.endDate) {
