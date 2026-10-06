@@ -474,9 +474,11 @@ export const setSubscriptionCancelledSchema = z.object({
   cancelled: z.boolean(),
 });
 
-export const setSubscriptionFeatureSchema = z.object({
-  feature: z.enum(HOSPITAL_MODULE_VALUES),
-  enabled: z.boolean(),
+// Only the modules being changed; the rest of the plan is left as is.
+export const setSubscriptionFeaturesSchema = z.object({
+  features: z
+    .partialRecord(z.enum(HOSPITAL_MODULE_VALUES), z.boolean())
+    .refine((v) => Object.keys(v).length > 0, 'No feature changes given'),
 });
 
 // Platform Admin > Feature catalog. Both parts are replaced wholesale.

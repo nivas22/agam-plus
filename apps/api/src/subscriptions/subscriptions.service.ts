@@ -271,17 +271,28 @@ export class SubscriptionsService {
   // Platform-admin-only grant/withhold of any module for this hospital's
   // plan — see resolveHospitalModules(). The plan beats the hospital admin's
   // own switch under Settings > Features.
-  async setFeatureFlag(hospitalId: string, feature: HOSPITAL_MODULE, enabled: boolean, actor: SubscriptionActor) {
+  // Applies several grants/withholds in one write, leaving unlisted modules as they are.
+  async setFeatureFlags(hospitalId: string, changes: Partial<Record<HOSPITAL_MODULE, boolean>>, actor: SubscriptionActor) {
     const subscription = await this.getSubscription(hospitalId);
-    const features = { ...subscription.features, [feature]: enabled };
+    const features = { ...subscription.features, ...changes };
     const updated = await this.subscriptionRepository.updateByHospitalId(hospitalId, { features });
+
+    const labels = (enabled: boolean) =>
+      Object.entries(changes)
+        .filter(([, v]) => v === enabled)
+        .map(([k]) => HOSPITAL_MODULE_LABELS[k as HOSPITAL_MODULE] ?? k)
+        .join(', ');
+    const added = labels(true);
+    const removed = labels(false);
 
     await this.auditService.log({
       hospitalId,
       actor: { userId: actor.userId, name: actor.name, role: actor.role },
       action: 'subscription.feature_toggled',
       area: 'settings',
-      summary: `${enabled ? 'Added' : 'Removed'} ${HOSPITAL_MODULE_LABELS[feature] ?? feature} ${enabled ? 'to' : 'from'} the plan`,
+      summary: [added && `Added ${added} to the plan`, removed && `Removed ${removed} from the plan`]
+        .filter(Boolean)
+        .join('; '),
     });
 
     return updated;

@@ -56,6 +56,12 @@ export class MembershipRepository {
     }
   }
 
+  // Platform-wide listing; only the fields needed to show who belongs where.
+  async getAllMemberships() {
+    const docs = await this.memberModel.find({}, { hospitalId: 1, userId: 1, role: 1, status: 1, isDoctor: 1 }).lean();
+    return toPlainList(docs);
+  }
+
   async getHospitalMembers(hospitalId: string, options?: { status?: string; role?: string }) {
     const filter: Record<string, any> = { hospitalId };
     if (options?.status) filter.status = options.status;

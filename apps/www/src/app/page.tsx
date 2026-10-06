@@ -8,11 +8,8 @@ import {
 } from "@/components/mocks";
 import { PricingCard } from "@/components/PricingCard";
 
-// The clinic app (apps/web) is a separate deployment; www only ships to
-// production, so default to the production app's login page.
-const SIGN_IN_URL = `${
-  process.env.NEXT_PUBLIC_WEB_APP_URL || "https://agam-plus-web.vercel.app"
-}/login`;
+// The clinic app (apps/web) is a separate deployment, served at the portal domain.
+const SIGN_IN_URL = "https://portal.agamplus.in/";
 
 function Logo({ dark }: { dark?: boolean }) {
   return (

@@ -2,7 +2,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ToggleLeft } from "lucide-react";
+import { Loader2, ToggleLeft } from "lucide-react";
 import { useState } from "react";
 import toast from "react-hot-toast";
 import { inputClass, ToggleSwitch } from "@/components/common/EditFormControls";
@@ -29,23 +29,24 @@ async function fetchSubscriptions(): Promise<HospitalFeaturesRow[]> {
   return response.json();
 }
 
-async function setFeature(
+type FeatureChanges = Partial<Record<HospitalModuleKey, boolean>>;
+
+async function saveFeatures(
   hospitalId: string,
-  feature: HospitalModuleKey,
-  enabled: boolean,
+  features: FeatureChanges,
 ): Promise<void> {
   const response = await fetchWithAuth(
     apiUrl(`/platform-admin/hospitals/${hospitalId}/subscription/features`),
     {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ feature, enabled }),
+      body: JSON.stringify({ features }),
     },
   );
   if (!response.ok) {
     const error = await response.json().catch(() => null);
     throw new Error(
-      error?.error || error?.message || "Failed to update feature",
+      error?.error || error?.message || "Failed to update features",
     );
   }
 }
@@ -57,33 +58,57 @@ export default function HospitalFeaturesSection({
 }) {
   const queryClient = useQueryClient();
   const [hospitalId, setHospitalId] = useState<string>("");
+  // Unsaved toggles for the selected hospital, sent together on save.
+  const [changes, setChanges] = useState<FeatureChanges>({});
 
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ["platform-admin", "subscriptions"],
     queryFn: fetchSubscriptions,
   });
 
-  const featureMutation = useMutation({
+  const saveMutation = useMutation({
     mutationFn: ({
       hospitalId,
-      feature,
-      enabled,
+      features,
     }: {
       hospitalId: string;
-      feature: HospitalModuleKey;
-      enabled: boolean;
-    }) => setFeature(hospitalId, feature, enabled),
-    onSuccess: () => {
-      queryClient.invalidateQueries({
+      features: FeatureChanges;
+    }) => saveFeatures(hospitalId, features),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
         queryKey: ["platform-admin", "subscriptions"],
       });
+      setChanges({});
       toast.success("Feature access updated");
     },
     onError: (error: Error) => toast.error(error.message),
   });
 
   const row = rows.find((r) => r.hospitalId === hospitalId) ?? rows[0];
-  const isGranted = (key: HospitalModuleKey) => row?.features?.[key] !== false;
+  const savedGranted = (key: HospitalModuleKey) =>
+    row?.features?.[key] !== false;
+  const isGranted = (key: HospitalModuleKey) =>
+    changes[key] ?? savedGranted(key);
+  const changedCount = Object.keys(changes).length;
+
+  const toggle = (key: HospitalModuleKey, value: boolean) =>
+    setChanges((prev) => {
+      const next = { ...prev };
+      if (value === savedGranted(key)) delete next[key];
+      else next[key] = value;
+      return next;
+    });
+
+  const selectHospital = (id: string) => {
+    if (
+      changedCount > 0 &&
+      !window.confirm("Discard unsaved feature changes for this hospital?")
+    ) {
+      return;
+    }
+    setChanges({});
+    setHospitalId(id);
+  };
   const withheldCount = row
     ? HOSPITAL_MODULES.filter((m) => !isGranted(m.key)).length
     : 0;
@@ -99,7 +124,7 @@ export default function HospitalFeaturesSection({
           <p className="text-sm text-ink-500">
             Choose what this hospital&apos;s plan includes. Its admin can only
             switch on what&apos;s granted here, and only once it&apos;s
-            available above. Changes here save immediately.
+            available in the Feature catalog.
           </p>
         </div>
         {rows.length > 0 && (
@@ -107,7 +132,7 @@ export default function HospitalFeaturesSection({
             className={`${inputClass} sm:w-72`}
             value={row?.hospitalId}
             aria-label="Hospital"
-            onChange={(e) => setHospitalId(e.target.value)}
+            onChange={(e) => selectHospital(e.target.value)}
           >
             {rows.map((r) => (
               <option key={r.hospitalId} value={r.hospitalId}>
@@ -153,14 +178,8 @@ export default function HospitalFeaturesSection({
                           <ToggleSwitch
                             checked={isGranted(info.key)}
                             ariaLabel={info.label}
-                            disabled={featureMutation.isPending}
-                            onChange={(value) =>
-                              featureMutation.mutate({
-                                hospitalId: row.hospitalId,
-                                feature: info.key,
-                                enabled: value,
-                              })
-                            }
+                            disabled={saveMutation.isPending}
+                            onChange={(value) => toggle(info.key, value)}
                           />
                         </div>
                         <div className="flex-1 min-w-0">
@@ -204,6 +223,39 @@ export default function HospitalFeaturesSection({
         <p className="text-sm text-ink-500 italic px-4 py-8 text-center">
           No hospitals yet
         </p>
+      )}
+
+      {row && changedCount > 0 && (
+        <div className="sticky bottom-4 m-4 flex gap-2.5 items-center bg-surface-paper border border-border rounded-lg p-3 shadow-md">
+          <span className="text-xs text-ink-500 flex-1">
+            {changedCount} unsaved change{changedCount === 1 ? "" : "s"} for{" "}
+            {row.hospitalName}.
+          </span>
+          <button
+            type="button"
+            onClick={() => setChanges({})}
+            disabled={saveMutation.isPending}
+            className="px-3.5 py-1.5 rounded-lg border border-border text-xs font-semibold text-ink-700 disabled:opacity-50"
+          >
+            Discard
+          </button>
+          <button
+            type="button"
+            onClick={() =>
+              saveMutation.mutate({
+                hospitalId: row.hospitalId,
+                features: changes,
+              })
+            }
+            disabled={saveMutation.isPending}
+            className="flex items-center gap-1.5 bg-brand-violet hover:bg-brand-violet-hover text-white text-xs font-semibold rounded-lg px-3.5 py-1.5 transition-colors disabled:opacity-50"
+          >
+            {saveMutation.isPending && (
+              <Loader2 size={14} className="animate-spin" />
+            )}
+            Save changes
+          </button>
+        </div>
       )}
     </section>
   );

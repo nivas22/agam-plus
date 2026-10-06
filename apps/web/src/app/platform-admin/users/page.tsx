@@ -3,6 +3,16 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiUrl, fetchWithAuth } from '@/lib/api';
 import { ShieldCheck, User as UserIcon } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { ROLE_LABELS } from '@/types/permissions';
+
+interface UserHospital {
+  hospitalId: string;
+  hospitalName: string;
+  role?: string;
+  status?: string;
+  isDoctor: boolean;
+}
 
 interface PlatformUser {
   id: string;
@@ -11,6 +21,15 @@ interface PlatformUser {
   isPlatformAdmin: boolean;
   lastLogin?: string;
   createdAt?: string;
+  hospitals: UserHospital[];
+}
+
+const ALL_HOSPITALS = '';
+const NO_HOSPITAL = '__none__';
+
+function roleLabel(h: UserHospital) {
+  const role = ROLE_LABELS[h.role ?? ''] || h.role || 'Member';
+  return h.isDoctor && h.role !== 'doctor' ? `${role} · Doctor` : role;
 }
 
 async function fetchUsers(): Promise<PlatformUser[]> {
@@ -52,11 +71,47 @@ export default function PlatformAdminUsersPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['platform-admin', 'users'] }),
   });
 
+  const [hospitalFilter, setHospitalFilter] = useState(ALL_HOSPITALS);
+
+  const hospitalOptions = useMemo(() => {
+    const names = new Map<string, string>();
+    for (const user of users) {
+      for (const h of user.hospitals ?? []) names.set(h.hospitalId, h.hospitalName);
+    }
+    return [...names].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
+  }, [users]);
+
+  const visibleUsers = useMemo(() => {
+    if (hospitalFilter === ALL_HOSPITALS) return users;
+    if (hospitalFilter === NO_HOSPITAL) return users.filter((u) => !u.hospitals?.length);
+    return users.filter((u) => u.hospitals?.some((h) => h.hospitalId === hospitalFilter));
+  }, [users, hospitalFilter]);
+
   return (
     <div className="space-y-6 pb-10">
-      <div>
-        <h1 className="font-display tracking-tight text-2xl font-bold text-ink-900">Users</h1>
-        <p className="text-sm text-ink-500">{users.length} {users.length === 1 ? 'user' : 'users'} on the platform</p>
+      <div className="flex flex-col sm:flex-row sm:items-end gap-3">
+        <div className="flex-1 min-w-0">
+          <h1 className="font-display tracking-tight text-2xl font-bold text-ink-900">Users</h1>
+          <p className="text-sm text-ink-500">
+            {hospitalFilter === ALL_HOSPITALS
+              ? `${users.length} ${users.length === 1 ? 'user' : 'users'} on the platform`
+              : `${visibleUsers.length} of ${users.length} users`}
+          </p>
+        </div>
+        <select
+          value={hospitalFilter}
+          onChange={(e) => setHospitalFilter(e.target.value)}
+          aria-label="Filter by hospital"
+          className="sm:w-72 px-3 py-2 rounded-lg border border-border bg-surface-paper text-sm text-ink-900"
+        >
+          <option value={ALL_HOSPITALS}>All hospitals</option>
+          {hospitalOptions.map((h) => (
+            <option key={h.id} value={h.id}>
+              {h.name}
+            </option>
+          ))}
+          <option value={NO_HOSPITAL}>Not in any hospital</option>
+        </select>
       </div>
 
       {isLoading ? (
@@ -72,13 +127,14 @@ export default function PlatformAdminUsersPage() {
               <thead>
                 <tr className="border-b border-border text-left text-xs font-semibold text-ink-500 uppercase tracking-wide">
                   <th className="px-4 py-3">User</th>
+                  <th className="px-4 py-3">Hospitals</th>
                   <th className="px-4 py-3">Last Login</th>
                   <th className="px-4 py-3">Joined</th>
                   <th className="px-4 py-3 text-right">Platform Admin</th>
                 </tr>
               </thead>
               <tbody>
-                {users.map((user) => (
+                {visibleUsers.map((user) => (
                   <tr key={user.id} className="border-b border-border last:border-0 hover:bg-surface-canvas transition-colors">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
@@ -96,6 +152,28 @@ export default function PlatformAdminUsersPage() {
                           </span>
                         )}
                       </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      {user.hospitals?.length ? (
+                        <div className="flex flex-wrap gap-1.5">
+                          {user.hospitals
+                            .filter((h) => hospitalFilter === ALL_HOSPITALS || hospitalFilter === NO_HOSPITAL || h.hospitalId === hospitalFilter)
+                            .map((h) => (
+                              <span
+                                key={h.hospitalId}
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] bg-surface-canvas text-ink-700 whitespace-nowrap"
+                              >
+                                <span className="font-semibold text-ink-900">{h.hospitalName}</span>
+                                <span>· {roleLabel(h)}</span>
+                                {h.status && h.status !== 'approved' && (
+                                  <span className="text-status-warning capitalize">· {h.status}</span>
+                                )}
+                              </span>
+                            ))}
+                        </div>
+                      ) : (
+                        <span className="text-ink-500 text-xs">—</span>
+                      )}
                     </td>
                     <td className="font-mono tabular px-4 py-3 text-ink-700">{formatDate(user.lastLogin)}</td>
                     <td className="font-mono tabular px-4 py-3 text-ink-700">{formatDate(user.createdAt)}</td>
@@ -121,6 +199,9 @@ export default function PlatformAdminUsersPage() {
               </tbody>
             </table>
           </div>
+          {visibleUsers.length === 0 && (
+            <p className="text-sm text-ink-500 italic px-4 py-8 text-center">No users match this filter</p>
+          )}
         </div>
       )}
     </div>
