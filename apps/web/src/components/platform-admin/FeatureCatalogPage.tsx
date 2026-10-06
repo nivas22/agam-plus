@@ -23,6 +23,13 @@ import {
 
 type Draft = Pick<FeatureCatalog, "moduleStatus" | "upcoming">;
 
+type Tab = "catalog" | "hospitals";
+
+const TABS: { key: Tab; label: string }[] = [
+  { key: "catalog", label: "Feature catalog" },
+  { key: "hospitals", label: "Features by hospital" },
+];
+
 const STATUS_STYLES: Record<FeatureReleaseStatus, string> = {
   available: "bg-status-open text-white",
   coming_soon: "bg-status-warning text-white",
@@ -58,6 +65,7 @@ function normalize(draft: Draft): string {
 export default function FeatureCatalogPage() {
   const { data, isLoading } = useFeatureCatalog();
   const updateCatalog = useUpdateFeatureCatalog();
+  const [tab, setTab] = useState<Tab>("catalog");
 
   const server = useMemo<Draft>(
     () => ({
@@ -165,199 +173,223 @@ export default function FeatureCatalogPage() {
         under Features by hospital.
       </p>
 
-      <section className="bg-surface-paper rounded-xl border border-border shadow-sm overflow-hidden mb-6">
-        <div className="px-5 py-4 border-b border-border">
-          <h2 className="text-lg font-bold text-ink-900 flex items-center gap-2 font-display tracking-tight">
-            <Layers className="w-5 h-5 text-brand-violet" />
-            Modules
-          </h2>
-        </div>
-        {HOSPITAL_MODULE_GROUPS.map((group) => (
-          <div key={group.key}>
-            <div className="px-5 pt-4 pb-2 text-xs font-bold uppercase tracking-wide text-ink-500">
-              {group.label}
-            </div>
-            <ul className="divide-y divide-border border-y border-border">
-              {HOSPITAL_MODULES.filter((m) => m.group === group.key).map(
-                (info) => {
-                  const status = statusOf(info.key);
-                  const blockedBy = (info.requires || []).filter(
-                    (dep) => statusOf(dep) !== "available",
-                  );
-                  return (
-                    <li
-                      key={info.key}
-                      className="flex flex-col sm:flex-row sm:items-center gap-3 px-5 py-3"
-                    >
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-bold text-ink-900">
-                          {info.label}
-                        </div>
-                        <p className="text-xs text-ink-500 mt-0.5">
-                          {info.description}
-                        </p>
-                        {status === "available" && blockedBy.length > 0 && (
-                          <p className="text-xs text-status-warning mt-1">
-                            Needs{" "}
-                            {blockedBy
-                              .map((k) => HOSPITAL_MODULE_BY_KEY[k].label)
-                              .join(", ")}
-                            , which isn&apos;t available — hospitals won&apos;t
-                            be able to use it yet.
-                          </p>
-                        )}
-                      </div>
-                      <fieldset className="flex flex-none rounded-lg border border-border overflow-hidden text-xs font-semibold">
-                        <legend className="sr-only">
-                          {info.label} release status
-                        </legend>
-                        {FEATURE_RELEASE_STATUS_OPTIONS.map((opt) => (
-                          <button
-                            key={opt.value}
-                            type="button"
-                            aria-pressed={status === opt.value}
-                            onClick={() => setStatus(info.key, opt.value)}
-                            className={`px-3 py-1.5 transition-colors ${
-                              status === opt.value
-                                ? STATUS_STYLES[opt.value]
-                                : "bg-surface-paper text-ink-700 hover:bg-surface-canvas"
-                            }`}
-                          >
-                            {opt.label}
-                          </button>
-                        ))}
-                      </fieldset>
-                    </li>
-                  );
-                },
-              )}
-            </ul>
-          </div>
+      <div className="flex gap-2 mb-5">
+        {TABS.map((t) => (
+          <button
+            key={t.key}
+            type="button"
+            onClick={() => setTab(t.key)}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              tab === t.key
+                ? "bg-brand-violet text-white"
+                : "bg-surface-paper border border-border text-ink-700 hover:bg-surface-canvas"
+            }`}
+          >
+            {t.label}
+          </button>
         ))}
-      </section>
+      </div>
 
-      <HospitalFeaturesSection catalog={data} />
+      {/* Both tabs stay mounted so unsaved edits survive switching tabs. */}
+      <div hidden={tab !== "hospitals"}>
+        <HospitalFeaturesSection catalog={data} />
+      </div>
 
-      <section className="bg-surface-paper rounded-xl border border-border shadow-sm overflow-hidden">
-        <div className="px-5 py-4 border-b border-border">
-          <h2 className="text-lg font-bold text-ink-900 flex items-center gap-2 font-display tracking-tight">
-            <Sparkles className="w-5 h-5 text-brand-violet" />
-            Upcoming features
-          </h2>
-          <p className="text-sm text-ink-500">
-            Features that aren&apos;t built yet. Every hospital sees them as
-            &ldquo;Coming soon&rdquo; in the section you pick.
-          </p>
-        </div>
+      <div hidden={tab !== "catalog"}>
+        <section className="bg-surface-paper rounded-xl border border-border shadow-sm overflow-hidden mb-6">
+          <div className="px-5 py-4 border-b border-border">
+            <h2 className="text-lg font-bold text-ink-900 flex items-center gap-2 font-display tracking-tight">
+              <Layers className="w-5 h-5 text-brand-violet" />
+              Modules
+            </h2>
+          </div>
+          {HOSPITAL_MODULE_GROUPS.map((group) => (
+            <div key={group.key}>
+              <div className="px-5 pt-4 pb-2 text-xs font-bold uppercase tracking-wide text-ink-500">
+                {group.label}
+              </div>
+              <ul className="divide-y divide-border border-y border-border">
+                {HOSPITAL_MODULES.filter((m) => m.group === group.key).map(
+                  (info) => {
+                    const status = statusOf(info.key);
+                    const blockedBy = (info.requires || []).filter(
+                      (dep) => statusOf(dep) !== "available",
+                    );
+                    return (
+                      <li
+                        key={info.key}
+                        className="flex flex-col sm:flex-row sm:items-center gap-3 px-5 py-3"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-bold text-ink-900">
+                            {info.label}
+                          </div>
+                          <p className="text-xs text-ink-500 mt-0.5">
+                            {info.description}
+                          </p>
+                          {status === "available" && blockedBy.length > 0 && (
+                            <p className="text-xs text-status-warning mt-1">
+                              Needs{" "}
+                              {blockedBy
+                                .map((k) => HOSPITAL_MODULE_BY_KEY[k].label)
+                                .join(", ")}
+                              , which isn&apos;t available — hospitals
+                              won&apos;t be able to use it yet.
+                            </p>
+                          )}
+                        </div>
+                        <fieldset className="flex flex-none rounded-lg border border-border overflow-hidden text-xs font-semibold">
+                          <legend className="sr-only">
+                            {info.label} release status
+                          </legend>
+                          {FEATURE_RELEASE_STATUS_OPTIONS.map((opt) => (
+                            <button
+                              key={opt.value}
+                              type="button"
+                              aria-pressed={status === opt.value}
+                              onClick={() => setStatus(info.key, opt.value)}
+                              className={`px-3 py-1.5 transition-colors ${
+                                status === opt.value
+                                  ? STATUS_STYLES[opt.value]
+                                  : "bg-surface-paper text-ink-700 hover:bg-surface-canvas"
+                              }`}
+                            >
+                              {opt.label}
+                            </button>
+                          ))}
+                        </fieldset>
+                      </li>
+                    );
+                  },
+                )}
+              </ul>
+            </div>
+          ))}
+        </section>
 
-        {draft.upcoming.length > 0 && (
-          <ul className="divide-y divide-border border-b border-border">
-            {draft.upcoming.map((feature) => (
-              <li
-                key={feature.key}
-                className="grid grid-cols-1 sm:grid-cols-[1fr_180px_auto] gap-2 px-5 py-3 items-start"
-              >
-                <div className="space-y-2">
-                  <input
+        <section className="bg-surface-paper rounded-xl border border-border shadow-sm overflow-hidden">
+          <div className="px-5 py-4 border-b border-border">
+            <h2 className="text-lg font-bold text-ink-900 flex items-center gap-2 font-display tracking-tight">
+              <Sparkles className="w-5 h-5 text-brand-violet" />
+              Upcoming features
+            </h2>
+            <p className="text-sm text-ink-500">
+              Features that aren&apos;t built yet. Every hospital sees them as
+              &ldquo;Coming soon&rdquo; in the section you pick.
+            </p>
+          </div>
+
+          {draft.upcoming.length > 0 && (
+            <ul className="divide-y divide-border border-b border-border">
+              {draft.upcoming.map((feature) => (
+                <li
+                  key={feature.key}
+                  className="grid grid-cols-1 sm:grid-cols-[1fr_180px_auto] gap-2 px-5 py-3 items-start"
+                >
+                  <div className="space-y-2">
+                    <input
+                      className={inputClass}
+                      value={feature.label}
+                      maxLength={60}
+                      aria-label="Feature name"
+                      onChange={(e) =>
+                        updateUpcoming(feature.key, { label: e.target.value })
+                      }
+                    />
+                    <input
+                      className={inputClass}
+                      value={feature.description || ""}
+                      maxLength={200}
+                      placeholder="Short description (optional)"
+                      aria-label="Feature description"
+                      onChange={(e) =>
+                        updateUpcoming(feature.key, {
+                          description: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+                  <select
                     className={inputClass}
-                    value={feature.label}
-                    maxLength={60}
-                    aria-label="Feature name"
-                    onChange={(e) =>
-                      updateUpcoming(feature.key, { label: e.target.value })
-                    }
-                  />
-                  <input
-                    className={inputClass}
-                    value={feature.description || ""}
-                    maxLength={200}
-                    placeholder="Short description (optional)"
-                    aria-label="Feature description"
+                    value={feature.group}
+                    aria-label="Section"
                     onChange={(e) =>
                       updateUpcoming(feature.key, {
-                        description: e.target.value,
+                        group: e.target.value as HospitalModuleGroup,
                       })
                     }
-                  />
-                </div>
-                <select
-                  className={inputClass}
-                  value={feature.group}
-                  aria-label="Section"
-                  onChange={(e) =>
-                    updateUpcoming(feature.key, {
-                      group: e.target.value as HospitalModuleGroup,
-                    })
-                  }
-                >
-                  {HOSPITAL_MODULE_GROUPS.map((g) => (
-                    <option key={g.key} value={g.key}>
-                      {g.label}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  type="button"
-                  onClick={() => removeUpcoming(feature.key)}
-                  className="p-2.5 rounded-lg text-ink-500 hover:text-status-danger hover:bg-status-danger-soft transition-colors justify-self-start"
-                  aria-label={`Remove ${feature.label}`}
-                >
-                  <Trash2 size={16} />
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
+                  >
+                    {HOSPITAL_MODULE_GROUPS.map((g) => (
+                      <option key={g.key} value={g.key}>
+                        {g.label}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => removeUpcoming(feature.key)}
+                    className="p-2.5 rounded-lg text-ink-500 hover:text-status-danger hover:bg-status-danger-soft transition-colors justify-self-start"
+                    aria-label={`Remove ${feature.label}`}
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
 
-        <form
-          className="grid grid-cols-1 sm:grid-cols-[1fr_180px_auto] gap-2 px-5 py-4 items-start"
-          onSubmit={(e) => {
-            e.preventDefault();
-            addUpcoming();
-          }}
-        >
-          <div className="space-y-2">
-            <input
-              className={inputClass}
-              value={newLabel}
-              maxLength={60}
-              placeholder="e.g. Lab reports"
-              aria-label="New feature name"
-              onChange={(e) => setNewLabel(e.target.value)}
-            />
-            <input
-              className={inputClass}
-              value={newDescription}
-              maxLength={200}
-              placeholder="Short description (optional)"
-              aria-label="New feature description"
-              onChange={(e) => setNewDescription(e.target.value)}
-            />
-          </div>
-          <select
-            className={inputClass}
-            value={newGroup}
-            aria-label="New feature section"
-            onChange={(e) => setNewGroup(e.target.value as HospitalModuleGroup)}
+          <form
+            className="grid grid-cols-1 sm:grid-cols-[1fr_180px_auto] gap-2 px-5 py-4 items-start"
+            onSubmit={(e) => {
+              e.preventDefault();
+              addUpcoming();
+            }}
           >
-            {HOSPITAL_MODULE_GROUPS.map((g) => (
-              <option key={g.key} value={g.key}>
-                {g.label}
-              </option>
-            ))}
-          </select>
-          <button
-            type="submit"
-            disabled={!newLabel.trim() || draft.upcoming.length >= 30}
-            className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-lg border border-border text-sm font-semibold text-ink-700 hover:bg-surface-canvas disabled:opacity-50"
-          >
-            <Plus size={16} />
-            Add
-          </button>
-        </form>
-      </section>
+            <div className="space-y-2">
+              <input
+                className={inputClass}
+                value={newLabel}
+                maxLength={60}
+                placeholder="e.g. Lab reports"
+                aria-label="New feature name"
+                onChange={(e) => setNewLabel(e.target.value)}
+              />
+              <input
+                className={inputClass}
+                value={newDescription}
+                maxLength={200}
+                placeholder="Short description (optional)"
+                aria-label="New feature description"
+                onChange={(e) => setNewDescription(e.target.value)}
+              />
+            </div>
+            <select
+              className={inputClass}
+              value={newGroup}
+              aria-label="New feature section"
+              onChange={(e) =>
+                setNewGroup(e.target.value as HospitalModuleGroup)
+              }
+            >
+              {HOSPITAL_MODULE_GROUPS.map((g) => (
+                <option key={g.key} value={g.key}>
+                  {g.label}
+                </option>
+              ))}
+            </select>
+            <button
+              type="submit"
+              disabled={!newLabel.trim() || draft.upcoming.length >= 30}
+              className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-lg border border-border text-sm font-semibold text-ink-700 hover:bg-surface-canvas disabled:opacity-50"
+            >
+              <Plus size={16} />
+              Add
+            </button>
+          </form>
+        </section>
+      </div>
 
-      {isDirty && (
+      {tab === "catalog" && isDirty && (
         <div className="sticky bottom-4 mt-4 flex gap-2.5 items-center bg-surface-paper border border-border rounded-lg p-3 shadow-md">
           <span className="text-xs text-ink-500 flex-1">
             Unsaved changes apply to every hospital once saved.

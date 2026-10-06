@@ -9,7 +9,7 @@ import {
   setPlatformAdminSchema,
   setSubscriptionCancelledSchema,
   setSubscriptionExemptSchema,
-  setSubscriptionFeatureSchema,
+  setSubscriptionFeaturesSchema,
   updateFeatureCatalogSchema,
   updateSubscriptionPlanConfigSchema,
 } from '../common/validation/schemas';
@@ -78,13 +78,13 @@ export class PlatformAdminController {
   }
 
   @Patch('hospitals/:id/subscription/features')
-  @UsePipes(new ZodValidationPipe(setSubscriptionFeatureSchema))
-  setSubscriptionFeature(
+  @UsePipes(new ZodValidationPipe(setSubscriptionFeaturesSchema))
+  setSubscriptionFeatures(
     @Param('id') id: string,
     @CurrentUser() user: JwtUser,
-    @Body() body: { feature: HOSPITAL_MODULE; enabled: boolean },
+    @Body() body: { features: Partial<Record<HOSPITAL_MODULE, boolean>> },
   ) {
-    return this.platformAdminService.setSubscriptionFeature(id, body.feature, body.enabled, {
+    return this.platformAdminService.setSubscriptionFeatures(id, body.features, {
       userId: user.userId,
       name: user.name,
     });

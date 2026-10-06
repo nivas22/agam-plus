@@ -256,19 +256,19 @@ describe('SubscriptionsService', () => {
     expect(switched.doctorAddonPrice).toBe(3490);
   });
 
-  it('setFeatureFlag toggles a single feature without affecting the others', async () => {
+  it('setFeatureFlags changes only the listed features', async () => {
     await service.provisionForNewHospital('h1', 'monthly', 0);
 
     let subscription = await service.getSubscription('h1');
     // Nothing is withheld until a platform admin says so.
     expect(Object.values(subscription.features ?? {}).includes(false)).toBe(false);
 
-    await service.setFeatureFlag('h1', HOSPITAL_MODULE.WHATSAPP, false, PLATFORM_ADMIN_ACTOR);
+    await service.setFeatureFlags('h1', { [HOSPITAL_MODULE.WHATSAPP]: false }, PLATFORM_ADMIN_ACTOR);
     subscription = await service.getSubscription('h1');
     expect(subscription.features.whatsapp).toBe(false);
     expect(subscription.features.reports).not.toBe(false);
 
-    await service.setFeatureFlag('h1', HOSPITAL_MODULE.WHATSAPP, true, PLATFORM_ADMIN_ACTOR);
+    await service.setFeatureFlags('h1', { [HOSPITAL_MODULE.WHATSAPP]: true }, PLATFORM_ADMIN_ACTOR);
     subscription = await service.getSubscription('h1');
     expect(subscription.features.whatsapp).toBe(true);
   });
