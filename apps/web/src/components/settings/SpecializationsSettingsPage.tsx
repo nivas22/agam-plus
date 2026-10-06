@@ -108,26 +108,34 @@ export default function SpecializationsSettingsPage({
             Using the default specialization list.
           </div>
         ) : (
-          <div className="flex flex-wrap gap-2">
-            {list.map((item) => (
-              <span
-                key={item}
-                className="flex items-center gap-1.5 bg-surface-canvas border border-border rounded-lg pl-3 pr-2 py-1.5 text-sm text-ink-700"
-              >
-                {item}
-                {canEdit && (
-                  <button
-                    type="button"
-                    onClick={() => removeItem(item)}
-                    className="text-ink-500 hover:text-status-danger"
-                    aria-label={`Remove ${item}`}
-                  >
-                    <X size={14} />
-                  </button>
-                )}
-              </span>
-            ))}
-          </div>
+          <>
+            <div className="text-xs text-ink-500 mb-2">
+              {list.length} specialization{list.length === 1 ? "" : "s"}
+            </div>
+            <ul className="border border-border rounded-lg divide-y divide-border overflow-hidden">
+              {list.map((item, i) => (
+                <li
+                  key={item}
+                  className="flex items-center gap-3 px-3 py-2.5 text-sm text-ink-900 hover:bg-surface-canvas"
+                >
+                  <span className="font-mono tabular text-xs text-ink-500 w-6 text-right">
+                    {i + 1}
+                  </span>
+                  <span className="flex-1 min-w-0 truncate">{item}</span>
+                  {canEdit && (
+                    <button
+                      type="button"
+                      onClick={() => removeItem(item)}
+                      className="rounded-md p-1 text-ink-500 hover:text-status-danger hover:bg-status-danger-soft"
+                      aria-label={`Remove ${item}`}
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </>
         )}
       </div>
 

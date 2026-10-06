@@ -26,6 +26,7 @@ import { WhatsappModule } from './whatsapp/whatsapp.module';
 import { ReportsModule } from './reports/reports.module';
 import { MedicinesModule } from './medicines/medicines.module';
 import { MedicinePacksModule } from './medicine-packs/medicine-packs.module';
+import { NotesTemplatesModule } from './notes-templates/notes-templates.module';
 import { PrescriptionsModule } from './prescriptions/prescriptions.module';
 import { LeaveRequestsModule } from './leave-requests/leave-requests.module';
 import { DoctorDashboardModule } from './doctor-dashboard/doctor-dashboard.module';
@@ -33,6 +34,8 @@ import { DoctorPresenceModule } from './doctor-presence/doctor-presence.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { InternalCronModule } from './internal/internal-cron.module';
 import { DemoRequestsModule } from './demo-requests/demo-requests.module';
+import { AiNotesModule } from './ai-notes/ai-notes.module';
+import { InventoryModule } from './inventory/inventory.module';
 
 @Module({
   imports: [
@@ -60,6 +63,7 @@ import { DemoRequestsModule } from './demo-requests/demo-requests.module';
     ReportsModule,
     MedicinesModule,
     MedicinePacksModule,
+    NotesTemplatesModule,
     PrescriptionsModule,
     LeaveRequestsModule,
     DoctorDashboardModule,
@@ -68,6 +72,8 @@ import { DemoRequestsModule } from './demo-requests/demo-requests.module';
     PlatformAdminModule,
     InternalCronModule,
     DemoRequestsModule,
+    AiNotesModule,
+    InventoryModule,
   ],
   controllers: [AppController],
   providers: [AppService],

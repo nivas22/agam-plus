@@ -26,7 +26,7 @@ import { AuditLogRepository } from '../repositories/audit-log.repository';
 import { AuditService } from '../audit/audit.service';
 import { EmailService } from '../email/email.service';
 import { connectTestMongo, closeTestMongo, clearTestMongo } from '../test-utils/mongo-memory';
-import { SUBSCRIPTION_FEATURE, SUBSCRIPTION_STATUS } from '../constants';
+import { HOSPITAL_MODULE, SUBSCRIPTION_STATUS } from '../constants';
 
 // A real EmailService backed by a stub ConfigService — RESEND_API_KEY stays
 // unset so every send takes the "log instead of calling the provider" path
@@ -256,23 +256,19 @@ describe('SubscriptionsService', () => {
     expect(switched.doctorAddonPrice).toBe(3490);
   });
 
-  it('setFeatureFlag toggles a single feature without affecting the others', async () => {
+  it('setFeatureFlags changes only the listed features', async () => {
     await service.provisionForNewHospital('h1', 'monthly', 0);
 
     let subscription = await service.getSubscription('h1');
-    expect(subscription.features).toMatchObject({
-      whatsapp: true,
-      reports: true,
-      packages: true,
-      medicinePacks: true,
-    });
+    // Nothing is withheld until a platform admin says so.
+    expect(Object.values(subscription.features ?? {}).includes(false)).toBe(false);
 
-    await service.setFeatureFlag('h1', SUBSCRIPTION_FEATURE.WHATSAPP, false, PLATFORM_ADMIN_ACTOR);
+    await service.setFeatureFlags('h1', { [HOSPITAL_MODULE.WHATSAPP]: false }, PLATFORM_ADMIN_ACTOR);
     subscription = await service.getSubscription('h1');
     expect(subscription.features.whatsapp).toBe(false);
-    expect(subscription.features.reports).toBe(true);
+    expect(subscription.features.reports).not.toBe(false);
 
-    await service.setFeatureFlag('h1', SUBSCRIPTION_FEATURE.WHATSAPP, true, PLATFORM_ADMIN_ACTOR);
+    await service.setFeatureFlags('h1', { [HOSPITAL_MODULE.WHATSAPP]: true }, PLATFORM_ADMIN_ACTOR);
     subscription = await service.getSubscription('h1');
     expect(subscription.features.whatsapp).toBe(true);
   });

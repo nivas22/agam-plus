@@ -5,12 +5,20 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { JwtUser } from '../auth/decorators/current-user.decorator';
 import { HospitalContextGuard } from '../auth/guards/hospital-context.guard';
 import { PlatformAdminGuard } from '../auth/guards/platform-admin.guard';
+import { RequiresModule } from '../auth/decorators/requires-module.decorator';
+import { CurrentHospitalUser } from '../auth/decorators/current-user.decorator';
+import type { HospitalUserProfile } from '../auth/decorators/current-user.decorator';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import {
   createHospitalSchema,
   requestAccessSchema,
+  updateHospitalModulesSchema,
   updateHospitalSpecializationsSchema,
+  updatePackageSettingsSchema,
+  updatePatientNoteFieldsSchema,
 } from '../common/validation/schemas';
+import { HOSPITAL_MODULE } from '../constants';
+import type { PackageSettings, PatientNoteField } from '../constants';
 
 @Controller('hospitals')
 export class HospitalsController {
@@ -82,5 +90,66 @@ export class HospitalsController {
   @UsePipes(new ZodValidationPipe(updateHospitalSpecializationsSchema))
   updateSpecializations(@Param('id') id: string, @Body() body: { specializations: string[] }) {
     return this.hospitalsService.updateSpecializations(id, body.specializations);
+  }
+
+  // Which fields the patient Add/Edit form's Notes section collects. Read by
+  // everyone who can open that form; configured by admins only.
+  @Get(':id/patient-note-fields')
+  @UseGuards(HospitalContextGuard)
+  @Roles('admin', 'doctor', 'front_desk', 'nurse', 'accountant')
+  getPatientNoteFields(@Param('id') id: string) {
+    return this.hospitalsService.getPatientNoteFields(id);
+  }
+
+  @Put(':id/patient-note-fields')
+  @UseGuards(HospitalContextGuard)
+  @Roles('admin')
+  @RequiresModule(HOSPITAL_MODULE.PATIENT_FIELDS)
+  @UsePipes(new ZodValidationPipe(updatePatientNoteFieldsSchema))
+  updatePatientNoteFields(@Param('id') id: string, @Body() body: { fields: PatientNoteField[] }) {
+    return this.hospitalsService.updatePatientNoteFields(id, body.fields);
+  }
+
+  // Prepaid package discount, sizes and validity. Read by everyone who can
+  // open the Sell package dialog; configured by admins only.
+  @Get(':id/package-settings')
+  @UseGuards(HospitalContextGuard)
+  @Roles('admin', 'doctor', 'front_desk', 'nurse', 'accountant')
+  getPackageSettings(@Param('id') id: string) {
+    return this.hospitalsService.getPackageSettings(id);
+  }
+
+  @Put(':id/package-settings')
+  @UseGuards(HospitalContextGuard)
+  @Roles('admin')
+  @RequiresModule(HOSPITAL_MODULE.PACKAGES)
+  @UsePipes(new ZodValidationPipe(updatePackageSettingsSchema))
+  updatePackageSettings(
+    @Param('id') id: string,
+    @CurrentHospitalUser() userProfile: HospitalUserProfile,
+    @Body() body: PackageSettings,
+  ) {
+    return this.hospitalsService.updatePackageSettings(id, body, userProfile);
+  }
+
+  // Settings > Features. Every role reads it (the web app hides switched-off
+  // modules from everyone); only admins can flip switches.
+  @Get(':id/modules')
+  @UseGuards(HospitalContextGuard)
+  @Roles('admin', 'doctor', 'front_desk', 'nurse', 'accountant')
+  getModules(@Param('id') id: string) {
+    return this.hospitalsService.getModules(id);
+  }
+
+  @Put(':id/modules')
+  @UseGuards(HospitalContextGuard)
+  @Roles('admin')
+  @UsePipes(new ZodValidationPipe(updateHospitalModulesSchema))
+  updateModules(
+    @Param('id') id: string,
+    @CurrentHospitalUser() userProfile: HospitalUserProfile,
+    @Body() body: { modules: Partial<Record<HOSPITAL_MODULE, boolean>> },
+  ) {
+    return this.hospitalsService.updateModules(id, body.modules, userProfile);
   }
 }

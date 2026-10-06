@@ -10,6 +10,8 @@ import {
 } from '@nestjs/common';
 import { PaymentsService } from './payments.service';
 import { HospitalContextGuard } from '../auth/guards/hospital-context.guard';
+import { RequiresModule } from '../auth/decorators/requires-module.decorator';
+import { HOSPITAL_MODULE } from '../constants';
 import { PermissionGuard } from '../permissions/guards/permission.guard';
 import { RequirePermission } from '../permissions/decorators/require-permission.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -38,6 +40,7 @@ import type {
 @Controller('hospitals/:id/payments')
 @UseGuards(HospitalContextGuard, PermissionGuard)
 @Roles('admin', 'doctor', 'front_desk', 'accountant')
+@RequiresModule(HOSPITAL_MODULE.PAYMENTS)
 export class PaymentsController {
   constructor(private readonly paymentsService: PaymentsService) {}
 

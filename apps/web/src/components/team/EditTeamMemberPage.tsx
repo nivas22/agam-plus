@@ -37,7 +37,7 @@ export default function EditTeamMemberPage({ hospitalId, memberId }: EditTeamMem
   const [handlesCash, setHandlesCash] = useState<boolean | null>(null);
   const [role, setRole] = useState<TeamRole | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [tempPassword, setTempPassword] = useState<string | null>(null);
+  const [tempPassword, setTempPassword] = useState<{ password: string; username?: string } | null>(null);
 
   if (isLoading || !member) {
     return <div className="text-sm text-ink-500 py-8 text-center">Loading…</div>;
@@ -215,7 +215,7 @@ export default function EditTeamMemberPage({ hospitalId, memberId }: EditTeamMem
               disabled={resetPassword.isPending}
               onClick={() =>
                 resetPassword.mutate(memberId, {
-                  onSuccess: (data) => setTempPassword(data.tempPassword),
+                  onSuccess: (data) => setTempPassword({ password: data.tempPassword, username: data.username }),
                 })
               }
             />
@@ -242,7 +242,7 @@ export default function EditTeamMemberPage({ hospitalId, memberId }: EditTeamMem
       </div>
 
       {tempPassword && (
-        <TempPasswordModal name={member.name} tempPassword={tempPassword} onClose={() => setTempPassword(null)} />
+        <TempPasswordModal name={member.name} tempPassword={tempPassword.password} username={tempPassword.username} onClose={() => setTempPassword(null)} />
       )}
     </div>
   );

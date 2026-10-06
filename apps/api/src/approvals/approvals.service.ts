@@ -5,6 +5,7 @@ import { TeamMemberRepository } from '../repositories/team-member.repository';
 import { PaymentsService } from '../payments/payments.service';
 import { PackagesService } from '../packages/packages.service';
 import { AppointmentsService } from '../appointments/appointments.service';
+import { InventoryService } from '../inventory/inventory.service';
 import { AuditService } from '../audit/audit.service';
 import { ApiError } from '../common/errors/api-error';
 import { HospitalUserProfile, JwtUser } from '../auth/decorators/current-user.decorator';
@@ -19,6 +20,7 @@ export class ApprovalsService {
     private readonly paymentsService: PaymentsService,
     private readonly packagesService: PackagesService,
     private readonly appointmentsService: AppointmentsService,
+    private readonly inventoryService: InventoryService,
     private readonly auditService: AuditService,
   ) {}
 
@@ -62,6 +64,18 @@ export class ApprovalsService {
         return this.appointmentsService.updateAppointment(hospitalId, user, resolver, body);
       case 'delete_appointment':
         return this.appointmentsService.deleteAppointment(hospitalId, resolver, query.id);
+      case 'manage_inventory_items':
+        if (!params.itemId) return this.inventoryService.createItem(hospitalId, resolver, body);
+        if (body.status && Object.keys(body).length === 1) {
+          return this.inventoryService.setStatus(hospitalId, params.itemId, resolver, body.status);
+        }
+        return this.inventoryService.updateItem(hospitalId, params.itemId, resolver, body);
+      case 'receive_stock':
+        return this.inventoryService.receiveStock(hospitalId, resolver, params.itemId, body);
+      case 'issue_stock':
+        return this.inventoryService.issueStock(hospitalId, resolver, params.itemId, body);
+      case 'adjust_stock':
+        return this.inventoryService.adjustBatch(hospitalId, resolver, params.itemId, params.batchId, body);
       default:
         throw ApiError.badRequest(`Don't know how to carry out a queued '${action}' request`);
     }

@@ -13,7 +13,8 @@ import {
   ROLE,
   STAFF_ROLES,
   SUBSCRIPTION_BILLING_CYCLE,
-  SUBSCRIPTION_FEATURE,
+  HOSPITAL_MODULE,
+  HOSPITAL_MODULE_LABELS,
   SUBSCRIPTION_GRACE_DAYS,
   SUBSCRIPTION_INVOICE_STATUS,
   SUBSCRIPTION_STATUS,
@@ -171,7 +172,7 @@ export class SubscriptionsService {
     const now = new Date();
 
     const [doctorCount, staffCount] = await Promise.all([
-      this.membershipRepository.countApprovedMembersByRoles(hospitalId, [ROLE.DOCTOR]),
+      this.membershipRepository.countPractisingDoctors(hospitalId, 'approved'),
       this.membershipRepository.countApprovedMembersByRoles(hospitalId, STAFF_ROLES),
     ]);
 
@@ -267,19 +268,31 @@ export class SubscriptionsService {
     return updated;
   }
 
-  // Platform-admin-only toggle for an individual module (WhatsApp/Reports/
-  // Packages/Medicine packs) — see RequiresFeature() and SUBSCRIPTION_FEATURE.
-  async setFeatureFlag(hospitalId: string, feature: SUBSCRIPTION_FEATURE, enabled: boolean, actor: SubscriptionActor) {
+  // Platform-admin-only grant/withhold of any module for this hospital's
+  // plan — see resolveHospitalModules(). The plan beats the hospital admin's
+  // own switch under Settings > Features.
+  // Applies several grants/withholds in one write, leaving unlisted modules as they are.
+  async setFeatureFlags(hospitalId: string, changes: Partial<Record<HOSPITAL_MODULE, boolean>>, actor: SubscriptionActor) {
     const subscription = await this.getSubscription(hospitalId);
-    const features = { ...subscription.features, [feature]: enabled };
+    const features = { ...subscription.features, ...changes };
     const updated = await this.subscriptionRepository.updateByHospitalId(hospitalId, { features });
+
+    const labels = (enabled: boolean) =>
+      Object.entries(changes)
+        .filter(([, v]) => v === enabled)
+        .map(([k]) => HOSPITAL_MODULE_LABELS[k as HOSPITAL_MODULE] ?? k)
+        .join(', ');
+    const added = labels(true);
+    const removed = labels(false);
 
     await this.auditService.log({
       hospitalId,
       actor: { userId: actor.userId, name: actor.name, role: actor.role },
       action: 'subscription.feature_toggled',
       area: 'settings',
-      summary: `${enabled ? 'Enabled' : 'Disabled'} the ${feature} feature`,
+      summary: [added && `Added ${added} to the plan`, removed && `Removed ${removed} from the plan`]
+        .filter(Boolean)
+        .join('; '),
     });
 
     return updated;
@@ -317,7 +330,7 @@ export class SubscriptionsService {
     if (!subscription) return;
 
     const [doctorCount, staffCount] = await Promise.all([
-      this.membershipRepository.countApprovedMembersByRoles(hospitalId, [ROLE.DOCTOR]),
+      this.membershipRepository.countPractisingDoctors(hospitalId, 'approved'),
       this.membershipRepository.countApprovedMembersByRoles(hospitalId, STAFF_ROLES),
     ]);
 

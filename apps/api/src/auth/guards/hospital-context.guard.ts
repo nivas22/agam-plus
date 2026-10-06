@@ -1,12 +1,15 @@
 import { CanActivate, ExecutionContext, ForbiddenException, HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { MembershipRepository } from '../../repositories/membership.repository';
+import { MembershipRepository, isPractisingDoctor } from '../../repositories/membership.repository';
 import { HospitalRepository } from '../../repositories/hospital.repository';
 import { DoctorRepository } from '../../repositories/doctor.repository';
 import { SubscriptionRepository } from '../../repositories/subscription.repository';
-import { SUBSCRIPTION_FEATURE, SUBSCRIPTION_STATUS } from '../../constants';
+import { PlatformFeatureCatalogRepository } from '../../repositories/platform-feature-catalog.repository';
+import { HOSPITAL_MODULE, SUBSCRIPTION_FEATURE, SUBSCRIPTION_STATUS } from '../../constants';
+import { resolveHospitalModules } from '../../hospitals/hospital-modules.util';
 import { ROLES_KEY } from '../decorators/roles.decorator';
 import { REQUIRES_FEATURE_KEY } from '../decorators/requires-feature.decorator';
+import { REQUIRES_MODULE_KEY } from '../decorators/requires-module.decorator';
 import { JwtUser } from '../decorators/current-user.decorator';
 
 // GET requests always pass (read-only access stays available while
@@ -30,6 +33,7 @@ export class HospitalContextGuard implements CanActivate {
     private readonly hospitalRepository: HospitalRepository,
     private readonly doctorRepository: DoctorRepository,
     private readonly subscriptionRepository: SubscriptionRepository,
+    private readonly featureCatalogRepository: PlatformFeatureCatalogRepository,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -69,8 +73,34 @@ export class HospitalContextGuard implements CanActivate {
     const userRole = (membership as any).role || 'doctor';
     const hospitalProfile = await this.hospitalRepository.getHospitalById(hospitalId);
 
+    const requiredModule = this.reflector.getAllAndOverride<HOSPITAL_MODULE | undefined>(REQUIRES_MODULE_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+    if (requiredModule) {
+      const catalog = await this.featureCatalogRepository.getCatalog();
+      const module = resolveHospitalModules(
+        (hospitalProfile as any)?.modules,
+        subscription?.features,
+        catalog.moduleStatus,
+      )[requiredModule];
+      if (!module.enabled) {
+        throw new ForbiddenException(
+          module.disabledReason === 'hidden' || module.disabledReason === 'coming_soon'
+            ? `This feature isn't available yet.`
+            : module.disabledReason === 'plan'
+              ? `This feature isn't included on this hospital's plan.`
+              : 'This feature is turned off for this hospital — an admin can turn it on under Settings > Features.',
+        );
+      }
+    }
+
+    // An admin with isDoctor also practises here, so they get a doctorProfile
+    // too — but their role stays 'admin', so every "doctors only see their own
+    // data" check below and in the services keeps treating them as an admin.
+    const isDoctor = isPractisingDoctor({ role: userRole, isDoctor: (membership as any).isDoctor });
     let doctorProfile: any | undefined;
-    if (userRole === 'doctor') {
+    if (isDoctor) {
       doctorProfile = await this.doctorRepository.getDoctorProfileByHospitalAndUserId(hospitalId, user.userId);
     }
 
@@ -83,6 +113,7 @@ export class HospitalContextGuard implements CanActivate {
       specialization: doctorProfile?.specialization || '',
       role: userRole,
       isOwner: !!(membership as any).isOwner,
+      isDoctor,
       currentHospital: hospitalProfile,
       doctorProfile,
     };

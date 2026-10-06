@@ -11,8 +11,10 @@ import {
   SplitSquareHorizontal,
   Wallet,
 } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { useModuleEnabled } from "@/hooks/useHospitalModulesApi";
 import {
   useCloseDay,
   useDayClose,
@@ -202,6 +204,7 @@ function StatusPill({ payment }: { payment: Payment }) {
 export default function PaymentsPage({ hospitalId }: PaymentsPageProps) {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>("transactions");
+  const packagesOn = useModuleEnabled(hospitalId).isEnabled("packages");
   const [range, setRange] = useState<Range>("today");
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
@@ -216,6 +219,28 @@ export default function PaymentsPage({ hospitalId }: PaymentsPageProps) {
   const [closeError, setCloseError] = useState<string | null>(null);
 
   const today = toISODate(new Date());
+  // Which day the "Close the day" panel is for — today by default, or a
+  // missed day passed as ?closeDate= (the dashboard's / Daily collection
+  // report's "Close" links). Future days can't be closed.
+  const searchParams = useSearchParams();
+  const requestedCloseDate = searchParams.get("closeDate");
+  const [closeDate, setCloseDate] = useState(() =>
+    requestedCloseDate &&
+    /^\d{4}-\d{2}-\d{2}$/.test(requestedCloseDate) &&
+    requestedCloseDate <= today
+      ? requestedCloseDate
+      : today,
+  );
+  // Opened for a past day: list that day's payments next to the panel.
+  useEffect(() => {
+    if (closeDate !== today) {
+      setRange("custom");
+      setCustomStart(closeDate);
+      setCustomEnd(closeDate);
+    }
+    // Only on arrival — picking another day later doesn't move the list.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const rangeDates = useMemo(
     () => getRangeDates(range, customStart, customEnd),
     [range, customStart, customEnd],
@@ -233,7 +258,7 @@ export default function PaymentsPage({ hospitalId }: PaymentsPageProps) {
 
   const { data: dayClose, refetch: refetchDayClose } = useDayClose(
     hospitalId,
-    today,
+    closeDate,
   );
   const closeDayMutation = useCloseDay(hospitalId);
 
@@ -242,6 +267,13 @@ export default function PaymentsPage({ hospitalId }: PaymentsPageProps) {
       setOpeningFloat(dayClose.openingFloat || 0);
     }
   }, [dayClose]);
+
+  // A different day means a different drawer count.
+  useEffect(() => {
+    setCountedAmount("");
+    setCloseNote("");
+    setCloseError(null);
+  }, [closeDate]);
 
   const showToast = useCallback((message: string) => {
     setToast(message);
@@ -362,12 +394,16 @@ export default function PaymentsPage({ hospitalId }: PaymentsPageProps) {
     }
     try {
       await closeDayMutation.mutateAsync({
-        date: today,
+        date: closeDate,
         openingFloat,
         countedAmount,
         note: closeNote.trim() || undefined,
       });
-      showToast("Day closed and entries locked");
+      showToast(
+        closeDate === today
+          ? "Day closed and entries locked"
+          : `${format(new Date(`${closeDate}T00:00:00`), "d MMM")} closed and entries locked`,
+      );
     } catch (err) {
       setCloseError(
         err instanceof Error ? err.message : "Failed to close the day",
@@ -420,6 +456,7 @@ export default function PaymentsPage({ hospitalId }: PaymentsPageProps) {
         )}
       </div>
 
+      {packagesOn && (
       <div className="flex items-center gap-1 bg-surface-canvas border border-border rounded-xl p-1 mb-4 w-fit">
         {(
           [
@@ -441,8 +478,9 @@ export default function PaymentsPage({ hospitalId }: PaymentsPageProps) {
           </button>
         ))}
       </div>
+      )}
 
-      {activeTab === "package" ? (
+      {activeTab === "package" && packagesOn ? (
         <PackagesTab hospitalId={hospitalId} onToast={showToast} />
       ) : (
         <>
@@ -494,7 +532,7 @@ export default function PaymentsPage({ hospitalId }: PaymentsPageProps) {
                 {money(stats.cash)}
               </div>
               <div className="text-[11px] text-ink-500 mt-0.5">
-                {stats.inDrawerCount} visits · in the drawer
+                {stats.inDrawerCount} visits· 
               </div>
             </div>
             <div className="rounded-xl p-4 bg-surface-paper border border-border shadow-sm">
@@ -684,9 +722,21 @@ export default function PaymentsPage({ hospitalId }: PaymentsPageProps) {
             </div>
 
             <div className="bg-surface-paper border border-border rounded-xl shadow-sm p-4">
-              <h2 className="font-display tracking-tight text-sm font-semibold text-ink-900 mb-3">
-                Close the day
-              </h2>
+              <div className="flex items-center justify-between gap-2 mb-3">
+                <h2 className="font-display tracking-tight text-sm font-semibold text-ink-900">
+                  {closeDate === today
+                    ? "Close the day"
+                    : `Close ${format(new Date(`${closeDate}T00:00:00`), "EEE, d MMM")}`}
+                </h2>
+                <input
+                  type="date"
+                  value={closeDate}
+                  max={today}
+                  onChange={(e) => e.target.value && setCloseDate(e.target.value)}
+                  aria-label="Day to close"
+                  className="border border-border rounded-md px-1.5 py-0.5 text-xs bg-surface-paper"
+                />
+              </div>
 
               {!dayClose ? (
                 <div className="text-sm text-ink-500">Loading…</div>

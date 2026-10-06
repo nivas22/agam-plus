@@ -13,6 +13,8 @@ import {
   TN_HOLIDAY_SEED_LIST,
 } from '../constants';
 import { findHolidayForDate, HolidayLike } from './holiday-availability.util';
+import { HospitalRepository } from '../repositories/hospital.repository';
+import { todayIso } from '../common/hospital-time.util';
 
 const RESCHEDULE_LOOKAHEAD_DAYS = 28;
 
@@ -37,6 +39,7 @@ export class HospitalHolidaysService {
     private readonly holidayRepository: HospitalHolidayRepository,
     private readonly appointmentRepository: AppointmentRepository,
     private readonly membershipRepository: MembershipRepository,
+    private readonly hospitalRepository: HospitalRepository,
     private readonly auditService: AuditService,
   ) {}
 
@@ -87,8 +90,9 @@ export class HospitalHolidaysService {
     return String(n).padStart(2, '0');
   }
 
-  private todayIso(): string {
-    return this.toISODate(new Date());
+  // On the hospital's clock — the server runs on UTC.
+  private async todayIso(hospitalId: string): Promise<string> {
+    return todayIso(await this.hospitalRepository.getTimezone(hospitalId));
   }
 
   /* ---------------------------------------------------------------------- */
@@ -101,7 +105,7 @@ export class HospitalHolidaysService {
       this.holidayRepository.listByHospitalAndYear(hospitalId, year - 1),
     ]);
 
-    const todayIso = this.todayIso();
+    const todayIso = await this.todayIso(hospitalId);
     const enriched = await Promise.all(
       holidays.map(async (h: any) => {
         const bookedCount = (

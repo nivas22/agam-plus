@@ -2,6 +2,7 @@
 "use client";
 
 import { Download } from "lucide-react";
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import {
   reportExportUrl,
@@ -307,6 +308,23 @@ export default function DailyCollectionPage({
             text={report.insight}
             tone={report.unclosedDates.length > 0 ? "warning" : "brand"}
           />
+          {report.unclosedDates.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2 mt-2.5">
+              <span className="text-xs text-ink-500">Close a missed day:</span>
+              {report.unclosedDates.map((d) => (
+                <Link
+                  key={d}
+                  href={`/hospital/${hospitalId}/payments?closeDate=${d}`}
+                  className="rounded-md border border-status-warning/40 bg-status-warning-soft px-2.5 py-1 text-xs font-semibold text-status-warning hover:opacity-90"
+                >
+                  {new Date(`${d}T00:00:00`).toLocaleDateString("en-IN", {
+                    day: "numeric",
+                    month: "short",
+                  })}
+                </Link>
+              ))}
+            </div>
+          )}
         </>
       )}
     </ReportsLayout>

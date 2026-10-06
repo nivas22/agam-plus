@@ -2,11 +2,15 @@
 "use client";
 
 import { format } from "date-fns";
-import { Phone } from "lucide-react";
+import { Phone, Sparkles } from "lucide-react";
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import CompleteVisitDialog from "@/components/appointments/CompleteVisitDialog";
+import { useGenerateSessionNotes } from "@/hooks/useAiNotesApi";
 import { useAuth } from "@/hooks/useAuth";
 import { useChargeCatalogItems } from "@/hooks/useChargeCatalogApi";
+import { useModuleEnabled } from "@/hooks/useHospitalModulesApi";
+import { useNotesTemplates } from "@/hooks/useNotesTemplateApi";
 import {
   useDoctorPresence,
   useSetDoctorPresence,
@@ -391,13 +395,19 @@ export default function DoctorTodayPage({
     setShowAddItem(false);
   }, [selectedAppt?.id]);
 
+  const { isEnabled: isModuleEnabled } = useModuleEnabled(hospitalId);
+  // With the charge catalog off (Settings > Features) there's no "Given during
+  // the visit" capture — items are entered by hand at billing instead.
+  const chargeCatalogOn = isModuleEnabled("chargeCatalog");
   const { data: chargeCatalogData } = useChargeCatalogItems(hospitalId, {
     status: "active",
   });
-  const { isDoctor } = useAuth();
-  const quickAddItems = (chargeCatalogData?.items || []).filter(
-    (item) => isDoctor || item.frontDeskCanAdd,
-  );
+  const { practisesAsDoctor } = useAuth();
+  const quickAddItems = chargeCatalogOn
+    ? (chargeCatalogData?.items || []).filter(
+        (item) => practisesAsDoctor || item.frontDeskCanAdd,
+      )
+    : [];
 
   const addExtraItem = (
     name: string,
@@ -410,8 +420,9 @@ export default function DoctorTodayPage({
     ]);
   };
 
+  const prescriptionsOn = isModuleEnabled("prescriptions");
   const { data: prescriptionResult } = usePrescription(
-    selectedAppt?.id || "",
+    prescriptionsOn ? selectedAppt?.id || "" : "",
     hospitalId,
   );
   const prescription = prescriptionResult?.prescription;
@@ -432,7 +443,7 @@ export default function DoctorTodayPage({
     : ((selectedAppt?.givenItems as PaymentItem[] | undefined) ?? []);
 
   const { data: notesModalPrescriptionResult } = usePrescription(
-    notesModalAppt?.id || "",
+    prescriptionsOn ? notesModalAppt?.id || "" : "",
     hospitalId,
   );
   const notesModalPrescription = notesModalPrescriptionResult?.prescription;
@@ -464,7 +475,7 @@ export default function DoctorTodayPage({
     (a) => a.status === APPOINTMENT_STATUS.NO_SHOW,
   ).length;
   const { data: lastPrescriptionResult } = usePrescription(
-    lastVisit?.id || "",
+    prescriptionsOn ? lastVisit?.id || "" : "",
     hospitalId,
   );
   const lastPrescription = lastPrescriptionResult?.prescription;
@@ -1293,17 +1304,6 @@ const QUICK_FOLLOW_UP_VALUES = Object.keys(
   QUICK_FOLLOW_UP_LABELS,
 ) as FollowUpOption[];
 
-const TEMPLATES = [
-  {
-    label: "Continue medication",
-    text: "Continuing current medication at the same dose. Review as scheduled.",
-  },
-  {
-    label: "Advised rest",
-    text: "Advised rest and adequate hydration. Review if symptoms persist beyond a few days.",
-  },
-];
-
 function ConsultationPanel({
   appt,
   patient,
@@ -1390,6 +1390,35 @@ function ConsultationPanel({
   const isOver = elapsedMs > durationMin * 60000;
   const allergy = allergySummary(patient);
   const vRows = vitalsRows(appt.vitals);
+  const { isEnabled: isModuleEnabled } = useModuleEnabled(hospitalId);
+  const aiNotesOn = isModuleEnabled("aiNotes");
+  const generateNotes = useGenerateSessionNotes(hospitalId);
+  // Managed under Settings > Notes templates.
+  const { data: notesTemplatesData } = useNotesTemplates(hospitalId);
+  const notesTemplates = notesTemplatesData?.items ?? [];
+  // The doctor's own text from before the last AI format, so one click puts
+  // it back if the draft isn't right.
+  const [notesBeforeAi, setNotesBeforeAi] = useState<string | null>(null);
+  const [aiNotesError, setAiNotesError] = useState<string | null>(null);
+  useEffect(() => {
+    setNotesBeforeAi(null);
+    setAiNotesError(null);
+  }, [appt.id]);
+
+  const handleFormatWithAi = () => {
+    const draft = notesDraft;
+    setAiNotesError(null);
+    generateNotes.mutate(
+      { appointmentId: appt.id, draft },
+      {
+        onSuccess: ({ notes }) => {
+          setNotesBeforeAi(draft);
+          setNotesDraft(notes);
+        },
+        onError: (error) => setAiNotesError(error.message),
+      },
+    );
+  };
   const prescriptionItemCount = prescription?.items.length ?? 0;
   const unsignedPrescription =
     prescriptionItemCount > 0 && prescription?.status !== "signed";
@@ -1489,14 +1518,54 @@ function ConsultationPanel({
           <textarea
             value={notesDraft}
             onChange={(e) => setNotesDraft(e.target.value)}
-            placeholder="Details about the session, treatment provided, observations, etc."
+            placeholder={
+              aiNotesOn
+                ? "Type rough notes (e.g. c/o fever x3d, throat congested, adv paracetamol) — then Format with AI"
+                : "Details about the session, treatment provided, observations, etc."
+            }
             rows={7}
-            className="w-full p-3 border border-border rounded-lg text-[14px] leading-relaxed resize-y focus:outline-none focus:ring-2 focus:ring-brand-violet/20 focus:border-brand-violet"
+            disabled={generateNotes.isPending}
+            className="w-full p-3 border border-border rounded-lg text-[14px] leading-relaxed resize-y focus:outline-none focus:ring-2 focus:ring-brand-violet/20 focus:border-brand-violet disabled:opacity-60"
           />
-          <div className="flex gap-2 flex-wrap mt-2">
-            {TEMPLATES.map((t) => (
+          {aiNotesOn && (
+            <div className="flex items-center gap-3 flex-wrap mt-2">
               <button
-                key={t.label}
+                type="button"
+                onClick={handleFormatWithAi}
+                disabled={generateNotes.isPending || notesDraft.trim().length < 3}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-brand-violet hover:bg-brand-violet-hover px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
+              >
+                <Sparkles size={14} />
+                {generateNotes.isPending ? "Formatting…" : "Format with AI"}
+              </button>
+              {notesBeforeAi !== null && !generateNotes.isPending && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNotesDraft(notesBeforeAi);
+                    setNotesBeforeAi(null);
+                  }}
+                  className="text-[12.5px] font-semibold text-brand-violet underline"
+                >
+                  Undo AI format
+                </button>
+              )}
+              <span className="text-[11.5px] text-ink-500">
+                {aiNotesError ? (
+                  <span className="text-status-danger">{aiNotesError}</span>
+                ) : notesBeforeAi !== null ? (
+                  "AI draft — check it before finishing the visit."
+                ) : (
+                  "Uses vitals, allergies and the prescription. No name or phone is sent."
+                )}
+              </span>
+            </div>
+          )}
+          <div className="flex gap-2 flex-wrap items-center mt-2">
+            {notesTemplates.map((t) => (
+              <button
+                key={t.id}
+                title={t.text}
                 type="button"
                 onClick={() =>
                   setNotesDraft(
@@ -1508,101 +1577,113 @@ function ConsultationPanel({
                 {t.label}
               </button>
             ))}
+            <Link
+              href={`/hospital/${hospitalId}/settings/notes-templates`}
+              className="text-[12.5px] font-semibold text-brand-violet underline"
+            >
+              {notesTemplates.length > 0 ? "Manage templates" : "Add notes templates"}
+            </Link>
           </div>
 
-          <div className="text-[12px] uppercase tracking-wide text-ink-500 font-bold mb-2 mt-4">
-            Given during the visit
-          </div>
-          <div className="border border-border rounded-xl bg-surface-paper overflow-hidden">
-            {extraItems.length === 0 && (
-              <div className="px-3 py-3 text-xs text-ink-500">
-                Nothing added yet
+          {isModuleEnabled("chargeCatalog") && (
+            <>
+              <div className="text-[12px] uppercase tracking-wide text-ink-500 font-bold mb-2 mt-4">
+                Given during the visit
               </div>
-            )}
-            {extraItems.map((item, i) => (
-              <div
-                key={`${item.name}-${i}`}
-                className="flex items-center justify-between gap-2 px-3 py-2 text-[13px] border-t border-border first:border-t-0"
-              >
-                <span>{item.name}</span>
-                <span className="flex items-center gap-2">
-                  <span className="font-mono">₹{item.unitPrice}</span>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setExtraItems(extraItems.filter((_, idx) => idx !== i))
-                    }
-                    className="text-ink-500 hover:text-status-danger"
-                    aria-label={`Remove ${item.name}`}
+              <div className="border border-border rounded-xl bg-surface-paper overflow-hidden">
+                {extraItems.length === 0 && (
+                  <div className="px-3 py-3 text-xs text-ink-500">
+                    Nothing added yet
+                  </div>
+                )}
+                {extraItems.map((item, i) => (
+                  <div
+                    key={`${item.name}-${i}`}
+                    className="flex items-center justify-between gap-2 px-3 py-2 text-[13px] border-t border-border first:border-t-0"
                   >
-                    ×
-                  </button>
-                </span>
-              </div>
-            ))}
-            <button
-              type="button"
-              onClick={() => setShowAddItem(!showAddItem)}
-              className="w-full text-left px-3 py-2 text-xs font-semibold text-brand-violet border-t border-border"
-            >
-              + Add injection, dressing or test
-            </button>
-          </div>
-          {showAddItem && (
-            <div className="mt-2">
-              <div className="grid grid-cols-[1fr_78px_auto] gap-2">
-                <input
-                  type="text"
-                  value={newItemName}
-                  onChange={(e) => setNewItemName(e.target.value)}
-                  placeholder="Name"
-                  className="px-3 py-2 border border-border rounded-lg text-xs bg-surface-paper"
-                />
-                <input
-                  type="number"
-                  value={newItemPrice}
-                  onChange={(e) => setNewItemPrice(e.target.value)}
-                  placeholder="₹"
-                  className="px-3 py-2 border border-border rounded-lg text-xs bg-surface-paper"
-                />
+                    <span>{item.name}</span>
+                    <span className="flex items-center gap-2">
+                      <span className="font-mono">₹{item.unitPrice}</span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setExtraItems(extraItems.filter((_, idx) => idx !== i))
+                        }
+                        className="text-ink-500 hover:text-status-danger"
+                        aria-label={`Remove ${item.name}`}
+                      >
+                        ×
+                      </button>
+                    </span>
+                  </div>
+                ))}
                 <button
                   type="button"
-                  onClick={() => {
-                    const name = newItemName.trim();
-                    if (!name) return;
-                    addExtraItem(name, Number(newItemPrice) || 0);
-                    setNewItemName("");
-                    setNewItemPrice("");
-                    setShowAddItem(false);
-                  }}
-                  className="px-4 py-2 rounded-lg border border-status-open bg-status-open-soft text-status-open text-xs font-semibold"
+                  onClick={() => setShowAddItem(!showAddItem)}
+                  className="w-full text-left px-3 py-2 text-xs font-semibold text-brand-violet border-t border-border"
                 >
-                  Add
+                  + Add injection, dressing or test
                 </button>
               </div>
-              {quickAddItems.length > 0 && (
-                <div className="flex flex-wrap items-center gap-2 mt-2">
-                  {quickAddItems.map((c) => (
+              {showAddItem && (
+                <div className="mt-2">
+                  <div className="grid grid-cols-[1fr_78px_auto] gap-2">
+                    <input
+                      type="text"
+                      value={newItemName}
+                      onChange={(e) => setNewItemName(e.target.value)}
+                      placeholder="Name"
+                      className="px-3 py-2 border border-border rounded-lg text-xs bg-surface-paper"
+                    />
+                    <input
+                      type="number"
+                      value={newItemPrice}
+                      onChange={(e) => setNewItemPrice(e.target.value)}
+                      placeholder="₹"
+                      className="px-3 py-2 border border-border rounded-lg text-xs bg-surface-paper"
+                    />
                     <button
-                      key={c.id}
                       type="button"
                       onClick={() => {
-                        addExtraItem(c.name, c.currentPrice, c.id);
+                        const name = newItemName.trim();
+                        if (!name) return;
+                        addExtraItem(name, Number(newItemPrice) || 0);
+                        setNewItemName("");
+                        setNewItemPrice("");
                         setShowAddItem(false);
                       }}
-                      className="border border-dashed border-border rounded-md px-2 py-1 text-[12px] text-ink-700 hover:border-status-open hover:text-status-open hover:bg-status-open-soft"
+                      className="px-4 py-2 rounded-lg border border-status-open bg-status-open-soft text-status-open text-xs font-semibold"
                     >
-                      + {c.name}{" "}
-                      <span className="font-mono text-ink-500">
-                        ₹{c.currentPrice}
-                      </span>
+                      Add
                     </button>
-                  ))}
+                  </div>
+                  {quickAddItems.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-2 mt-2">
+                      {quickAddItems.map((c) => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => {
+                            addExtraItem(c.name, c.currentPrice, c.id);
+                            setShowAddItem(false);
+                          }}
+                          className="border border-dashed border-border rounded-md px-2 py-1 text-[12px] text-ink-700 hover:border-status-open hover:text-status-open hover:bg-status-open-soft"
+                        >
+                          + {c.name}{" "}
+                          <span className="font-mono text-ink-500">
+                            ₹{c.currentPrice}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
-            </div>
+            </>
           )}
 
+          {isModuleEnabled("prescriptions") && (
+            <>
           <div className="text-[12px] uppercase tracking-wide text-ink-500 font-bold mb-2 mt-4">
             Prescription
           </div>
@@ -1624,6 +1705,8 @@ function ConsultationPanel({
               Open
             </a>
           </div>
+            </>
+          )}
         </div>
 
         <div className="p-5 border-t md:border-t-0 md:border-l border-lineSoft bg-surface-canvas/30 min-w-0">
@@ -1850,6 +1933,7 @@ function PreCallPanel({
   onCallIn: () => void;
   onCollectPayment?: () => void;
 }) {
+  const { isEnabled: isModuleEnabled } = useModuleEnabled(hospitalId);
   const age = resolveAge(appt, patient);
   const waitStart = stageStart(appt, appt.waitingAt || appt.checkedInAt);
   const waitMinutes = minutesBetween(waitStart, now);
@@ -1936,32 +2020,38 @@ function PreCallPanel({
                 {appt.sessionNotes || "No session notes were recorded."}
               </div>
 
-              <div className="text-[12px] uppercase tracking-wide text-ink-500 font-bold mb-2 mt-4">
-                Given during the visit
-              </div>
-              <div className="border border-border rounded-xl bg-surface-paper overflow-hidden">
-                {givenItems.length === 0 ? (
-                  <div className="px-3 py-3 text-xs text-ink-500">
-                    Nothing added during this visit
+              {(isModuleEnabled("chargeCatalog") || givenItems.length > 0) && (
+                <>
+                  <div className="text-[12px] uppercase tracking-wide text-ink-500 font-bold mb-2 mt-4">
+                    Given during the visit
                   </div>
-                ) : (
-                  givenItems.map((item, i) => (
-                    <div
-                      key={`${item.name}-${i}`}
-                      className="flex items-center justify-between gap-2 px-3 py-2 text-[13px] border-t border-border first:border-t-0"
-                    >
-                      <span>
-                        {item.name}
-                        {item.quantity > 1 ? ` × ${item.quantity}` : ""}
-                      </span>
-                      <span className="font-mono">
-                        ₹{item.unitPrice * item.quantity}
-                      </span>
-                    </div>
-                  ))
-                )}
-              </div>
+                  <div className="border border-border rounded-xl bg-surface-paper overflow-hidden">
+                    {givenItems.length === 0 ? (
+                      <div className="px-3 py-3 text-xs text-ink-500">
+                        Nothing added during this visit
+                      </div>
+                    ) : (
+                      givenItems.map((item, i) => (
+                        <div
+                          key={`${item.name}-${i}`}
+                          className="flex items-center justify-between gap-2 px-3 py-2 text-[13px] border-t border-border first:border-t-0"
+                        >
+                          <span>
+                            {item.name}
+                            {item.quantity > 1 ? ` × ${item.quantity}` : ""}
+                          </span>
+                          <span className="font-mono">
+                            ₹{item.unitPrice * item.quantity}
+                          </span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </>
+              )}
 
+              {isModuleEnabled("prescriptions") && (
+                <>
               <div className="text-[12px] uppercase tracking-wide text-ink-500 font-bold mb-2 mt-4">
                 Prescription
               </div>
@@ -1989,6 +2079,8 @@ function PreCallPanel({
                     </div>
                   ))}
                 </div>
+              )}
+                </>
               )}
             </>
           ) : (
@@ -2153,6 +2245,7 @@ function NotesModal({
   onSave: () => void;
   onClose: () => void;
 }) {
+  const { isEnabled: isModuleEnabled } = useModuleEnabled(hospitalId);
   const age = resolveAge(appt, patient);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink-900/35 px-4">
@@ -2195,32 +2288,38 @@ function NotesModal({
             className="w-full p-3 border border-border rounded-lg text-[14px] leading-relaxed resize-y focus:outline-none focus:ring-2 focus:ring-brand-violet/20 focus:border-brand-violet"
           />
 
-          <div className="text-[12px] uppercase tracking-wide text-ink-500 font-bold mb-2 mt-4">
-            Given during the visit
-          </div>
-          <div className="border border-border rounded-xl bg-surface-paper overflow-hidden">
-            {givenItems.length === 0 ? (
-              <div className="px-3 py-3 text-xs text-ink-500">
-                Nothing added during this visit
+          {(isModuleEnabled("chargeCatalog") || givenItems.length > 0) && (
+            <>
+              <div className="text-[12px] uppercase tracking-wide text-ink-500 font-bold mb-2 mt-4">
+                Given during the visit
               </div>
-            ) : (
-              givenItems.map((item, i) => (
-                <div
-                  key={`${item.name}-${i}`}
-                  className="flex items-center justify-between gap-2 px-3 py-2 text-[13px] border-t border-border first:border-t-0"
-                >
-                  <span>
-                    {item.name}
-                    {item.quantity > 1 ? ` × ${item.quantity}` : ""}
-                  </span>
-                  <span className="font-mono">
-                    ₹{item.unitPrice * item.quantity}
-                  </span>
-                </div>
-              ))
-            )}
-          </div>
+              <div className="border border-border rounded-xl bg-surface-paper overflow-hidden">
+                {givenItems.length === 0 ? (
+                  <div className="px-3 py-3 text-xs text-ink-500">
+                    Nothing added during this visit
+                  </div>
+                ) : (
+                  givenItems.map((item, i) => (
+                    <div
+                      key={`${item.name}-${i}`}
+                      className="flex items-center justify-between gap-2 px-3 py-2 text-[13px] border-t border-border first:border-t-0"
+                    >
+                      <span>
+                        {item.name}
+                        {item.quantity > 1 ? ` × ${item.quantity}` : ""}
+                      </span>
+                      <span className="font-mono">
+                        ₹{item.unitPrice * item.quantity}
+                      </span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </>
+          )}
 
+          {isModuleEnabled("prescriptions") && (
+            <>
           <div className="flex items-center gap-2 mb-2 mt-4">
             <div className="text-[12px] uppercase tracking-wide text-ink-500 font-bold">
               Prescription
@@ -2279,6 +2378,8 @@ function NotesModal({
           >
             Open prescription
           </a>
+            </>
+          )}
         </div>
 
         <div className="flex items-center justify-end gap-3 px-5 py-4 border-t border-lineSoft">

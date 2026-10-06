@@ -175,6 +175,11 @@ h3 {
 .nav .sp {
   flex: 1;
 }
+.nav .nav-cta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
 
 /* hero */
 .hero {

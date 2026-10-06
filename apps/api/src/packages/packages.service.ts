@@ -6,6 +6,7 @@ import { PatientRepository } from '../repositories/patient.repository';
 import { MembershipRepository } from '../repositories/membership.repository';
 import { HospitalHolidayRepository } from '../repositories/hospital-holiday.repository';
 import { PaymentRepository } from '../repositories/payment.repository';
+import { HospitalRepository } from '../repositories/hospital.repository';
 import { PermissionsService } from '../permissions/permissions.service';
 import { AuditService } from '../audit/audit.service';
 import { ApiError } from '../common/errors/api-error';
@@ -24,6 +25,7 @@ import {
   ExtendPackageBody,
   PackageListQuery,
 } from './packages.types';
+import { resolvePackageSettings } from './package-settings.util';
 import {
   ACTIVE_APPOINTMENT_STATUSES,
   APPOINTMENT_STATUS,
@@ -31,7 +33,6 @@ import {
   PACKAGE_STATUS,
   PACKAGE_DISPLAY_STATUS,
   PACKAGE_LAPSING_WINDOW_DAYS,
-  PACKAGE_VALIDITY_MONTHS,
   PAYMENT_STATUS,
 } from '../constants';
 
@@ -67,6 +68,7 @@ export class PackagesService {
     private readonly membershipRepository: MembershipRepository,
     private readonly hospitalHolidayRepository: HospitalHolidayRepository,
     private readonly paymentRepository: PaymentRepository,
+    private readonly hospitalRepository: HospitalRepository,
     private readonly permissionsService: PermissionsService,
     private readonly auditService: AuditService,
   ) {}
@@ -660,10 +662,15 @@ export class PackagesService {
 
     const patient = await this.patientRepository.getPatientById(body.patientId);
 
+    const hospital = await this.hospitalRepository.getHospitalById(hospitalId);
+    const packageSettings = resolvePackageSettings(
+      (hospital as any)?.packageSettings,
+    );
+
     const totalPrice = body.pricePerVisit * body.totalVisits;
     const validUntilDate = new Date();
     validUntilDate.setMonth(
-      validUntilDate.getMonth() + PACKAGE_VALIDITY_MONTHS,
+      validUntilDate.getMonth() + packageSettings.validityMonths,
     );
 
     const createdPackage = await this.packageRepository.createPackage({

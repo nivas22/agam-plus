@@ -156,4 +156,33 @@ export class UserRepository {
       { $set: { failedLoginAttempts: 0, updatedAt: new Date() }, $unset: { lockedUntil: '' } },
     );
   }
+
+  // Admin-issued temp password: also lifts any lockout (otherwise the new
+  // password is rejected until the lock expires) and gives legacy users with
+  // no username one (their email, if free) so they can actually sign in.
+  // Returns the username to sign in with, if any.
+  async adminResetPassword(userId: string, passwordHash: string): Promise<string | undefined> {
+    const user = await this.userModel.findById(userId).lean();
+    if (!user) return undefined;
+
+    const $set: Record<string, any> = {
+      passwordHash,
+      mustChangePassword: true,
+      failedLoginAttempts: 0,
+      updatedAt: new Date(),
+    };
+
+    let username = (user as any).username as string | undefined;
+    if (!username && (user as any).email) {
+      const candidate = String((user as any).email).toLowerCase().trim();
+      const clash = await this.userModel.findOne({ username: candidate }).select('_id').lean();
+      if (!clash) {
+        $set.username = candidate;
+        username = candidate;
+      }
+    }
+
+    await this.userModel.updateOne({ _id: userId }, { $set, $unset: { lockedUntil: '' } });
+    return username;
+  }
 }

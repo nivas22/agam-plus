@@ -19,8 +19,17 @@ import {
 import DoctorAvatar from "@/components/doctors/DoctorAvatar";
 import { useAuth } from "@/hooks/useAuth";
 import { useDoctorDashboardPracticeStats } from "@/hooks/useDoctorDashboardApi";
-import { useHospitalSpecializations } from "@/hooks/useHospitalSpecializationsApi";
-import { useHospitalDoctor, useNewDoctorApi, useResetDoctorPassword } from "@/hooks/useNewDoctorApi";
+import {
+  useHospitalSpecializations,
+  useUpdateHospitalSpecializations,
+} from "@/hooks/useHospitalSpecializationsApi";
+import { useQueryClient } from "@tanstack/react-query";
+import { availabilityKeys } from "@/hooks/useAvailability";
+import {
+  useHospitalDoctor,
+  useNewDoctorApi,
+  useResetDoctorPassword,
+} from "@/hooks/useNewDoctorApi";
 import TempPasswordModal from "@/components/common/TempPasswordModal";
 import { ApiRequestError } from "@/lib/api";
 import type { TimeSlot } from "@/types/appointment";
@@ -33,6 +42,11 @@ interface AddEditDoctorProps {
   userRole?: string;
   canEdit?: boolean;
   hospitalId?: string;
+  // Shows only the Availability section and saves only schedule fields —
+  // used by the doctor's own "Manage availability" (no admin-only actions).
+  availabilityOnly?: boolean;
+  // Where the back arrow and a successful save go. Defaults to the roster.
+  backHref?: string;
 }
 
 const DAYS = [
@@ -65,7 +79,7 @@ const OVER_CAPACITY_OPTIONS: {
 const GRACE_MINUTE_OPTIONS = [5, 10, 15];
 const NO_SHOW_RELEASE_OPTIONS = [15, 20, 30];
 const GENDERS = [GENDER.MALE, GENDER.FEMALE, GENDER.OTHER];
-const MARITAL_STATUSES = ["Single", "Married"];
+const ADD_SPECIALIZATION_VALUE = "__add_new__";
 const DEFAULT_SPECIALIZATIONS = [
   "General Practitioner",
   "Cardiologist",
@@ -103,11 +117,10 @@ type FormState = {
   specialization: string;
   experience: string;
   qualification: string;
+  medicalRegistrationNumber: string;
   consultationFee: number | undefined;
   gender: string;
-  maritalStatus: string;
   status: "active" | "inactive" | "pending";
-  address: string;
   availability: TimeSlot[];
   appointmentDuration: number;
   bufferMinutes: number;
@@ -130,11 +143,10 @@ const EMPTY_FORM: FormState = {
   specialization: "",
   experience: "",
   qualification: "",
+  medicalRegistrationNumber: "",
   consultationFee: undefined,
   gender: "",
-  maritalStatus: "",
   status: "pending",
-  address: "",
   availability: [],
   appointmentDuration: 30,
   bufferMinutes: 0,
@@ -310,8 +322,12 @@ export default function AddEditDoctor({
   id,
   hospitalId,
   canEdit = true,
+  availabilityOnly = false,
+  backHref,
 }: AddEditDoctorProps) {
   const router = useRouter();
+  const returnHref = backHref || `/hospital/${hospitalId}/doctors`;
+  const queryClient = useQueryClient();
   const { createDoctor, updateDoctor, deleteDoctor, isDeleting } =
     useNewDoctorApi(hospitalId, undefined, true);
   const { data: doctorData, isLoading: isDoctorLoading } = useHospitalDoctor(
@@ -320,13 +336,19 @@ export default function AddEditDoctor({
   );
   const { hospitals } = useAuth();
   const resetPassword = useResetDoctorPassword(hospitalId);
-  const [tempPassword, setTempPassword] = useState<string | null>(null);
+  const [tempPassword, setTempPassword] = useState<{
+    password: string;
+    username?: string;
+  } | null>(null);
   const { data: hospitalSpecializationsData } =
     useHospitalSpecializations(hospitalId);
-  const specializationOptions =
-    hospitalSpecializationsData?.specializations?.length
-      ? hospitalSpecializationsData.specializations
-      : DEFAULT_SPECIALIZATIONS;
+  const updateSpecializations = useUpdateHospitalSpecializations(hospitalId);
+  const [addingSpecialization, setAddingSpecialization] = useState(false);
+  const [newSpecialization, setNewSpecialization] = useState("");
+  const specializationOptions = hospitalSpecializationsData?.specializations
+    ?.length
+    ? hospitalSpecializationsData.specializations
+    : DEFAULT_SPECIALIZATIONS;
 
   const [formData, setFormData] = useState<FormState>(EMPTY_FORM);
   const [initialData, setInitialData] = useState<FormState>(EMPTY_FORM);
@@ -336,10 +358,13 @@ export default function AddEditDoctor({
     DuplicateMatch[] | null
   >(null);
   const [addingDay, setAddingDay] = useState<string | null>(null);
+  // Days switched on that don't have any hours yet. A day stays open after its
+  // last slot is removed, and switching a day on doesn't invent hours for it.
+  const [emptyOpenDays, setEmptyOpenDays] = useState<string[]>([]);
   const [slotDraft, setSlotDraft] = useState({ start: "09:00", end: "10:00" });
   const [activeSection, setActiveSection] = useState<
     "personal" | "professional" | "availability"
-  >("personal");
+  >(availabilityOnly ? "availability" : "personal");
 
   const personalRef = useRef<HTMLDivElement>(null);
   const professionalRef = useRef<HTMLDivElement>(null);
@@ -351,18 +376,17 @@ export default function AddEditDoctor({
       const next: FormState = {
         name: d.name || "",
         email: d.email || "",
-        username: "",
-        usernameSameAsEmail: true,
+        username: d.username || "",
+        usernameSameAsEmail: false,
         password: "",
         phone: d.phone || "",
         specialization: d.specialization || "",
         experience: d.experience || "",
         qualification: d.qualification || "",
+        medicalRegistrationNumber: d.medicalRegistrationNumber || "",
         consultationFee: d.consultationFee ?? undefined,
         gender: d.gender || "",
-        maritalStatus: d.maritalStatus || "",
         status: (d.status as FormState["status"]) || "pending",
-        address: d.address || "",
         availability: d.availability || [],
         appointmentDuration: d.appointmentDuration || 30,
         bufferMinutes: d.bufferMinutes ?? 0,
@@ -376,6 +400,7 @@ export default function AddEditDoctor({
       };
       setFormData(next);
       setInitialData(next);
+      setEmptyOpenDays([]);
     }
   }, [isNew, doctorData]);
 
@@ -422,6 +447,7 @@ export default function AddEditDoctor({
     formData.specialization,
     formData.experience,
     formData.qualification,
+    formData.medicalRegistrationNumber,
     formData.consultationFee != null ? String(formData.consultationFee) : "",
   ].filter(Boolean).length;
   const weeklyCapacity = weekCapacity(
@@ -446,8 +472,7 @@ export default function AddEditDoctor({
   );
   const onlineWeeklyCapacity = weeklyCapacity - heldWeeklyCapacity;
 
-  const statsMonth =
-    !isNew && id ? format(new Date(), "yyyy-MM") : undefined;
+  const statsMonth = !isNew && id ? format(new Date(), "yyyy-MM") : undefined;
   const { data: practiceStats } = useDoctorDashboardPracticeStats(
     statsMonth || "",
     hospitalId,
@@ -457,6 +482,39 @@ export default function AddEditDoctor({
 
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
     setFormData((prev) => ({ ...prev, [key]: value }));
+  }
+
+  async function addSpecialization() {
+    const name = newSpecialization.trim();
+    if (!name) {
+      toast.error("Please enter a specialization");
+      return;
+    }
+    const existing = specializationOptions.find(
+      (s) => s.toLowerCase() === name.toLowerCase(),
+    );
+    if (existing) {
+      update("specialization", existing);
+    } else {
+      try {
+        // The dropdown shows the defaults while the hospital list is empty, so
+        // save them alongside the new entry rather than replacing them.
+        await updateSpecializations.mutateAsync([
+          ...specializationOptions,
+          name,
+        ]);
+        update("specialization", name);
+        toast.success(`Added "${name}" to specializations`);
+      } catch (err) {
+        console.error("Error adding specialization:", err);
+        toast.error(
+          err instanceof Error ? err.message : "Failed to add specialization",
+        );
+        return;
+      }
+    }
+    setNewSpecialization("");
+    setAddingSpecialization(false);
   }
 
   function scrollToSection(ref: React.RefObject<HTMLDivElement | null>) {
@@ -469,23 +527,23 @@ export default function AddEditDoctor({
       .sort((a, b) => a.startTime.localeCompare(b.startTime));
   }
 
+  function isDayOpen(day: string) {
+    return (
+      emptyOpenDays.includes(day) ||
+      formData.availability.some((s) => s.day === day)
+    );
+  }
+
   function toggleDay(day: string, open: boolean) {
-    setFormData((prev) => {
-      if (open) {
-        if (prev.availability.some((s) => s.day === day)) return prev;
-        return {
-          ...prev,
-          availability: [
-            ...prev.availability,
-            { day, startTime: "09:00", endTime: "13:00" },
-          ],
-        };
-      }
-      return {
-        ...prev,
-        availability: prev.availability.filter((s) => s.day !== day),
-      };
-    });
+    if (open) {
+      setEmptyOpenDays((prev) => (prev.includes(day) ? prev : [...prev, day]));
+      return;
+    }
+    setFormData((prev) => ({
+      ...prev,
+      availability: prev.availability.filter((s) => s.day !== day),
+    }));
+    setEmptyOpenDays((prev) => prev.filter((d) => d !== day));
     setAddingDay((cur) => (cur === day ? null : cur));
   }
 
@@ -502,22 +560,28 @@ export default function AddEditDoctor({
       next.splice(idx, 1);
       return { ...prev, availability: next };
     });
+    // Keep the day switched on even when its last slot goes.
+    setEmptyOpenDays((prev) => (prev.includes(day) ? prev : [...prev, day]));
   }
 
   function openAddSlot(day: string) {
     const slots = daySlots(day);
     const last = slots[slots.length - 1];
-    const start = last ? last.endTime : "09:00";
+    const start = last ? last.endTime : "";
     const end = last
       ? minutesToTime(minutesSinceMidnight(last.endTime) + 60)
-      : "10:00";
+      : "";
     setSlotDraft({ start, end });
     setAddingDay(day);
   }
 
   function confirmAddSlot(day: string) {
     const { start, end } = slotDraft;
-    if (!start || !end || start >= end) {
+    if (!start || !end) {
+      toast.error("Please choose a start and end time");
+      return;
+    }
+    if (start >= end) {
       toast.error("End time must be after start time");
       return;
     }
@@ -538,9 +602,7 @@ export default function AddEditDoctor({
 
   function copyToAllOpenDays(sourceDay: string) {
     const source = daySlots(sourceDay);
-    const openDays = DAYS.filter(
-      (d) => d !== sourceDay && formData.availability.some((s) => s.day === d),
-    );
+    const openDays = DAYS.filter((d) => d !== sourceDay && isDayOpen(d));
     if (!openDays.length) {
       toast.error("No other open days to copy to");
       return;
@@ -565,6 +627,7 @@ export default function AddEditDoctor({
 
   function applyPreset(preset: (typeof PRESETS)[number]) {
     update("availability", preset.apply());
+    setEmptyOpenDays([]);
   }
 
   function barStyle(slot: TimeSlot) {
@@ -583,12 +646,63 @@ export default function AddEditDoctor({
 
   function discardChanges() {
     setFormData(initialData);
+    setEmptyOpenDays([]);
     setAddingDay(null);
   }
 
+  async function saveAvailability() {
+    if (!id) return;
+    setSaving(true);
+    try {
+      await updateDoctor(id, {
+        status: formData.status,
+        availability: formData.availability,
+        appointmentDuration: formData.appointmentDuration,
+        bufferMinutes: formData.bufferMinutes,
+        patientsPerSlot: formData.patientsPerSlot,
+        acceptWalkIns: formData.acceptWalkIns,
+        heldSlotsPerSession: formData.heldSlotsPerSession,
+        releaseHeldSlotsBeforeMinutes: formData.releaseHeldSlotsBeforeMinutes,
+        overCapacityPolicy: formData.overCapacityPolicy,
+        lateArrivalGraceMinutes: formData.lateArrivalGraceMinutes,
+        noShowReleaseMinutes: formData.noShowReleaseMinutes,
+      } as any);
+      // The profile's schedule card reads through the availability API.
+      queryClient.invalidateQueries({ queryKey: availabilityKeys.all });
+      toast.success("Availability updated");
+      setInitialData(formData);
+      setTimeout(() => router.push(returnHref), 400);
+    } catch (err) {
+      console.error("Error saving availability:", err);
+      toast.error("Failed to save availability. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function saveDoctor(confirmDuplicate = false) {
+    if (availabilityOnly) {
+      await saveAvailability();
+      return;
+    }
     if (!formData.name.trim() || !formData.email.trim()) {
       toast.error("Please fill in Name and Email");
+      return;
+    }
+    if (!formData.experience.toString().trim()) {
+      toast.error("Please fill in Years of experience");
+      return;
+    }
+    if (!formData.qualification.trim()) {
+      toast.error("Please fill in Qualification");
+      return;
+    }
+    if (!formData.medicalRegistrationNumber.trim()) {
+      toast.error("Please fill in MCI / RCI number");
+      return;
+    }
+    if (formData.consultationFee == null) {
+      toast.error("Please fill in Consultation fee");
       return;
     }
     if (isNew) {
@@ -615,11 +729,10 @@ export default function AddEditDoctor({
         specialization: formData.specialization,
         experience: formData.experience,
         qualification: formData.qualification,
+        medicalRegistrationNumber: formData.medicalRegistrationNumber.trim(),
         consultationFee: formData.consultationFee,
         gender: formData.gender,
-        maritalStatus: formData.maritalStatus,
         status: formData.status,
-        address: formData.address,
         availability: formData.availability,
         appointmentDuration: formData.appointmentDuration,
         bufferMinutes: formData.bufferMinutes,
@@ -646,7 +759,7 @@ export default function AddEditDoctor({
       }
 
       setDuplicateMatches(null);
-      setTimeout(() => router.push(`/hospital/${hospitalId}/doctors`), 400);
+      setTimeout(() => router.push(returnHref), 400);
     } catch (err) {
       if (err instanceof ApiRequestError && err.details?.duplicates?.length) {
         setDuplicateMatches(err.details.duplicates);
@@ -692,18 +805,20 @@ export default function AddEditDoctor({
       <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2 min-w-0 text-sm">
           <button
-            onClick={() => router.push(`/hospital/${hospitalId}/doctors`)}
+            onClick={() => router.push(returnHref)}
             className="flex items-center gap-2 p-2 -ml-2 rounded-lg text-ink-700 hover:bg-surface-paper transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
           </button>
-          <span className="text-ink-500">Doctors</span>
+          <span className="text-ink-500">
+            {availabilityOnly ? displayName : "Doctors"}
+          </span>
           <span className="text-ink-500">/</span>
           <span className="font-semibold text-ink-900 truncate">
-            {displayName}
+            {availabilityOnly ? "Manage availability" : displayName}
           </span>
         </div>
-        {!isNew && (
+        {!isNew && !availabilityOnly && (
           <div className="flex items-center gap-4 text-sm shrink-0">
             <button
               onClick={() => toast("Coming soon")}
@@ -772,12 +887,18 @@ export default function AddEditDoctor({
                   Accepting bookings
                 </div>
                 <div className="text-xs text-ink-500">
-                  Shown to patients when booking
+                  {formData.availability.length === 0
+                    ? "Add availability slots first"
+                    : "Shown to patients when booking"}
                 </div>
               </div>
+              {/* Can't accept bookings with no slots — the API forces it off too. */}
               <ToggleSwitch
-                checked={formData.status === "active"}
-                disabled={!canEdit}
+                checked={
+                  formData.status === "active" &&
+                  formData.availability.length > 0
+                }
+                disabled={!canEdit || formData.availability.length === 0}
                 onChange={(v) => update("status", v ? "active" : "inactive")}
               />
             </div>
@@ -796,7 +917,7 @@ export default function AddEditDoctor({
                 key: "professional" as const,
                 ref: professionalRef,
                 label: "Professional",
-                value: `${professionalFilled}/4`,
+                value: `${professionalFilled}/5`,
                 done: professionalFilled > 0,
               },
               {
@@ -809,39 +930,47 @@ export default function AddEditDoctor({
                     : `${weeklyCapacity} slots`,
                 done: weeklyCapacity > 0,
               },
-            ].map((item) => (
-              <button
-                key={item.key}
-                type="button"
-                onClick={() => scrollToSection(item.ref)}
-                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-colors ${
-                  activeSection === item.key
-                    ? "bg-brand-violet-soft text-brand-violet font-semibold"
-                    : "text-ink-700 hover:bg-surface-canvas"
-                }`}
-              >
-                <span className="flex items-center gap-2">
-                  <span
-                    className={`w-1.5 h-1.5 rounded-full ${item.done ? "bg-status-open" : "bg-border"}`}
-                  />
-                  {item.label}
-                </span>
-                <span className="text-xs text-ink-500">{item.value}</span>
-              </button>
-            ))}
+            ]
+              .filter(
+                (item) => !availabilityOnly || item.key === "availability",
+              )
+              .map((item) => (
+                <button
+                  key={item.key}
+                  type="button"
+                  onClick={() => scrollToSection(item.ref)}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-colors ${
+                    activeSection === item.key
+                      ? "bg-brand-violet-soft text-brand-violet font-semibold"
+                      : "text-ink-700 hover:bg-surface-canvas"
+                  }`}
+                >
+                  <span className="flex items-center gap-2">
+                    <span
+                      className={`w-1.5 h-1.5 rounded-full ${item.done ? "bg-status-open" : "bg-border"}`}
+                    />
+                    {item.label}
+                  </span>
+                  <span className="text-xs text-ink-500">{item.value}</span>
+                </button>
+              ))}
           </div>
 
           {!isNew && (
             <div className="px-1 text-xs text-ink-500 space-y-2">
               <p>Changes go live for patients as soon as you save.</p>
-              {canEdit && (
+              {canEdit && !availabilityOnly && (
                 <>
                   <button
                     type="button"
                     disabled={resetPassword.isPending}
                     onClick={() =>
                       resetPassword.mutate(id!, {
-                        onSuccess: (data) => setTempPassword(data.tempPassword),
+                        onSuccess: (data) =>
+                          setTempPassword({
+                            password: data.tempPassword,
+                            username: data.username,
+                          }),
                       })
                     }
                     className="block text-brand-violet hover:underline font-medium disabled:opacity-50"
@@ -863,241 +992,306 @@ export default function AddEditDoctor({
 
         {/* Main content */}
         <div className="space-y-6 min-w-0">
-          {/* Personal */}
-          <section
-            ref={personalRef}
-            id="personal"
-            className="bg-surface-paper rounded-xl border border-border shadow-sm p-5 md:p-6 scroll-mt-24"
-          >
-            <div className="mb-5">
-              <h2 className="font-display tracking-tight text-lg font-bold text-ink-900">Personal</h2>
-              <p className="text-sm text-ink-500">
-                How patients and staff identify this doctor
-              </p>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <Field
-                label="Full name"
-                required
-                hint="Patients see this name on booking and prescriptions."
+          {!availabilityOnly && (
+            <>
+              {/* Personal */}
+              <section
+                ref={personalRef}
+                id="personal"
+                className="bg-surface-paper rounded-xl border border-border shadow-sm p-5 md:p-6 scroll-mt-24"
               >
-                <input
-                  value={formData.name}
-                  disabled={!canEdit}
-                  onChange={(e) => update("name", e.target.value)}
-                  placeholder="Dr. Jane Doe"
-                  className={inputClass}
-                />
-              </Field>
-              <Field
-                label="Email"
-                required
-                hint="Used for communication, e.g. appointment alerts."
-              >
-                <input
-                  type="email"
-                  value={formData.email}
-                  disabled={!canEdit}
-                  onChange={(e) => {
-                    const email = e.target.value;
-                    update("email", email);
-                    if (formData.usernameSameAsEmail) update("username", email);
-                  }}
-                  placeholder="doctor@example.com"
-                  className={inputClass}
-                />
-              </Field>
-              {isNew && (
-                <>
+                <div className="mb-5">
+                  <h2 className="font-display tracking-tight text-lg font-bold text-ink-900">
+                    Personal
+                  </h2>
+                  <p className="text-sm text-ink-500">
+                    How patients and staff identify this doctor
+                  </p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   <Field
-                    label="Username"
+                    label="Full name"
                     required
-                    hint="Used to log in. Must look like an email but doesn't have to be a real one."
+                    hint="Patients see this name on booking and prescriptions."
                   >
                     <input
-                      value={formData.username}
-                      disabled={!canEdit || formData.usernameSameAsEmail}
-                      onChange={(e) => update("username", e.target.value)}
+                      value={formData.name}
+                      disabled={!canEdit}
+                      onChange={(e) => update("name", e.target.value)}
+                      placeholder="Dr. Jane Doe"
+                      className={inputClass}
+                    />
+                  </Field>
+                  <Field
+                    label="Email"
+                    required
+                    hint="Used for communication, e.g. appointment alerts."
+                  >
+                    <input
+                      type="email"
+                      value={formData.email}
+                      disabled={!canEdit}
+                      onChange={(e) => {
+                        const email = e.target.value;
+                        update("email", email);
+                        if (formData.usernameSameAsEmail)
+                          update("username", email);
+                      }}
                       placeholder="doctor@example.com"
                       className={inputClass}
                     />
-                    <label className="mt-1.5 flex items-center gap-2 text-xs text-ink-500">
+                  </Field>
+                  {!isNew && (
+                    <Field
+                      label="Username"
+                      hint="Used to log in. It can't be changed."
+                    >
                       <input
-                        type="checkbox"
-                        checked={formData.usernameSameAsEmail}
+                        value={formData.username}
+                        disabled
+                        placeholder="—"
+                        className={inputClass}
+                      />
+                    </Field>
+                  )}
+                  {isNew && (
+                    <>
+                      <Field
+                        label="Username"
+                        required
+                        hint="Used to log in. Must look like an email but doesn't have to be a real one."
+                      >
+                        <input
+                          value={formData.username}
+                          disabled={!canEdit || formData.usernameSameAsEmail}
+                          onChange={(e) => update("username", e.target.value)}
+                          placeholder="doctor@example.com"
+                          className={inputClass}
+                        />
+                        <label className="mt-1.5 flex items-center gap-2 text-xs text-ink-500">
+                          <input
+                            type="checkbox"
+                            checked={formData.usernameSameAsEmail}
+                            disabled={!canEdit}
+                            onChange={(e) => {
+                              const checked = e.target.checked;
+                              update("usernameSameAsEmail", checked);
+                              if (checked) update("username", formData.email);
+                            }}
+                          />
+                          Username same as email
+                        </label>
+                      </Field>
+                      <Field
+                        label="Temporary password"
+                        required
+                        hint="Share this with the doctor. They'll be asked to change it on first sign-in."
+                      >
+                        <input
+                          type="text"
+                          value={formData.password}
+                          disabled={!canEdit}
+                          onChange={(e) => update("password", e.target.value)}
+                          placeholder="At least 8 characters"
+                          className={inputClass}
+                        />
+                      </Field>
+                    </>
+                  )}
+                  <Field label="Phone" hint="10 digits, no country code.">
+                    <div className="flex gap-2">
+                      <span className="font-mono tabular flex items-center px-3 rounded-lg border border-border bg-surface-canvas text-sm text-ink-700 shrink-0">
+                        +91
+                      </span>
+                      <input
+                        value={formData.phone}
+                        disabled={!canEdit}
+                        onChange={(e) =>
+                          update(
+                            "phone",
+                            e.target.value.replace(/\D/g, "").slice(0, 10),
+                          )
+                        }
+                        placeholder="98765 43210"
+                        className={`${inputClass} font-mono tabular`}
+                      />
+                    </div>
+                  </Field>
+                  <Field label="Gender" optional>
+                    <PillGroup
+                      options={GENDERS}
+                      value={formData.gender}
+                      disabled={!canEdit}
+                      onChange={(v) => update("gender", v)}
+                      onClear={() => update("gender", "")}
+                    />
+                  </Field>
+                </div>
+              </section>
+
+              {/* Professional */}
+              <section
+                ref={professionalRef}
+                id="professional"
+                className="bg-surface-paper rounded-xl border border-border shadow-sm p-5 md:p-6 scroll-mt-24"
+              >
+                <div className="mb-5">
+                  <h2 className="font-display tracking-tight text-lg font-bold text-ink-900">
+                    Professional
+                  </h2>
+                  <p className="text-sm text-ink-500">
+                    What this doctor practises and where
+                  </p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <Field
+                    label="Specialization"
+                    required
+                    hint="Patients filter by this when booking."
+                  >
+                    {addingSpecialization ? (
+                      <div className="flex gap-2">
+                        <input
+                          autoFocus
+                          value={newSpecialization}
+                          onChange={(e) => setNewSpecialization(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              addSpecialization();
+                            } else if (e.key === "Escape") {
+                              setAddingSpecialization(false);
+                              setNewSpecialization("");
+                            }
+                          }}
+                          maxLength={100}
+                          placeholder="e.g. Nephrologist"
+                          className={inputClass}
+                        />
+                        <button
+                          type="button"
+                          onClick={addSpecialization}
+                          disabled={updateSpecializations.isPending}
+                          className="shrink-0 inline-flex items-center gap-1 rounded-lg bg-brand-violet px-3 text-sm font-semibold text-white disabled:opacity-60"
+                        >
+                          {updateSpecializations.isPending ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            "Add"
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAddingSpecialization(false);
+                            setNewSpecialization("");
+                          }}
+                          className="shrink-0 rounded-lg border border-border px-3 text-sm text-ink-700"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <select
+                        value={formData.specialization}
                         disabled={!canEdit}
                         onChange={(e) => {
-                          const checked = e.target.checked;
-                          update("usernameSameAsEmail", checked);
-                          if (checked) update("username", formData.email);
+                          if (e.target.value === ADD_SPECIALIZATION_VALUE) {
+                            setAddingSpecialization(true);
+                            return;
+                          }
+                          update("specialization", e.target.value);
                         }}
-                      />
-                      Username same as email
-                    </label>
+                        className={inputClass}
+                      >
+                        <option value="">Select a specialization</option>
+                        {(formData.specialization &&
+                        !specializationOptions.includes(formData.specialization)
+                          ? [formData.specialization, ...specializationOptions]
+                          : specializationOptions
+                        ).map((s) => (
+                          <option key={s} value={s}>
+                            {s}
+                          </option>
+                        ))}
+                        <option value={ADD_SPECIALIZATION_VALUE}>
+                          + Add new specialization…
+                        </option>
+                      </select>
+                    )}
                   </Field>
                   <Field
-                    label="Temporary password"
+                    label="Years of experience"
                     required
-                    hint="Share this with the doctor. They'll be asked to change it on first sign-in."
+                    hint="Shown on the doctor's profile card."
                   >
                     <input
-                      type="text"
-                      value={formData.password}
+                      type="number"
+                      min={0}
+                      value={formData.experience}
                       disabled={!canEdit}
-                      onChange={(e) => update("password", e.target.value)}
-                      placeholder="At least 8 characters"
+                      onChange={(e) => update("experience", e.target.value)}
+                      placeholder="0"
                       className={inputClass}
                     />
                   </Field>
-                </>
-              )}
-              <Field label="Phone" hint="10 digits, no country code.">
-                <div className="flex gap-2">
-                  <span className="font-mono tabular flex items-center px-3 rounded-lg border border-border bg-surface-canvas text-sm text-ink-700 shrink-0">
-                    +91
-                  </span>
-                  <input
-                    value={formData.phone}
-                    disabled={!canEdit}
-                    onChange={(e) =>
-                      update(
-                        "phone",
-                        e.target.value.replace(/\D/g, "").slice(0, 10),
-                      )
-                    }
-                    placeholder="98765 43210"
-                    className={`${inputClass} font-mono tabular`}
-                  />
+                  <Field
+                    label="Qualification"
+                    required
+                    hint="Degrees and certifications, comma separated."
+                  >
+                    <input
+                      value={formData.qualification}
+                      disabled={!canEdit}
+                      onChange={(e) => update("qualification", e.target.value)}
+                      placeholder="MBBS, MD"
+                      className={inputClass}
+                    />
+                  </Field>
+                  <Field
+                    label="MCI / RCI number"
+                    required
+                    hint="Medical council registration number, printed on prescriptions."
+                  >
+                    <input
+                      value={formData.medicalRegistrationNumber}
+                      disabled={!canEdit}
+                      onChange={(e) =>
+                        update("medicalRegistrationNumber", e.target.value)
+                      }
+                      placeholder="e.g. TN-123456"
+                      className={`${inputClass} font-mono tabular`}
+                    />
+                  </Field>
+                  <Field
+                    label="Consultation fee"
+                    required
+                    hint="Per appointment, before taxes."
+                  >
+                    <div className="flex gap-2">
+                      <span className="font-mono tabular flex items-center px-3 rounded-lg border border-border bg-surface-canvas text-sm text-ink-700 shrink-0">
+                        ₹
+                      </span>
+                      <input
+                        type="number"
+                        min={0}
+                        value={formData.consultationFee ?? ""}
+                        disabled={!canEdit}
+                        onChange={(e) =>
+                          update(
+                            "consultationFee",
+                            e.target.value ? Number(e.target.value) : undefined,
+                          )
+                        }
+                        placeholder="500"
+                        className={`${inputClass} font-mono tabular`}
+                      />
+                    </div>
+                  </Field>
                 </div>
-              </Field>
-              <Field label="Gender" optional>
-                <PillGroup
-                  options={GENDERS}
-                  value={formData.gender}
-                  disabled={!canEdit}
-                  onChange={(v) => update("gender", v)}
-                  onClear={() => update("gender", "")}
-                />
-              </Field>
-              <Field label="Marital status" optional>
-                <PillGroup
-                  options={MARITAL_STATUSES}
-                  value={formData.maritalStatus}
-                  disabled={!canEdit}
-                  onChange={(v) => update("maritalStatus", v)}
-                  onClear={() => update("maritalStatus", "")}
-                />
-              </Field>
-            </div>
-          </section>
-
-          {/* Professional */}
-          <section
-            ref={professionalRef}
-            id="professional"
-            className="bg-surface-paper rounded-xl border border-border shadow-sm p-5 md:p-6 scroll-mt-24"
-          >
-            <div className="mb-5">
-              <h2 className="font-display tracking-tight text-lg font-bold text-ink-900">Professional</h2>
-              <p className="text-sm text-ink-500">
-                What this doctor practises and where
-              </p>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <Field
-                label="Specialization"
-                required
-                hint="Patients filter by this when booking."
-              >
-                <select
-                  value={formData.specialization}
-                  disabled={!canEdit}
-                  onChange={(e) => update("specialization", e.target.value)}
-                  className={inputClass}
-                >
-                  <option value="">Select a specialization</option>
-                  {(formData.specialization &&
-                  !specializationOptions.includes(formData.specialization)
-                    ? [formData.specialization, ...specializationOptions]
-                    : specializationOptions
-                  ).map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <Field
-                label="Years of experience"
-                optional
-                hint="Shown on the doctor's profile card."
-              >
-                <input
-                  type="number"
-                  min={0}
-                  value={formData.experience}
-                  disabled={!canEdit}
-                  onChange={(e) => update("experience", e.target.value)}
-                  placeholder="0"
-                  className={inputClass}
-                />
-              </Field>
-              <Field
-                label="Qualification"
-                optional
-                hint="Degrees and certifications, comma separated."
-              >
-                <input
-                  value={formData.qualification}
-                  disabled={!canEdit}
-                  onChange={(e) => update("qualification", e.target.value)}
-                  placeholder="MBBS, MD"
-                  className={inputClass}
-                />
-              </Field>
-              <Field
-                label="Consultation fee"
-                optional
-                hint="Per appointment, before taxes."
-              >
-                <div className="flex gap-2">
-                  <span className="font-mono tabular flex items-center px-3 rounded-lg border border-border bg-surface-canvas text-sm text-ink-700 shrink-0">
-                    ₹
-                  </span>
-                  <input
-                    type="number"
-                    min={0}
-                    value={formData.consultationFee ?? ""}
-                    disabled={!canEdit}
-                    onChange={(e) =>
-                      update(
-                        "consultationFee",
-                        e.target.value ? Number(e.target.value) : undefined,
-                      )
-                    }
-                    placeholder="500"
-                    className={`${inputClass} font-mono tabular`}
-                  />
-                </div>
-              </Field>
-              <div className="md:col-span-2">
-                <Field
-                  label="Clinic address"
-                  optional
-                  hint="Appears in booking confirmations and reminders."
-                >
-                  <textarea
-                    value={formData.address}
-                    disabled={!canEdit}
-                    onChange={(e) => update("address", e.target.value)}
-                    placeholder="Block, street, area, city, PIN"
-                    rows={3}
-                    className={`${inputClass} resize-none`}
-                  />
-                </Field>
-              </div>
-            </div>
-          </section>
+              </section>
+            </>
+          )}
 
           {/* Availability */}
           <section
@@ -1106,7 +1300,9 @@ export default function AddEditDoctor({
             className="bg-surface-paper rounded-xl border border-border shadow-sm p-5 md:p-6 scroll-mt-24"
           >
             <div className="mb-5">
-              <h2 className="font-display tracking-tight text-lg font-bold text-ink-900">Availability</h2>
+              <h2 className="font-display tracking-tight text-lg font-bold text-ink-900">
+                Availability
+              </h2>
               <p className="text-sm text-ink-500">
                 The hours patients can book, and how long each visit runs
               </p>
@@ -1291,10 +1487,7 @@ export default function AddEditDoctor({
                         value={formData.noShowReleaseMinutes}
                         disabled={!canEdit}
                         onChange={(e) =>
-                          update(
-                            "noShowReleaseMinutes",
-                            Number(e.target.value),
-                          )
+                          update("noShowReleaseMinutes", Number(e.target.value))
                         }
                         className={`${inputClass} !w-auto`}
                       >
@@ -1337,7 +1530,7 @@ export default function AddEditDoctor({
             <div className="border-t border-border">
               {DAYS.map((day) => {
                 const slots = daySlots(day);
-                const open = slots.length > 0;
+                const open = isDayOpen(day);
                 return (
                   <div
                     key={day}
@@ -1399,6 +1592,12 @@ export default function AddEditDoctor({
                             })}
                           </div>
                           <div className="flex flex-wrap items-center gap-2">
+                            {slots.length === 0 && addingDay !== day && (
+                              <span className="text-xs text-ink-500">
+                                No hours yet — patients can&apos;t book until
+                                you add some.
+                              </span>
+                            )}
                             {slots.map((slot, i) => {
                               const total = slotCapacity(
                                 slot,
@@ -1581,7 +1780,8 @@ export default function AddEditDoctor({
                       : weeklyCapacity}
                   </div>
                   <div className="text-xs text-ink-500">
-                    Bookable {heldWeeklyCapacity > 0 ? "online" : "appointments"}
+                    Bookable{" "}
+                    {heldWeeklyCapacity > 0 ? "online" : "appointments"}
                   </div>
                 </div>
                 {heldWeeklyCapacity > 0 && (
@@ -1672,7 +1872,8 @@ export default function AddEditDoctor({
       {tempPassword && (
         <TempPasswordModal
           name={displayName}
-          tempPassword={tempPassword}
+          tempPassword={tempPassword.password}
+          username={tempPassword.username}
           onClose={() => setTempPassword(null)}
         />
       )}

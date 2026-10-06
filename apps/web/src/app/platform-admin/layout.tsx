@@ -5,6 +5,7 @@ import {
   Building2,
   ChevronDown,
   CreditCard,
+  Layers,
   LayoutDashboard,
   LogOut,
   Megaphone,
@@ -36,6 +37,11 @@ const NAV_ITEMS = [
     to: "/platform-admin/subscriptions",
     label: "Subscriptions",
     icon: <CreditCard size={18} />,
+  },
+  {
+    to: "/platform-admin/features",
+    label: "Feature catalog",
+    icon: <Layers size={18} />,
   },
   { to: "/platform-admin/users", label: "Users", icon: <Users size={18} /> },
   {

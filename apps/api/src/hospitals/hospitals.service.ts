@@ -7,8 +7,22 @@ import { PatientRepository } from '../repositories/patient.repository';
 import { DashboardRepository } from '../repositories/dashboard.repository';
 import { UserRepository } from '../repositories/user.repository';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
+import { PlatformFeatureCatalogRepository } from '../repositories/platform-feature-catalog.repository';
+import { AuditService } from '../audit/audit.service';
 import { ApiError } from '../common/errors/api-error';
-import { DB_COLLECTIONS, ROLE, VISIT_FINISHED_STATUSES } from '../constants';
+import {
+  BUILT_IN_PATIENT_NOTE_FIELDS,
+  DB_COLLECTIONS,
+  HOSPITAL_MODULE,
+  HOSPITAL_MODULE_LABELS,
+  HOSPITAL_MODULE_VALUES,
+  ROLE,
+  VISIT_FINISHED_STATUSES,
+} from '../constants';
+import type { PackageSettings, PatientNoteField } from '../constants';
+import { resolvePackageSettings } from '../packages/package-settings.util';
+import { resolveHospitalModules } from './hospital-modules.util';
+import type { HospitalUserProfile } from '../auth/decorators/current-user.decorator';
 import { getDateCategory } from '../utils/dateUtils';
 import { JwtUser } from '../auth/decorators/current-user.decorator';
 import { AdminDashboardData, DoctorDashboardData } from '../types/dashboard';
@@ -46,6 +60,8 @@ export class HospitalsService {
     private readonly dashboardRepository: DashboardRepository,
     private readonly userRepository: UserRepository,
     private readonly subscriptionsService: SubscriptionsService,
+    private readonly auditService: AuditService,
+    private readonly featureCatalogRepository: PlatformFeatureCatalogRepository,
   ) {}
 
   async getAllHospitals() {
@@ -118,6 +134,135 @@ export class HospitalsService {
     const deduped = [...new Set(specializations.map((s) => s.trim()).filter(Boolean))];
     const hospital = await this.hospitalRepository.updateHospital(hospitalId, { specializations: deduped });
     return { specializations: hospital.specializations || [] };
+  }
+
+  // Every module in catalog order with its switch and effective state, so
+  // the web app can both render Settings > Features and hide whatever's
+  // unusable (not released, plan-withheld, switched off, or missing a
+  // dependency) — plus the platform's teaser list of upcoming features.
+  async getModules(hospitalId: string) {
+    const hospital = await this.getHospitalById(hospitalId);
+    return this.resolveModulesResponse(hospitalId, (hospital as any).modules);
+  }
+
+  async updateModules(hospitalId: string, changes: Partial<Record<HOSPITAL_MODULE, boolean>>, actor: HospitalUserProfile) {
+    const hospital = await this.getHospitalById(hospitalId);
+    const current: Record<string, boolean> = { ...((hospital as any).modules || {}) };
+    const changed = HOSPITAL_MODULE_VALUES.filter(
+      (key) => changes[key] !== undefined && (current[key] !== false) !== changes[key],
+    );
+
+    if (changed.length === 0) {
+      return this.resolveModulesResponse(hospitalId, current);
+    }
+
+    const next = { ...current };
+    changed.forEach((key) => (next[key] = changes[key]!));
+    await this.hospitalRepository.updateHospital(hospitalId, { modules: next });
+
+    await this.auditService.log({
+      hospitalId,
+      actor: { userId: actor.userId, name: actor.name, role: actor.role },
+      action: 'hospital.modules_updated',
+      area: 'settings',
+      summary: changed
+        .map((key) => `${next[key] ? 'Turned on' : 'Turned off'} ${HOSPITAL_MODULE_LABELS[key]}`)
+        .join(', '),
+      detail: Object.fromEntries(changed.map((key) => [key, next[key]])),
+    });
+
+    return this.resolveModulesResponse(hospitalId, next);
+  }
+
+  private async resolveModulesResponse(hospitalId: string, saved: unknown) {
+    const [subscription, catalog] = await Promise.all([
+      this.subscriptionsService.getSubscription(hospitalId),
+      this.featureCatalogRepository.getCatalog(),
+    ]);
+    const resolved = resolveHospitalModules(saved, subscription?.features as any, catalog.moduleStatus);
+    return {
+      modules: HOSPITAL_MODULE_VALUES.map((key) => resolved[key]),
+      upcoming: catalog.upcoming,
+    };
+  }
+
+  // Always returns the full, ordered list the patient form should render:
+  // the hospital's saved config with any missing built-ins appended (so
+  // hospitals that never configured this get today's four fields), and
+  // built-in types pinned so a saved config can't turn allergies into text.
+  // With the Custom patient fields module switched off, the saved config is
+  // ignored (not deleted) and everyone gets the built-in defaults.
+  async getPatientNoteFields(hospitalId: string) {
+    const hospital = await this.getHospitalById(hospitalId);
+    const customizable = resolveHospitalModules((hospital as any).modules, undefined)[HOSPITAL_MODULE.PATIENT_FIELDS]
+      .enabled;
+    return {
+      fields: this.resolvePatientNoteFields(customizable ? (hospital as any).patientNoteFields : undefined),
+    };
+  }
+
+  async updatePatientNoteFields(hospitalId: string, fields: PatientNoteField[]) {
+    const seen = new Set<string>();
+    for (const field of fields) {
+      if (seen.has(field.key)) {
+        throw ApiError.badRequest(`Duplicate field key: ${field.key}`);
+      }
+      seen.add(field.key);
+    }
+
+    const resolved = this.resolvePatientNoteFields(fields);
+    // builtIn is derived on read, not stored.
+    const toStore = resolved.map(({ builtIn: _builtIn, ...rest }) => rest);
+    await this.hospitalRepository.updateHospital(hospitalId, { patientNoteFields: toStore });
+    return { fields: resolved };
+  }
+
+  private resolvePatientNoteFields(saved: unknown): PatientNoteField[] {
+    const savedList: PatientNoteField[] = Array.isArray(saved) ? saved : [];
+    const builtIns = new Map(BUILT_IN_PATIENT_NOTE_FIELDS.map((f) => [f.key, f]));
+    const result: PatientNoteField[] = [];
+    const seen = new Set<string>();
+
+    for (const field of savedList) {
+      if (!field?.key || seen.has(field.key)) continue;
+      seen.add(field.key);
+      const builtIn = builtIns.get(field.key);
+      result.push(
+        builtIn
+          ? { ...builtIn, ...field, type: builtIn.type, builtIn: true }
+          : { ...field, builtIn: false },
+      );
+    }
+
+    for (const builtIn of BUILT_IN_PATIENT_NOTE_FIELDS) {
+      if (!seen.has(builtIn.key)) result.push({ ...builtIn });
+    }
+
+    return result;
+  }
+
+  // Prepaid package discount, sizes and validity (Settings > Packages).
+  async getPackageSettings(hospitalId: string) {
+    const hospital = await this.getHospitalById(hospitalId);
+    return { settings: resolvePackageSettings((hospital as any).packageSettings) };
+  }
+
+  async updatePackageSettings(hospitalId: string, settings: PackageSettings, actor: HospitalUserProfile) {
+    const resolved = resolvePackageSettings(settings);
+    await this.getHospitalById(hospitalId);
+    await this.hospitalRepository.updateHospital(hospitalId, { packageSettings: resolved });
+
+    await this.auditService.log({
+      hospitalId,
+      actor: { userId: actor.userId, name: actor.name, role: actor.role },
+      action: 'hospital.package_settings_updated',
+      area: 'settings',
+      summary: resolved.discountEnabled
+        ? `Set package discount to ${resolved.discountPercent}% (${resolved.visitTiers.join('/')} visits, ${resolved.validityMonths} months)`
+        : `Turned off package discount (${resolved.visitTiers.join('/')} visits, ${resolved.validityMonths} months)`,
+    });
+
+    return { settings: resolved };
   }
 
   async deleteHospital(hospitalId: string) {
@@ -203,11 +348,7 @@ export class HospitalsService {
       const [totalPatients, totalDoctors, pendingDoctors, totalAppointments, todayAppointments, upcomingAppointmentsRaw, staffOnDuty] =
         await Promise.all([
           this.dashboardRepository.countDocuments(DB_COLLECTIONS.PATIENTS, { hospitalId }),
-          this.dashboardRepository.countDocuments(DB_COLLECTIONS.HOSPITAL_MEMBERS, {
-            hospitalId,
-            role: 'doctor',
-            status: 'approved',
-          }),
+          this.membershipRepository.countPractisingDoctors(hospitalId, 'approved'),
           this.dashboardRepository.countDocuments(DB_COLLECTIONS.HOSPITAL_MEMBERS, {
             hospitalId,
             role: 'doctor',

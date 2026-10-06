@@ -19,6 +19,7 @@ import { ChargeCatalogItemRepository } from './charge-catalog-item.repository';
 import { HospitalHolidayRepository } from './hospital-holiday.repository';
 import { MedicineRepository } from './medicine.repository';
 import { MedicinePackRepository } from './medicine-pack.repository';
+import { NotesTemplateRepository } from './notes-template.repository';
 import { PrescriptionRepository } from './prescription.repository';
 import { LeaveRequestRepository } from './leave-request.repository';
 import { DoctorPresenceRepository } from './doctor-presence.repository';
@@ -30,7 +31,9 @@ import { WhatsappProcessedMessageRepository } from './whatsapp-processed-message
 import { SubscriptionRepository } from './subscription.repository';
 import { SubscriptionInvoiceRepository } from './subscription-invoice.repository';
 import { SubscriptionPlanConfigRepository } from './subscription-plan-config.repository';
+import { PlatformFeatureCatalogRepository } from './platform-feature-catalog.repository';
 import { DemoRequestRepository } from './demo-request.repository';
+import { InventoryRepository } from './inventory.repository';
 import { User, UserSchema } from '../schemas/user.schema';
 import { Hospital, HospitalSchema } from '../schemas/hospital.schema';
 import {
@@ -67,6 +70,7 @@ import {
 } from '../schemas/hospital-holiday.schema';
 import { Medicine, MedicineSchema } from '../schemas/medicine.schema';
 import { MedicinePack, MedicinePackSchema } from '../schemas/medicine-pack.schema';
+import { NotesTemplate, NotesTemplateSchema } from '../schemas/notes-template.schema';
 import { Prescription, PrescriptionSchema } from '../schemas/prescription.schema';
 import { LeaveRequest, LeaveRequestSchema } from '../schemas/leave-request.schema';
 import { Counter, CounterSchema } from '../schemas/counter.schema';
@@ -100,7 +104,11 @@ import {
   SubscriptionPlanConfig,
   SubscriptionPlanConfigSchema,
 } from '../schemas/subscription-plan-config.schema';
+import { PlatformFeatureCatalog, PlatformFeatureCatalogSchema } from '../schemas/platform-feature-catalog.schema';
 import { DemoRequest, DemoRequestSchema } from '../schemas/demo-request.schema';
+import { InventoryItem, InventoryItemSchema } from '../schemas/inventory-item.schema';
+import { InventoryBatch, InventoryBatchSchema } from '../schemas/inventory-batch.schema';
+import { InventoryMovement, InventoryMovementSchema } from '../schemas/inventory-movement.schema';
 
 const repositories = [
   UserRepository,
@@ -122,6 +130,7 @@ const repositories = [
   HospitalHolidayRepository,
   MedicineRepository,
   MedicinePackRepository,
+  NotesTemplateRepository,
   PrescriptionRepository,
   LeaveRequestRepository,
   DoctorPresenceRepository,
@@ -133,7 +142,9 @@ const repositories = [
   SubscriptionRepository,
   SubscriptionInvoiceRepository,
   SubscriptionPlanConfigRepository,
+  PlatformFeatureCatalogRepository,
   DemoRequestRepository,
+  InventoryRepository,
 ];
 
 @Global()
@@ -158,6 +169,7 @@ const repositories = [
       { name: HospitalHoliday.name, schema: HospitalHolidaySchema },
       { name: Medicine.name, schema: MedicineSchema },
       { name: MedicinePack.name, schema: MedicinePackSchema },
+      { name: NotesTemplate.name, schema: NotesTemplateSchema },
       { name: Prescription.name, schema: PrescriptionSchema },
       { name: LeaveRequest.name, schema: LeaveRequestSchema },
       { name: Counter.name, schema: CounterSchema },
@@ -173,7 +185,11 @@ const repositories = [
       { name: Subscription.name, schema: SubscriptionSchema },
       { name: SubscriptionInvoice.name, schema: SubscriptionInvoiceSchema },
       { name: SubscriptionPlanConfig.name, schema: SubscriptionPlanConfigSchema },
+      { name: PlatformFeatureCatalog.name, schema: PlatformFeatureCatalogSchema },
       { name: DemoRequest.name, schema: DemoRequestSchema },
+      { name: InventoryItem.name, schema: InventoryItemSchema },
+      { name: InventoryBatch.name, schema: InventoryBatchSchema },
+      { name: InventoryMovement.name, schema: InventoryMovementSchema },
     ]),
   ],
   providers: repositories,

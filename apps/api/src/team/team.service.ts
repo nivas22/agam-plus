@@ -1,8 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
 import { TeamMemberRepository } from '../repositories/team-member.repository';
-import { MembershipRepository } from '../repositories/membership.repository';
+import { MembershipRepository, hasAvailabilitySlots } from '../repositories/membership.repository';
 import { UserRepository } from '../repositories/user.repository';
+import { DoctorRepository } from '../repositories/doctor.repository';
 import { PaymentRepository } from '../repositories/payment.repository';
 import { PaymentDayCloseRepository } from '../repositories/payment-day-close.repository';
 import { ApprovalRequestRepository } from '../repositories/approval-request.repository';
@@ -13,7 +14,7 @@ import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { ApiError } from '../common/errors/api-error';
 import { generateTempPassword } from '../common/password.util';
 import { HospitalUserProfile } from '../auth/decorators/current-user.decorator';
-import { MEMBERSHIP_STATUS } from '../constants';
+import { MEMBERSHIP_STATUS, ROLE } from '../constants';
 import { TEAM_ASSIGNABLE_ROLES } from '../permissions/permission-catalog';
 
 interface CreateTeamMemberData {
@@ -36,6 +37,7 @@ export class TeamService {
     private readonly teamMemberRepository: TeamMemberRepository,
     private readonly membershipRepository: MembershipRepository,
     private readonly userRepository: UserRepository,
+    private readonly doctorRepository: DoctorRepository,
     private readonly paymentRepository: PaymentRepository,
     private readonly paymentDayCloseRepository: PaymentDayCloseRepository,
     private readonly approvalRequestRepository: ApprovalRequestRepository,
@@ -46,14 +48,117 @@ export class TeamService {
   ) {}
 
   async listMembers(hospitalId: string) {
-    const profiles = await this.teamMemberRepository.getByHospital(hospitalId);
-    const members = await Promise.all(
-      profiles.map(async (profile: any) => {
-        const membership = await this.membershipRepository.getHospitalMembershipData(profile.userId, hospitalId);
-        return this.toListItem(profile, membership);
-      }),
-    );
+    const [profiles, adminMemberships] = await Promise.all([
+      this.teamMemberRepository.getByHospital(hospitalId),
+      this.membershipRepository.getHospitalMembers(hospitalId, { role: ROLE.ADMIN, status: MEMBERSHIP_STATUS.APPROVED }),
+    ]);
+    const [staff, admins] = await Promise.all([
+      Promise.all(
+        profiles.map(async (profile: any) => {
+          const membership = await this.membershipRepository.getHospitalMembershipData(profile.userId, hospitalId);
+          return this.toListItem(profile, membership);
+        }),
+      ),
+      Promise.all(
+        adminMemberships.map(async (membership: any) => {
+          const user = await this.userRepository.getUserById(membership.userId);
+          return this.toAdminListItem(membership, user);
+        }),
+      ),
+    ]);
+    const members = [...admins, ...staff];
     return { members, total: members.length };
+  }
+
+  // Admins have no TeamMemberProfile (they're provisioned with the hospital),
+  // so their row is built from the membership + User doc. They're listed so
+  // the Team screen can show who runs the hospital and toggle isDoctor.
+  private toAdminListItem(membership: any, user: any) {
+    return {
+      id: membership.userId,
+      userId: membership.userId,
+      hospitalId: membership.hospitalId,
+      name: user?.name || user?.email || 'Admin',
+      email: user?.email || '',
+      phone: user?.phone || null,
+      employeeId: '',
+      role: ROLE.ADMIN,
+      shift: null,
+      startDate: null,
+      handlesCash: false,
+      pinSet: false,
+      status: 'active',
+      joinedAt: membership.joinedAt || null,
+      isOwner: !!membership.isOwner,
+      isDoctor: !!membership.isDoctor,
+    };
+  }
+
+  // Turns an admin into (or back from) a practising doctor. Their role stays
+  // 'admin' — isDoctor only makes them bookable and gives them a doctor queue.
+  async setAdminPractising(hospitalId: string, memberId: string, isDoctor: boolean, actor: HospitalUserProfile) {
+    const membership: any = await this.membershipRepository.getHospitalMembershipData(memberId, hospitalId);
+    if (!membership) {
+      throw ApiError.notFound('Member not found in this hospital');
+    }
+    if (membership.role !== ROLE.ADMIN) {
+      throw ApiError.badRequest('Only admins can be marked as also seeing patients');
+    }
+    if (!!membership.isDoctor === isDoctor) {
+      return { success: true, isDoctor };
+    }
+
+    const user: any = await this.userRepository.getUserById(memberId);
+    const name = user?.name || user?.email || 'Admin';
+
+    if (isDoctor) {
+      // Scheduling defaults mirror a new doctor membership (DoctorsService.createDoctor),
+      // but anything already set from an earlier stint as a doctor is kept.
+      await this.membershipRepository.updateHospitalMembership(membership.id, {
+        isDoctor: true,
+        // Stays off until they have availability slots — they turn it on from
+        // their doctor profile once their hours are set.
+        isAcceptingBookings: hasAvailabilitySlots(membership.availability),
+        availability: membership.availability || [],
+        appointmentDuration: membership.appointmentDuration || 30,
+        bufferMinutes: membership.bufferMinutes ?? 0,
+        patientsPerSlot: membership.patientsPerSlot || 1,
+        acceptWalkIns: membership.acceptWalkIns ?? true,
+        heldSlotsPerSession: membership.heldSlotsPerSession ?? 2,
+        releaseHeldSlotsBeforeMinutes:
+          membership.releaseHeldSlotsBeforeMinutes !== undefined ? membership.releaseHeldSlotsBeforeMinutes : 120,
+        overCapacityPolicy: membership.overCapacityPolicy || 'warn',
+        lateArrivalGraceMinutes: membership.lateArrivalGraceMinutes ?? 10,
+        noShowReleaseMinutes: membership.noShowReleaseMinutes ?? 20,
+      });
+      // DoctorProfile is one doc per user shared across hospitals — only
+      // create it if missing so an existing profile's details aren't wiped.
+      if (!(await this.doctorRepository.doctorProfileExists(memberId))) {
+        await this.doctorRepository.upsertDoctorProfile(memberId, {
+          name,
+          email: user?.email || '',
+          phone: user?.phone || '',
+          bio: '',
+          createdBy: actor.userId,
+        });
+      }
+    } else {
+      await this.membershipRepository.updateHospitalMembership(membership.id, {
+        isDoctor: false,
+        isAcceptingBookings: false,
+      });
+    }
+
+    await this.subscriptionsService.recalculateSeatCount(hospitalId);
+    await this.auditService.log({
+      hospitalId,
+      actor: { userId: actor.userId, name: actor.name, role: actor.role },
+      action: isDoctor ? 'team_member.practising_enabled' : 'team_member.practising_disabled',
+      area: 'settings',
+      summary: isDoctor ? `Marked ${name} as also seeing patients` : `${name} no longer sees patients`,
+    });
+
+    return { success: true, isDoctor };
   }
 
   private toListItem(profile: any, membership: any) {
@@ -318,7 +423,7 @@ export class TeamService {
 
     const tempPassword = generateTempPassword();
     const passwordHash = await bcrypt.hash(tempPassword, 10);
-    await this.userRepository.updateUser(memberId, { passwordHash, mustChangePassword: true });
+    const username = await this.userRepository.adminResetPassword(memberId, passwordHash);
 
     await this.auditService.log({
       hospitalId,
@@ -328,7 +433,7 @@ export class TeamService {
       summary: `Reset ${(profile as any).name}'s password — they'll be asked to change it at next sign-in`,
     });
 
-    return { success: true, tempPassword };
+    return { success: true, tempPassword, username };
   }
 
   async setOwnPin(hospitalId: string, actor: HospitalUserProfile, pin: string) {

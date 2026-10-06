@@ -18,6 +18,7 @@ export enum DB_COLLECTIONS {
   HOSPITAL_HOLIDAYS = "hospital_holidays",
   MEDICINES = "medicines",
   MEDICINE_PACKS = "medicine_packs",
+  NOTES_TEMPLATES = "notes_templates",
   PRESCRIPTIONS = "prescriptions",
   LEAVE_REQUESTS = "leave_requests",
   COUNTERS = "counters",
@@ -31,7 +32,11 @@ export enum DB_COLLECTIONS {
   SUBSCRIPTIONS = "subscriptions",
   SUBSCRIPTION_INVOICES = "subscription_invoices",
   SUBSCRIPTION_PLAN_CONFIG = "subscription_plan_config",
+  PLATFORM_FEATURE_CATALOG = "platform_feature_catalog",
   DEMO_REQUESTS = "demo_requests",
+  INVENTORY_ITEMS = "inventory_items",
+  INVENTORY_BATCHES = "inventory_batches",
+  INVENTORY_MOVEMENTS = "inventory_movements",
 }
 
 // FRONT_DESK/NURSE/ACCOUNTANT replace the old unused STAFF value — nothing
@@ -225,16 +230,39 @@ export const PACKAGE_PAYMENT_METHOD_VALUES = Object.values(
   PACKAGE_PAYMENT_METHOD,
 );
 
-// Fixed bundle sizes offered for a prepaid package.
+// Default bundle sizes offered for a prepaid package.
 export const PACKAGE_VISIT_TIERS = [5, 10, 20];
 
-// A package stays redeemable for 6 months from the date it"s sold.
+// By default a package stays redeemable for 6 months from the date it"s sold.
 export const PACKAGE_VALIDITY_MONTHS = 6;
 
-// Per-visit price for a prepaid package — roughly 5/6 of the doctor"s normal
-// consultation fee, rounded to the nearest ₹5 so bulk pricing reads clean.
-export function computePackagePricePerVisit(consultationFee: number): number {
-  return Math.round((consultationFee * 0.8333) / 5) * 5;
+// Hospital-admin-configurable package pricing/terms (Settings > Packages).
+// A hospital that never saved these gets DEFAULT_PACKAGE_SETTINGS — the
+// original ~1/6 discount, 5/10/20 tiers and 6-month validity. Keep in sync
+// with apps/web/src/constants.ts.
+export interface PackageSettings {
+  discountEnabled: boolean;
+  discountPercent: number;
+  visitTiers: number[];
+  validityMonths: number;
+}
+
+export const DEFAULT_PACKAGE_SETTINGS: PackageSettings = {
+  discountEnabled: true,
+  discountPercent: 16.67,
+  visitTiers: PACKAGE_VISIT_TIERS,
+  validityMonths: PACKAGE_VALIDITY_MONTHS,
+};
+
+// Per-visit price for a prepaid package — the doctor"s consultation fee less
+// the hospital's package discount, rounded to the nearest ₹5 so bulk pricing
+// reads clean. With the discount off, it's the plain consultation fee.
+export function computePackagePricePerVisit(
+  consultationFee: number,
+  settings: Pick<PackageSettings, "discountEnabled" | "discountPercent"> = DEFAULT_PACKAGE_SETTINGS,
+): number {
+  const percent = settings.discountEnabled ? settings.discountPercent : 0;
+  return Math.round((consultationFee * (1 - percent / 100)) / 5) * 5;
 }
 
 // How a completed visit was settled. SPLIT covers cash+UPI combined; DUE
@@ -701,6 +729,132 @@ export enum SUBSCRIPTION_FEATURE {
 
 export const SUBSCRIPTION_FEATURE_VALUES = Object.values(SUBSCRIPTION_FEATURE);
 
+// Modules a hospital admin can switch on/off for their own hospital under
+// Settings > Features — see Hospital.modules, RequiresModule() and
+// resolveHospitalModules(). Missing keys mean enabled, so no existing
+// hospital loses anything until an admin turns it off. Keep in sync with
+// apps/web/src/lib/hospitalModules.ts.
+export enum HOSPITAL_MODULE {
+  APPOINTMENTS = "appointments",
+  QUEUE = "queue",
+  PACKAGES = "packages",
+  PRESCRIPTIONS = "prescriptions",
+  PAYMENTS = "payments",
+  SMS = "sms",
+  WHATSAPP_NOTIFY = "whatsappNotify",
+  WHATSAPP = "whatsapp",
+  REPORTS = "reports",
+  AUDIT = "audit",
+  LEAVE_REQUESTS = "leaveRequests",
+  HOSPITAL_HOLIDAYS = "hospitalHolidays",
+  CHARGE_CATALOG = "chargeCatalog",
+  MEDICINES = "medicines",
+  MEDICINE_PACKS = "medicinePacks",
+  PATIENT_FIELDS = "patientFields",
+  AI_NOTES = "aiNotes",
+  INVENTORY = "inventory",
+}
+
+export const HOSPITAL_MODULE_VALUES = Object.values(HOSPITAL_MODULE);
+
+// Used in audit-log summaries; the web app has its own copy with descriptions.
+export const HOSPITAL_MODULE_LABELS: Record<HOSPITAL_MODULE, string> = {
+  [HOSPITAL_MODULE.APPOINTMENTS]: "Appointments",
+  [HOSPITAL_MODULE.QUEUE]: "Today's queue",
+  [HOSPITAL_MODULE.PACKAGES]: "Package appointments",
+  [HOSPITAL_MODULE.PRESCRIPTIONS]: "Prescriptions",
+  [HOSPITAL_MODULE.PAYMENTS]: "Payments",
+  [HOSPITAL_MODULE.SMS]: "SMS to patients",
+  [HOSPITAL_MODULE.WHATSAPP_NOTIFY]: "WhatsApp to patients",
+  [HOSPITAL_MODULE.WHATSAPP]: "WhatsApp",
+  [HOSPITAL_MODULE.REPORTS]: "Reports",
+  [HOSPITAL_MODULE.AUDIT]: "Audit trail",
+  [HOSPITAL_MODULE.LEAVE_REQUESTS]: "Leave requests",
+  [HOSPITAL_MODULE.HOSPITAL_HOLIDAYS]: "Hospital holidays",
+  [HOSPITAL_MODULE.CHARGE_CATALOG]: "Charge catalog",
+  [HOSPITAL_MODULE.MEDICINES]: "Medicines",
+  [HOSPITAL_MODULE.MEDICINE_PACKS]: "Medicine packs",
+  [HOSPITAL_MODULE.PATIENT_FIELDS]: "Custom patient fields",
+  [HOSPITAL_MODULE.AI_NOTES]: "AI session notes",
+  [HOSPITAL_MODULE.INVENTORY]: "Inventory",
+};
+
+// A module is only usable while every module it builds on is too — e.g. the
+// queue is a view over appointments, and the prescription writer can only
+// add medicines from the hospital's catalog.
+export const HOSPITAL_MODULE_DEPENDENCIES: Partial<Record<HOSPITAL_MODULE, HOSPITAL_MODULE[]>> = {
+  [HOSPITAL_MODULE.QUEUE]: [HOSPITAL_MODULE.APPOINTMENTS],
+  [HOSPITAL_MODULE.PACKAGES]: [HOSPITAL_MODULE.APPOINTMENTS],
+  [HOSPITAL_MODULE.PRESCRIPTIONS]: [HOSPITAL_MODULE.APPOINTMENTS, HOSPITAL_MODULE.MEDICINES],
+  [HOSPITAL_MODULE.WHATSAPP]: [HOSPITAL_MODULE.APPOINTMENTS],
+  [HOSPITAL_MODULE.MEDICINE_PACKS]: [HOSPITAL_MODULE.MEDICINES],
+  [HOSPITAL_MODULE.CHARGE_CATALOG]: [HOSPITAL_MODULE.PAYMENTS],
+  [HOSPITAL_MODULE.AI_NOTES]: [HOSPITAL_MODULE.APPOINTMENTS],
+};
+
+// Everything the hospital stocks, sold to patients or not — medicines,
+// consumables, equipment, stationery. Deliberately not linked to the
+// Medicine or Charge catalogs in v1: stock goes out by hand (Issue / Write
+// off), never as a side effect of a prescription or a bill.
+export enum INVENTORY_CATEGORY {
+  MEDICINES = "medicines",
+  CONSUMABLES = "consumables",
+  SURGICAL = "surgical",
+  LAB = "lab",
+  EQUIPMENT = "equipment",
+  HOUSEKEEPING = "housekeeping",
+  STATIONERY = "stationery",
+  OTHER = "other",
+}
+
+export const INVENTORY_CATEGORY_VALUES = Object.values(INVENTORY_CATEGORY);
+
+// Every change to a batch's quantity is one movement. RECEIVED and positive
+// ADJUSTED rows add stock; everything else removes it. `quantity` on the
+// movement is signed accordingly, so summing an item's movements gives its
+// stock on hand.
+export enum INVENTORY_MOVEMENT_TYPE {
+  RECEIVED = "received",
+  ISSUED = "issued",
+  ADJUSTED = "adjusted",
+  EXPIRED = "expired",
+  DAMAGED = "damaged",
+  RETURNED = "returned",
+}
+
+export const INVENTORY_MOVEMENT_TYPE_VALUES = Object.values(INVENTORY_MOVEMENT_TYPE);
+
+// The write-off flavours of a batch adjustment — each removes a counted
+// quantity, unlike ADJUSTED which sets the batch to a physical count.
+export const INVENTORY_WRITE_OFF_TYPES = [
+  INVENTORY_MOVEMENT_TYPE.EXPIRED,
+  INVENTORY_MOVEMENT_TYPE.DAMAGED,
+  INVENTORY_MOVEMENT_TYPE.RETURNED,
+] as const;
+
+// A batch with stock left is flagged as expiring this many days (or fewer)
+// before its expiry date.
+export const INVENTORY_EXPIRY_WARNING_DAYS = 30;
+
+// Whether a module ships at all, set platform-wide by a platform admin under
+// Platform Admin > Feature catalog (PlatformFeatureCatalog.moduleStatus). It
+// sits above both the per-hospital plan grant (Subscription.features — every
+// HOSPITAL_MODULE key, missing means granted) and the hospital admin's own
+// switch. A missing status means AVAILABLE.
+//   COMING_SOON — listed on Settings > Features with a badge, can't be used.
+//   HIDDEN      — not listed anywhere, can't be used (still being built).
+export enum FEATURE_RELEASE_STATUS {
+  AVAILABLE = "available",
+  COMING_SOON = "coming_soon",
+  HIDDEN = "hidden",
+}
+
+export const FEATURE_RELEASE_STATUS_VALUES = Object.values(FEATURE_RELEASE_STATUS);
+
+// Section a teaser ("upcoming") feature is listed under on Settings >
+// Features — mirrors HospitalModuleGroup in apps/web/src/lib/hospitalModules.ts.
+export const HOSPITAL_MODULE_GROUP_VALUES = ["care", "frontDesk", "admin", "setup"] as const;
+
 // A "Book a demo" submission from the marketing site (apps/www). NEW until a
 // platform admin has reached out, then CONTACTED — mirrors the
 // WHATSAPP_ENQUIRY_STATUS new/resolved shape.
@@ -710,3 +864,62 @@ export enum DEMO_REQUEST_STATUS {
 }
 
 export const DEMO_REQUEST_STATUS_VALUES = Object.values(DEMO_REQUEST_STATUS);
+
+// Fields shown in the Notes section of the patient Add/Edit form. Each
+// hospital can switch these on/off, relabel them and add its own custom
+// fields (see HospitalsService.getPatientNoteFields). Built-in keys map to
+// top-level Patient properties consumed elsewhere (allergies → prescription
+// allergy check, conditions/flags → prescription writer badges); custom
+// fields live under Patient.customFields[key]. Keep in sync with
+// apps/web/src/lib/patientNoteFields.ts.
+export type PatientNoteFieldType = "tags" | "text";
+
+export interface PatientNoteField {
+  key: string;
+  label: string;
+  type: PatientNoteFieldType;
+  enabled: boolean;
+  hint?: string;
+  placeholder?: string;
+  builtIn?: boolean;
+}
+
+export const BUILT_IN_PATIENT_NOTE_FIELDS: PatientNoteField[] = [
+  {
+    key: "allergies",
+    label: "Allergies",
+    type: "tags",
+    enabled: true,
+    builtIn: true,
+    hint: "Checked against a medicine's allergy class tags when a doctor writes a prescription.",
+    placeholder: "Type an allergy and press Enter (e.g. Penicillin)",
+  },
+  {
+    key: "conditions",
+    label: "Conditions",
+    type: "tags",
+    enabled: true,
+    builtIn: true,
+    hint: "Shown as badges on the prescription writer, e.g. diabetic, hypertensive.",
+    placeholder: "Type a condition and press Enter (e.g. Diabetic)",
+  },
+  {
+    key: "flags",
+    label: "Flags",
+    type: "tags",
+    enabled: true,
+    builtIn: true,
+    hint: "Any other context worth surfacing on the prescription writer, e.g. eGFR normal.",
+    placeholder: "Type a flag and press Enter (e.g. eGFR normal)",
+  },
+  {
+    key: "notes",
+    label: "Additional notes",
+    type: "text",
+    enabled: true,
+    builtIn: true,
+    placeholder: "Any additional information about the patient...",
+  },
+];
+
+export const BUILT_IN_PATIENT_NOTE_FIELD_KEYS = BUILT_IN_PATIENT_NOTE_FIELDS.map((f) => f.key);

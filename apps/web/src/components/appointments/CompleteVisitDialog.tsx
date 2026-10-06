@@ -3,6 +3,7 @@
 
 import {
   AlertCircle,
+  CheckCircle2,
   Clock,
   Loader2,
   Package as PackageIcon,
@@ -15,11 +16,14 @@ import {
 import { useMemo, useState } from "react";
 import { usePackageLedger } from "@/hooks/useNewPackageApi";
 import { useCompleteVisit } from "@/hooks/useNewPaymentApi";
+import { useAddHospitalAppointment } from "@/hooks/useNewAppointmentsApi";
 import { useChargeCatalogItems } from "@/hooks/useChargeCatalogApi";
 import { useAuth } from "@/hooks/useAuth";
+import { useModuleEnabled } from "@/hooks/useHospitalModulesApi";
 import type { AppointmentWithDetails } from "@/types/appointment";
 import type { PaymentItem, PaymentMethod } from "@/types/payment";
 import {
+  APPOINTMENT_STATUS,
   APPOINTMENT_TYPE,
   PAYMENT_DUE_REASONS,
   PAYMENT_METHOD,
@@ -30,6 +34,9 @@ import {
   primaryBtn,
   secondaryBtn,
 } from "./AppointmentActionDialogs";
+import FollowUpBookingCard, {
+  type FollowUpBookingValue,
+} from "./FollowUpBookingCard";
 
 type UpdateStatusFn = (
   appointmentId: string,
@@ -123,7 +130,110 @@ function PlaceholderQr({ seed }: { seed: number }) {
   );
 }
 
-export default function CompleteVisitDialog({
+// With Payments switched off (Settings > Features) there's nothing to
+// collect: new visits close straight from finish-session, and anything
+// already parked in awaiting-payment is closed here with just its notes.
+export default function CompleteVisitDialog(props: CompleteVisitDialogProps) {
+  const { isEnabled } = useModuleEnabled(props.hospitalId);
+  return isEnabled("payments") ? (
+    <CollectPaymentDialog {...props} />
+  ) : (
+    <CompleteWithoutPaymentDialog {...props} />
+  );
+}
+
+function CompleteWithoutPaymentDialog({
+  appointment,
+  doctorName,
+  patientCode,
+  updateAppointmentStatus,
+  onClose,
+  onSuccess,
+}: CompleteVisitDialogProps) {
+  const [sessionNotes, setSessionNotes] = useState(
+    appointment.sessionNotes ?? "",
+  );
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const complete = async () => {
+    setSaving(true);
+    setError(null);
+    try {
+      await updateAppointmentStatus(
+        appointment.id,
+        APPOINTMENT_STATUS.COMPLETED,
+        sessionNotes,
+      );
+      onSuccess("Visit completed");
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to complete visit");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <DialogShell
+      icon={<CheckCircle2 className="w-4.5 h-4.5" />}
+      iconTone="bg-status-open-soft text-status-open"
+      title={`Complete visit — ${appointment.patientName}`}
+      subtitle={doctorName ? `Dr. ${doctorName}` : undefined}
+      onClose={onClose}
+      footer={
+        <>
+          <button type="button" className={secondaryBtn} onClick={onClose}>
+            Cancel
+          </button>
+          <button
+            type="button"
+            className={`${primaryBtn} bg-brand-violet hover:bg-brand-violet-hover disabled:opacity-60`}
+            disabled={saving}
+            onClick={complete}
+          >
+            {saving ? (
+              <Loader2 className="w-4 h-4 animate-spin inline mr-1.5" />
+            ) : null}
+            Complete visit
+          </button>
+        </>
+      }
+    >
+      <ContextStrip appointment={appointment} patientCode={patientCode} />
+
+      {error && (
+        <div className="mx-5 mt-3 flex items-start gap-2 px-3.5 py-2.5 rounded-lg bg-status-danger-soft border border-status-danger/20 text-sm text-status-danger">
+          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+          {error}
+        </div>
+      )}
+
+      <div className="p-5 pt-4">
+        <label
+          htmlFor="complete-visit-notes"
+          className="text-xs font-semibold text-ink-700 mb-1 block"
+        >
+          Session notes
+        </label>
+        <p className="text-[11.5px] text-ink-500 mb-2">
+          Goes to the patient record. Payments are turned off for this
+          hospital, so no bill is recorded.
+        </p>
+        <textarea
+          id="complete-visit-notes"
+          value={sessionNotes}
+          onChange={(e) => setSessionNotes(e.target.value)}
+          placeholder="Details about the session, treatment provided, observations, etc."
+          rows={7}
+          className="w-full p-3 border border-border rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-brand-violet/20 focus:border-brand-violet"
+        />
+      </div>
+    </DialogShell>
+  );
+}
+
+function CollectPaymentDialog({
   appointment,
   hospitalId,
   consultationFee,
@@ -160,12 +270,22 @@ export default function CompleteVisitDialog({
   const [splitCash, setSplitCash] = useState<number | "">("");
   const [dueReason, setDueReason] = useState<string>(PAYMENT_DUE_REASONS[0]);
   const [sendReceipt, setSendReceipt] = useState(true);
+  // The doctor's requested follow-up — offered, never booked by default.
+  const [followUp, setFollowUp] = useState<FollowUpBookingValue>({
+    enabled: false,
+    date: appointment.followUpDueDate || "",
+    time: "",
+  });
+  // Booked before payment so a taken slot surfaces before money is recorded;
+  // kept here so retrying a failed payment doesn't book it twice.
+  const [bookedFollowUpId, setBookedFollowUpId] = useState<string | null>(null);
+  const addAppointment = useAddHospitalAppointment(hospitalId);
   const [savingNotes, setSavingNotes] = useState(false);
   const [optOutPackage, setOptOutPackage] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const completeVisit = useCompleteVisit(hospitalId);
-  const { isDoctor } = useAuth();
+  const { isDoctor, practisesAsDoctor } = useAuth();
   const [collectedByRole, setCollectedByRole] = useState<"doctor" | "frontdesk">(
     isDoctor ? "doctor" : "frontdesk",
   );
@@ -173,10 +293,22 @@ export default function CompleteVisitDialog({
     collectedByRole === "doctor"
       ? doctorName || (isDoctor ? collectedByName : undefined) || "Doctor"
       : (!isDoctor ? collectedByName : undefined) || "Front desk";
+  // Charge catalog off: items are still entered by hand, just no quick-add chips.
+  const { isEnabled: isModuleEnabled } = useModuleEnabled(hospitalId);
+  const chargeCatalogOn = isModuleEnabled("chargeCatalog");
+  // The WhatsApp receipt is an outgoing patient message, so it follows
+  // "WhatsApp to patients" (Settings > Features).
+  const whatsappReceiptOn = isModuleEnabled("whatsappNotify");
+  const showFollowUp =
+    isModuleEnabled("appointments") &&
+    !!appointment.followUpOption &&
+    !!appointment.followUpDueDate &&
+    !appointment.followUpAppointmentId &&
+    !!appointment.doctorProfileId;
   const { data: chargeCatalogData } = useChargeCatalogItems(hospitalId, { status: "active" });
-  const quickAddItems = (chargeCatalogData?.items || []).filter(
-    (item) => isDoctor || item.frontDeskCanAdd,
-  );
+  const quickAddItems = chargeCatalogOn
+    ? (chargeCatalogData?.items || []).filter((item) => practisesAsDoctor || item.frontDeskCanAdd)
+    : [];
 
   const isPackageAppointment =
     appointment.type === APPOINTMENT_TYPE.PACKAGE && !!appointment.packageId;
@@ -281,7 +413,29 @@ export default function CompleteVisitDialog({
     }
     setError(null);
 
+    const bookFollowUp = showFollowUp && followUp.enabled && !bookedFollowUpId;
+    if (bookFollowUp && (!followUp.date || !followUp.time)) {
+      setError("Pick a date and time for the follow-up, or untick it");
+      return;
+    }
+
     try {
+      let followUpNote = "";
+      if (bookFollowUp) {
+        const booked: any = await addAppointment.mutateAsync({
+          doctorProfileId: appointment.doctorProfileId,
+          patientId: appointment.patientId,
+          startDate: followUp.date,
+          preferredTime: followUp.time,
+          frequency: "once",
+          notes: "Follow-up booked at payment",
+          followUpOf: appointment.id,
+        } as any);
+        const bookedAppt = booked?.appointments?.[0];
+        setBookedFollowUpId(bookedAppt?.id || "booked");
+        followUpNote = ` · follow-up booked for ${bookedAppt?.date ?? followUp.date} ${bookedAppt?.time ?? followUp.time}`;
+      }
+
       const result = await completeVisit.mutateAsync({
         appointmentId: appointment.id,
         sessionNotes: sessionNotes || undefined,
@@ -300,10 +454,10 @@ export default function CompleteVisitDialog({
         splitUpiAmount:
           method === PAYMENT_METHOD.SPLIT ? splitUpiAmount : undefined,
         dueReason: method === PAYMENT_METHOD.DUE ? dueReason : undefined,
-        sendReceiptWhatsApp: sendReceipt,
+        sendReceiptWhatsApp: whatsappReceiptOn && sendReceipt,
         usePackageVisit: isPackageAppointment ? !optOutPackage : undefined,
       });
-      onSuccess(result.message);
+      onSuccess(result.message + followUpNote);
       onClose();
     } catch (err) {
       setError(
@@ -331,36 +485,43 @@ export default function CompleteVisitDialog({
       size="lg"
       footer={
         <>
-          <label className="flex items-center gap-2 text-xs text-ink-500 mr-auto">
-            <input
-              type="checkbox"
-              checked={sendReceipt}
-              onChange={(e) => setSendReceipt(e.target.checked)}
-              className="w-3.5 h-3.5 rounded border-border text-brand-violet focus:ring-2 focus:ring-brand-violet/30"
-            />
-            {appointment.patientPhone
-              ? `Send receipt on WhatsApp to ${appointment.patientPhone}`
-              : "Send receipt on WhatsApp"}
-          </label>
-          <button
-            type="button"
-            className={secondaryBtn}
-            onClick={saveNotesOnly}
-            disabled={savingNotes || completeVisit.isPending}
-          >
-            {savingNotes ? "Saving…" : "Save notes only"}
-          </button>
-          <button
-            type="button"
-            className={`${primaryBtn} bg-brand-violet hover:bg-brand-violet-hover disabled:opacity-60`}
-            disabled={completeVisit.isPending}
-            onClick={submit}
-          >
-            {completeVisit.isPending ? (
-              <Loader2 className="w-4 h-4 animate-spin inline mr-1.5" />
-            ) : null}
-            {ctaLabel}
-          </button>
+          {whatsappReceiptOn && (
+            <label className="flex items-center gap-2 text-xs text-ink-500">
+              <input
+                type="checkbox"
+                checked={sendReceipt}
+                onChange={(e) => setSendReceipt(e.target.checked)}
+                className="w-3.5 h-3.5 rounded border-border text-brand-violet focus:ring-2 focus:ring-brand-violet/30"
+              />
+              {appointment.patientPhone
+                ? `Send receipt on WhatsApp to ${appointment.patientPhone}`
+                : "Send receipt on WhatsApp"}
+            </label>
+          )}
+          {/* One right-aligned group, so the buttons stay together whether or
+              not the WhatsApp receipt option is shown (primaryBtn's own
+              ml-auto would otherwise split the free space with it). */}
+          <div className="ml-auto flex items-center gap-2.5">
+            <button
+              type="button"
+              className={secondaryBtn}
+              onClick={saveNotesOnly}
+              disabled={savingNotes || completeVisit.isPending}
+            >
+              {savingNotes ? "Saving…" : "Save notes only"}
+            </button>
+            <button
+              type="button"
+              className={`${primaryBtn} bg-brand-violet hover:bg-brand-violet-hover disabled:opacity-60`}
+              disabled={completeVisit.isPending}
+              onClick={submit}
+            >
+              {completeVisit.isPending ? (
+                <Loader2 className="w-4 h-4 animate-spin inline mr-1.5" />
+              ) : null}
+              {ctaLabel}
+            </button>
+          </div>
         </>
       }
     >
@@ -389,6 +550,18 @@ export default function CompleteVisitDialog({
             rows={7}
             className="w-full p-3 border border-border rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-brand-violet/20 focus:border-brand-violet"
           />
+
+          {showFollowUp && (
+            <FollowUpBookingCard
+              hospitalId={hospitalId}
+              doctorId={appointment.doctorProfileId}
+              followUpOption={appointment.followUpOption!}
+              dueDate={appointment.followUpDueDate!}
+              value={followUp}
+              onChange={setFollowUp}
+              disabled={!!bookedFollowUpId || completeVisit.isPending}
+            />
+          )}
         </div>
 
         {/* billing */}

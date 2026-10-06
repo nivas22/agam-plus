@@ -271,7 +271,7 @@ export function useAuth() {
       return "/select-hospital";
     }
 
-    const { role, status, isProfileUpdated, isExperienceUpdated } = membership;
+    const { role, status } = membership;
 
     switch (role) {
       case ROLE.ADMIN:
@@ -279,10 +279,6 @@ export function useAuth() {
       case ROLE.DOCTOR:
         if (status === MEMBERSHIP_STATUS.PENDING) {
           return "/select-hospital";
-        }
-
-        if (!isProfileUpdated || !isExperienceUpdated) {
-          return "/setup";
         }
 
         return getHospitalRoute("/dashboard", targetHospitalId);
@@ -372,7 +368,14 @@ export function useAuth() {
 
     // Current context
     isAdmin: getCurrentHospitalRole() === ROLE.ADMIN,
+    // `isDoctor` is the doctor *role* (restricted access). `practisesAsDoctor`
+    // also covers admins flagged isDoctor on their membership — use it for
+    // showing doctor features (own queue, prescriptions), never for gating
+    // admin-only ones.
     isDoctor: getCurrentHospitalRole() === ROLE.DOCTOR,
+    practisesAsDoctor:
+      getCurrentHospitalRole() === ROLE.DOCTOR ||
+      !!currentHospitalMembership?.isDoctor,
     isStaff: [ROLE.FRONT_DESK, ROLE.NURSE, ROLE.ACCOUNTANT].includes(
       getCurrentHospitalRole() as ROLE,
     ),
@@ -387,16 +390,10 @@ const handlePostLoginRedirect = (hospitals: HospitalMember[], router: any) => {
   const approvedHospital = hospitals.find((h) => h.status === "approved");
 
   if (approvedHospital) {
-    const { role, hospitalId, isProfileUpdated, isExperienceUpdated } =
-      approvedHospital;
+    const { role, hospitalId } = approvedHospital;
 
     if (role === ROLE.DOCTOR) {
-      // Check if profile setup is incomplete
-      if (!isProfileUpdated || !isExperienceUpdated) {
-        router.push(`/setup`);
-      } else {
-        router.push(`/hospital/${hospitalId}/dashboard`);
-      }
+      router.push(`/hospital/${hospitalId}/dashboard`);
     } else if (role === ROLE.ADMIN) {
       router.push(`/hospital/${hospitalId}/dashboard`);
     } else {

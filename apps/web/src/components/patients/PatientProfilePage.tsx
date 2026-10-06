@@ -13,6 +13,7 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { useHospitalAppointments } from "@/hooks/useNewAppointmentsApi";
 import { useHospitalDoctors } from "@/hooks/useNewDoctorApi";
+import { useModuleEnabled } from "@/hooks/useHospitalModulesApi";
 import { usePackagesList } from "@/hooks/useNewPackageApi";
 import { useHospitalPatient } from "@/hooks/useNewPatientApi";
 import { useHospitalPayments } from "@/hooks/useNewPaymentApi";
@@ -96,6 +97,7 @@ export default function PatientProfilePage({
   patientId,
 }: PatientProfilePageProps) {
   const router = useRouter();
+  const { isEnabled } = useModuleEnabled(hospitalId);
   const { user, getCurrentHospitalRole } = useAuth();
   const userRole = getCurrentHospitalRole() || "admin";
 
@@ -350,24 +352,28 @@ export default function PatientProfilePage({
               Collect {money(totalDue)} due
             </button>
           )}
-          <button
-            type="button"
-            onClick={() =>
-              router.push(
-                `/hospital/${hospitalId}/appointments/add?patientId=${patientId}`,
-              )
-            }
-            className="h-9 px-3.5 rounded-lg bg-brand-violet hover:bg-brand-violet-hover text-white text-sm font-semibold"
-          >
-            Book appointment
-          </button>
-          <button
-            type="button"
-            onClick={() => setDialog({ kind: "sellPackage" })}
-            className="h-9 px-3.5 rounded-lg border border-border bg-surface-paper text-sm font-medium text-ink-700 hover:bg-surface-canvas"
-          >
-            Sell package
-          </button>
+          {isEnabled("appointments") && (
+            <button
+              type="button"
+              onClick={() =>
+                router.push(
+                  `/hospital/${hospitalId}/appointments/add?patientId=${patientId}`,
+                )
+              }
+              className="h-9 px-3.5 rounded-lg bg-brand-violet hover:bg-brand-violet-hover text-white text-sm font-semibold"
+            >
+              Book appointment
+            </button>
+          )}
+          {isEnabled("packages") && (
+            <button
+              type="button"
+              onClick={() => setDialog({ kind: "sellPackage" })}
+              className="h-9 px-3.5 rounded-lg border border-border bg-surface-paper text-sm font-medium text-ink-700 hover:bg-surface-canvas"
+            >
+              Sell package
+            </button>
+          )}
           <button
             type="button"
             onClick={() =>
@@ -559,7 +565,13 @@ export default function PatientProfilePage({
                   count: upcomingAppointments.length,
                 },
               ] as const
-            ).map((t) => (
+            )
+              .filter(
+                (t) =>
+                  (t.key !== "payments" || isEnabled("payments")) &&
+                  (t.key !== "packages" || isEnabled("packages")),
+              )
+              .map((t) => (
               <button
                 key={t.key}
                 type="button"

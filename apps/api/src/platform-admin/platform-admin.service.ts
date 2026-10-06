@@ -1,11 +1,12 @@
 import { Injectable } from '@nestjs/common';
-import { DB_COLLECTIONS, MEMBERSHIP_STATUS, ROLE, SUBSCRIPTION_FEATURE } from '../constants';
+import { DB_COLLECTIONS, HOSPITAL_MODULE, MEMBERSHIP_STATUS, ROLE } from '../constants';
 import { UserRepository } from '../repositories/user.repository';
 import { HospitalRepository } from '../repositories/hospital.repository';
 import { MembershipRepository } from '../repositories/membership.repository';
 import { DashboardRepository } from '../repositories/dashboard.repository';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { DemoRequestRepository } from '../repositories/demo-request.repository';
+import { PlatformFeatureCatalogRepository } from '../repositories/platform-feature-catalog.repository';
 import { ApiError } from '../common/errors/api-error';
 
 @Injectable()
@@ -17,6 +18,7 @@ export class PlatformAdminService {
     private readonly dashboardRepository: DashboardRepository,
     private readonly subscriptionsService: SubscriptionsService,
     private readonly demoRequestRepository: DemoRequestRepository,
+    private readonly featureCatalogRepository: PlatformFeatureCatalogRepository,
   ) {}
 
   listDemoRequests(status?: string) {
@@ -55,17 +57,27 @@ export class PlatformAdminService {
     return this.subscriptionsService.getBillingSummary(hospitalId);
   }
 
-  setSubscriptionFeature(
+  setSubscriptionFeatures(
     hospitalId: string,
-    feature: SUBSCRIPTION_FEATURE,
-    enabled: boolean,
+    changes: Partial<Record<HOSPITAL_MODULE, boolean>>,
     platformAdmin: { userId: string; name: string },
   ) {
-    return this.subscriptionsService.setFeatureFlag(hospitalId, feature, enabled, {
+    return this.subscriptionsService.setFeatureFlags(hospitalId, changes, {
       userId: platformAdmin.userId,
       name: platformAdmin.name,
       role: 'platform_admin',
     });
+  }
+
+  getFeatureCatalog() {
+    return this.featureCatalogRepository.getCatalog();
+  }
+
+  updateFeatureCatalog(data: Record<string, any>, userId: string) {
+    return this.featureCatalogRepository.updateCatalog(
+      { moduleStatus: data.moduleStatus, upcoming: data.upcoming },
+      userId,
+    );
   }
 
   getPlanConfig() {
@@ -122,7 +134,28 @@ export class PlatformAdminService {
   }
 
   async getAllUsers() {
-    const users = await this.userRepository.getAllUsers();
+    const [users, hospitals, memberships] = await Promise.all([
+      this.userRepository.getAllUsers(),
+      this.hospitalRepository.getAllHospitals(),
+      this.membershipRepository.getAllMemberships(),
+    ]);
+
+    const hospitalNames = new Map(hospitals.map((h: any) => [h.id, h.name]));
+    const membershipsByUser = new Map<string, any[]>();
+    for (const m of memberships) {
+      // Skip memberships whose hospital has since been deleted.
+      if (!hospitalNames.has(m.hospitalId)) continue;
+      const list = membershipsByUser.get(m.userId) ?? [];
+      list.push({
+        hospitalId: m.hospitalId,
+        hospitalName: hospitalNames.get(m.hospitalId),
+        role: m.role,
+        status: m.status,
+        isDoctor: !!m.isDoctor,
+      });
+      membershipsByUser.set(m.userId, list);
+    }
+
     return users.map((user: any) => ({
       id: user.id,
       name: user.name,
@@ -130,6 +163,7 @@ export class PlatformAdminService {
       isPlatformAdmin: !!user.isPlatformAdmin,
       lastLogin: user.lastLogin,
       createdAt: user.createdAt,
+      hospitals: membershipsByUser.get(user.id) ?? [],
     }));
   }
 

@@ -4,6 +4,12 @@ import { WhatsappService } from './whatsapp.service';
 import { WhatsappConfigRepository } from '../repositories/whatsapp-config.repository';
 import { AppointmentRepository } from '../repositories/appointment.repository';
 import { SubscriptionRepository } from '../repositories/subscription.repository';
+import { HospitalRepository } from '../repositories/hospital.repository';
+import { PlatformFeatureCatalogRepository } from '../repositories/platform-feature-catalog.repository';
+import { HOSPITAL_MODULE } from '../constants';
+import { isHospitalModuleEnabled } from '../hospitals/hospital-modules.util';
+import { DateTime } from 'luxon';
+import { isoDateInZone, resolveTimezone } from '../common/hospital-time.util';
 import {
   WA_REMINDER_HOURS_BEFORE,
   WA_REMINDER_WINDOW_MINUTES,
@@ -22,6 +28,8 @@ export class WhatsappReminderService {
     private readonly whatsappConfigRepository: WhatsappConfigRepository,
     private readonly appointmentRepository: AppointmentRepository,
     private readonly subscriptionRepository: SubscriptionRepository,
+    private readonly hospitalRepository: HospitalRepository,
+    private readonly featureCatalogRepository: PlatformFeatureCatalogRepository,
   ) {}
 
   @Cron('*/15 * * * *')
@@ -30,13 +38,26 @@ export class WhatsappReminderService {
 
     for (const config of hospitals as any[]) {
       try {
-        // A platform admin can disable the WhatsApp feature independent of
-        // the hospital's own connect/disconnect toggle — honor that here too,
-        // since this cron runs outside any per-request guard.
-        const subscription = await this.subscriptionRepository.getByHospitalId(config.hospitalId);
-        if (subscription?.features?.whatsapp === false) continue;
+        // The WhatsApp module can be off independent of the hospital's own
+        // connect/disconnect toggle (plan or Settings > Features) — honor
+        // that here too, since this cron runs outside any per-request guard.
+        const [subscription, hospital, catalog] = await Promise.all([
+          this.subscriptionRepository.getByHospitalId(config.hospitalId),
+          this.hospitalRepository.getHospitalById(config.hospitalId),
+          this.featureCatalogRepository.getCatalog(),
+        ]);
+        if (
+          !isHospitalModuleEnabled(
+            HOSPITAL_MODULE.WHATSAPP,
+            (hospital as any)?.modules,
+            subscription?.features,
+            catalog.moduleStatus,
+          )
+        ) {
+          continue;
+        }
 
-        await this.sendRemindersForHospital(config.hospitalId);
+        await this.sendRemindersForHospital(config.hospitalId, resolveTimezone((hospital as any)?.timezone));
       } catch (error) {
         this.logger.error(
           `Reminder sweep failed for hospital ${config.hospitalId}: ${(error as Error).message}`,
@@ -45,7 +66,7 @@ export class WhatsappReminderService {
     }
   }
 
-  private async sendRemindersForHospital(hospitalId: string) {
+  private async sendRemindersForHospital(hospitalId: string, tz: string) {
     const now = new Date();
     const windowStart = new Date(
       now.getTime() +
@@ -58,12 +79,12 @@ export class WhatsappReminderService {
 
     const candidates = await this.appointmentRepository.getAppointmentsNeedingReminder(
       hospitalId,
-      this.toISODate(windowStart),
-      this.toISODate(windowEnd),
+      isoDateInZone(windowStart, tz),
+      isoDateInZone(windowEnd, tz),
     );
 
     for (const appt of candidates as any[]) {
-      const when = this.combineDateTime(appt.date, appt.time);
+      const when = this.combineDateTime(appt.date, appt.time, tz);
       if (!when || when < windowStart || when > windowEnd) continue;
 
       const sent = await this.whatsappService.sendText(
@@ -87,18 +108,15 @@ export class WhatsappReminderService {
     }
   }
 
-  private toISODate(d: Date): string {
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${d.getFullYear()}-${m}-${day}`;
-  }
-
-  private combineDateTime(date?: string, time?: string): Date | null {
+  // date/time are hospital wall-clock values — read them in the hospital's
+  // zone, not the (UTC) server's, or reminders land hours off.
+  private combineDateTime(date: string | undefined, time: string | undefined, tz: string): Date | null {
     if (!date || !time) return null;
     const [y, m, d] = date.split('-').map(Number);
     const [h, min] = time.split(':').map(Number);
     if ([y, m, d, h, min].some((n) => Number.isNaN(n))) return null;
-    return new Date(y, m - 1, d, h, min);
+    const dt = DateTime.fromObject({ year: y, month: m, day: d, hour: h, minute: min }, { zone: tz });
+    return dt.isValid ? dt.toJSDate() : null;
   }
 
   private formatDate(iso: string): string {

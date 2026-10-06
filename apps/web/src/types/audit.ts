@@ -6,7 +6,7 @@ export interface AuditLogEntry {
   actorName: string;
   actorRole: string;
   action: string;
-  area: "money" | "appointments" | "settings" | "access" | "patients" | "doctors";
+  area: "money" | "appointments" | "settings" | "access" | "patients" | "doctors" | "inventory";
   summary: string;
   detail?: Record<string, any>;
   amount?: number;

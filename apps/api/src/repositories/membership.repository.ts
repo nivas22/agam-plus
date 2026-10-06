@@ -5,6 +5,22 @@ import { HospitalMember, HospitalMemberDocument } from '../schemas/hospital-memb
 import { Hospital, HospitalDocument } from '../schemas/hospital.schema';
 import { toPlain, toPlainList, toSnapshot } from './mongo.util';
 
+// A "practising doctor" is either a doctor-role member or an admin who also
+// sees patients (role stays 'admin' so they keep full admin access; the
+// isDoctor flag marks them as bookable). Use this instead of `role: 'doctor'`
+// anywhere the question is "who are this hospital's doctors".
+export const PRACTISING_DOCTOR_FILTER = { $or: [{ role: 'doctor' }, { isDoctor: true }] };
+
+// A doctor can only be marked as accepting bookings once they have at least
+// one availability slot — otherwise they'd show as bookable with nothing to book.
+export function hasAvailabilitySlots(availability: unknown): boolean {
+  return Array.isArray(availability) && availability.length > 0;
+}
+
+export function isPractisingDoctor(member: { role?: string; isDoctor?: boolean } | null | undefined): boolean {
+  return !!member && (member.role === 'doctor' || member.isDoctor === true);
+}
+
 @Injectable()
 export class MembershipRepository {
   constructor(
@@ -40,6 +56,12 @@ export class MembershipRepository {
     }
   }
 
+  // Platform-wide listing; only the fields needed to show who belongs where.
+  async getAllMemberships() {
+    const docs = await this.memberModel.find({}, { hospitalId: 1, userId: 1, role: 1, status: 1, isDoctor: 1 }).lean();
+    return toPlainList(docs);
+  }
+
   async getHospitalMembers(hospitalId: string, options?: { status?: string; role?: string }) {
     const filter: Record<string, any> = { hospitalId };
     if (options?.status) filter.status = options.status;
@@ -47,6 +69,20 @@ export class MembershipRepository {
 
     const docs = await this.memberModel.find(filter).lean();
     return toPlainList(docs);
+  }
+
+  async getPractisingDoctorMembers(hospitalId: string, options?: { status?: string }) {
+    const filter: Record<string, any> = { hospitalId, ...PRACTISING_DOCTOR_FILTER };
+    if (options?.status) filter.status = options.status;
+
+    const docs = await this.memberModel.find(filter).lean();
+    return toPlainList(docs);
+  }
+
+  async countPractisingDoctors(hospitalId: string, status?: string) {
+    const filter: Record<string, any> = { hospitalId, ...PRACTISING_DOCTOR_FILTER };
+    if (status) filter.status = status;
+    return this.memberModel.countDocuments(filter);
   }
 
   async createHospitalMembership(membershipData: any) {

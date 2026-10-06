@@ -11,8 +11,9 @@ import { DoctorProfile, DoctorProfileDocument, DoctorProfileSchema } from '../..
 import { User, UserDocument, UserSchema } from '../../schemas/user.schema';
 import { Subscription, SubscriptionDocument, SubscriptionSchema } from '../../schemas/subscription.schema';
 import { connectTestMongo, closeTestMongo, clearTestMongo } from '../../test-utils/mongo-memory';
-import { SUBSCRIPTION_FEATURE } from '../../constants';
+import { HOSPITAL_MODULE, SUBSCRIPTION_FEATURE } from '../../constants';
 import { REQUIRES_FEATURE_KEY } from '../decorators/requires-feature.decorator';
+import { REQUIRES_MODULE_KEY } from '../decorators/requires-module.decorator';
 
 function fakeReflector(metadata: Record<string, any> = {}) {
   return { getAllAndOverride: (key: string) => metadata[key] } as any;
@@ -42,6 +43,8 @@ describe('HospitalContextGuard', () => {
   let hospitalRepository: HospitalRepository;
   let doctorRepository: DoctorRepository;
   let subscriptionRepository: SubscriptionRepository;
+  let moduleStatus: Record<string, string> = {};
+  const featureCatalogRepository = { getCatalog: async () => ({ moduleStatus, upcoming: [] }) } as any;
 
   beforeAll(async () => {
     await connectTestMongo();
@@ -57,7 +60,10 @@ describe('HospitalContextGuard', () => {
     subscriptionRepository = new SubscriptionRepository(subscriptionModel);
   });
 
-  afterEach(async () => clearTestMongo());
+  afterEach(async () => {
+    moduleStatus = {};
+    await clearTestMongo();
+  });
   afterAll(async () => closeTestMongo());
 
   // Hospital._id is a real ObjectId (not a free-text string), so every test
@@ -92,6 +98,7 @@ describe('HospitalContextGuard', () => {
       hospitalRepository,
       doctorRepository,
       subscriptionRepository,
+      featureCatalogRepository,
     );
   }
 
@@ -172,5 +179,52 @@ describe('HospitalContextGuard', () => {
     await expect(
       guard.canActivate(contextFor('GET', hospitalId, `/hospitals/${hospitalId}/whatsapp`)),
     ).resolves.toBe(true);
+  });
+
+  it('blocks access when @RequiresModule is set and the hospital switched the module off', async () => {
+    const hospitalId = await seedHospitalWithMembership();
+    await hospitalModel.updateOne({ _id: hospitalId }, { $set: { modules: { prescriptions: false } } });
+    const guard = newGuard({ [REQUIRES_MODULE_KEY]: HOSPITAL_MODULE.PRESCRIPTIONS });
+    await expect(
+      guard.canActivate(contextFor('GET', hospitalId, `/hospitals/${hospitalId}/appointments/a1/prescription`)),
+    ).rejects.toThrow('turned off for this hospital');
+  });
+
+  it('blocks access when @RequiresModule is set and a module it depends on is off', async () => {
+    const hospitalId = await seedHospitalWithMembership();
+    await hospitalModel.updateOne({ _id: hospitalId }, { $set: { modules: { medicines: false } } });
+    const guard = newGuard({ [REQUIRES_MODULE_KEY]: HOSPITAL_MODULE.MEDICINE_PACKS });
+    await expect(
+      guard.canActivate(contextFor('GET', hospitalId, `/hospitals/${hospitalId}/medicine-packs`)),
+    ).rejects.toThrow(ForbiddenException);
+  });
+
+  it('blocks access when @RequiresModule is set and the plan withholds the module', async () => {
+    const hospitalId = await seedHospitalWithMembership();
+    await seedSubscription(hospitalId, {
+      status: 'active',
+      features: { whatsapp: true, reports: false, packages: true, medicinePacks: true },
+    });
+    const guard = newGuard({ [REQUIRES_MODULE_KEY]: HOSPITAL_MODULE.REPORTS });
+    await expect(
+      guard.canActivate(contextFor('GET', hospitalId, `/hospitals/${hospitalId}/reports/no-shows`)),
+    ).rejects.toThrow(`isn't included on this hospital's plan`);
+  });
+
+  it('allows access when @RequiresModule is set and the hospital never configured modules', async () => {
+    const hospitalId = await seedHospitalWithMembership();
+    const guard = newGuard({ [REQUIRES_MODULE_KEY]: HOSPITAL_MODULE.PRESCRIPTIONS });
+    await expect(
+      guard.canActivate(contextFor('GET', hospitalId, `/hospitals/${hospitalId}/appointments/a1/prescription`)),
+    ).resolves.toBe(true);
+  });
+
+  it('blocks a module the platform has marked coming soon, even when the plan grants it', async () => {
+    const hospitalId = await seedHospitalWithMembership();
+    moduleStatus = { reports: 'coming_soon' };
+    const guard = newGuard({ [REQUIRES_MODULE_KEY]: HOSPITAL_MODULE.REPORTS });
+    await expect(
+      guard.canActivate(contextFor('GET', hospitalId, `/hospitals/${hospitalId}/reports/no-shows`)),
+    ).rejects.toThrow(`isn't available yet`);
   });
 });

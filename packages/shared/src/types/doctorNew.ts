@@ -15,6 +15,7 @@ export interface Doctor {
   hospitalId: string;
   name: string;
   email: string;
+  username?: string;
   specialization: string;
   qualification: string;
   medicalRegistrationNumber?: string;
@@ -112,6 +113,7 @@ export interface CreateDoctorData {
   hospitalId: string;
   specialization?: string;
   qualification?: string;
+  medicalRegistrationNumber?: string;
   consultationFee?: number;
   availability?: TimeSlot[];
   bio?: string;
@@ -131,6 +133,7 @@ export interface UpdateDoctorData {
   address?: string;
   specialization?: string;
   qualification?: string;
+  medicalRegistrationNumber?: string;
   consultationFee?: number;
   availability?: TimeSlot[];
   appointmentDuration?: number;

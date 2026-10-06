@@ -176,7 +176,7 @@ const doctorApiFunctions = {
   resetPassword: async (
     hospitalId: string,
     doctorId: string,
-  ): Promise<{ success: boolean; tempPassword: string }> => {
+  ): Promise<{ success: boolean; tempPassword: string; username?: string }> => {
     const response = await fetchWithAuth(
       apiUrl(`/hospitals/${hospitalId}/doctors/${doctorId}/password/reset`),
       { method: "POST" },

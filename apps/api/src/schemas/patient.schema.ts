@@ -72,6 +72,11 @@ export class Patient {
   @Prop()
   notes?: string;
 
+  // Values for the hospital's custom Notes fields, keyed by field key —
+  // a string for text fields, a string[] for tag fields.
+  @Prop({ type: Object, default: undefined })
+  customFields?: Record<string, string | string[]>;
+
   @Prop()
   createdBy?: string;
 

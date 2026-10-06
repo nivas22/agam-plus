@@ -3,24 +3,56 @@
 import {
   AlertTriangle,
   CalendarOff,
+  ClipboardList,
   CreditCard,
+  FileText,
   Layers,
   MessageCircle,
+  Package,
   Pill,
   Receipt,
   ShieldCheck,
   Stethoscope,
+  ToggleRight,
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
+import { useModuleEnabled } from "@/hooks/useHospitalModulesApi";
+import type { HospitalModuleKey } from "@/lib/hospitalModules";
+
+interface SettingsTile {
+  href: string;
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  adminOnly: boolean;
+  // Only for the people who write session notes (admins and doctors).
+  clinicalOnly?: boolean;
+  // Hidden while this module is off — see Settings > Features.
+  module?: HospitalModuleKey;
+}
 
 export default function SettingsHubPage() {
   const params = useParams();
   const router = useRouter();
   const hospitalId = params.id as string;
-  const { isDoctor } = useAuth();
+  const { isAdmin, isDoctor } = useAuth();
+  const { isEnabled } = useModuleEnabled(hospitalId);
 
-  const categories = [
+  const categories: { title: string; tiles: SettingsTile[] }[] = [
+    {
+      title: "Your hospital",
+      tiles: [
+        {
+          href: `/hospital/${hospitalId}/settings/features`,
+          icon: <ToggleRight size={20} />,
+          title: "Features",
+          description:
+            "Turn parts of the app on or off for this hospital — prescriptions, payments, WhatsApp and more.",
+          adminOnly: true,
+        },
+      ],
+    },
     {
       title: "Access control",
       tiles: [
@@ -39,6 +71,7 @@ export default function SettingsHubPage() {
       tiles: [
         {
           href: `/hospital/${hospitalId}/settings/medicines`,
+          module: "medicines" as const,
           icon: <Pill size={20} />,
           title: "Medicines",
           description: isDoctor
@@ -48,6 +81,7 @@ export default function SettingsHubPage() {
         },
         {
           href: `/hospital/${hospitalId}/settings/medicine-packs`,
+          module: "medicinePacks" as const,
           icon: <Layers size={20} />,
           title: "Medicine packs",
           description: isDoctor
@@ -61,7 +95,26 @@ export default function SettingsHubPage() {
           title: "Specializations",
           description:
             "The options offered in each doctor's specialization dropdown.",
+          adminOnly: true,
+        },
+        {
+          href: `/hospital/${hospitalId}/settings/patient-fields`,
+          module: "patientFields" as const,
+          icon: <ClipboardList size={20} />,
+          title: "Patient fields",
+          description:
+            "Choose what the patient form's Notes section collects, and add your own fields.",
+          adminOnly: true,
+        },
+        {
+          href: `/hospital/${hospitalId}/settings/notes-templates`,
+          icon: <FileText size={20} />,
+          title: "Notes templates",
+          description: isDoctor
+            ? "Your one-click snippets for session notes, plus the ones your hospital shares."
+            : "One-click snippets doctors drop into session notes from the Today screen.",
           adminOnly: false,
+          clinicalOnly: true,
         },
       ],
     },
@@ -70,10 +123,20 @@ export default function SettingsHubPage() {
       tiles: [
         {
           href: `/hospital/${hospitalId}/settings/charge-catalog`,
+          module: "chargeCatalog" as const,
           icon: <Receipt size={20} />,
           title: "Charge catalog",
           description:
             "Everything the front desk can add to a bill, and what it costs today.",
+          adminOnly: true,
+        },
+        {
+          href: `/hospital/${hospitalId}/settings/packages`,
+          module: "packages" as const,
+          icon: <Package size={20} />,
+          title: "Packages",
+          description:
+            "Discount, package sizes and validity for prepaid visit packages.",
           adminOnly: true,
         },
         {
@@ -91,6 +154,7 @@ export default function SettingsHubPage() {
       tiles: [
         {
           href: `/hospital/${hospitalId}/settings/hospital-holidays`,
+          module: "hospitalHolidays" as const,
           icon: <CalendarOff size={20} />,
           title: "Hospital holidays",
           description:
@@ -99,6 +163,7 @@ export default function SettingsHubPage() {
         },
         {
           href: `/hospital/${hospitalId}/settings/whatsapp`,
+          module: "whatsapp" as const,
           icon: <MessageCircle size={20} />,
           title: "WhatsApp",
           description:
@@ -110,7 +175,12 @@ export default function SettingsHubPage() {
   ]
     .map((category) => ({
       ...category,
-      tiles: category.tiles.filter((tile) => !isDoctor || !tile.adminOnly),
+      tiles: category.tiles.filter(
+        (tile: SettingsTile) =>
+          (!isDoctor || !tile.adminOnly) &&
+          (!tile.clinicalOnly || isAdmin || isDoctor) &&
+          (!tile.module || isEnabled(tile.module)),
+      ),
     }))
     .filter((category) => category.tiles.length > 0);
 
@@ -122,7 +192,7 @@ export default function SettingsHubPage() {
       <p className="text-sm text-ink-500 mb-5">
         {isDoctor
           ? "Reference material for your day-to-day work."
-          : "Team, roles & permissions, the audit trail, the charge catalog, medicines, and hospital holidays."}
+          : "Features, roles & permissions, catalogs, and how this hospital runs day to day."}
       </p>
 
       <div className="space-y-6">

@@ -542,6 +542,8 @@ export function computePresence(
   lane: QueueLane,
   override: PresenceOverride | undefined,
   now: Date,
+  // Approved leave covering today, if any (see useOnLeave / findLeaveOn).
+  leave?: { startDate: string; endDate: string } | null,
 ): DoctorPresence {
   // Actively seeing a patient right now overrides any stale manual flag —
   // they clearly can't be "not coming today" while mid-consultation.
@@ -551,6 +553,21 @@ export function computePresence(
       tone: "in",
       label: "IN",
       detail: `In since ${format(since, "h:mm a")}`,
+    };
+  }
+
+  // Approved leave outranks every manual flag and the shift timetable — the
+  // desk shouldn't see "running late" for someone who isn't coming at all.
+  if (leave) {
+    const start = new Date(`${leave.startDate}T00:00:00`);
+    const end = new Date(`${leave.endDate}T00:00:00`);
+    return {
+      tone: "notIn",
+      label: "ON LEAVE",
+      detail:
+        leave.startDate === leave.endDate
+          ? "Approved leave today"
+          : `Approved leave · ${format(start, "d MMM")} – ${format(end, "d MMM")}`,
     };
   }
 

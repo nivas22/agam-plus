@@ -1,12 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcryptjs';
-import { MembershipRepository } from '../repositories/membership.repository';
+import { MembershipRepository, hasAvailabilitySlots, isPractisingDoctor } from '../repositories/membership.repository';
 import { DoctorRepository } from '../repositories/doctor.repository';
 import { UserRepository } from '../repositories/user.repository';
 import { AppointmentRepository } from '../repositories/appointment.repository';
 import { HospitalHolidayRepository } from '../repositories/hospital-holiday.repository';
 import { DoctorPresenceRepository } from '../repositories/doctor-presence.repository';
+import { HospitalRepository } from '../repositories/hospital.repository';
+import { addDaysIso, nowMinutes, todayIso, weekdayOf } from '../common/hospital-time.util';
 import { EmailService } from '../email/email.service';
 import { AuditService } from '../audit/audit.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
@@ -26,6 +28,7 @@ export class DoctorsService {
     private readonly appointmentRepository: AppointmentRepository,
     private readonly hospitalHolidayRepository: HospitalHolidayRepository,
     private readonly doctorPresenceRepository: DoctorPresenceRepository,
+    private readonly hospitalRepository: HospitalRepository,
     private readonly emailService: EmailService,
     private readonly auditService: AuditService,
     private readonly config: ConfigService,
@@ -62,7 +65,12 @@ export class DoctorsService {
       status: statusFilter || undefined,
     });
 
-    const memberUserIds = members.map((m: any) => m.userId).filter((id: string) => id);
+    // Admins who stopped practising keep their DoctorProfile doc, so filter on
+    // the membership rather than relying on "has a profile".
+    const memberUserIds = members
+      .filter((m: any) => isPractisingDoctor(m))
+      .map((m: any) => m.userId)
+      .filter((id: string) => id);
 
     if (memberUserIds.length === 0) {
       return {
@@ -198,6 +206,7 @@ export class DoctorsService {
       phone: string;
       specialization?: string;
       qualification?: string;
+      medicalRegistrationNumber?: string;
       experience?: string;
       bio?: string;
       consultationFee?: number;
@@ -236,6 +245,28 @@ export class DoctorsService {
       throw ApiError.conflict(`Username ${doctorData.username} is already in use`);
     }
 
+    // An admin being marked as also practising keeps their own login as-is —
+    // the username/password fields on the form are only for brand-new doctors.
+    const existingMembership = existingUserId
+      ? await this.membershipRepository.getHospitalMembershipData(existingUserId, hospitalId)
+      : null;
+    const existingRole = (existingMembership as any)?.role;
+    const isAdminBecomingDoctor = existingRole === ROLE.ADMIN;
+
+    // A hospital membership is one row per (userId, hospitalId) carrying a single
+    // role. Admins can additionally practise via the isDoctor flag, but there's
+    // no equivalent for other roles (e.g. a patient who is also a doctor here) —
+    // rather than silently overwrite their membership with doctor-only fields
+    // (and leave their role stuck, failing every doctor-only route), fail loudly.
+    if (existingMembership && existingRole !== ROLE.DOCTOR && !isAdminBecomingDoctor) {
+      throw ApiError.conflict(
+        `This person is already a ${existingRole} at this hospital and can't also be added as a doctor yet`,
+      );
+    }
+    if (isAdminBecomingDoctor && (existingMembership as any).isDoctor) {
+      throw ApiError.conflict('This admin is already set up as a doctor at this hospital');
+    }
+
     let doctorUserId: string;
     if (!existingUser) {
       // Create new user
@@ -251,7 +282,7 @@ export class DoctorsService {
       doctorUserId = (existingUser as any).id;
       // Same person already has a User doc (e.g. added at another hospital first) —
       // only set their login credentials if they don't already have one.
-      if (!(existingUser as any).username) {
+      if (!(existingUser as any).username && !isAdminBecomingDoctor) {
         const passwordHash = await bcrypt.hash(doctorData.password, 10);
         await this.userRepository.updateUser(doctorUserId, {
           username: doctorData.username,
@@ -259,20 +290,6 @@ export class DoctorsService {
           mustChangePassword: true,
         });
       }
-    }
-
-    // Check if membership already exists
-    const existingMembership = await this.membershipRepository.getHospitalMembershipData(doctorUserId, hospitalId);
-
-    // A hospital membership is one row per (userId, hospitalId) carrying a single
-    // role — there's no membership-level support for "this person is both a
-    // patient and a doctor here" yet. Rather than silently overwrite a patient's
-    // membership with doctor-only fields (and leave their role stuck as
-    // 'patient', which would then fail every doctor-only route), fail loudly.
-    if (existingMembership && (existingMembership as any).role !== 'doctor') {
-      throw ApiError.conflict(
-        `This person is already a ${(existingMembership as any).role} at this hospital and can't also be added as a doctor yet`,
-      );
     }
 
     if (!existingMembership) {
@@ -288,7 +305,7 @@ export class DoctorsService {
         isProfileUpdated: false,
         specialization: doctorData.specialization || null,
         consultationFee: doctorData.consultationFee || null,
-        isAcceptingBookings: doctorData.status !== 'inactive',
+        isAcceptingBookings: doctorData.status !== 'inactive' && hasAvailabilitySlots(doctorData.availability),
         availability: doctorData.availability || [],
         appointmentDuration: doctorData.appointmentDuration || 30,
         bufferMinutes: doctorData.bufferMinutes || 0,
@@ -318,6 +335,26 @@ export class DoctorsService {
         updates.lateArrivalGraceMinutes = doctorData.lateArrivalGraceMinutes;
       if (doctorData.noShowReleaseMinutes !== undefined) updates.noShowReleaseMinutes = doctorData.noShowReleaseMinutes;
 
+      if (isAdminBecomingDoctor) {
+        // Role stays 'admin' (full access); isDoctor makes them bookable and
+        // gives them a doctor queue. Defaults mirror a new doctor membership.
+        Object.assign(updates, {
+          isDoctor: true,
+          isAcceptingBookings: doctorData.status !== 'inactive' && hasAvailabilitySlots(doctorData.availability),
+          availability: doctorData.availability || [],
+          appointmentDuration: doctorData.appointmentDuration || 30,
+          bufferMinutes: doctorData.bufferMinutes || 0,
+          patientsPerSlot: doctorData.patientsPerSlot || 1,
+          acceptWalkIns: doctorData.acceptWalkIns !== false,
+          heldSlotsPerSession: doctorData.heldSlotsPerSession ?? 2,
+          releaseHeldSlotsBeforeMinutes: doctorData.releaseHeldSlotsBeforeMinutes ?? 120,
+          overCapacityPolicy: doctorData.overCapacityPolicy || 'warn',
+          lateArrivalGraceMinutes: doctorData.lateArrivalGraceMinutes ?? 10,
+          noShowReleaseMinutes: doctorData.noShowReleaseMinutes ?? 20,
+          ...updates,
+        });
+      }
+
       if (Object.keys(updates).length > 0) {
         await this.membershipRepository.updateHospitalMembership((existingMembership as any).id, updates);
       }
@@ -330,6 +367,7 @@ export class DoctorsService {
       name: doctorData.name,
       specialization: doctorData.specialization || null,
       qualification: doctorData.qualification || null,
+      medicalRegistrationNumber: doctorData.medicalRegistrationNumber || null,
       experience: doctorData.experience || null,
       bio: doctorData.bio || '',
       gender: doctorData.gender || null,
@@ -339,6 +377,24 @@ export class DoctorsService {
     };
 
     await this.doctorRepository.upsertDoctorProfile(doctorUserId, doctorProfileData);
+
+    if (isAdminBecomingDoctor) {
+      // Already approved, so they take a doctor seat straight away.
+      await this.subscriptionsService.recalculateSeatCount(hospitalId);
+      return {
+        success: true,
+        doctor: {
+          id: doctorUserId,
+          profileId: doctorUserId,
+          userId: doctorUserId,
+          hospitalId,
+          name: doctorData.name,
+          email: doctorData.email,
+          status: 'active',
+          membershipStatus: (existingMembership as any).status,
+        },
+      };
+    }
 
     // Send welcome email notification to the doctor
     try {
@@ -373,7 +429,7 @@ export class DoctorsService {
 
     const tempPassword = generateTempPassword();
     const passwordHash = await bcrypt.hash(tempPassword, 10);
-    await this.userRepository.updateUser(doctorId, { passwordHash, mustChangePassword: true });
+    const username = await this.userRepository.adminResetPassword(doctorId, passwordHash);
 
     await this.auditService.log({
       hospitalId,
@@ -383,7 +439,7 @@ export class DoctorsService {
       summary: `Reset ${(profile as any).name}'s password — they'll be asked to change it at next sign-in`,
     });
 
-    return { success: true, tempPassword };
+    return { success: true, tempPassword, username };
   }
 
   async getDoctorById(hospitalId: string, doctorId: string) {
@@ -409,6 +465,7 @@ export class DoctorsService {
     // updateDoctor's allowedFields comment) — no profile fallback to merge.
     return {
       ...doctor,
+      username: doctorData.user?.username,
       status,
       specialization: membershipData?.specialization || doctorData.specialization,
       consultationFee: membershipData?.consultationFee,
@@ -496,8 +553,14 @@ export class DoctorsService {
     // "Accepting bookings" is per-hospital, so it lives on the membership —
     // not on DoctorProfile, which is shared across every hospital this
     // doctor belongs to.
+    // Bookings can't be on without availability slots, so check against the
+    // hours this save leaves them with (new ones if sent, else current).
+    const effectiveAvailability =
+      updates.availability !== undefined ? updates.availability : (membership as any).availability;
     if (updates.status !== undefined) {
-      membershipUpdates.isAcceptingBookings = updates.status === 'active';
+      membershipUpdates.isAcceptingBookings = updates.status === 'active' && hasAvailabilitySlots(effectiveAvailability);
+    } else if (updates.availability !== undefined && !hasAvailabilitySlots(effectiveAvailability)) {
+      membershipUpdates.isAcceptingBookings = false;
     }
 
     // specialization, consultationFee, availability, and appointmentDuration all
@@ -548,6 +611,19 @@ export class DoctorsService {
   }
 
   async deleteDoctor(hospitalId: string, doctorId: string) {
+    const membership = await this.membershipRepository.getHospitalMembershipData(doctorId, hospitalId);
+
+    if ((membership as any)?.role === ROLE.ADMIN) {
+      // Removing an admin "as a doctor" only stops them practising — their
+      // admin membership (and access) must survive.
+      await this.membershipRepository.updateHospitalMembership((membership as any).id, {
+        isDoctor: false,
+        isAcceptingBookings: false,
+      });
+      await this.subscriptionsService.recalculateSeatCount(hospitalId);
+      return { success: true, message: 'Admin is no longer listed as a doctor' };
+    }
+
     // Remove hospital membership
     await this.membershipRepository.deleteHospitalMembership(hospitalId, doctorId);
     await this.subscriptionsService.recalculateSeatCount(hospitalId);
@@ -563,6 +639,13 @@ export class DoctorsService {
     const validStatuses = ['approved', 'pending', 'rejected'];
     if (!validStatuses.includes(status)) {
       throw ApiError.badRequest('Invalid status');
+    }
+
+    // doctorId here is the membership id. An admin-doctor's membership status
+    // is their admin access, so it can't be changed from the doctor screens.
+    const membership = await this.membershipRepository.getHospitalMembershipById(doctorId);
+    if ((membership as any)?.role === ROLE.ADMIN) {
+      throw ApiError.badRequest("An admin's membership status can't be changed from the doctor list");
     }
 
     // Update doctor membership status
@@ -646,6 +729,12 @@ export class DoctorsService {
       isAvailabilityUpdated: true,
       updatedAt: new Date(),
     };
+
+    // Clearing every slot also stops bookings. Adding slots doesn't turn
+    // bookings back on by itself — that's an explicit "Accepting bookings" choice.
+    if (!hasAvailabilitySlots(availability)) {
+      updateData.isAcceptingBookings = false;
+    }
 
     if (appointmentDuration) {
       updateData.appointmentDuration = appointmentDuration;
@@ -739,7 +828,7 @@ export class DoctorsService {
   // createDoctor can warn about a likely duplicate before creating a second
   // profile under a different email for the same person.
   private async findDoctorsByPhone(hospitalId: string, phone: string, excludeUserId?: string) {
-    const members = await this.membershipRepository.getHospitalMembers(hospitalId, { role: ROLE.DOCTOR });
+    const members = await this.membershipRepository.getPractisingDoctorMembers(hospitalId);
     const memberUserIds = members
       .map((m: any) => m.userId)
       .filter((userId: string) => userId && userId !== excludeUserId);
@@ -763,32 +852,26 @@ export class DoctorsService {
     date: string,
     preferredTime?: string,
   ): Promise<{ date: string; time: string } | null> {
-    const currentDate = new Date(date);
+    let currentDate = date;
     let attempts = 0;
     const maxAttempts = 30; // Limit to prevent infinite loops
 
     while (attempts < maxAttempts) {
       // Get available slots for this date
-      const slots = await this.getAvailableSlots(doctor, currentDate.toISOString().split('T')[0]);
+      const slots = await this.getAvailableSlots(doctor, currentDate);
 
       if (slots.length > 0) {
         // If we have a preferred time and it's available, use it
         if (preferredTime && slots.some((s) => s.time === preferredTime)) {
-          return {
-            date: currentDate.toISOString().split('T')[0],
-            time: preferredTime,
-          };
+          return { date: currentDate, time: preferredTime };
         }
 
         // Otherwise, use the first available slot
-        return {
-          date: currentDate.toISOString().split('T')[0],
-          time: slots[0].time,
-        };
+        return { date: currentDate, time: slots[0].time };
       }
 
       // No slots available on this day, move to next day
-      currentDate.setDate(currentDate.getDate() + 1);
+      currentDate = addDaysIso(currentDate, 1);
       attempts++;
     }
 
@@ -804,9 +887,7 @@ export class DoctorsService {
     try {
       const doctorAvailability = doctor?.availability || [];
 
-      // Get day of week
-      const dateObj = new Date(date);
-      const dayOfWeek = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
+      const dayOfWeek = weekdayOf(date);
 
       // Check if doctor is available on this day — a day can have more than one
       // working window (e.g. a morning and an evening shift), so collect all of them.
@@ -831,10 +912,11 @@ export class DoctorsService {
         bookedCounts[appt.time] = (bookedCounts[appt.time] || 0) + 1;
       }
 
-      // Check if the date is today
-      const today = new Date();
-      const isToday = dateObj.toDateString() === today.toDateString();
-      const currentTime = isToday ? today : null;
+      // "Today" and "already past" are judged on the hospital's clock — the
+      // server runs on UTC, so its own clock would be hours off for IST.
+      const tz = doctor?.hospitalId ? await this.hospitalRepository.getTimezone(doctor.hospitalId) : '';
+      const isToday = date === todayIso(tz);
+      const currentMinutes = isToday ? nowMinutes(tz) : -1;
 
       // A doctor marked "left for the day" is done seeing patients — today's
       // remaining slots stop being bookable the moment that's set. Only
@@ -857,26 +939,28 @@ export class DoctorsService {
       const capacity = Math.max(1, doctor.patientsPerSlot || 1);
       const step = duration + gap;
 
+      // Wall-clock minutes, not Date objects — slot times are hospital-local
+      // and must not pick up the server's zone.
+      const toMins = (t: string) => {
+        const [h, m] = t.split(':').map(Number);
+        return h * 60 + m;
+      };
+      const toTime = (mins: number) =>
+        `${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`;
+
       for (const dayAvailability of dayWindows) {
-        const startTime = new Date(`${date}T${dayAvailability.startTime}`);
-        const endTime = new Date(`${date}T${dayAvailability.endTime}`);
-        const current = new Date(startTime);
+        const end = toMins(dayAvailability.endTime);
 
         // A slot only counts as bookable if the appointment fits before closing time.
-        while (current.getTime() + duration * 60000 <= endTime.getTime()) {
-          const timeString = current.toTimeString().substring(0, 5);
-
+        for (let cur = toMins(dayAvailability.startTime); cur + duration <= end; cur += step) {
           // Skip past time slots if the date is today
-          if (isToday && currentTime && current <= currentTime) {
-            current.setMinutes(current.getMinutes() + step);
-            continue;
-          }
+          if (cur <= currentMinutes) continue;
 
+          const timeString = toTime(cur);
           const booked = bookedCounts[timeString] || 0;
           if (booked < capacity) {
             slots.push({ time: timeString, remaining: capacity - booked, capacity });
           }
-          current.setMinutes(current.getMinutes() + step);
         }
       }
 

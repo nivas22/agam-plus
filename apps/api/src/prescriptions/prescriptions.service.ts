@@ -184,6 +184,8 @@ export class PrescriptionsService {
           notes: 'Follow-up scheduled from prescription sign-off',
           createdBy: actor.userId,
           userRole: actor.role,
+          // Reuses a follow-up already booked for this visit (e.g. at payment).
+          followUpOf: appointmentId,
         });
         if (followUpAppointmentId) {
           updates.followUpOption = followUpOption;

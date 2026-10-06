@@ -2,26 +2,6 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
 import { DB_COLLECTIONS, SUBSCRIPTION_BILLING_CYCLE, SUBSCRIPTION_STATUS } from '../constants';
 
-// Modules a platform admin can individually disable per hospital — see
-// SUBSCRIPTION_FEATURE in constants.ts and RequiresFeature(). All default to
-// enabled so no existing hospital loses access until explicitly toggled off.
-@Schema({ _id: false })
-export class SubscriptionFeatures {
-  @Prop({ required: true, default: true })
-  whatsapp: boolean;
-
-  @Prop({ required: true, default: true })
-  reports: boolean;
-
-  @Prop({ required: true, default: true })
-  packages: boolean;
-
-  @Prop({ required: true, default: true })
-  medicinePacks: boolean;
-}
-
-export const SubscriptionFeaturesSchema = SchemaFactory.createForClass(SubscriptionFeatures);
-
 export type SubscriptionDocument = HydratedDocument<Subscription>;
 
 // One doc per hospital — created by SubscriptionsService.provisionForNewHospital
@@ -79,8 +59,12 @@ export class Subscription {
   @Prop()
   graceEndsAt?: Date;
 
-  @Prop({ type: SubscriptionFeaturesSchema, default: () => ({}) })
-  features: SubscriptionFeatures;
+  // Which modules this hospital's plan grants, keyed by HOSPITAL_MODULE —
+  // set per hospital by a platform admin. Only an explicit false withholds a
+  // module, so a missing key (every hospital, until toggled) means granted.
+  // See resolveHospitalModules().
+  @Prop({ type: Object, default: () => ({}) })
+  features: Record<string, boolean>;
 
   // Set once runRenewalSweep emails a trial-ending-soon notice, so the sweep
   // (which runs daily) doesn't re-send it every day until the trial lapses.

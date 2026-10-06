@@ -9,10 +9,11 @@ import {
   setPlatformAdminSchema,
   setSubscriptionCancelledSchema,
   setSubscriptionExemptSchema,
-  setSubscriptionFeatureSchema,
+  setSubscriptionFeaturesSchema,
+  updateFeatureCatalogSchema,
   updateSubscriptionPlanConfigSchema,
 } from '../common/validation/schemas';
-import { SUBSCRIPTION_FEATURE } from '../constants';
+import { HOSPITAL_MODULE } from '../constants';
 
 @Controller('platform-admin')
 @UseGuards(PlatformAdminGuard)
@@ -77,13 +78,13 @@ export class PlatformAdminController {
   }
 
   @Patch('hospitals/:id/subscription/features')
-  @UsePipes(new ZodValidationPipe(setSubscriptionFeatureSchema))
-  setSubscriptionFeature(
+  @UsePipes(new ZodValidationPipe(setSubscriptionFeaturesSchema))
+  setSubscriptionFeatures(
     @Param('id') id: string,
     @CurrentUser() user: JwtUser,
-    @Body() body: { feature: SUBSCRIPTION_FEATURE; enabled: boolean },
+    @Body() body: { features: Partial<Record<HOSPITAL_MODULE, boolean>> },
   ) {
-    return this.platformAdminService.setSubscriptionFeature(id, body.feature, body.enabled, {
+    return this.platformAdminService.setSubscriptionFeatures(id, body.features, {
       userId: user.userId,
       name: user.name,
     });
@@ -103,6 +104,17 @@ export class PlatformAdminController {
   @UsePipes(new ZodValidationPipe(updateSubscriptionPlanConfigSchema))
   updatePlanConfig(@CurrentUser() user: JwtUser, @Body() body: Record<string, any>) {
     return this.platformAdminService.updatePlanConfig(body, user.userId);
+  }
+
+  @Get('feature-catalog')
+  getFeatureCatalog() {
+    return this.platformAdminService.getFeatureCatalog();
+  }
+
+  @Put('feature-catalog')
+  @UsePipes(new ZodValidationPipe(updateFeatureCatalogSchema))
+  updateFeatureCatalog(@CurrentUser() user: JwtUser, @Body() body: Record<string, any>) {
+    return this.platformAdminService.updateFeatureCatalog(body, user.userId);
   }
 
   @Get('demo-requests')

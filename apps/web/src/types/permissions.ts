@@ -2,7 +2,7 @@ export type PermissionState = "allowed" | "needs_approval" | "blocked";
 
 export interface PermissionActionDef {
   key: string;
-  group: "appointments" | "money" | "packages" | "patients" | "prescriptions";
+  group: "appointments" | "money" | "packages" | "patients" | "prescriptions" | "inventory";
   label: string;
   description: string;
   readOnly?: boolean;
@@ -30,6 +30,7 @@ export const GROUP_LABELS: Record<string, string> = {
   packages: "Packages",
   patients: "Patients & records",
   prescriptions: "Prescriptions",
+  inventory: "Inventory",
 };
 
 export const ROLE_LABELS: Record<string, string> = {
