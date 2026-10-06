@@ -8,6 +8,12 @@ import {
 } from "@/components/mocks";
 import { PricingCard } from "@/components/PricingCard";
 
+// The clinic app (apps/web) is a separate deployment; www only ships to
+// production, so default to the production app's login page.
+const SIGN_IN_URL = `${
+  process.env.NEXT_PUBLIC_WEB_APP_URL || "https://agam-plus-web.vercel.app"
+}/login`;
+
 function Logo({ dark }: { dark?: boolean }) {
   return (
     <a className="logo" href="/">
@@ -150,7 +156,12 @@ export default function HomePage() {
             <a href="#faq">Help</a>
           </div>
           <span className="sp" />
-          <DemoRequestModal label="Book a demo" className="btn p sm" />
+          <div className="nav-cta">
+            <a className="btn q sm" href={SIGN_IN_URL}>
+              Sign in
+            </a>
+            <DemoRequestModal label="Book a demo" className="btn p sm" />
+          </div>
         </div>
       </div>
 
@@ -483,8 +494,8 @@ export default function HomePage() {
           </p>
           <div className="cta">
             <DemoRequestModal label="Book a demo" className="btn w" />
-            <a className="btn g" href="tel:+914423456789">
-              Call +91 44 2345 6789
+            <a className="btn g" href="tel:+918754517235">
+              Call +91 87545 17235
             </a>
           </div>
         </div>
