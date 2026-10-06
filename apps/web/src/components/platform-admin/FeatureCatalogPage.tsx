@@ -5,6 +5,7 @@ import { Layers, Loader2, Plus, Sparkles, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { inputClass } from "@/components/common/EditFormControls";
+import HospitalFeaturesSection from "@/components/platform-admin/HospitalFeaturesSection";
 import {
   type FeatureCatalog,
   useFeatureCatalog,
@@ -161,7 +162,7 @@ export default function FeatureCatalogPage() {
         features are listed on each hospital&apos;s Settings › Features with a
         badge but can&apos;t be used; <b>hidden</b> ones aren&apos;t shown at
         all. Which hospital gets which available feature is set per hospital
-        under Subscriptions › Features.
+        under Features by hospital.
       </p>
 
       <section className="bg-surface-paper rounded-xl border border-border shadow-sm overflow-hidden mb-6">
@@ -234,6 +235,8 @@ export default function FeatureCatalogPage() {
           </div>
         ))}
       </section>
+
+      <HospitalFeaturesSection catalog={data} />
 
       <section className="bg-surface-paper rounded-xl border border-border shadow-sm overflow-hidden">
         <div className="px-5 py-4 border-b border-border">
