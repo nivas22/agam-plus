@@ -11,16 +11,17 @@ import {
   DEFAULT_WALKIN_FAIRNESS_MINUTES,
   earliestConsultationStart,
   laneStatus,
+  nextArrivalToken,
   nextInQueue,
   orderQueue,
   projectFinish,
   type QueueCandidate,
-  queueTokens,
   type QueueLane,
   type QueueOrderingRules,
+  queueTokens,
   sessionCapacity,
-  toISODate,
   todaysWindows,
+  toISODate,
 } from "./queueBoard";
 
 describe("toISODate", () => {
@@ -743,6 +744,33 @@ describe("queueTokens", () => {
     );
     expect(after.get("a")).toBe(before.get("a"));
     expect(after.get("b")).toBe("2");
+  });
+
+  it("skips cancelled / no-show / rescheduled bookings so B<n> has no gaps", () => {
+    const appts = [
+      makeAppt({ id: "b1", bookingSource: "scheduled", time: "10:00", status: "confirmed" }),
+      makeAppt({ id: "gone", bookingSource: "scheduled", time: "10:30", status: "cancelled" }),
+      makeAppt({ id: "ns", bookingSource: "scheduled", time: "10:45", status: "no-show" }),
+      makeAppt({ id: "b2", bookingSource: "scheduled", time: "11:00", status: "confirmed" }),
+    ];
+    const tokens = queueTokens(buildLanes([doctor], appts, t("09:00"))[0]);
+    expect(tokens.get("b1")).toBe("B1");
+    expect(tokens.get("b2")).toBe("B2");
+    expect(tokens.has("gone")).toBe(false);
+    expect(tokens.has("ns")).toBe(false);
+  });
+});
+
+describe("nextArrivalToken", () => {
+  it("is the token the board gives the next check-in", () => {
+    const doctor = makeDoctor();
+    const appts = [
+      makeAppt({ id: "a", checkedInAt: "2026-08-25T10:00:00" }),
+      makeAppt({ id: "b", status: "completed", checkedInAt: "2026-08-25T09:00:00" }),
+      makeAppt({ id: "c", bookingSource: "scheduled", time: "11:00", status: "confirmed" }),
+    ];
+    const lane = buildLanes([doctor], appts, t("10:30"))[0];
+    expect(nextArrivalToken(lane)).toBe("3");
   });
 });
 

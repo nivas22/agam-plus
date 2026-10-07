@@ -658,11 +658,13 @@ function AllDoctorsView({
 
 function OverdueRow({
   appt,
+  token,
   queue,
   showDoctor,
   canMove,
 }: {
   appt: AppointmentWithDetails;
+  token?: string;
   queue: TodaysQueue;
   showDoctor?: boolean;
   canMove?: boolean;
@@ -675,6 +677,9 @@ function OverdueRow({
         onClick={() => queue.setSelectedAppt(appt)}
         className="block w-full text-sm text-ink-700 text-left hover:text-ink-900"
       >
+        {token && (
+          <span className="font-mono text-ink-700 mr-2">{token}</span>
+        )}
         <span className="font-semibold text-ink-900">{appt.patientName}</span>
         {showDoctor && <> · Dr. {appt.doctorName}</>} · booked{" "}
         {formatTime12h(appt.time)} ·{" "}
@@ -893,7 +898,12 @@ function DoctorCard({
           </div>
           <div className="divide-y divide-status-danger/15">
             {lane.overdue.map((appt) => (
-              <OverdueRow key={appt.id} appt={appt} queue={queue} />
+              <OverdueRow
+                key={appt.id}
+                appt={appt}
+                token={tokens.get(appt.id)}
+                queue={queue}
+              />
             ))}
           </div>
         </div>
@@ -1257,7 +1267,13 @@ function DoctorView({ view, queue }: { view: LaneView; queue: TodaysQueue }) {
           {late.length > 0 && (
             <LaterGroup title={`Late · not arrived · ${late.length}`} danger>
               {late.map((appt) => (
-                <OverdueRow key={appt.id} appt={appt} queue={queue} canMove />
+                <OverdueRow
+                  key={appt.id}
+                  appt={appt}
+                  token={tokens.get(appt.id)}
+                  queue={queue}
+                  canMove
+                />
               ))}
             </LaterGroup>
           )}

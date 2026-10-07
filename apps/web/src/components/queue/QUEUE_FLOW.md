@@ -139,9 +139,9 @@ Tokens are shown on the new layout. They are not stored anywhere. `queueTokens` 
 | Online or desk booking, not arrived yet | `B1`, `B2` … | Their place among the doctor's booked slots today, by time |
 | Walk-in booked into a slot, not checked in yet | `W1`, `W2` … | Their place among the doctor's walk-ins today, by time |
 
-When a `B` or `W` patient checks in, they switch to the next plain number.
+When a `B` or `W` patient checks in, they switch to the next plain number. Cancelled, no-show and rescheduled bookings that never arrived get no token, so they leave no gaps.
 
-> **Known gap:** the Add walk-in dialog still shows "Token NN" using the patient's *position in the waiting line*. That is a different number from the board's token. If patients are told a token at the desk, the two should match, and the reliable fix is a token counter stored on the backend.
+The Add walk-in dialog shows the same number (`nextArrivalToken`) the board will give the walk-in once checked in. It is still derived, not stored: if two desks add walk-ins for the same doctor at the same moment, both see the same number until the board refreshes. A token counter stored on the backend would close that gap.
 
 ---
 
