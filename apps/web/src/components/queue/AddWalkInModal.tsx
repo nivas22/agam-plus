@@ -20,6 +20,7 @@ import {
   formatTime12h,
   getInitials,
   minutesToTimeStr,
+  nextArrivalToken,
   type PresenceOverride,
   projectFinish,
   type QueueLane,
@@ -259,6 +260,8 @@ export default function AddWalkInModal({
   const queuePosition = target
     ? target.lane.inConsultation.length + target.lane.waiting.length + 1
     : 1;
+  // Same number the board will show once this walk-in is checked in.
+  const token = target ? nextArrivalToken(target.lane) : "1";
 
   const overCapacityPolicy = target?.doctor.overCapacityPolicy || "warn";
   const showOverrun =
@@ -688,16 +691,13 @@ export default function AddWalkInModal({
           {target && selectedPatient && canSubmit && (
             <div className="flex items-center gap-3 bg-surface-canvas/60 border border-border rounded-lg p-3">
               <span className="w-11 h-11 rounded-lg bg-brand-violet text-white flex items-center justify-center font-mono text-base font-semibold shrink-0">
-                {String(fitMode === "direct" ? queuePosition : "—").padStart(
-                  fitMode === "direct" ? 2 : 1,
-                  "0",
-                )}
+                {fitMode === "direct" ? token : "—"}
               </span>
               <span className="text-xs text-ink-700 leading-relaxed">
                 {fitMode === "direct" ? (
                   <>
                     <b className="text-ink-900">
-                      Token {String(queuePosition).padStart(2, "0")}
+                      Token {token}
                     </b>{" "}
                     for {selectedPatient.name}. They&apos;ll be seen after the{" "}
                     {queuePosition - 1} people already ahead — checked in as

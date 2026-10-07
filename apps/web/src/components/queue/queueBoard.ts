@@ -932,10 +932,18 @@ export function orderWaitingAppointments(
 //     doctor's bookings of that kind today, by slot time: "B4" for an online
 //     / desk booking, "W2" for a walk-in slotted in but not yet checked in.
 // Unlike the waiting-list position, a token doesn't shift when someone
-// ahead is sent in.
+// ahead is sent in. Cancelled / no-show / rescheduled bookings that never
+// arrived don't take a B/W number, so they leave no gaps in the sequence.
+const NO_TOKEN_STATUSES: string[] = [
+  APPOINTMENT_STATUS.CANCELLED,
+  APPOINTMENT_STATUS.NO_SHOW,
+  APPOINTMENT_STATUS.RESCHEDULED,
+];
+
+const arrivedAt = (a: AppointmentWithDetails) => a.checkedInAt || a.waitingAt;
+
 export function queueTokens(lane: QueueLane): Map<string, string> {
   const tokens = new Map<string, string>();
-  const arrivedAt = (a: AppointmentWithDetails) => a.checkedInAt || a.waitingAt;
 
   lane.all
     .filter((a) => arrivedAt(a))
@@ -955,7 +963,12 @@ export function queueTokens(lane: QueueLane): Map<string, string> {
     ["W", true],
   ] as const) {
     lane.all
-      .filter((a) => (a.bookingSource === "walk-in") === walkIn)
+      .filter(
+        (a) =>
+          (a.bookingSource === "walk-in") === walkIn &&
+          (tokens.has(a.id) ||
+            !NO_TOKEN_STATUSES.includes(normalizeStatus(a.status))),
+      )
       .sort(byTime)
       .forEach((a, i) => {
         if (!tokens.has(a.id)) tokens.set(a.id, `${prefix}${i + 1}`);
@@ -963,6 +976,12 @@ export function queueTokens(lane: QueueLane): Map<string, string> {
   }
 
   return tokens;
+}
+
+// The token the next patient to check in with this doctor will get — what
+// the Add walk-in dialog tells the desk, so it matches the board.
+export function nextArrivalToken(lane: QueueLane): string {
+  return String(lane.all.filter((a) => arrivedAt(a)).length + 1);
 }
 
 // Measured average consultation length today (consultation start → session
