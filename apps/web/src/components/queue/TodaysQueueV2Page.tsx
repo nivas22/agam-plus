@@ -549,14 +549,16 @@ function AllDoctorsView({
               <div className="px-4 py-3 border-b border-status-danger/20 text-sm font-bold text-status-danger">
                 Needs a decision · {strayOverdue.length}
               </div>
-              {strayOverdue.map((appt) => (
-                <OverdueRow
-                  key={appt.id}
-                  appt={appt}
-                  queue={queue}
-                  showDoctor
-                />
-              ))}
+              <div className="divide-y divide-status-danger/15">
+                {strayOverdue.map((appt) => (
+                  <OverdueRow
+                    key={appt.id}
+                    appt={appt}
+                    queue={queue}
+                    showDoctor
+                  />
+                ))}
+              </div>
             </div>
           )}
           {leaveLanes.length > 0 && (
@@ -667,11 +669,11 @@ function OverdueRow({
 }) {
   const lateMins = minutesBetween(apptDateTime(appt), queue.now);
   return (
-    <div className="px-4 py-3 border-t border-status-danger/15 first:border-t-0 flex flex-wrap items-center gap-x-3 gap-y-2">
+    <div className="px-4 py-3 space-y-2">
       <button
         type="button"
         onClick={() => queue.setSelectedAppt(appt)}
-        className="text-sm text-ink-700 text-left min-w-0 flex-1 hover:text-ink-900"
+        className="block w-full text-sm text-ink-700 text-left hover:text-ink-900"
       >
         <span className="font-semibold text-ink-900">{appt.patientName}</span>
         {showDoctor && <> · Dr. {appt.doctorName}</>} · booked{" "}
@@ -889,9 +891,11 @@ function DoctorCard({
           <div className="px-4 pt-2.5 pb-1 text-[11px] font-bold uppercase tracking-wider text-status-danger">
             Late · not arrived · {lane.overdue.length}
           </div>
-          {lane.overdue.map((appt) => (
-            <OverdueRow key={appt.id} appt={appt} queue={queue} />
-          ))}
+          <div className="divide-y divide-status-danger/15">
+            {lane.overdue.map((appt) => (
+              <OverdueRow key={appt.id} appt={appt} queue={queue} />
+            ))}
+          </div>
         </div>
       )}
 
@@ -1027,7 +1031,8 @@ function DoctorView({ view, queue }: { view: LaneView; queue: TodaysQueue }) {
       }
     });
 
-  // Later column — everything not already in Now / Next up / Needs a decision.
+  // Later column — everything not already in Now / Next up. Overdue bookings
+  // get their own "Late · not arrived" group at the top.
   const overdueIds = new Set(lane.overdue.map((a) => a.id));
   const q = search.trim().toLowerCase();
   const matches = (a: AppointmentWithDetails) =>
@@ -1035,6 +1040,7 @@ function DoctorView({ view, queue }: { view: LaneView; queue: TodaysQueue }) {
     a.patientName.toLowerCase().includes(q) ||
     (tokens.get(a.id) ?? "").toLowerCase() === q ||
     (a.patientPhone ?? "").replace(/\s/g, "").includes(q.replace(/\s/g, ""));
+  const late = lane.overdue.filter(matches);
   const stillWaiting = lane.waiting.slice(NEXT_UP_COUNT).filter(matches);
   const upcoming = lane.yetToArrive.filter((a) => !overdueIds.has(a.id));
   const dueSoon = upcoming
@@ -1044,7 +1050,9 @@ function DoctorView({ view, queue }: { view: LaneView; queue: TodaysQueue }) {
     .filter((a) => minutesBetween(now, apptDateTime(a)) > DUE_SOON_MINUTES)
     .filter(matches);
   const laterCount =
-    lane.waiting.slice(NEXT_UP_COUNT).length + upcoming.length;
+    lane.overdue.length +
+    lane.waiting.slice(NEXT_UP_COUNT).length +
+    upcoming.length;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
@@ -1146,17 +1154,6 @@ function DoctorView({ view, queue }: { view: LaneView; queue: TodaysQueue }) {
         </div>
 
         <SessionCard view={view} queue={queue} />
-
-        {lane.overdue.length > 0 && (
-          <div className="bg-status-danger-soft/50 border border-status-danger/30 rounded-xl overflow-hidden">
-            <div className="px-4 py-3 text-sm font-bold text-status-danger">
-              Needs a decision · {lane.overdue.length}
-            </div>
-            {lane.overdue.map((appt) => (
-              <OverdueRow key={appt.id} appt={appt} queue={queue} canMove />
-            ))}
-          </div>
-        )}
       </div>
 
       {/* Next up */}
@@ -1257,6 +1254,13 @@ function DoctorView({ view, queue }: { view: LaneView; queue: TodaysQueue }) {
             </label>
           </div>
 
+          {late.length > 0 && (
+            <LaterGroup title={`Late · not arrived · ${late.length}`} danger>
+              {late.map((appt) => (
+                <OverdueRow key={appt.id} appt={appt} queue={queue} canMove />
+              ))}
+            </LaterGroup>
+          )}
           {stillWaiting.length > 0 && (
             <LaterGroup title={`Still waiting · ${stillWaiting.length}`}>
               {stillWaiting.map((appt) => {
@@ -1313,7 +1317,11 @@ function DoctorView({ view, queue }: { view: LaneView; queue: TodaysQueue }) {
               ))}
             </LaterGroup>
           )}
-          {stillWaiting.length + dueSoon.length + laterToday.length === 0 && (
+          {late.length +
+            stillWaiting.length +
+            dueSoon.length +
+            laterToday.length ===
+            0 && (
             <div className="px-4 py-6 text-center text-xs text-ink-500">
               {q ? "No one matches that search." : "Nothing else queued today."}
             </div>
@@ -1377,17 +1385,31 @@ function DoctorView({ view, queue }: { view: LaneView; queue: TodaysQueue }) {
 
 function LaterGroup({
   title,
+  danger,
   children,
 }: {
   title: string;
+  danger?: boolean;
   children: ReactNode;
 }) {
   return (
     <>
-      <div className="px-4 py-2 bg-surface-canvas/60 border-b border-border text-[11px] font-bold uppercase tracking-wider text-ink-500">
+      <div
+        className={`px-4 py-2 border-b text-[11px] font-bold uppercase tracking-wider ${
+          danger
+            ? "bg-status-danger-soft/60 border-status-danger/20 text-status-danger"
+            : "bg-surface-canvas/60 border-border text-ink-500"
+        }`}
+      >
         {title}
       </div>
-      <div className="divide-y divide-border border-b border-border">
+      <div
+        className={`divide-y border-b ${
+          danger
+            ? "divide-status-danger/15 border-status-danger/20 bg-status-danger-soft/30"
+            : "divide-border border-border"
+        }`}
+      >
         {children}
       </div>
     </>
