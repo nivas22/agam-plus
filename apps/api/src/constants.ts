@@ -732,7 +732,8 @@ export const SUBSCRIPTION_FEATURE_VALUES = Object.values(SUBSCRIPTION_FEATURE);
 // Modules a hospital admin can switch on/off for their own hospital under
 // Settings > Features — see Hospital.modules, RequiresModule() and
 // resolveHospitalModules(). Missing keys mean enabled, so no existing
-// hospital loses anything until an admin turns it off. Keep in sync with
+// hospital loses anything until an admin turns it off — except the opt-in
+// ones in HOSPITAL_MODULE_DEFAULT_OFF. Keep in sync with
 // apps/web/src/lib/hospitalModules.ts.
 export enum HOSPITAL_MODULE {
   APPOINTMENTS = "appointments",
@@ -753,6 +754,7 @@ export enum HOSPITAL_MODULE {
   PATIENT_FIELDS = "patientFields",
   AI_NOTES = "aiNotes",
   INVENTORY = "inventory",
+  QUEUE_V2 = "queueV2",
 }
 
 export const HOSPITAL_MODULE_VALUES = Object.values(HOSPITAL_MODULE);
@@ -777,7 +779,18 @@ export const HOSPITAL_MODULE_LABELS: Record<HOSPITAL_MODULE, string> = {
   [HOSPITAL_MODULE.PATIENT_FIELDS]: "Custom patient fields",
   [HOSPITAL_MODULE.AI_NOTES]: "AI session notes",
   [HOSPITAL_MODULE.INVENTORY]: "Inventory",
+  [HOSPITAL_MODULE.QUEUE_V2]: "New queue layout",
 };
+
+// Opt-in modules: unlike the rest, a missing key means off — these are
+// alternatives to something a hospital already uses (e.g. the redesigned
+// queue screen), so nobody gets switched over without asking for it.
+export const HOSPITAL_MODULE_DEFAULT_OFF: ReadonlySet<HOSPITAL_MODULE> = new Set([HOSPITAL_MODULE.QUEUE_V2]);
+
+// The hospital admin's own switch for a module, given the saved switches.
+export function isHospitalModuleSwitchedOn(switches: Record<string, unknown>, key: HOSPITAL_MODULE): boolean {
+  return HOSPITAL_MODULE_DEFAULT_OFF.has(key) ? switches[key] === true : switches[key] !== false;
+}
 
 // A module is only usable while every module it builds on is too — e.g. the
 // queue is a view over appointments, and the prescription writer can only
@@ -790,6 +803,7 @@ export const HOSPITAL_MODULE_DEPENDENCIES: Partial<Record<HOSPITAL_MODULE, HOSPI
   [HOSPITAL_MODULE.MEDICINE_PACKS]: [HOSPITAL_MODULE.MEDICINES],
   [HOSPITAL_MODULE.CHARGE_CATALOG]: [HOSPITAL_MODULE.PAYMENTS],
   [HOSPITAL_MODULE.AI_NOTES]: [HOSPITAL_MODULE.APPOINTMENTS],
+  [HOSPITAL_MODULE.QUEUE_V2]: [HOSPITAL_MODULE.QUEUE],
 };
 
 // Everything the hospital stocks, sold to patients or not — medicines,

@@ -917,3 +917,58 @@ export function orderWaitingAppointments(
     entries: [...ranked, ...orphanEntries],
   };
 }
+
+/* ---------------------------------------------------------------------- */
+/*                     v2 board — tokens and pace                         */
+/* ---------------------------------------------------------------------- */
+
+// Short labels the redesigned board shows in place of patient codes. Not
+// stored anywhere — derived from today's data on every render, so they stay
+// stable as the day goes on without a counter on the server:
+//   - anyone who has arrived (walk-in or booked) gets their arrival order
+//     for this doctor today, "1", "2", … — a later check-in never renumbers
+//     an earlier one;
+//   - a booked patient who hasn't arrived yet gets "B" + their place in the
+//     doctor's day of booked slots, e.g. "B4".
+// Unlike the waiting-list position, a token doesn't shift when someone
+// ahead is sent in.
+export function queueTokens(lane: QueueLane): Map<string, string> {
+  const tokens = new Map<string, string>();
+  const arrivedAt = (a: AppointmentWithDetails) => a.checkedInAt || a.waitingAt;
+
+  lane.all
+    .filter((a) => arrivedAt(a))
+    .sort(
+      (a, b) =>
+        new Date(arrivedAt(a) as string).getTime() -
+          new Date(arrivedAt(b) as string).getTime() || a.id.localeCompare(b.id),
+    )
+    .forEach((a, i) => {
+      tokens.set(a.id, String(i + 1));
+    });
+
+  lane.all
+    .filter((a) => a.bookingSource !== "walk-in")
+    .sort((a, b) => a.time.localeCompare(b.time) || a.id.localeCompare(b.id))
+    .forEach((a, i) => {
+      if (!tokens.has(a.id)) tokens.set(a.id, `B${i + 1}`);
+    });
+
+  return tokens;
+}
+
+// Measured average consultation length today (consultation start → session
+// finished), or null until at least one visit has both timestamps.
+export function averageConsultMinutes(lane: QueueLane): number | null {
+  const durations = [...lane.awaitingPayment, ...lane.done]
+    .filter((a) => a.consultationStartedAt && a.completedAt)
+    .map((a) =>
+      minutesBetween(
+        new Date(a.consultationStartedAt as string),
+        new Date(a.completedAt as string),
+      ),
+    )
+    .filter((m) => m > 0);
+  if (!durations.length) return null;
+  return Math.round(durations.reduce((s, m) => s + m, 0) / durations.length);
+}

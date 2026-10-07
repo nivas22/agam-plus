@@ -154,6 +154,14 @@ export default function AdminHospitalLayout({
       icon: <ListChecks size={18} />,
       category: "care",
     },
+    {
+      to: "/queue-new",
+      label: "Today's queue (new)",
+      module: "queueV2" as const,
+      icon: <ListChecks size={18} />,
+      isNew: true,
+      category: "care",
+    },
     // An admin who also practises gets their own single-doctor queue too.
     ...(practisesAsDoctor
       ? [
