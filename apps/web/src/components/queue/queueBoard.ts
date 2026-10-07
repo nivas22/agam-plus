@@ -928,8 +928,9 @@ export function orderWaitingAppointments(
 //   - anyone who has arrived (walk-in or booked) gets their arrival order
 //     for this doctor today, "1", "2", … — a later check-in never renumbers
 //     an earlier one;
-//   - a booked patient who hasn't arrived yet gets "B" + their place in the
-//     doctor's day of booked slots, e.g. "B4".
+//   - someone who hasn't arrived yet gets a prefix + their place among the
+//     doctor's bookings of that kind today, by slot time: "B4" for an online
+//     / desk booking, "W2" for a walk-in slotted in but not yet checked in.
 // Unlike the waiting-list position, a token doesn't shift when someone
 // ahead is sent in.
 export function queueTokens(lane: QueueLane): Map<string, string> {
@@ -947,12 +948,19 @@ export function queueTokens(lane: QueueLane): Map<string, string> {
       tokens.set(a.id, String(i + 1));
     });
 
-  lane.all
-    .filter((a) => a.bookingSource !== "walk-in")
-    .sort((a, b) => a.time.localeCompare(b.time) || a.id.localeCompare(b.id))
-    .forEach((a, i) => {
-      if (!tokens.has(a.id)) tokens.set(a.id, `B${i + 1}`);
-    });
+  const byTime = (a: AppointmentWithDetails, b: AppointmentWithDetails) =>
+    a.time.localeCompare(b.time) || a.id.localeCompare(b.id);
+  for (const [prefix, walkIn] of [
+    ["B", false],
+    ["W", true],
+  ] as const) {
+    lane.all
+      .filter((a) => (a.bookingSource === "walk-in") === walkIn)
+      .sort(byTime)
+      .forEach((a, i) => {
+        if (!tokens.has(a.id)) tokens.set(a.id, `${prefix}${i + 1}`);
+      });
+  }
 
   return tokens;
 }

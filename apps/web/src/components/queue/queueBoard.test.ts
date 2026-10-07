@@ -721,6 +721,16 @@ describe("queueTokens", () => {
     expect(tokens.get("later")).toBe("B3");
   });
 
+  it("labels a walk-in that hasn't been checked in yet W<n>", () => {
+    const appts = [
+      makeAppt({ id: "w-in", bookingSource: "walk-in", time: "10:00", checkedInAt: "2026-08-25T10:00:00" }),
+      makeAppt({ id: "w-out", bookingSource: "walk-in", time: "10:30", status: "confirmed" }),
+    ];
+    const tokens = queueTokens(buildLanes([doctor], appts, t("10:15"))[0]);
+    expect(tokens.get("w-in")).toBe("1");
+    expect(tokens.get("w-out")).toBe("W2");
+  });
+
   it("doesn't renumber earlier arrivals when someone new checks in", () => {
     const first = makeAppt({ id: "a", checkedInAt: "2026-08-25T10:00:00" });
     const before = queueTokens(buildLanes([doctor], [first], t("10:30"))[0]);

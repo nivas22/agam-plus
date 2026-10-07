@@ -499,7 +499,16 @@ function AllDoctorsView({
   onOpenDoctor: (doctorId: string) => void;
 }) {
   const { overdueAll, leaveLanes } = queue;
-  const hasAlerts = overdueAll.length > 0 || leaveLanes.length > 0;
+  // Late patients sit inside their doctor's card. Only those no visible card
+  // shows (doctor without a lane, or a collapsed session-over card) fall back
+  // to the banner, so an overdue patient is never hidden.
+  const inCards = new Set(
+    [...activeViews, ...(showSessionOver ? sessionOverViews : [])].flatMap(
+      (v) => v.lane.overdue.map((a) => a.id),
+    ),
+  );
+  const strayOverdue = overdueAll.filter((a) => !inCards.has(a.id));
+  const hasAlerts = strayOverdue.length > 0 || leaveLanes.length > 0;
 
   if (activeViews.length === 0 && sessionOverViews.length === 0) {
     return (
@@ -535,12 +544,12 @@ function AllDoctorsView({
     <>
       {hasAlerts && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-5 items-start">
-          {overdueAll.length > 0 && (
+          {strayOverdue.length > 0 && (
             <div className="bg-status-danger-soft/50 border border-status-danger/30 rounded-xl overflow-hidden">
               <div className="px-4 py-3 border-b border-status-danger/20 text-sm font-bold text-status-danger">
-                Needs a decision · {overdueAll.length}
+                Needs a decision · {strayOverdue.length}
               </div>
-              {overdueAll.map((appt) => (
+              {strayOverdue.map((appt) => (
                 <OverdueRow
                   key={appt.id}
                   appt={appt}
@@ -871,6 +880,17 @@ function DoctorCard({
                 )
               }
             />
+          ))}
+        </div>
+      )}
+
+      {lane.overdue.length > 0 && (
+        <div className="border-t border-status-danger/20 bg-status-danger-soft/40">
+          <div className="px-4 pt-2.5 pb-1 text-[11px] font-bold uppercase tracking-wider text-status-danger">
+            Late · not arrived · {lane.overdue.length}
+          </div>
+          {lane.overdue.map((appt) => (
+            <OverdueRow key={appt.id} appt={appt} queue={queue} />
           ))}
         </div>
       )}
