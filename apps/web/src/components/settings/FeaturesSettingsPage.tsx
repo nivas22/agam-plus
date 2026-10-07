@@ -10,6 +10,7 @@ import {
   useUpdateHospitalModules,
 } from "@/hooks/useHospitalModulesApi";
 import {
+  defaultSwitchedOn,
   describeDisabledModule,
   HOSPITAL_MODULE_BY_KEY,
   HOSPITAL_MODULE_GROUPS,
@@ -131,12 +132,15 @@ export default function FeaturesSettingsPage({
                     const state = resolved[info.key];
                     const planLocked = isPlatformLocked(state.disabledReason);
                     const comingSoon = state.disabledReason === "coming_soon";
-                    const switchedOn = switches[info.key] ?? true;
+                    const switchedOn =
+                      switches[info.key] ?? defaultSwitchedOn(info.key);
                     const turningOff =
-                      !switchedOn && serverSwitches[info.key] !== false;
+                      !switchedOn &&
+                      (serverSwitches[info.key] ??
+                        defaultSwitchedOn(info.key));
                     const cascade = turningOff
                       ? cascadeFor(info.key).filter(
-                          (k) => switches[k] !== false,
+                          (k) => switches[k] ?? defaultSwitchedOn(k),
                         )
                       : [];
 

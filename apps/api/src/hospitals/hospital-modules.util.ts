@@ -3,6 +3,7 @@ import {
   HOSPITAL_MODULE,
   HOSPITAL_MODULE_DEPENDENCIES,
   HOSPITAL_MODULE_VALUES,
+  isHospitalModuleSwitchedOn,
 } from '../constants';
 
 // Why a module isn't usable, in precedence order: it hasn't shipped yet
@@ -35,7 +36,7 @@ export function resolveHospitalModules(
   const resolve = (key: HOSPITAL_MODULE): ResolvedHospitalModule => {
     if (resolved[key]) return resolved[key];
 
-    const switchedOn = switches[key] !== false;
+    const switchedOn = isHospitalModuleSwitchedOn(switches, key);
     const release = releaseStatus?.[key];
     let result: ResolvedHospitalModule;
 

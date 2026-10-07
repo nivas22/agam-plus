@@ -5,10 +5,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
 import { useCallback } from "react";
 import { ApiRequestError, apiUrl, fetchWithAuth } from "@/lib/api";
-import type {
-  HospitalModuleKey,
-  ResolvedHospitalModule,
-  UpcomingFeature,
+import {
+  defaultSwitchedOn,
+  type HospitalModuleKey,
+  type ResolvedHospitalModule,
+  type UpcomingFeature,
 } from "@/lib/hospitalModules";
 
 async function parseJsonOrThrow(response: Response) {
@@ -91,13 +92,15 @@ export const useUpdateHospitalModules = (hospitalId?: string) => {
 // For hiding UI. Optimistic: anything counts as on until the list has
 // loaded (or if it failed to load) — the API enforces the real state, and
 // nearly every hospital has nearly everything on, so this avoids menus and
-// buttons popping in on every page load.
+// buttons popping in on every page load. Opt-in modules (defaultSwitchedOn)
+// count as off until loaded instead.
 export const useModuleEnabled = (hospitalId?: string) => {
   const { data, isLoading } = useHospitalModules(hospitalId);
 
   const isEnabled = useCallback(
     (key: HospitalModuleKey) =>
-      data?.modules.find((m) => m.key === key)?.enabled ?? true,
+      data?.modules.find((m) => m.key === key)?.enabled ??
+      defaultSwitchedOn(key),
     [data],
   );
 

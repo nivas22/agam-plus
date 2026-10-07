@@ -4,6 +4,7 @@ import type { AppointmentWithDetails } from "@/types/appointment";
 import type { Doctor } from "@/types/doctorNew";
 import {
   appointmentToQueueCandidate,
+  averageConsultMinutes,
   buildLanes,
   capacityMessage,
   computePresence,
@@ -14,6 +15,7 @@ import {
   orderQueue,
   projectFinish,
   type QueueCandidate,
+  queueTokens,
   type QueueLane,
   type QueueOrderingRules,
   sessionCapacity,
@@ -698,5 +700,50 @@ describe("orderQueue reason — not-yet-ready booked patient", () => {
     expect(next?.reason).toBe(
       "booked 11:00 AM · checked in 10:00 AM — 54 min early",
     );
+  });
+});
+
+describe("queueTokens", () => {
+  const doctor = makeDoctor();
+
+  it("numbers arrivals in check-in order and labels not-yet-arrived bookings B<n>", () => {
+    const appts = [
+      makeAppt({ id: "walk", bookingSource: "walk-in", time: "10:20", checkedInAt: "2026-08-25T10:20:00" }),
+      makeAppt({ id: "early", bookingSource: "scheduled", time: "10:30", checkedInAt: "2026-08-25T10:05:00" }),
+      makeAppt({ id: "done", bookingSource: "scheduled", time: "09:00", status: "completed", checkedInAt: "2026-08-25T08:55:00" }),
+      makeAppt({ id: "later", bookingSource: "scheduled", time: "11:00", status: "confirmed" }),
+    ];
+    const tokens = queueTokens(buildLanes([doctor], appts, t("10:30"))[0]);
+    expect(tokens.get("done")).toBe("1");
+    expect(tokens.get("early")).toBe("2");
+    expect(tokens.get("walk")).toBe("3");
+    // Third booked slot of the day (09:00, 10:30, 11:00).
+    expect(tokens.get("later")).toBe("B3");
+  });
+
+  it("doesn't renumber earlier arrivals when someone new checks in", () => {
+    const first = makeAppt({ id: "a", checkedInAt: "2026-08-25T10:00:00" });
+    const before = queueTokens(buildLanes([doctor], [first], t("10:30"))[0]);
+    const after = queueTokens(
+      buildLanes(
+        [doctor],
+        [first, makeAppt({ id: "b", checkedInAt: "2026-08-25T10:10:00" })],
+        t("10:30"),
+      )[0],
+    );
+    expect(after.get("a")).toBe(before.get("a"));
+    expect(after.get("b")).toBe("2");
+  });
+});
+
+describe("averageConsultMinutes", () => {
+  it("averages finished visits and is null before any", () => {
+    const doctor = makeDoctor();
+    expect(averageConsultMinutes(buildLanes([doctor], [], t("10:00"))[0])).toBeNull();
+    const appts = [
+      makeAppt({ id: "x", status: "completed", consultationStartedAt: "2026-08-25T09:00:00", completedAt: "2026-08-25T09:10:00" }),
+      makeAppt({ id: "y", status: "awaiting-payment", consultationStartedAt: "2026-08-25T09:15:00", completedAt: "2026-08-25T09:29:00" }),
+    ];
+    expect(averageConsultMinutes(buildLanes([doctor], appts, t("10:00"))[0])).toBe(12);
   });
 });
