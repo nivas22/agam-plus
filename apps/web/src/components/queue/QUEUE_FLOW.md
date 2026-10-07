@@ -189,7 +189,7 @@ Suppose the desk had marked two patients urgent, and booked patients with earlie
 | **Check in** | Next up (not arrived), Later | Marks a booked patient as arrived; they join the waiting list |
 | **Call next** | Now card | Finishes the current visit (payment left for the desk) and sends in the top waiting patient |
 | **Done → payment** | Now card | Finishes the current visit and opens Collect payment. Reads **Finish session** when Payments is off |
-| **Call / Mark no-show / Move to another doctor** | "Late · not arrived" in the doctor's card (All doctors), Needs a decision (doctor view) | Deals with a patient 20+ min late |
+| **Call / Mark no-show / Move to another doctor** | "Late · not arrived": in the doctor's card (All doctors), at the top of Later (doctor view). Move to another doctor is in the doctor view only | Deals with a patient 20+ min late |
 | **Collect payment** | Later → Show (awaiting payment) | Opens the payment dialog |
 
 ## Where the code lives
