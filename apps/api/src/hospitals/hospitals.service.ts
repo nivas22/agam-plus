@@ -16,6 +16,7 @@ import {
   HOSPITAL_MODULE,
   HOSPITAL_MODULE_LABELS,
   HOSPITAL_MODULE_VALUES,
+  isHospitalModuleSwitchedOn,
   ROLE,
   VISIT_FINISHED_STATUSES,
 } from '../constants';
@@ -149,7 +150,7 @@ export class HospitalsService {
     const hospital = await this.getHospitalById(hospitalId);
     const current: Record<string, boolean> = { ...((hospital as any).modules || {}) };
     const changed = HOSPITAL_MODULE_VALUES.filter(
-      (key) => changes[key] !== undefined && (current[key] !== false) !== changes[key],
+      (key) => changes[key] !== undefined && isHospitalModuleSwitchedOn(current, key) !== changes[key],
     );
 
     if (changed.length === 0) {

@@ -432,6 +432,7 @@ export const updateHospitalModulesSchema = z.object({
       patientFields: z.boolean(),
       aiNotes: z.boolean(),
       inventory: z.boolean(),
+      queueV2: z.boolean(),
     })
     .partial()
     .strict(),

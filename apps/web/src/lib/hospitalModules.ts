@@ -21,7 +21,8 @@ export type HospitalModuleKey =
   | "medicinePacks"
   | "patientFields"
   | "aiNotes"
-  | "inventory";
+  | "inventory"
+  | "queueV2";
 
 export type HospitalModuleDisabledReason =
   | "hidden"
@@ -106,6 +107,15 @@ export const HOSPITAL_MODULES: HospitalModuleInfo[] = [
     offNote: "Appointments still work; there's just no live queue view.",
     group: "care",
     requires: ["appointments"],
+  },
+  {
+    key: "queueV2",
+    label: "New queue layout",
+    description:
+      "Adds \"Today's queue (new)\" to the menu — a redesigned queue with every doctor's room at a glance, plus a focused view per doctor with who's in, who's next and who's due.",
+    offNote: "Only the classic Today's queue is in the menu.",
+    group: "care",
+    requires: ["queue"],
   },
   {
     key: "packages",
@@ -243,6 +253,17 @@ export const HOSPITAL_MODULES: HospitalModuleInfo[] = [
   },
 ];
 
+// Opt-in modules — a missing switch means off rather than on. Mirrors
+// HOSPITAL_MODULE_DEFAULT_OFF in apps/api/src/constants.ts.
+const DEFAULT_OFF_MODULES: ReadonlySet<HospitalModuleKey> = new Set([
+  "queueV2",
+]);
+
+// A module's switch when the hospital has never saved one.
+export function defaultSwitchedOn(key: HospitalModuleKey): boolean {
+  return !DEFAULT_OFF_MODULES.has(key);
+}
+
 export const HOSPITAL_MODULE_BY_KEY = Object.fromEntries(
   HOSPITAL_MODULES.map((m) => [m.key, m]),
 ) as Record<HospitalModuleKey, HospitalModuleInfo>;
@@ -255,6 +276,7 @@ const ROUTE_MODULES: { pattern: RegExp; module: HospitalModuleKey }[] = [
     module: "prescriptions",
   },
   { pattern: /^\/appointments(\/|$)/, module: "appointments" },
+  { pattern: /^\/queue-new(\/|$)/, module: "queueV2" },
   { pattern: /^\/queue(\/|$)/, module: "queue" },
   { pattern: /^\/today(\/|$)/, module: "queue" },
   { pattern: /^\/payments(\/|$)/, module: "payments" },
@@ -296,7 +318,8 @@ export function resolveDraftModules(
 
   const resolve = (key: HospitalModuleKey): ResolvedHospitalModule => {
     if (resolved[key]) return resolved[key];
-    const switchedOn = switches[key] ?? byKey.get(key)?.switchedOn ?? true;
+    const switchedOn =
+      switches[key] ?? byKey.get(key)?.switchedOn ?? defaultSwitchedOn(key);
     let result: ResolvedHospitalModule;
 
     const serverReason = byKey.get(key)?.disabledReason;

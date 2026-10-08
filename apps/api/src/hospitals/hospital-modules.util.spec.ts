@@ -1,10 +1,26 @@
-import { HOSPITAL_MODULE, HOSPITAL_MODULE_VALUES } from '../constants';
+import { HOSPITAL_MODULE, HOSPITAL_MODULE_DEFAULT_OFF, HOSPITAL_MODULE_VALUES } from '../constants';
 import { isHospitalModuleEnabled, resolveHospitalModules } from './hospital-modules.util';
 
 describe('resolveHospitalModules', () => {
-  it('enables every module when nothing is saved', () => {
+  it('enables every module except the opt-in ones when nothing is saved', () => {
     const resolved = resolveHospitalModules(undefined, undefined);
-    expect(HOSPITAL_MODULE_VALUES.every((key) => resolved[key].enabled && resolved[key].switchedOn)).toBe(true);
+    const regular = HOSPITAL_MODULE_VALUES.filter((key) => !HOSPITAL_MODULE_DEFAULT_OFF.has(key));
+    expect(regular.every((key) => resolved[key].enabled && resolved[key].switchedOn)).toBe(true);
+    expect(resolved[HOSPITAL_MODULE.QUEUE_V2]).toEqual({
+      key: HOSPITAL_MODULE.QUEUE_V2,
+      switchedOn: false,
+      enabled: false,
+      disabledReason: 'switched_off',
+    });
+  });
+
+  it('turns an opt-in module on only with an explicit true, and still needs its dependency', () => {
+    expect(resolveHospitalModules({ queueV2: true }, undefined)[HOSPITAL_MODULE.QUEUE_V2].enabled).toBe(true);
+    expect(resolveHospitalModules({ queueV2: true, queue: false }, undefined)[HOSPITAL_MODULE.QUEUE_V2]).toMatchObject({
+      switchedOn: true,
+      enabled: false,
+      blockedBy: HOSPITAL_MODULE.QUEUE,
+    });
   });
 
   it('treats only an explicit false as switched off', () => {

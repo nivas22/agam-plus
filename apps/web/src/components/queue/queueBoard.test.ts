@@ -4,21 +4,26 @@ import type { AppointmentWithDetails } from "@/types/appointment";
 import type { Doctor } from "@/types/doctorNew";
 import {
   appointmentToQueueCandidate,
+  averageConsultMinutes,
   buildLanes,
   capacityMessage,
   computePresence,
   DEFAULT_WALKIN_FAIRNESS_MINUTES,
   earliestConsultationStart,
   laneStatus,
+  nextArrivalToken,
   nextInQueue,
   orderQueue,
   projectFinish,
   type QueueCandidate,
   type QueueLane,
   type QueueOrderingRules,
+  queueTokens,
   sessionCapacity,
-  toISODate,
   todaysWindows,
+  toISODate,
+  walkInAhead,
+  walkInsAheadCount,
 } from "./queueBoard";
 
 describe("toISODate", () => {
@@ -68,13 +73,34 @@ function ids(entries: { id: string }[]): string[] {
 }
 
 describe("orderQueue", () => {
-  it("a walk-in who arrived well before a booked patient's slot goes first", () => {
+  it("a booked patient inside their 10-min window goes ahead of a walk-in who arrived earlier", () => {
     const result = orderQueue(
       [booked("booked", "10:30", "10:25"), walkin("walkin", "09:50")],
       RULES,
       t("10:26"),
     );
-    expect(ids(result)).toEqual(["walkin", "booked"]);
+    expect(ids(result)).toEqual(["booked", "walkin"]);
+  });
+
+  it("Patient 2 (booked 9:30) goes ahead of both walk-ins once 9:20 arrives", () => {
+    const queue = [
+      walkin("p1", "09:16"),
+      booked("p2", "09:30", "09:18"),
+      walkin("p3", "09:19"),
+    ];
+    // 9:19 — Patient 2 checked in 12 min early, priority not started yet.
+    expect(ids(orderQueue(queue, RULES, t("09:19")))).toEqual(["p1", "p3", "p2"]);
+    // 9:20 — inside the window, ahead of every ordinary walk-in.
+    expect(ids(orderQueue(queue, RULES, t("09:20")))).toEqual(["p2", "p1", "p3"]);
+  });
+
+  it("booked patients inside their window keep slot order", () => {
+    const result = orderQueue(
+      [booked("ten-fifteen", "10:15", "09:52"), booked("ten", "10:00", "09:58")],
+      RULES,
+      t("10:07"),
+    );
+    expect(ids(result)).toEqual(["ten", "ten-fifteen"]);
   });
 
   it("a booked patient ready at their slot time goes before a walk-in who checked in after it", () => {
@@ -95,14 +121,14 @@ describe("orderQueue", () => {
     expect(ids(result)).toEqual(["walkin", "booked"]);
   });
 
-  it("arriving early gains a booked patient nothing — readyAt stays their scheduled start", () => {
+  it("arriving more than 10 min early doesn't start priority sooner — readyAt is slot − 10 min", () => {
     const result = orderQueue(
       [booked("booked", "10:30", "09:40")],
       RULES,
       t("09:41"),
     );
     expect(result).toHaveLength(1);
-    expect(result[0].readyAt).toEqual(t("10:30"));
+    expect(result[0].readyAt).toEqual(t("10:20"));
   });
 
   it("two booked patients on time sort by scheduled start", () => {
@@ -203,15 +229,13 @@ describe("orderQueue", () => {
     expect(ids(result)).toEqual(["a-earlier-id", "b-later-id"]);
   });
 
-  it("a readyAt tie between a booked patient and a walk-in breaks on checkedInAt, not id", () => {
-    // id order alone would put "aaa-walkin" first; checkedInAt must decide
-    // first, regardless of booking source.
+  it("a late booked patient queues by arrival time alongside walk-ins", () => {
     const result = orderQueue(
-      [booked("zzz-booked", "10:00", "09:50"), walkin("aaa-walkin", "10:00")],
+      [booked("late", "09:30", "09:50"), walkin("before", "09:45"), walkin("after", "09:55")],
       RULES,
-      t("10:01"),
+      t("09:56"),
     );
-    expect(ids(result)).toEqual(["zzz-booked", "aaa-walkin"]);
+    expect(ids(result)).toEqual(["before", "late", "after"]);
   });
 
   it("a booked patient with a future readyAt loses to a walk-in already waiting", () => {
@@ -237,15 +261,15 @@ describe("orderQueue", () => {
     );
   });
 
-  it("an online booking's reason shows both the booked slot and the check-in time", () => {
-    // Scheduled for 10:20, arrived (checked in) at 10:25 — already ready by
-    // 10:26, so no "early" suffix should appear.
+  it("a late booking's reason names how late they were", () => {
     const result = orderQueue(
       [booked("booked", "10:20", "10:25")],
       RULES,
       t("10:26"),
     );
-    expect(result[0].reason).toBe("booked 10:20 AM · checked in 10:25 AM");
+    expect(result[0].reason).toBe(
+      "booked 10:20 AM · checked in 10:25 AM — 5 min late",
+    );
   });
 });
 
@@ -272,7 +296,7 @@ describe("nextInQueue", () => {
       t("10:06"),
     );
     expect(next?.id).toBe("booked");
-    expect(next?.readyAt).toEqual(t("11:00"));
+    expect(next?.readyAt).toEqual(t("10:50"));
   });
 
   it("picks the earliest override when every candidate is urgent", () => {
@@ -389,7 +413,7 @@ describe("buildLanes waiting order", () => {
       .filter((c): c is QueueCandidate => c !== null);
     const expectedOrder = orderQueue(candidates, rules, now).map((e) => e.id);
 
-    expect(expectedOrder).toEqual(["walkin", "booked"]);
+    expect(expectedOrder).toEqual(["booked", "walkin"]);
     expect(lanes[0].waiting.map((a) => a.id)).toEqual(expectedOrder);
     expect(lanes[0].waitingOrder.map((e) => e.id)).toEqual(expectedOrder);
   });
@@ -689,14 +713,128 @@ describe("overdue boundary", () => {
 });
 
 describe("orderQueue reason — not-yet-ready booked patient", () => {
-  it("names the earliness when alone in the queue", () => {
+  it("names when their priority starts when alone in the queue", () => {
     const next = nextInQueue(
       [booked("booked", "11:00", "10:00")],
       RULES,
       t("10:06"),
     );
     expect(next?.reason).toBe(
-      "booked 11:00 AM · checked in 10:00 AM — 54 min early",
+      "booked 11:00 AM · checked in 10:00 AM — priority from 10:50 AM",
     );
+  });
+});
+
+describe("queueTokens", () => {
+  const doctor = makeDoctor();
+
+  it("numbers arrivals in check-in order and labels not-yet-arrived bookings B<n>", () => {
+    const appts = [
+      makeAppt({ id: "walk", bookingSource: "walk-in", time: "10:20", checkedInAt: "2026-08-25T10:20:00" }),
+      makeAppt({ id: "early", bookingSource: "scheduled", time: "10:30", checkedInAt: "2026-08-25T10:05:00" }),
+      makeAppt({ id: "done", bookingSource: "scheduled", time: "09:00", status: "completed", checkedInAt: "2026-08-25T08:55:00" }),
+      makeAppt({ id: "later", bookingSource: "scheduled", time: "11:00", status: "confirmed" }),
+    ];
+    const tokens = queueTokens(buildLanes([doctor], appts, t("10:30"))[0]);
+    expect(tokens.get("done")).toBe("1");
+    expect(tokens.get("early")).toBe("2");
+    expect(tokens.get("walk")).toBe("3");
+    // Third booked slot of the day (09:00, 10:30, 11:00).
+    expect(tokens.get("later")).toBe("B3");
+  });
+
+  it("labels a walk-in that hasn't been checked in yet W<n>", () => {
+    const appts = [
+      makeAppt({ id: "w-in", bookingSource: "walk-in", time: "10:00", checkedInAt: "2026-08-25T10:00:00" }),
+      makeAppt({ id: "w-out", bookingSource: "walk-in", time: "10:30", status: "confirmed" }),
+    ];
+    const tokens = queueTokens(buildLanes([doctor], appts, t("10:15"))[0]);
+    expect(tokens.get("w-in")).toBe("1");
+    expect(tokens.get("w-out")).toBe("W2");
+  });
+
+  it("doesn't renumber earlier arrivals when someone new checks in", () => {
+    const first = makeAppt({ id: "a", checkedInAt: "2026-08-25T10:00:00" });
+    const before = queueTokens(buildLanes([doctor], [first], t("10:30"))[0]);
+    const after = queueTokens(
+      buildLanes(
+        [doctor],
+        [first, makeAppt({ id: "b", checkedInAt: "2026-08-25T10:10:00" })],
+        t("10:30"),
+      )[0],
+    );
+    expect(after.get("a")).toBe(before.get("a"));
+    expect(after.get("b")).toBe("2");
+  });
+
+  it("skips cancelled / no-show / rescheduled bookings so B<n> has no gaps", () => {
+    const appts = [
+      makeAppt({ id: "b1", bookingSource: "scheduled", time: "10:00", status: "confirmed" }),
+      makeAppt({ id: "gone", bookingSource: "scheduled", time: "10:30", status: "cancelled" }),
+      makeAppt({ id: "ns", bookingSource: "scheduled", time: "10:45", status: "no-show" }),
+      makeAppt({ id: "b2", bookingSource: "scheduled", time: "11:00", status: "confirmed" }),
+    ];
+    const tokens = queueTokens(buildLanes([doctor], appts, t("09:00"))[0]);
+    expect(tokens.get("b1")).toBe("B1");
+    expect(tokens.get("b2")).toBe("B2");
+    expect(tokens.has("gone")).toBe(false);
+    expect(tokens.has("ns")).toBe(false);
+  });
+});
+
+describe("walkInsAheadCount", () => {
+  const doctor = makeDoctor();
+
+  it("counts an early booked patient whose window opens before the walk-in's turn", () => {
+    // Patient 2 (9:30) gets priority at 9:20 — before a walk-in arriving at
+    // 9:19 behind Patient 1 would be seen, so they'll end up ahead too.
+    const appts = [
+      makeAppt({ id: "w1", bookingSource: "walk-in", time: "09:16", checkedInAt: "2026-08-25T09:16:00" }),
+      makeAppt({ id: "early", bookingSource: "scheduled", time: "09:30", checkedInAt: "2026-08-25T09:18:00" }),
+    ];
+    const lane = buildLanes([doctor], appts, t("09:19"))[0];
+    expect(lane.waiting).toHaveLength(2);
+    expect(walkInAhead(lane, t("09:19"))).toEqual({ total: 2, booked: 1 });
+  });
+
+  it("doesn't count an early booked patient whose window opens after the walk-in is seen", () => {
+    const appts = [
+      makeAppt({ id: "later", bookingSource: "scheduled", time: "11:00", checkedInAt: "2026-08-25T09:18:00" }),
+    ];
+    const lane = buildLanes([doctor], appts, t("09:19"))[0];
+    expect(walkInsAheadCount(lane, t("09:19"))).toBe(0);
+  });
+
+  it("counts a booked patient once their slot time has passed", () => {
+    const appts = [
+      makeAppt({ id: "ontime", bookingSource: "scheduled", time: "09:30", checkedInAt: "2026-08-25T09:25:00" }),
+    ];
+    const lane = buildLanes([doctor], appts, t("09:35"))[0];
+    expect(walkInsAheadCount(lane, t("09:35"))).toBe(1);
+  });
+});
+
+describe("nextArrivalToken", () => {
+  it("is the token the board gives the next check-in", () => {
+    const doctor = makeDoctor();
+    const appts = [
+      makeAppt({ id: "a", checkedInAt: "2026-08-25T10:00:00" }),
+      makeAppt({ id: "b", status: "completed", checkedInAt: "2026-08-25T09:00:00" }),
+      makeAppt({ id: "c", bookingSource: "scheduled", time: "11:00", status: "confirmed" }),
+    ];
+    const lane = buildLanes([doctor], appts, t("10:30"))[0];
+    expect(nextArrivalToken(lane)).toBe("3");
+  });
+});
+
+describe("averageConsultMinutes", () => {
+  it("averages finished visits and is null before any", () => {
+    const doctor = makeDoctor();
+    expect(averageConsultMinutes(buildLanes([doctor], [], t("10:00"))[0])).toBeNull();
+    const appts = [
+      makeAppt({ id: "x", status: "completed", consultationStartedAt: "2026-08-25T09:00:00", completedAt: "2026-08-25T09:10:00" }),
+      makeAppt({ id: "y", status: "awaiting-payment", consultationStartedAt: "2026-08-25T09:15:00", completedAt: "2026-08-25T09:29:00" }),
+    ];
+    expect(averageConsultMinutes(buildLanes([doctor], appts, t("10:00"))[0])).toBe(12);
   });
 });

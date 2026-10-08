@@ -108,7 +108,7 @@ export class HospitalContextGuard implements CanActivate {
       id: user.userId,
       userId: user.userId,
       hospitalId,
-      name: user.name || '',
+      name: user.name || user.email || '',
       email: user.email || '',
       specialization: doctorProfile?.specialization || '',
       role: userRole,

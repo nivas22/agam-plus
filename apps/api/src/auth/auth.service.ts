@@ -221,7 +221,7 @@ export class AuthService {
         uid,
         userId: userData.id,
         email: userData.email || '',
-        name: userData.name || '',
+        name: userData.name || userData.email || '',
         sid: sessionId,
       },
       opts.expiresIn,

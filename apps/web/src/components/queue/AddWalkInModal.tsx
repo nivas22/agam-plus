@@ -15,16 +15,20 @@ import type {
 import type { OnLeaveEntry } from "@/types/leaveRequest";
 import type { Patient } from "@/types/patientNew";
 import {
+  BOOKED_PRIORITY_WINDOW_MINUTES,
   computePresence,
   doctorAvailabilityNow,
   formatTime12h,
   getInitials,
   minutesToTimeStr,
+  nextArrivalToken,
   type PresenceOverride,
   projectFinish,
   type QueueLane,
   sessionCapacity,
   toISODate,
+  walkInAhead,
+  walkInsAheadCount,
 } from "./queueBoard";
 
 const TILE_TONE_CLS: Record<"ok" | "mid" | "bad" | "muted", string> = {
@@ -150,6 +154,15 @@ export default function AddWalkInModal({
     [lanes, now, presenceOverrides, onLeaveToday, today],
   );
 
+  // Rough minutes until a new walk-in would be seen: everyone the turn-order
+  // rule puts ahead of them, each taking one consult plus buffer.
+  function estimatedWaitMins(lane: QueueLane) {
+    const pace =
+      (lane.doctor.appointmentDuration || 30) +
+      Math.max(0, lane.doctor.bufferMinutes || 0);
+    return walkInsAheadCount(lane, now) * pace;
+  }
+
   function tileInfo(o: (typeof doctorOptions)[number]) {
     const heldCaption =
       o.cap.heldTotal > 0
@@ -170,11 +183,8 @@ export default function AddWalkInModal({
     if (o.cap.totalCapacity > 0 && o.cap.freeCount === 0) {
       return { label: "Full", tone: "bad" as const, caption: heldCaption };
     }
-    const queueLen = o.lane.inConsultation.length + o.lane.waiting.length;
-    const pace =
-      (o.doctor.appointmentDuration || 30) +
-      Math.max(0, o.doctor.bufferMinutes || 0);
-    const waitMins = queueLen * pace;
+    const queueLen = walkInsAheadCount(o.lane, now);
+    const waitMins = estimatedWaitMins(o.lane);
     const tone: "ok" | "mid" | "bad" =
       waitMins <= 10 ? "ok" : waitMins <= 25 ? "mid" : "bad";
     return {
@@ -236,12 +246,54 @@ export default function AddWalkInModal({
     )[0];
   }, [doctorOptions, target]);
 
-  // Re-pick a sensible default strategy whenever the chosen doctor changes.
+  // What "wait now" actually means in time, so it can be weighed against
+  // the next slot's clock time instead of a bare head count.
+  const { total: aheadCount, booked: bookedAhead } = target
+    ? walkInAhead(target.lane, now)
+    : { total: 0, booked: 0 };
+  // "3 ahead (1 booked appointment)" — booked patients go first from 10 min
+  // before their slot, so the desk can tell the walk-in why.
+  const aheadLabel =
+    aheadCount === 0
+      ? "Nobody ahead"
+      : `${aheadCount} ahead${bookedAhead > 0 ? ` (${bookedAhead === aheadCount ? (aheadCount === 1 ? "a booked appointment" : "all booked appointments") : `incl. ${bookedAhead} booked`})` : ""}`;
+  const directWaitMins = target ? estimatedWaitMins(target.lane) : 0;
+  const seenAtTime = minutesToTimeStr(
+    now.getHours() * 60 + now.getMinutes() + directWaitMins,
+  );
+
+  // Waiting is the default — it's what a walk-in came for. Coming back is
+  // only suggested when the wait is long AND the slot would get them seen
+  // sooner; otherwise the slot just delays them.
+  const recommended: FitMode | null = (() => {
+    if (!canDirect) return nextSlot ? "scheduled" : null;
+    if (!nextSlot) return "direct";
+    const [h, m] = nextSlot.time.split(":").map(Number);
+    const slotMins = h * 60 + m;
+    const seenAtMins = now.getHours() * 60 + now.getMinutes() + directWaitMins;
+    return directWaitMins >= 30 && slotMins < seenAtMins
+      ? "scheduled"
+      : "direct";
+  })();
+  // Only worth badging when there's a real choice between the two.
+  const showRecommended = canDirect && !!nextSlot;
+
+  // Follow the recommendation until the desk picks an option themselves —
+  // slots load async, so the recommendation can change after first render.
+  const [fitPicked, setFitPicked] = useState(false);
   useEffect(() => {
     setError(null);
-    setFitMode(canDirect ? "direct" : "scheduled");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    setFitPicked(false);
   }, [doctorId]);
+  useEffect(() => {
+    if (fitPicked) return;
+    setFitMode(recommended ?? (canDirect ? "direct" : "scheduled"));
+  }, [fitPicked, recommended, canDirect]);
+
+  const pickFit = (mode: FitMode) => {
+    setFitPicked(true);
+    setFitMode(mode);
+  };
 
   const matches = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -256,9 +308,8 @@ export default function AddWalkInModal({
       .slice(0, 6);
   }, [patients, search, selectedPatient]);
 
-  const queuePosition = target
-    ? target.lane.inConsultation.length + target.lane.waiting.length + 1
-    : 1;
+  // Same number the board will show once this walk-in is checked in.
+  const token = target ? nextArrivalToken(target.lane) : "1";
 
   const overCapacityPolicy = target?.doctor.overCapacityPolicy || "warn";
   const showOverrun =
@@ -491,13 +542,24 @@ export default function AddWalkInModal({
 
           {target && (
             <div>
-              <label className="text-xs font-semibold text-ink-700 mb-1.5 block">
-                How to fit them in
+              <label className="text-xs font-semibold text-ink-700 block">
+                Will they wait, or come back?
               </label>
+              <p className="text-[11px] text-ink-500 mt-0.5 mb-1.5">
+                {slotsLoading
+                  ? "Checking the doctor's free slots…"
+                  : showRecommended && nextSlot
+                  ? `Ask the patient: wait ${directWaitMins === 0 ? "— seen right away" : `about ${directWaitMins} min`}, or come back at ${formatTime12h(nextSlot.time)}?`
+                  : canDirect
+                    ? "No slot left today — they can only wait in the queue."
+                    : nextSlot
+                      ? `Dr. ${target.doctor.name} can't take walk-ins right now — book them a time to come back.`
+                      : "Neither option is open for this doctor right now."}
+              </p>
               <div className="flex flex-col gap-2">
                 <button
                   type="button"
-                  onClick={() => setFitMode("direct")}
+                  onClick={() => pickFit("direct")}
                   aria-pressed={fitMode === "direct"}
                   disabled={!canDirect}
                   className={`border rounded-lg p-3 text-left flex items-start gap-2.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
@@ -513,15 +575,28 @@ export default function AddWalkInModal({
                         : "border-border"
                     }`}
                   />
-                  <span className="min-w-0">
-                    <span
-                      className={`block text-sm font-semibold ${fitMode === "direct" ? "text-brand-violet" : "text-ink-900"}`}
-                    >
-                      Straight into the queue — no slot
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-center gap-2">
+                      <span
+                        className={`block text-sm font-semibold ${fitMode === "direct" ? "text-brand-violet" : "text-ink-900"}`}
+                      >
+                        {!canDirect
+                          ? "Wait now — not available"
+                          : directWaitMins === 0
+                            ? "Wait now — seen right away"
+                            : `Wait now — seen around ${formatTime12h(seenAtTime)}`}
+                      </span>
+                      {showRecommended && recommended === "direct" && (
+                        <span className="ml-auto shrink-0 bg-status-open-soft text-status-open rounded-md px-1.5 py-0.5 text-[10px] font-bold">
+                          RECOMMENDED
+                        </span>
+                      )}
                     </span>
                     <span className="block text-xs text-ink-500 mt-0.5">
                       {canDirect
-                        ? `Seen after the ${target.lane.inConsultation.length + target.lane.waiting.length} already waiting.`
+                        ? aheadCount === 0
+                          ? "Nobody ahead. Checked in as soon as you confirm."
+                          : `${aheadLabel} · about ${directWaitMins} min wait. Checked in as soon as you confirm.`
                         : hardBlocked
                           ? `Dr. ${target.doctor.name} is fully booked and this hospital blocks adding more walk-ins.`
                           : `Dr. ${target.doctor.name} isn't in session right now.`}
@@ -531,7 +606,7 @@ export default function AddWalkInModal({
 
                 <button
                   type="button"
-                  onClick={() => setFitMode("scheduled")}
+                  onClick={() => pickFit("scheduled")}
                   aria-pressed={fitMode === "scheduled"}
                   disabled={!nextSlot || slotsLoading}
                   className={`border rounded-lg p-3 text-left flex items-start gap-2.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
@@ -552,19 +627,24 @@ export default function AddWalkInModal({
                       <span
                         className={`block text-sm font-semibold ${fitMode === "scheduled" ? "text-brand-violet" : "text-ink-900"}`}
                       >
-                        {nextSlot
-                          ? `Next free slot — ${formatTime12h(nextSlot.time)} today`
-                          : "No free slot left today"}
+                        {slotsLoading
+                          ? "Come back later — finding a slot…"
+                          : nextSlot
+                            ? `Come back at ${formatTime12h(nextSlot.time)}`
+                            : "Come back later — no free slot left today"}
                       </span>
-                      {nextSlot && (
+                      {showRecommended && recommended === "scheduled" && (
                         <span className="ml-auto shrink-0 bg-status-open-soft text-status-open rounded-md px-1.5 py-0.5 text-[10px] font-bold">
-                          KEEPS SCHEDULE
+                          RECOMMENDED
                         </span>
                       )}
                     </span>
                     <span className="block text-xs text-ink-500 mt-0.5">
-                      Reserves the time instead of checking in now — the
-                      schedule stays honest.
+                      {nextSlot
+                        ? showRecommended && recommended === "scheduled"
+                          ? `Seen sooner than waiting ~${directWaitMins} min. Books the next free slot — check them in when they return.`
+                          : "Books the next free slot so the doctor's day stays on time. Not checked in until they return."
+                        : "Every slot today is taken."}
                     </span>
                   </span>
                 </button>
@@ -688,20 +768,24 @@ export default function AddWalkInModal({
           {target && selectedPatient && canSubmit && (
             <div className="flex items-center gap-3 bg-surface-canvas/60 border border-border rounded-lg p-3">
               <span className="w-11 h-11 rounded-lg bg-brand-violet text-white flex items-center justify-center font-mono text-base font-semibold shrink-0">
-                {String(fitMode === "direct" ? queuePosition : "—").padStart(
-                  fitMode === "direct" ? 2 : 1,
-                  "0",
-                )}
+                {fitMode === "direct" ? token : "—"}
               </span>
               <span className="text-xs text-ink-700 leading-relaxed">
                 {fitMode === "direct" ? (
                   <>
                     <b className="text-ink-900">
-                      Token {String(queuePosition).padStart(2, "0")}
+                      Token {token}
                     </b>{" "}
-                    for {selectedPatient.name}. They&apos;ll be seen after the{" "}
-                    {queuePosition - 1} people already ahead — checked in as
+                    for {selectedPatient.name}. {aheadLabel}. Checked in as
                     soon as you confirm.
+                    {bookedAhead > 0 && (
+                      <>
+                        {" "}
+                        Booked patients go first from{" "}
+                        {BOOKED_PRIORITY_WINDOW_MINUTES} min before their slot,
+                        so the token number isn&apos;t their place in line.
+                      </>
+                    )}
                   </>
                 ) : (
                   <>

@@ -21,7 +21,10 @@ export class AuditService {
       hospitalId: params.hospitalId,
       at: new Date(),
       actorUserId: params.actor.userId,
-      actorName: params.actor.name,
+      // actorName is required on the schema — accounts created without a name
+      // (and tokens issued before the email fallback) would otherwise fail the
+      // whole request that is being audited.
+      actorName: params.actor.name?.trim() || 'Unknown user',
       actorRole: params.actor.role,
       action: params.action,
       area: params.area,
