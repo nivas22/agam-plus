@@ -93,6 +93,15 @@ Use this for a patient who would rather come back later than wait now.
 | The wait is long and the patient wants to come back at a fixed time | Next free slot |
 | Doctor is fully booked but the patient must be seen today | Straight into the queue (if the hospital allows it) |
 
+In the dialog the two options are worded from the patient's side: **Wait now — seen around <time>** and **Come back at <slot time>**. The direct option shows the estimated time to be seen (people ahead × consult length + buffer), so the desk can compare it with the slot time.
+
+One option is pre-selected and tagged **Recommended**:
+
+- **Wait now** by default.
+- **Come back** only when the wait is 30 minutes or more *and* the slot would get the patient seen sooner than waiting.
+
+Once the desk picks an option, it stays picked. Changing the doctor clears that choice.
+
 ---
 
 ## 3. Who is next? (turn-order rule)
