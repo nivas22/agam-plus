@@ -16,9 +16,9 @@ const appt = (over: Partial<Appointment> & Pick<Appointment, 'id' | 'source'>): 
 const ids = (entries: ReturnType<typeof orderQueue>) => entries.map((e) => e.appointment.id);
 
 describe('readyAt', () => {
-  it('holds a booked patient to their slot when they arrive early', () => {
+  it('holds a very early booked patient to 10 min before their slot', () => {
     const early = appt({ id: 'a', source: 'booked', scheduledStart: at('11:00'), checkedInAt: at('10:30') });
-    expect(readyAt(early)).toBe(Date.parse(at('11:00')));
+    expect(readyAt(early)).toBe(Date.parse(at('10:50')));
   });
 
   it('makes a walk-in ready at check-in', () => {
@@ -33,7 +33,27 @@ describe('readyAt', () => {
 });
 
 describe('orderQueue', () => {
-  it('orders by readyAt, so arriving early gains a booked patient nothing', () => {
+  it('puts a booked patient inside their 10-min window ahead of walk-ins who arrived earlier', () => {
+    const p1 = appt({ id: 'p1', source: 'walk_in', checkedInAt: at('09:16') });
+    const p2 = appt({ id: 'p2', source: 'booked', scheduledStart: at('09:30'), checkedInAt: at('09:18') });
+    const p3 = appt({ id: 'p3', source: 'walk_in', checkedInAt: at('09:19') });
+
+    // 9:19 — 12 min early, priority not started yet.
+    expect(ids(orderQueue([p1, p2, p3], Date.parse(at('09:19'))))).toEqual(['p1', 'p3', 'p2']);
+    // 9:20 — inside the window.
+    expect(ids(orderQueue([p1, p2, p3], Date.parse(at('09:20'))))).toEqual(['p2', 'p1', 'p3']);
+  });
+
+  it('gives a late booked patient no priority', () => {
+    const late = appt({ id: 'late', source: 'booked', scheduledStart: at('11:00'), checkedInAt: at('11:10') });
+    const walkIn = appt({ id: 'walkin', source: 'walk_in', checkedInAt: at('11:05') });
+
+    const entries = orderQueue([late, walkIn], NOW);
+    expect(ids(entries)).toEqual(['walkin', 'late']);
+    expect(entries[1].reason).toContain('10 min late');
+  });
+
+  it('keeps booked patients inside their window in slot order', () => {
     const early = appt({ id: 'early', source: 'booked', scheduledStart: at('11:15'), checkedInAt: at('09:00') });
     const onTime = appt({ id: 'ontime', source: 'booked', scheduledStart: at('10:45'), checkedInAt: at('10:44') });
 

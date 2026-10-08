@@ -15,6 +15,7 @@ import type {
 import type { OnLeaveEntry } from "@/types/leaveRequest";
 import type { Patient } from "@/types/patientNew";
 import {
+  BOOKED_PRIORITY_WINDOW_MINUTES,
   computePresence,
   doctorAvailabilityNow,
   formatTime12h,
@@ -26,6 +27,8 @@ import {
   type QueueLane,
   sessionCapacity,
   toISODate,
+  walkInAhead,
+  walkInsAheadCount,
 } from "./queueBoard";
 
 const TILE_TONE_CLS: Record<"ok" | "mid" | "bad" | "muted", string> = {
@@ -151,14 +154,13 @@ export default function AddWalkInModal({
     [lanes, now, presenceOverrides, onLeaveToday, today],
   );
 
-  // Rough minutes until a new walk-in would be seen: everyone already in
-  // the room or waiting, each taking one consult plus buffer.
+  // Rough minutes until a new walk-in would be seen: everyone the turn-order
+  // rule puts ahead of them, each taking one consult plus buffer.
   function estimatedWaitMins(lane: QueueLane) {
-    const queueLen = lane.inConsultation.length + lane.waiting.length;
     const pace =
       (lane.doctor.appointmentDuration || 30) +
       Math.max(0, lane.doctor.bufferMinutes || 0);
-    return queueLen * pace;
+    return walkInsAheadCount(lane, now) * pace;
   }
 
   function tileInfo(o: (typeof doctorOptions)[number]) {
@@ -181,7 +183,7 @@ export default function AddWalkInModal({
     if (o.cap.totalCapacity > 0 && o.cap.freeCount === 0) {
       return { label: "Full", tone: "bad" as const, caption: heldCaption };
     }
-    const queueLen = o.lane.inConsultation.length + o.lane.waiting.length;
+    const queueLen = walkInsAheadCount(o.lane, now);
     const waitMins = estimatedWaitMins(o.lane);
     const tone: "ok" | "mid" | "bad" =
       waitMins <= 10 ? "ok" : waitMins <= 25 ? "mid" : "bad";
@@ -246,9 +248,15 @@ export default function AddWalkInModal({
 
   // What "wait now" actually means in time, so it can be weighed against
   // the next slot's clock time instead of a bare head count.
-  const aheadCount = target
-    ? target.lane.inConsultation.length + target.lane.waiting.length
-    : 0;
+  const { total: aheadCount, booked: bookedAhead } = target
+    ? walkInAhead(target.lane, now)
+    : { total: 0, booked: 0 };
+  // "3 ahead (1 booked appointment)" — booked patients go first from 10 min
+  // before their slot, so the desk can tell the walk-in why.
+  const aheadLabel =
+    aheadCount === 0
+      ? "Nobody ahead"
+      : `${aheadCount} ahead${bookedAhead > 0 ? ` (${bookedAhead === aheadCount ? (aheadCount === 1 ? "a booked appointment" : "all booked appointments") : `incl. ${bookedAhead} booked`})` : ""}`;
   const directWaitMins = target ? estimatedWaitMins(target.lane) : 0;
   const seenAtTime = minutesToTimeStr(
     now.getHours() * 60 + now.getMinutes() + directWaitMins,
@@ -300,9 +308,6 @@ export default function AddWalkInModal({
       .slice(0, 6);
   }, [patients, search, selectedPatient]);
 
-  const queuePosition = target
-    ? target.lane.inConsultation.length + target.lane.waiting.length + 1
-    : 1;
   // Same number the board will show once this walk-in is checked in.
   const token = target ? nextArrivalToken(target.lane) : "1";
 
@@ -591,7 +596,7 @@ export default function AddWalkInModal({
                       {canDirect
                         ? aheadCount === 0
                           ? "Nobody ahead. Checked in as soon as you confirm."
-                          : `${aheadCount} ahead · about ${directWaitMins} min wait. Checked in as soon as you confirm.`
+                          : `${aheadLabel} · about ${directWaitMins} min wait. Checked in as soon as you confirm.`
                         : hardBlocked
                           ? `Dr. ${target.doctor.name} is fully booked and this hospital blocks adding more walk-ins.`
                           : `Dr. ${target.doctor.name} isn't in session right now.`}
@@ -771,9 +776,16 @@ export default function AddWalkInModal({
                     <b className="text-ink-900">
                       Token {token}
                     </b>{" "}
-                    for {selectedPatient.name}. They&apos;ll be seen after the{" "}
-                    {queuePosition - 1} people already ahead — checked in as
+                    for {selectedPatient.name}. {aheadLabel}. Checked in as
                     soon as you confirm.
+                    {bookedAhead > 0 && (
+                      <>
+                        {" "}
+                        Booked patients go first from{" "}
+                        {BOOKED_PRIORITY_WINDOW_MINUTES} min before their slot,
+                        so the token number isn&apos;t their place in line.
+                      </>
+                    )}
                   </>
                 ) : (
                   <>

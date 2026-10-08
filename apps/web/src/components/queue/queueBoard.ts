@@ -699,16 +699,48 @@ export interface OrderedQueueEntry {
   reason: string;
 }
 
-// A booked patient isn't "ready" before their slot — arriving early gains
-// them nothing. A walk-in is ready the moment they check in. A booked
-// patient who arrives after their slot is simply ready at arrival, which
-// automatically costs them their place; no separate grace-period rule
-// is needed on top of this.
+// A booked patient who has checked in by their slot time goes ahead of
+// ordinary walk-ins from this many minutes before the slot. Arriving even
+// earlier is fine — they can check in — but priority only starts here.
+export const BOOKED_PRIORITY_WINDOW_MINUTES = 10;
+
+const MINUTE_MS = 60 * 1000;
+
+// Checked in after their slot time — a late booked patient keeps no
+// priority and queues like a walk-in from the moment they arrive.
+function isLateBooking(candidate: QueueCandidate): boolean {
+  return (
+    !!candidate.scheduledStart &&
+    candidate.checkedInAt.getTime() > candidate.scheduledStart.getTime()
+  );
+}
+
+// When a booked, on-time patient's priority starts (slot − window), or
+// null for walk-ins and late arrivals, who never get booked priority.
+function priorityFrom(candidate: QueueCandidate): Date | null {
+  if (!candidate.scheduledStart || isLateBooking(candidate)) return null;
+  return new Date(
+    candidate.scheduledStart.getTime() -
+      BOOKED_PRIORITY_WINDOW_MINUTES * MINUTE_MS,
+  );
+}
+
+// When a patient may first be called. A walk-in or a late booked patient
+// is ready the moment they check in. An on-time booked patient is ready
+// from the start of their priority window, or from check-in if they
+// arrived inside it.
 function readyAt(candidate: QueueCandidate): Date {
-  if (!candidate.scheduledStart) return candidate.checkedInAt;
-  return candidate.checkedInAt.getTime() > candidate.scheduledStart.getTime()
+  const from = priorityFrom(candidate);
+  if (!from) return candidate.checkedInAt;
+  return candidate.checkedInAt.getTime() > from.getTime()
     ? candidate.checkedInAt
-    : candidate.scheduledStart;
+    : from;
+}
+
+// Booked, on time, and already inside their priority window.
+function hasBookedPriority(candidate: QueueCandidate, now: Date): boolean {
+  const from = priorityFrom(candidate);
+  return !!from && from.getTime() <= now.getTime();
 }
 
 function clockTime(d: Date): string {
@@ -716,14 +748,13 @@ function clockTime(d: Date): string {
 }
 
 // An online booking has two distinct times worth showing side by side — the
-// slot they booked and when they actually checked in — since readyAt only
-// ever surfaces whichever of the two was later. A walk-in has no "booked
-// time" at all, so it only ever shows when they checked in.
+// slot they booked and when they actually checked in. A walk-in has no
+// "booked time" at all, so it only ever shows when they checked in.
 //
-// For a booked patient whose slot hasn't arrived yet, also name the
-// earliness — otherwise the desk has no way to tell "ranked last because
-// ready in 54 min" from "ranked last for no visible reason". Walk-ins are
-// always ready at checkedInAt, so this branch never applies to them.
+// A booked patient's position also depends on whether their priority has
+// started, so name that too — otherwise the desk can't tell "behind the
+// walk-ins until 9:20" or "lost priority by arriving late" from "ranked
+// there for no visible reason".
 function baseReason(candidate: QueueCandidate, now: Date): string {
   if (candidate.bookingSource === "walk-in") {
     return `walked in ${clockTime(candidate.checkedInAt)}`;
@@ -731,9 +762,12 @@ function baseReason(candidate: QueueCandidate, now: Date): string {
   const bookedTime = clockTime(candidate.scheduledStart ?? candidate.checkedInAt);
   const checkedInTime = clockTime(candidate.checkedInAt);
   const label = `booked ${bookedTime} · checked in ${checkedInTime}`;
-  const ready = readyAt(candidate);
-  if (ready.getTime() > now.getTime()) {
-    return `${label} — ${minutesElapsed(now, ready)} min early`;
+  if (isLateBooking(candidate)) {
+    return `${label} — ${minutesElapsed(candidate.scheduledStart!, candidate.checkedInAt)} min late`;
+  }
+  const from = priorityFrom(candidate);
+  if (from && from.getTime() > now.getTime()) {
+    return `${label} — priority from ${clockTime(from)}`;
   }
   return label;
 }
@@ -762,10 +796,11 @@ function compareStable(
 // physically waiting, not a schedule of who's expected; callers must filter
 // out yet-to-arrive appointments before mapping them to QueueCandidate.
 //
-// Precedence: urgent override -> fairness-promoted walk-ins -> everyone
-// else by readyAt. heldSlotsPerSession/acceptWalkIns and bookingSource
-// deliberately play no role here — capacity and turn order are separate
-// concerns (see sessionCapacity above).
+// Precedence: urgent override -> fairness-promoted walk-ins -> booked
+// patients inside their priority window (by slot time) -> everyone else by
+// readyAt. heldSlotsPerSession/acceptWalkIns deliberately play no role
+// here — capacity and turn order are separate concerns (see
+// sessionCapacity above).
 // A candidate whose readyAt is this far behind `now` almost certainly isn't
 // today's patient — it's a stale record that slipped past the caller's date
 // filter (see buildLanes). Purely a dev-time signal; orderQueue still ranks
@@ -805,16 +840,22 @@ export function orderQueue(
       minutesElapsed(c.checkedInAt, now) >= fairnessMinutes,
   );
   const promotedIds = new Set(promoted.map((c) => c.id));
-  const remaining = rest.filter((c) => !promotedIds.has(c.id));
+  const notPromoted = rest.filter((c) => !promotedIds.has(c.id));
+  const bookedPriority = notPromoted.filter((c) => hasBookedPriority(c, now));
+  const remaining = notPromoted.filter((c) => !hasBookedPriority(c, now));
 
   urgent.sort((a, b) =>
     compareStable(a, b, (c) => c.urgentOverrideAt!.getTime()),
   );
   // Longest-waiting first among promoted walk-ins.
   promoted.sort((a, b) => compareStable(a, b, (c) => c.checkedInAt.getTime()));
+  // Booked patients keep the order of their slots.
+  bookedPriority.sort((a, b) =>
+    compareStable(a, b, (c) => c.scheduledStart!.getTime()),
+  );
   remaining.sort((a, b) => compareStable(a, b, (c) => readyAt(c).getTime()));
 
-  return [...urgent, ...promoted, ...remaining].map((c) => {
+  return [...urgent, ...promoted, ...bookedPriority, ...remaining].map((c) => {
     if (c.urgentOverrideAt) {
       return {
         id: c.id,
@@ -867,6 +908,70 @@ export function appointmentToQueueCandidate(
       : null,
     urgentOverrideReason: appt.urgentOverrideReason,
   };
+}
+
+export interface WalkInAhead {
+  // Everyone a walk-in checking in now would have ahead of them.
+  total: number;
+  // How many of those are booked patients, there by booked priority.
+  booked: number;
+}
+
+// Who a walk-in checking in at `now` would actually have ahead of them —
+// whoever is in the room, the waiting patients orderQueue ranks before
+// them, and any early booked patient whose priority window opens before
+// the walk-in's turn comes round (they'll jump ahead at that point).
+export function walkInAhead(lane: QueueLane, now: Date): WalkInAhead {
+  const pace =
+    (lane.doctor.appointmentDuration || 30) +
+    Math.max(0, lane.doctor.bufferMinutes || 0);
+  const waiting = lane.waiting
+    .map(appointmentToQueueCandidate)
+    .filter((c): c is QueueCandidate => c !== null);
+
+  const PROBE_ID = " new-walk-in";
+  const ranked = orderQueue(
+    [
+      ...waiting,
+      {
+        id: PROBE_ID,
+        bookingSource: "walk-in",
+        checkedInAt: now,
+        scheduledStart: null,
+        urgentOverrideAt: null,
+      },
+    ],
+    {
+      walkinFairnessMinutes:
+        lane.doctor.walkinFairnessMinutes ?? DEFAULT_WALKIN_FAIRNESS_MINUTES,
+    },
+    now,
+  );
+  // Waiting patients with no check-in time sit unranked after everyone
+  // else, so they never come before the new walk-in.
+  const rankedAheadIds = new Set(
+    ranked.slice(0, ranked.findIndex((e) => e.id === PROBE_ID)).map((e) => e.id),
+  );
+  let total = lane.inConsultation.length + rankedAheadIds.size;
+  let booked = waiting.filter(
+    (c) => rankedAheadIds.has(c.id) && hasBookedPriority(c, now),
+  ).length;
+
+  const pending = waiting
+    .map(priorityFrom)
+    .filter((from): from is Date => !!from && from.getTime() > now.getTime())
+    .sort((a, b) => a.getTime() - b.getTime());
+  for (const from of pending) {
+    const turnAt = now.getTime() + total * pace * MINUTE_MS;
+    if (from.getTime() >= turnAt) break;
+    total += 1;
+    booked += 1;
+  }
+  return { total, booked };
+}
+
+export function walkInsAheadCount(lane: QueueLane, now: Date): number {
+  return walkInAhead(lane, now).total;
 }
 
 export interface WaitingOrder {
